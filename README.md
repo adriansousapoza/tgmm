@@ -1,2 +1,2 @@
-# torch-mixture-models
-This repository contains mixture models implemented in pytorch
+# torch-gaussian-mixture-models
+This repository contains Gaussian mixture models implemented in pytorch
