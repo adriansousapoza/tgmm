@@ -10,88 +10,79 @@ class GaussianMixture(nn.Module):
     Parameters
     ----------
     n_features : int
-        The number of features.
+        The number of features in the dataset.
     n_components : int, default=1
         The number of mixture components.
-    covariance_type : {'full', 'tied', 'diagonal', 'spherical'}, default='full'
-        The type of covariance to use. Must be one of:
-        - 'full': each component has its own general covariance matrix
-        - 'tied': all components share the same general covariance matrix
-        - 'diagonal': each component has its own diagonal covariance matrix
-        - 'spherical': each component has its own single variance
+    covariance_type : {'full', 'tied', 'diagonal', 'spherical'}, default='diagonal'
+        The type of covariance parameters to use.
     tol : float, default=1e-5
-        The convergence threshold. EM iterations will stop when the lower bound average gain is below this threshold.
+        Convergence threshold.
     reg_covar : float, default=1e-10
-        Non-negative regularization added to the diagonal of covariance. Allows to assure that the covariance matrices are all positive.
+        Non-negative regularization added to the diagonal of covariance.
     max_iter : int, default=1000
-        The maximum number of EM iterations to perform.
+        The number of EM iterations to perform.
     n_init : int, default=1
-        The number of initializations to perform. The best results are kept.
-    init_params : {'random', 'kpp', 'points'}, default='random'
-        The method used to initialize the weights, the means and the precisions. Must be one of:
-        - 'random': parameters are initialized randomly
-        - 'kpp': parameters are initialized using the K-means++ method
-        - 'points': parameters are initialized using a subset of the data points
-    weights_init : array-like, shape (n_components,), default=None
-        The initial weights. If None, weights are initialized using the init_params method.
-    means_init : array-like, shape (n_components, n_features), default=None
-        The initial means. If None, means are initialized using the init_params method.
-    covariances_init : array-like, default=None
-        The initial variances. If None, variances are initialized using the init_params method. The shape depends on the covariance_type:
-        - 'full': (n_components, n_features, n_features)
-        - 'tied': (n_features, n_features)
-        - 'diagonal': (n_components, n_features)
-        - 'spherical': (n_components,)
-    precisions_init : array-like, default=None
-        The initial precisions. If None, precisions are initialized using the init_params method. The shape depends on the covariance_type:
-        - 'full': (n_components, n_features, n_features)
-        - 'tied': (n_features, n_features)
-        - 'diagonal': (n_components, n_features)
-        - 'spherical': (n_components,)
+        The number of initializations to perform.
+    init_params : {'random', 'points', 'kpp', 'kmeans', 'maxdist'}, default='random'
+        The method used to initialize the weights, the means, and the covariances.
+    weights_init : tensor, default=None
+        The initial weights.
+    means_init : tensor, default=None
+        The initial means.
+    covariances_init : tensor, default=None
+        The initial covariances.
+    precisions_init : tensor, default=None
+        The initial precisions.
+    weights_prior : distribution or list of distributions, default=None
+        The prior distribution for weights.
+    means_prior : distribution or list of distributions, default=None
+        The prior distribution for means.
+    covariances_prior : distribution or list of distributions, default=None
+        The prior distribution for covariances.
+    precisions_prior : distribution or list of distributions, default=None
+        The prior distribution for precisions.
     random_state : int, default=None
-        Controls the random seed given at the beginning of the algorithm.
+        The seed used by the random number generator.
     warm_start : bool, default=False
-        If True, the solution of the last fitting is used as initialization for the next call.
+        If True, reuse the solution of the last fit.
     verbose : int, default=0
-        Controls the verbosity of the algorithm.
+        Enable verbose output.
     verbose_interval : int, default=10
-        The number of iterations between each verbose output.
-
+        Number of iteration done before the next print.
+    device : {'cpu', 'cuda'}, default=None
+        The device on which the model is run.
 
     Attributes
     ----------
-    weights_ : torch.Tensor, shape (n_components,)
+    weights_ : tensor
         The weights of each mixture component.
-    means_ : torch.Tensor, shape (n_components, n_features)
+    means_ : tensor
         The mean of each mixture component.
-    covariances_ : torch.Tensor
-        The covariance of each mixture component. The shape depends on the covariance_type:
-        - 'full': (n_components, n_features, n_features)
-        - 'tied': (n_features, n_features)
-        - 'diagonal': (n_components, n_features)
-        - 'spherical': (n_components,)
-    precisions_ : torch.Tensor
-        The precision of each mixture component. The precision is the inverse of the covariance. The shape depends on the covariance_type:
-        - 'full': (n_components, n_features, n_features)
-        - 'tied': (n_features, n_features)
-        - 'diagonal': (n_components, n_features)
-        - 'spherical': (n_components,)
-    precisions_cholesky_ : torch.Tensor
-        The Cholesky decomposition of the precision of each mixture component. The shape depends on the covariance_type:
-        - 'full': (n_components, n_features, n_features)
-        - 'tied': (n_features, n_features)
-        - 'diagonal': (n_components, n_features)
-        - 'spherical': (n_components,)
+    covariances_ : tensor
+        The covariance of each mixture component.
+    precisions_ : tensor
+        The precision of each mixture component.
+    fitted_ : bool
+        True if the model is fitted, False otherwise.
     converged_ : bool
-        True when the EM algorithm has converged.
+        True if the model has converged, False otherwise.
     n_iter_ : int
-        The number of iterations performed.
+        Number of step used by the best fit.
     lower_bound_ : float
-        The lower bound value of the log-likelihood at the end of the last EM iteration.
+        Log-likelihood of the best fit.
 
     Methods
     -------
-    TODO
+    fit(X, max_iter=None, tol=None, n_init=None, random_state=None, warm_start=None):
+        Fit the Gaussian mixture model.
+    sample(n_samples=1):
+        Generate random samples from the fitted Gaussian distribution.
+    predict(X):
+        Predict the labels for the data samples in X using trained model.
+    score_samples(X):
+        Return the per-sample likelihood of the data under the model.
+    evaluate_clustering(X, true_labels=None, metrics=None):
+        Evaluate clustering metrics against true labels.
     """
 
     def __init__(
@@ -108,6 +99,10 @@ class GaussianMixture(nn.Module):
             means_init=None,
             covariances_init=None,
             precisions_init=None,
+            weights_prior=None,
+            means_prior=None,
+            covariances_prior=None,
+            precisions_prior=None,
             random_state=None,
             warm_start=False,
             verbose=0,
@@ -129,6 +124,10 @@ class GaussianMixture(nn.Module):
         self.means_init = means_init
         self.covariances_init = covariances_init
         self.precisions_init = precisions_init
+        self.weights_prior = weights_prior
+        self.means_prior = means_prior
+        self.covariances_prior = covariances_prior
+        self.precisions_prior = precisions_prior
         self.random_state = random_state
         self.warm_start = warm_start
         self.verbose = verbose
@@ -139,13 +138,11 @@ class GaussianMixture(nn.Module):
         self.means_ = None
         self.covariances_ = None
         self.precisions_ = None
+        self.fitted_ = False
 
         self._init_params()
 
     def _init_params(self):
-        """
-        Initialize the model parameters.
-        """
         if self.random_state is not None:
             torch.manual_seed(self.random_state)
         
@@ -211,55 +208,132 @@ class GaussianMixture(nn.Module):
         self.covariances_ = self.covariances_.to(self.device)
         self.precisions_ = self.precisions_.to(self.device)
 
-    def _update_weights(self, resp):
-        self.weights_ = resp.sum(dim=0) / resp.sum()
-    
-    def _update_means(self, X, resp):
-        weighted_sum = torch.mm(resp.t(), X)
-        weights_sum = resp.sum(dim=0).unsqueeze(-1)
-        self.means_ = weighted_sum / weights_sum
+    def _prior_log_prob(self, X):
+        """
+        Compute the log probability of the prior distributions.
 
-    def _update_covariances(self, X, resp):
-        if self.covariance_type == 'full':
-            for k in range(self.n_components):
-                diff = X - self.means_[k].unsqueeze(0)
-                weighted_diff = diff.unsqueeze(2) * resp[:, k].unsqueeze(-1).unsqueeze(-1)
-                cov_k = torch.matmul(weighted_diff, diff.unsqueeze(1)).sum(dim=0) / resp[:, k].sum()
-                self.covariances_[k] = cov_k + torch.eye(self.n_features, device=self.device) * self.reg_covar
-        elif self.covariance_type == 'diagonal':
-            for k in range(self.n_components):
-                diff = X - self.means_[k]
-                self.covariances_[k] = (resp[:, k].unsqueeze(-1) * diff.pow(2)).sum(dim=0) / resp[:, k].sum()
-                self.covariances_[k] = self.covariances_[k] + self.reg_covar
-        elif self.covariance_type == 'spherical':
-            for k in range(self.n_components):
-                diff = X - self.means_[k]
-                self.covariances_[k] = (resp[:, k] * diff.pow(2).sum(dim=1)).sum() / (self.n_features * resp[:, k].sum())
-                self.covariances_[k] = self.covariances_[k] + self.reg_covar
-        elif self.covariance_type == 'tied':
-            total_resp = resp.sum(dim=0)
-            average_covariance = torch.zeros((self.n_features, self.n_features), device=self.device)
-            for k in range(self.n_components):
-                diff = X - self.means_[k]
-                average_covariance = average_covariance + torch.mm((resp[:, k].unsqueeze(1) * diff).t(), diff)
-            self.covariances_ = average_covariance / total_resp.sum()
-            self.covariances_ = self.covariances_ + torch.eye(self.n_features, device=self.device) * self.reg_covar
-        else:
-            print("Covariance type not supported (yet)")
+        Parameters
+        ----------
+        X : tensor
+            Input data.
+
+        Returns
+        -------
+        log_resp_prior : tensor
+            Log probability of the prior distributions.
+        """
+
+        n_samples, n_features = X.shape
+        log_resp_prior = torch.zeros((n_samples, self.n_components), dtype=torch.float32, device=self.device)
+        
+        # Weights prior
+        if self.weights_prior is not None:
+            if hasattr(self.weights_prior, 'log_prob'):
+                prior_log_prob = self.weights_prior.log_prob(self.weights_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            elif isinstance(self.weights_prior, torch.distributions.Distribution):
+                prior_log_prob = self.weights_prior.log_prob(self.weights_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            else:
+                raise ValueError("Unsupported weights prior type")
+        
+        # Means prior
+        if self.means_prior is not None:
+            if isinstance(self.means_prior, list):
+                for k in range(self.n_components):
+                    if hasattr(self.means_prior[k], 'log_prob'):
+                        prior_log_prob = self.means_prior[k].log_prob(self.means_[k])
+                        log_resp_prior[:, k] += prior_log_prob
+                    elif isinstance(self.means_prior[k], torch.distributions.Distribution):
+                        prior_log_prob = self.means_prior[k].log_prob(self.means_[k])
+                        log_resp_prior[:, k] += prior_log_prob
+                    else:
+                        raise ValueError(f"Unsupported prior type for component {k}")
+            elif hasattr(self.means_prior, 'log_prob'):
+                prior_log_prob = self.means_prior.log_prob(self.means_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            elif isinstance(self.means_prior, torch.distributions.Distribution):
+                prior_log_prob = self.means_prior.log_prob(self.means_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            else:
+                raise ValueError("Unsupported prior type")
+        
+        if self.covariances_prior is not None and self.precisions_prior is not None:
+            raise ValueError("Covariances and precisions prior cannot be used simultaneously")
+        
+        # Covariances prior
+        if self.covariances_prior is not None:
+            if isinstance(self.covariances_prior, list):
+                for k in range(self.n_components):
+                    if hasattr(self.covariances_prior[k], 'log_prob'):
+                        prior_log_prob = self.covariances_prior[k].log_prob(self.covariances_[k])
+                        log_resp_prior[:, k] += prior_log_prob
+                    elif isinstance(self.covariances_prior[k], torch.distributions.Distribution):
+                        prior_log_prob = self.covariances_prior[k].log_prob(self.covariances_[k])
+                        log_resp_prior[:, k] += prior_log_prob
+                    else:
+                        raise ValueError(f"Unsupported covariances prior type for component {k}")
+            elif hasattr(self.covariances_prior, 'log_prob'):
+                prior_log_prob = self.covariances_prior.log_prob(self.covariances_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            elif isinstance(self.covariances_prior, torch.distributions.Distribution):
+                prior_log_prob = self.covariances_prior.log_prob(self.covariances_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            else:
+                raise ValueError("Unsupported covariances prior type")
+
+        # Precisions prior
+        elif self.precisions_prior is not None:
+            if isinstance(self.precisions_prior, list):
+                for k in range(self.n_components):
+                    if hasattr(self.precisions_prior[k], 'log_prob'):
+                        prior_log_prob = self.precisions_prior[k].log_prob(self.precisions_[k])
+                        log_resp_prior[:, k] += prior_log_prob
+                    elif isinstance(self.precisions_prior[k], torch.distributions.Distribution):
+                        prior_log_prob = self.precisions_prior[k].log_prob(self.precisions_[k])
+                        log_resp_prior[:, k] += prior_log_prob
+                    else:
+                        raise ValueError(f"Unsupported precisions prior type for component {k}")
+            elif hasattr(self.precisions_prior, 'log_prob'):
+                prior_log_prob = self.precisions_prior.log_prob(self.precisions_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            elif isinstance(self.precisions_prior, torch.distributions.Distribution):
+                prior_log_prob = self.precisions_prior.log_prob(self.precisions_)
+                log_resp_prior += prior_log_prob.unsqueeze(0).repeat(n_samples, 1)
+            else:
+                raise ValueError("Unsupported precisions prior type")
+        
+        return log_resp_prior
 
     def _e_step(self, X):
+        """
+        Perform the E-step of the EM algorithm.
+
+        Parameters
+        ----------
+        X : tensor
+            Input data.
+
+        Returns
+        -------
+        resp : tensor
+            Responsibilities for each data point and each component.
+        log_prob_norm : tensor
+            Log of the sum of the responsibilities for each data point.
+        """
+
         X = X.to(self.device)
         n_samples, n_features = X.shape
-        log_resp = torch.zeros((n_samples, self.n_components), dtype=torch.float, device=self.device)
+        log_resp = torch.zeros((n_samples, self.n_components), dtype=torch.float32, device=self.device)
 
         log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
 
         for k in range(self.n_components):
             mean = self.means_[k]
-            if self.covariance_type == 'full':
-                cov_matrix = self.covariances_[k] + torch.eye(n_features, device=self.device) * self.reg_covar
-                precision = torch.inverse(cov_matrix)
-                log_det_cov = torch.logdet(cov_matrix)
+            if self.covariance_type == 'spherical':
+                cov_matrix = self.covariances_[k] + self.reg_covar
+                precision = 1.0 / cov_matrix
+                log_det_cov = n_features * torch.log(cov_matrix)
             elif self.covariance_type == 'diagonal':
                 cov_matrix = self.covariances_[k] + self.reg_covar
                 precision = 1.0 / cov_matrix
@@ -268,10 +342,10 @@ class GaussianMixture(nn.Module):
                 cov_matrix = self.covariances_ + torch.eye(n_features, device=self.device) * self.reg_covar
                 precision = torch.inverse(cov_matrix)
                 log_det_cov = torch.logdet(cov_matrix)
-            elif self.covariance_type == 'spherical':
-                cov_matrix = self.covariances_[k] + self.reg_covar
-                precision = 1.0 / cov_matrix
-                log_det_cov = n_features * torch.log(cov_matrix)
+            elif self.covariance_type == 'full':
+                cov_matrix = self.covariances_[k] + torch.eye(n_features, device=self.device) * self.reg_covar
+                precision = torch.inverse(cov_matrix)
+                log_det_cov = torch.logdet(cov_matrix)
             else:
                 raise ValueError("Unsupported covariance type")
             
@@ -284,14 +358,59 @@ class GaussianMixture(nn.Module):
             log_prob = -0.5 * (n_features * log_2pi + log_det_cov + mahalanobis)
             log_resp[:, k] = torch.log(self.weights_[k]) + log_prob
 
+        log_resp = log_resp + self._prior_log_prob(X)
+
         log_prob_norm = torch.logsumexp(log_resp, dim=1, keepdim=True)
         log_resp = log_resp - log_prob_norm
         return torch.exp(log_resp), log_prob_norm.sum()
     
     def _m_step(self, X, resp):
-        self._update_weights(resp)
-        self._update_means(X, resp)
-        self._update_covariances(X, resp)
+        """
+        Perform the M-step of the EM algorithm.
+
+        Parameters
+        ----------
+        X : tensor
+            Input data.
+        resp : tensor
+            Responsibilities for each data point and each component.
+        """
+
+        # Update weights
+        self.weights_ = resp.sum(dim=0) / resp.sum()
+
+        # Update means
+        weighted_sum = torch.mm(resp.t(), X)
+        weights_sum = resp.sum(dim=0).unsqueeze(-1)
+        self.means_ = weighted_sum / weights_sum
+
+        # Update covariances and precisions
+        if self.covariance_type == 'full':
+            for k in range(self.n_components):
+                diff = X - self.means_[k].unsqueeze(0)
+                weighted_diff = diff.unsqueeze(2) * resp[:, k].unsqueeze(-1).unsqueeze(-1)
+                cov_k = torch.matmul(weighted_diff, diff.unsqueeze(1)).sum(dim=0) / resp[:, k].sum()
+                self.covariances_[k] = cov_k + torch.eye(self.n_features, device=self.device) * self.reg_covar
+        elif self.covariance_type == 'tied':
+            total_resp = resp.sum(dim=0)
+            average_covariance = torch.zeros((self.n_features, self.n_features), device=self.device)
+            for k in range(self.n_components):
+                diff = X - self.means_[k]
+                average_covariance = average_covariance + torch.mm((resp[:, k].unsqueeze(1) * diff).t(), diff)
+            self.covariances_ = average_covariance / total_resp.sum()
+            self.covariances_ = self.covariances_ + torch.eye(self.n_features, device=self.device) * self.reg_covar
+        elif self.covariance_type == 'diagonal':
+            for k in range(self.n_components):
+                diff = X - self.means_[k]
+                self.covariances_[k] = (resp[:, k].unsqueeze(-1) * diff.pow(2)).sum(dim=0) / resp[:, k].sum()
+                self.covariances_[k] = self.covariances_[k] + self.reg_covar
+        elif self.covariance_type == 'spherical':
+            for k in range(self.n_components):
+                diff = X - self.means_[k]
+                self.covariances_[k] = (resp[:, k] * diff.pow(2).sum(dim=1)).sum() / (self.n_features * resp[:, k].sum())
+                self.covariances_[k] = self.covariances_[k] + self.reg_covar
+        else:
+            print("Covariance type not supported (yet)")
 
     def _init_krandom(self, data, k):
         mu = torch.mean(data, dim=0)
@@ -351,24 +470,18 @@ class GaussianMixture(nn.Module):
         
         return centroids
     
-    def fit(self, X, max_iter=None, tol=None, n_init=None, random_state=None):
-        """
-        Fit the model to the data X.
+    def fit(self, X, max_iter=None, tol=None, n_init=None, random_state=None, warm_start=None):
 
-        Parameters
-        ----------
-        X : torch.Tensor
-            The input data.
-        y : Ignored
-            Not used, present for API consistency by convention.
-        """
         if random_state is not None:
             self.random_state = random_state
         if self.random_state is not None:
             torch.manual_seed(self.random_state)
 
-        # Initialize parameters
-        self._init_params()
+        if warm_start is None:
+            warm_start = self.warm_start
+
+        if not self.warm_start or not self.fitted_:
+            self._init_params()
 
         if max_iter is None:
             max_iter = self.max_iter
@@ -379,22 +492,23 @@ class GaussianMixture(nn.Module):
         X = X.to(self.device)
 
         # Initialize means based on the specified method
-        if self.means_init is not None:
-            self.means_ = self.means_init.to(self.device)
-        else:
-            if self.init_params == 'random':
-                self.means_ = self._init_krandom(X, self.n_components)
-            elif self.init_params == 'points':
-                self.means_ = self._init_kpoints(X, self.n_components)
-            elif self.init_params == 'kpp':
-                self.means_ = self._init_kpp(X, self.n_components)
-            elif self.init_params == 'kmeans':
-                self.means_ = self._init_kmeans(X, self.n_components)
-            elif self.init_params == 'maxdist':
-                self.means_ = self._init_maxdist(X, self.n_components)
+        if not self.fitted_:
+            if self.means_init is not None:
+                self.means_ = self.means_init.to(self.device)
             else:
-                raise ValueError("Unsupported initialization method.")
-            
+                if self.init_params == 'random':
+                    self.means_ = self._init_krandom(X, self.n_components)
+                elif self.init_params == 'points':
+                    self.means_ = self._init_kpoints(X, self.n_components)
+                elif self.init_params == 'kpp':
+                    self.means_ = self._init_kpp(X, self.n_components)
+                elif self.init_params == 'kmeans':
+                    self.means_ = self._init_kmeans(X, self.n_components)
+                elif self.init_params == 'maxdist':
+                    self.means_ = self._init_maxdist(X, self.n_components)
+                else:
+                    raise ValueError("Unsupported initialization method.")
+
         log_prob_norm = 0
         for n_iter in range(max_iter):
             prev_log_prob_norm = log_prob_norm
@@ -411,6 +525,7 @@ class GaussianMixture(nn.Module):
         self.converged_ = n_iter < self.max_iter - 1
         self.n_iter_ = n_iter
         self.lower_bound_ = log_prob_norm / X.size(0)
+        self.fitted_ = True
 
     
     def sample(self, n_samples=1):
@@ -437,59 +552,16 @@ class GaussianMixture(nn.Module):
 
     
     def predict(self, X):
-        """
-        Predict the labels for the data samples in X using the model.
-        
-        Parameters
-        ----------
-        X : torch.Tensor, shape (n_samples, n_features)
-            List of n_features-dimensional data points. Each row corresponds to a single data point.
-        
-        Returns
-        -------
-        labels : torch.Tensor, shape (n_samples,)
-            Component labels.
-        """
         X = X.to(self.device)
         log_resp, _ = self._e_step(X)
         labels = torch.argmax(log_resp, dim=1)
         return labels
     
     def score_samples(self, X):
-        """
-        Compute the log likelihood of the data X under the model.
-        
-        Parameters
-        ----------
-        X : torch.Tensor, shape (n_samples, n_features)
-            List of n_features-dimensional data points. Each row corresponds to a single data point.
-        
-        Returns
-        -------
-        log_prob : torch.Tensor, shape (n_samples,)
-            Log likelihood of each sample in X.
-        """
         _, log_prob_norm = self._e_step(X)
         return log_prob_norm
     
     def evaluate_clustering(self, X, true_labels=None, metrics=None):
-        """
-        Evaluate the clustering performance using various metrics.
-        
-        Parameters
-        ----------
-        X : torch.Tensor, shape (n_samples, n_features)
-            The input data.
-        true_labels : torch.Tensor or array-like, shape (n_samples,), default=None
-            The true labels of the data points. If None, only unsupervised metrics are calculated.
-        metrics : list of str, default=None
-            List of metrics to calculate. If None, calculates all metrics.
-        
-        Returns
-        -------
-        results : dict
-            Dictionary containing the calculated metrics.
-        """
         if metrics is None:
             metrics = [
                 "rand_score",
