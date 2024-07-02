@@ -91,7 +91,7 @@ class GaussianMixture(nn.Module):
             n_components=1, 
             covariance_type='diagonal', 
             tol=1e-5, 
-            reg_covar=1e-10, 
+            reg_covar=1e-6,
             max_iter=1000,
             n_init=1,
             init_params='random', 
@@ -321,15 +321,35 @@ class GaussianMixture(nn.Module):
         log_prob_norm : tensor
             Log of the sum of the responsibilities for each data point.
         """
+        
+        def ensure_positive_definite(matrix, reg_covar):
+            try:
+                cholesky = torch.linalg.cholesky(matrix)
+                return cholesky, reg_covar
+            except torch._C._LinAlgError:
+                matrix += torch.eye(matrix.shape[0], device=matrix.device) * reg_covar
+                try: 
+                    cholesky = torch.linalg.cholesky(matrix)
+                    return cholesky, reg_covar
+                except torch._C._LinAlgError:  
+                    while True:
+                        try:
+                            cholesky = torch.linalg.cholesky(matrix)
+                            return cholesky, reg_covar
+                        except torch._C._LinAlgError:
+                            reg_covar = reg_covar * 10
+                            matrix += torch.eye(matrix.shape[0], device=matrix.device) * reg_covar
+                            print(f"Cholesky decomposition failed, increased reg_covar to {reg_covar}")
 
         X = X.to(self.device)
         n_samples, n_features = X.shape
         log_resp = torch.zeros((n_samples, self.n_components), dtype=torch.float32, device=self.device)
 
         log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
-
+        
         for k in range(self.n_components):
             mean = self.means_[k]
+            
             if self.covariance_type == 'spherical':
                 cov_matrix = self.covariances_[k] + self.reg_covar
                 precision = 1.0 / cov_matrix
@@ -341,11 +361,13 @@ class GaussianMixture(nn.Module):
             elif self.covariance_type == 'tied':
                 cov_matrix = self.covariances_ + torch.eye(n_features, device=self.device) * self.reg_covar
                 precision = torch.inverse(cov_matrix)
-                log_det_cov = torch.logdet(cov_matrix)
+                cholesky, self.reg_covar = ensure_positive_definite(cov_matrix, self.reg_covar)
+                log_det_cov = 2 * torch.sum(torch.log(torch.diag(cholesky)))
             elif self.covariance_type == 'full':
-                cov_matrix = self.covariances_[k] + torch.eye(n_features, device=self.device) * self.reg_covar
+                cov_matrix = self.covariances_[k]
+                cholesky, self.reg_covar = ensure_positive_definite(cov_matrix, self.reg_covar)
                 precision = torch.inverse(cov_matrix)
-                log_det_cov = torch.logdet(cov_matrix)
+                log_det_cov = 2 * torch.sum(torch.log(torch.diag(cholesky)))
             else:
                 raise ValueError("Unsupported covariance type")
             
@@ -354,15 +376,17 @@ class GaussianMixture(nn.Module):
                 mahalanobis = torch.sum(diff @ precision * diff, dim=1)
             else:
                 mahalanobis = torch.sum(diff * precision * diff, dim=1)
-            
+
             log_prob = -0.5 * (n_features * log_2pi + log_det_cov + mahalanobis)
             log_resp[:, k] = torch.log(self.weights_[k]) + log_prob
 
         log_resp = log_resp + self._prior_log_prob(X)
-
         log_prob_norm = torch.logsumexp(log_resp, dim=1, keepdim=True)
         log_resp = log_resp - log_prob_norm
+        
         return torch.exp(log_resp), log_prob_norm.sum()
+
+
     
     def _m_step(self, X, resp):
         """
