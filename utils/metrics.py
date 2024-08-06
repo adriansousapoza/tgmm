@@ -1,6 +1,9 @@
 import torch
 
 class ClusteringMetrics:
+    """
+    Unsupervised clustering metrics.
+    """
     @staticmethod
     def silhouette_score(X, labels, n_components):
         assert n_components > 1, "Silhouette score is only defined when there are at least 2 clusters."
@@ -61,6 +64,31 @@ class ClusteringMetrics:
         n_samples = X.shape[0]
         CH = (SSB / (n_components - 1)) / (SSW / (n_samples - n_components))
         return CH.item()
+    
+    @staticmethod
+    def dunn_index(X, labels, n_components):
+        distances = torch.cdist(X, X)
+        min_intercluster_dist = float('inf')
+        max_intracluster_dist = 0
+
+        for i in range(n_components):
+            mask_i = (labels == i)
+            if mask_i.sum() <= 1:
+                continue
+
+            intra_distances = distances[mask_i][:, mask_i]
+            max_intracluster_dist = max(max_intracluster_dist, intra_distances.max().item())
+
+            for j in range(i + 1, n_components):
+                mask_j = (labels == j)
+                if mask_j.sum() <= 1:
+                    continue
+
+                inter_distances = distances[mask_i][:, mask_j]
+                min_intercluster_dist = min(min_intercluster_dist, inter_distances.min().item())
+
+        dunn_index = min_intercluster_dist / max_intracluster_dist
+        return dunn_index
 
     @staticmethod
     def bic_score(lower_bound_, X, n_components, covariance_type):
@@ -99,6 +127,10 @@ class ClusteringMetrics:
         aic = 2 * n_parameters - 2 * log_likelihood
 
         return aic.item()
+    
+    """
+    Supervised clustering metrics.
+    """
 
     @staticmethod
     def rand_score(labels_true, labels_pred):
@@ -116,7 +148,9 @@ class ClusteringMetrics:
         fn = sum_comb - tp
         tn = n_samples * (n_samples - 1) / 2 - tp - fp - fn
 
-        return (tp + tn) / (tp + fp + fn + tn)
+        rand_index = (tp + tn) / (tp + fp + fn + tn)
+
+        return rand_index.item()
 
     @staticmethod
     def adjusted_rand_score(labels_true, labels_pred):
@@ -133,7 +167,9 @@ class ClusteringMetrics:
         max_index = (sum_comb + sum_comb_pred) / 2
         rand_index = sum_comb_c
 
-        return (rand_index - expected_index) / (max_index - expected_index)
+        adjusted_rand_index = (rand_index - expected_index) / (max_index - expected_index)
+
+        return adjusted_rand_index.item()
 
     @staticmethod
     def mutual_info_score(labels_true, labels_pred):
@@ -146,7 +182,7 @@ class ClusteringMetrics:
         nonzero = contingency > 0
         mi = (contingency[nonzero] * (torch.log(contingency[nonzero]) - torch.log(outer[nonzero]))).sum()
 
-        return mi
+        return mi.item()
 
     @staticmethod
     def adjusted_mutual_info_score(labels_true, labels_pred):
@@ -161,7 +197,7 @@ class ClusteringMetrics:
         expected_mi = (h_true * h_pred) / n_samples
         ami = (mi - expected_mi) / (0.5 * (h_true + h_pred) - expected_mi)
 
-        return ami
+        return ami.item()
 
     @staticmethod
     def normalized_mutual_info_score(labels_true, labels_pred):
@@ -170,7 +206,7 @@ class ClusteringMetrics:
         h_pred = -torch.sum(labels_pred.bincount().float() / labels_pred.size(0) * torch.log(labels_pred.bincount().float() / labels_pred.size(0)))
 
         nmi = 2 * mi / (h_true + h_pred)
-        return nmi
+        return nmi.item()
 
     @staticmethod
     def fowlkes_mallows_score(labels_true, labels_pred):
@@ -221,3 +257,75 @@ class ClusteringMetrics:
             return 0.0
         v_measure = 2 * (homogeneity * completeness) / (homogeneity + completeness)
         return v_measure
+    
+    @staticmethod
+    def purity_score(labels_true, labels_pred):
+        n_samples = labels_true.size(0)
+        contingency = torch.zeros((labels_true.max() + 1, labels_pred.max() + 1), dtype=torch.float, device=labels_true.device)
+        
+        for i in range(n_samples):
+            contingency[labels_true[i], labels_pred[i]] += 1
+        
+        purity = torch.sum(torch.max(contingency, dim=0).values) / n_samples
+        
+        return purity.item()
+        
+    @staticmethod
+    def confusion_matrix(labels_true, labels_pred):
+        unique_labels = torch.unique(labels_true)
+        num_labels = unique_labels.size(0)
+        cm = torch.zeros((num_labels, num_labels), dtype=torch.int32)
+
+        for i, label_true in enumerate(unique_labels):
+            for j, label_pred in enumerate(unique_labels):
+                cm[i, j] = ((labels_true == label_true) & (labels_pred == label_pred)).sum().item()
+
+        return cm
+    
+    @staticmethod
+    def classification_report(labels_true, labels_pred):
+        unique_labels = torch.unique(labels_true)
+        report = {}
+        
+        total_true_positives = 0
+
+        for label in unique_labels:
+            true_positives = ((labels_true == label) & (labels_pred == label)).sum().item()
+            false_positives = ((labels_true != label) & (labels_pred == label)).sum().item()
+            false_negatives = ((labels_true == label) & (labels_pred != label)).sum().item()
+
+            total_true_positives += true_positives
+
+            precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0.0
+            recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0.0
+            f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+            support = (labels_true == label).sum().item()
+            jaccard_index = true_positives / (true_positives + false_positives + false_negatives) if (true_positives + false_positives + false_negatives) > 0 else 0.0
+
+            binary_true = (labels_true == label).float()
+            binary_pred = (labels_pred == label).float()
+            roc_auc = ClusteringMetrics.roc_auc_score(binary_true, binary_pred)
+
+            report[int(label)] = {
+                "precision": precision,
+                "recall": recall,
+                "f1-score": f1_score,
+                "support": support,
+                "jaccard": jaccard_index,
+                "roc_auc": roc_auc
+            }
+    
+        return report
+
+    @staticmethod
+    def roc_auc_score(labels_true, labels_pred):
+        sorted_indices = torch.argsort(labels_pred, descending=True)
+        labels_true = labels_true[sorted_indices]
+        labels_pred = labels_pred[sorted_indices]
+
+        tpr = torch.cumsum(labels_true, dim=0) / labels_true.sum()
+        fpr = torch.cumsum(1 - labels_true, dim=0) / (labels_true.size(0) - labels_true.sum())
+
+        auc = torch.trapz(tpr, fpr)
+
+        return auc.item()

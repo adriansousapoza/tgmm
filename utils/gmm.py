@@ -1,5 +1,11 @@
 import torch
 from torch import nn
+import utils.metrics
+
+# reload
+import importlib
+importlib.reload(utils.metrics)
+
 from torch.distributions import MultivariateNormal
 from utils.metrics import ClusteringMetrics
 
@@ -82,19 +88,19 @@ class GaussianMixture(nn.Module):
     score_samples(X):
         Return the per-sample likelihood of the data under the model.
     evaluate_clustering(X, true_labels=None, metrics=None):
-        Evaluate clustering metrics against true labels.
+        Evaluate supervised and unsupervised clustering metrics.
     """
 
     def __init__(
             self,
             n_features,
-            n_components=1, 
-            covariance_type='diagonal', 
-            tol=1e-5, 
+            n_components=1,
+            covariance_type='full',
+            tol=1e-5,
             reg_covar=1e-6,
             max_iter=1000,
             n_init=1,
-            init_params='random', 
+            init_params='random',
             weights_init=None,
             means_init=None,
             covariances_init=None,
@@ -143,6 +149,9 @@ class GaussianMixture(nn.Module):
         self._init_params()
 
     def _init_params(self):
+        """
+        Initialize model parameters.
+        """
         if self.random_state is not None:
             torch.manual_seed(self.random_state)
         
@@ -158,7 +167,7 @@ class GaussianMixture(nn.Module):
         else:
             self.means_ = torch.randn(self.n_components, self.n_features, device=self.device)
         
-        # Initialize variances and precisions
+        # Initialize covariances and precisions based on the covariance type
         if self.covariance_type == 'full':
             if self.covariances_init is not None:
                 self.covariances_ = self.covariances_init
@@ -323,6 +332,24 @@ class GaussianMixture(nn.Module):
         """
         
         def ensure_positive_definite(matrix, reg_covar):
+            """
+            Ensure that the covariance matrix is positive definite by attempting Cholesky decomposition.
+            Increase the regularization parameter if the decomposition fails.
+
+            Parameters
+            ----------
+            matrix : tensor
+                Covariance matrix.
+            reg_covar : float
+                Regularization parameter.
+
+            Returns
+            -------
+            cholesky : tensor
+                Cholesky decomposition of the covariance matrix.
+            reg_covar : float
+                Updated regularization parameter.
+            """
             try:
                 cholesky = torch.linalg.cholesky(matrix)
                 return cholesky, reg_covar
@@ -338,9 +365,9 @@ class GaussianMixture(nn.Module):
                             return cholesky, reg_covar
                         except torch._C._LinAlgError:
                             reg_covar = reg_covar * 10
-                            matrix += torch.eye(matrix.shape[0], device=matrix.device) * reg_covar
+                            matrix = matrix + torch.eye(matrix.shape[0], device=matrix.device) * reg_covar
                             print(f"Cholesky decomposition failed, increased reg_covar to {reg_covar}")
-
+        
         X = X.to(self.device)
         n_samples, n_features = X.shape
         log_resp = torch.zeros((n_samples, self.n_components), dtype=torch.float32, device=self.device)
@@ -437,6 +464,21 @@ class GaussianMixture(nn.Module):
             print("Covariance type not supported (yet)")
 
     def _init_krandom(self, data, k):
+        """
+        Initialize means randomly based on data distribution.
+
+        Parameters
+        ----------
+        data : tensor
+            Input data.
+        k : int
+            Number of components.
+
+        Returns
+        -------
+        samples : tensor
+            Initialized means.
+        """
         mu = torch.mean(data, dim=0)
         if data.dim() == 1:
             cov = torch.var(data)
@@ -448,10 +490,40 @@ class GaussianMixture(nn.Module):
         return samples
     
     def _init_kpoints(self, data, k):
+        """
+        Initialize means by randomly selecting points from the data.
+
+        Parameters
+        ----------
+        data : tensor
+            Input data.
+        k : int
+            Number of components.
+
+        Returns
+        -------
+        samples : tensor
+            Initialized means.
+        """
         indices = torch.randperm(data.size(0), device=data.device)[:k]
         return data[indices]
     
     def _init_maxdist(self, data, k):
+        """
+        Initialize means using the maximum distance method.
+
+        Parameters
+        ----------
+        data : tensor
+            Input data.
+        k : int
+            Number of components.
+
+        Returns
+        -------
+        centroids : tensor
+            Initialized means.
+        """
         n_samples, _ = data.shape
         centroids = self._init_kpp(data, k)
         initial_idx = torch.randint(0, n_samples, (1,), device=data.device)
@@ -465,6 +537,21 @@ class GaussianMixture(nn.Module):
         return centroids
 
     def _init_kpp(self, data, k):
+        """
+        Initialize means using the k-means++ algorithm.
+
+        Parameters
+        ----------
+        data : tensor
+            Input data.
+        k : int
+            Number of components.
+
+        Returns
+        -------
+        centroids : tensor
+            Initialized means.
+        """
         n_samples, _ = data.shape
         centroids = torch.empty((k, data.size(1)), device=data.device)
         initial_idx = torch.randint(0, n_samples, (1,), device=data.device)
@@ -479,6 +566,25 @@ class GaussianMixture(nn.Module):
         return centroids
     
     def _init_kmeans(self, data, k, max_iter=1000, atol=1e-4):
+        """
+        Initialize means using the k-means algorithm.
+
+        Parameters
+        ----------
+        data : tensor
+            Input data.
+        k : int
+            Number of components.
+        max_iter : int, default=1000
+            Maximum number of iterations.
+        atol : float, default=1e-4
+            Convergence threshold.
+
+        Returns
+        -------
+        centroids : tensor
+            Initialized means.
+        """
         centroids = self._init_kpp(data, k)
         
         for _ in range(max_iter):
@@ -495,6 +601,24 @@ class GaussianMixture(nn.Module):
         return centroids
     
     def fit(self, X, max_iter=None, tol=None, n_init=None, random_state=None, warm_start=None):
+        """
+        Fit the Gaussian mixture model to the data.
+
+        Parameters
+        ----------
+        X : tensor
+            Input data.
+        max_iter : int, default=None
+            Maximum number of iterations.
+        tol : float, default=None
+            Convergence threshold.
+        n_init : int, default=None
+            Number of initializations.
+        random_state : int, default=None
+            Seed for random number generator.
+        warm_start : bool, default=None
+            If True, reuse the solution of the last fit.
+        """
 
         if random_state is not None:
             self.random_state = random_state
@@ -555,6 +679,16 @@ class GaussianMixture(nn.Module):
     def sample(self, n_samples=1):
         """
         Generate random samples from the fitted Gaussian distribution.
+
+        Parameters
+        ----------
+        n_samples : int, default=1
+            Number of samples to generate.
+
+        Returns
+        -------
+        samples : tensor
+            Generated samples.
         """
         indices = torch.multinomial(self.weights_, n_samples, replacement=True)
         samples = []
@@ -576,18 +710,62 @@ class GaussianMixture(nn.Module):
 
     
     def predict(self, X):
+        """
+        Predict the labels for the data samples in X using the trained model.
+
+        Parameters
+        ----------
+        X : tensor
+            Input data.
+
+        Returns
+        -------
+        labels : tensor
+            Predicted labels.
+        """
         X = X.to(self.device)
         log_resp, _ = self._e_step(X)
         labels = torch.argmax(log_resp, dim=1)
         return labels
     
     def score_samples(self, X):
+        """
+        Return the per-sample likelihood of the data under the model.
+
+        Parameters
+        ----------
+        X : tensor
+            Input data.
+
+        Returns
+        -------
+        log_prob_norm : tensor
+            Log-likelihood of the data.
+        """
         _, log_prob_norm = self._e_step(X)
         return log_prob_norm
     
     def evaluate_clustering(self, X, true_labels=None, metrics=None):
+        """
+        Evaluate clustering metrics against true labels.
+
+        Parameters
+        ----------
+        X : tensor
+            Input data.
+        true_labels : tensor, default=None
+            True labels for the data.
+        metrics : list of str, default=None
+            List of metrics to evaluate.
+
+        Returns
+        -------
+        results : dict
+            Dictionary of metric results.
+        """
         if metrics is None:
             metrics = [
+                # supervised clustering metrics
                 "rand_score",
                 "adjusted_rand_score",
                 "mutual_info_score",
@@ -597,9 +775,15 @@ class GaussianMixture(nn.Module):
                 "homogeneity_score",
                 "completeness_score",
                 "v_measure_score",
+                "purity_score",
+                # classification metrics
+                "classification_report",
+                "confusion_matrix",
+                # unsupervised clustering metrics
                 "silhouette_score",
                 "davies_bouldin_index",
                 "calinski_harabasz_score",
+                "dunn_index",
                 "bic_score",
                 "aic_score",
             ]
@@ -611,15 +795,15 @@ class GaussianMixture(nn.Module):
         results = {}
         if true_labels is not None:
             if "rand_score" in metrics:
-                results["rand_score"] = ClusteringMetrics.rand_score(true_labels, pred_labels).item()
+                results["rand_score"] = ClusteringMetrics.rand_score(true_labels, pred_labels)
             if "adjusted_rand_score" in metrics:
-                results["adjusted_rand_score"] = ClusteringMetrics.adjusted_rand_score(true_labels, pred_labels).item()
+                results["adjusted_rand_score"] = ClusteringMetrics.adjusted_rand_score(true_labels, pred_labels)
             if "mutual_info_score" in metrics:
-                results["mutual_info_score"] = ClusteringMetrics.mutual_info_score(true_labels, pred_labels).item()
+                results["mutual_info_score"] = ClusteringMetrics.mutual_info_score(true_labels, pred_labels)
             if "adjusted_mutual_info_score" in metrics:
-                results["adjusted_mutual_info_score"] = ClusteringMetrics.adjusted_mutual_info_score(true_labels, pred_labels).item()
+                results["adjusted_mutual_info_score"] = ClusteringMetrics.adjusted_mutual_info_score(true_labels, pred_labels)
             if "normalized_mutual_info_score" in metrics:
-                results["normalized_mutual_info_score"] = ClusteringMetrics.normalized_mutual_info_score(true_labels, pred_labels).item()
+                results["normalized_mutual_info_score"] = ClusteringMetrics.normalized_mutual_info_score(true_labels, pred_labels)
             if "fowlkes_mallows_score" in metrics:
                 results["fowlkes_mallows_score"] = ClusteringMetrics.fowlkes_mallows_score(true_labels, pred_labels)
             if "homogeneity_score" in metrics:
@@ -628,6 +812,12 @@ class GaussianMixture(nn.Module):
                 results["completeness_score"] = ClusteringMetrics.completeness_score(true_labels, pred_labels)
             if "v_measure_score" in metrics:
                 results["v_measure_score"] = ClusteringMetrics.v_measure_score(true_labels, pred_labels)
+            if "purity_score" in metrics:
+                results["purity_score"] = ClusteringMetrics.purity_score(true_labels, pred_labels)
+            if "classification_report" in metrics:
+                results["classification_report"] = ClusteringMetrics.classification_report(true_labels, pred_labels)
+            if "confusion_matrix" in metrics:
+                results["confusion_matrix"] = ClusteringMetrics.confusion_matrix(true_labels, pred_labels)
         
         if "silhouette_score" in metrics:
             results["silhouette_score"] = ClusteringMetrics.silhouette_score(X, pred_labels, self.n_components)
@@ -639,6 +829,7 @@ class GaussianMixture(nn.Module):
             results["bic_score"] = ClusteringMetrics.bic_score(self.lower_bound_, X, self.n_components, self.covariance_type)
         if "aic_score" in metrics:
             results["aic_score"] = ClusteringMetrics.aic_score(self.lower_bound_, X, self.n_components, self.covariance_type)
-        
+        if "dunn_index" in metrics:
+            results["dunn_index"] = ClusteringMetrics.dunn_index(X, pred_labels, self.n_components)
 
         return results
