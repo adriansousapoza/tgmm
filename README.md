@@ -1,4 +1,4 @@
 # torch-gaussian-mixture-models
 This repository contains Gaussian mixture models implemented in pytorch
 
-![logo-color](https://github.com/user-attachments/assets/dcf918f8-57f8-419e-9397-3ebdc361db9a)
+![logo-no-background](https://github.com/user-attachments/assets/f155d6c7-9674-43b4-b440-f2f846a092f5)
