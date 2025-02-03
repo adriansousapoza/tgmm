@@ -178,31 +178,6 @@ class GaussianMixture(nn.Module):
         if not self.warm_start:
             self._allocate_parameters()
 
-    def _init_means_from_gmminitializer(self, X: torch.Tensor):
-        """
-        If means_init is None, use self.init_params to call
-        the appropriate GMMInitializer method on X.
-        """
-        if self.means_init is not None:
-            return  # already set
-
-        init_method = self.init_params.lower()
-        X_cpu = X.cpu()  # GMMInitializer expects CPU tensors typically
-
-        if init_method == 'kmeans':
-            self.means_ = GMMInitializer.kmeans(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'kpp':
-            self.means_ = GMMInitializer.kpp(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'points':
-            self.means_ = GMMInitializer.points(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'maxdist':
-            self.means_ = GMMInitializer.maxdist(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'random':
-            self.means_ = GMMInitializer.random(X_cpu, self.n_components).to(self.device)
-        else:
-            # fallback: random normal if user gave unknown init string
-            self.means_ = torch.randn(self.n_components, self.n_features, device=self.device)
-
     def _init_priors(
         self,
         weight_concentration_prior: Optional[torch.Tensor],
@@ -296,13 +271,13 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
-    def _allocate_parameters(self):
+    def _allocate_parameters(self, X: Optional[torch.Tensor] = None):
         r"""
         Allocate and initialize model parameters (weights, means, covariances).
 
-        This method checks if user-provided initializations (`weights_init`,
-        `means_init`, `covariances_init`) are valid and sets them, or initializes
-        defaults if they are not provided.
+        If X is provided, we can do data-based initialization of means
+        using self.init_params (kmeans, kpp, etc.). Otherwise, we fall back
+        to random or user-provided means_init.
         """
         # Seed control
         if self.random_state is not None:
@@ -310,7 +285,9 @@ class GaussianMixture(nn.Module):
             if torch.cuda.is_available():
                 torch.cuda.manual_seed_all(self.random_state)
 
-        # Weights
+        # ----------------------
+        # 1) Allocate weights
+        # ----------------------
         if self.weights_init is not None:
             if self.weights_init.shape != (self.n_components,):
                 raise ValueError(
@@ -322,11 +299,16 @@ class GaussianMixture(nn.Module):
             self.weights_ = weights / torch.sum(weights)
         else:
             self.weights_ = torch.full(
-                (self.n_components,), 1.0 / self.n_components,
-                dtype=torch.float32, device=self.device
+                (self.n_components,),
+                1.0 / self.n_components,
+                dtype=torch.float32,
+                device=self.device
             )
 
-        # Means
+        # ----------------------
+        # 2) Allocate means
+        # ----------------------
+        # (If user provided means_init, we trust that. Otherwise we do random or data-based init.)
         if self.means_init is not None:
             if self.means_init.shape != (self.n_components, self.n_features):
                 raise ValueError(
@@ -335,19 +317,54 @@ class GaussianMixture(nn.Module):
                 )
             self.means_ = self.means_init.to(self.device).float()
         else:
-            self.means_ = torch.randn(self.n_components, self.n_features, device=self.device).float()
+            # default fallback => random normal
+            self.means_ = torch.randn(
+                self.n_components,
+                self.n_features,
+                device=self.device
+            ).float()
 
-        # Covariances
+            # if we have X, we can do data-based initialization
+            if X is not None:
+                # call the helper for data-based init
+                self._init_means_from_gmminitializer(X)
+
+        # ----------------------
+        # 3) Allocate covariances
+        # ----------------------
         if self.covariances_init is not None:
             self._check_covariance_init_shape(self.covariances_init)
             self.covariances_ = self.covariances_init.to(self.device).float()
         else:
             self._init_default_covariances()
 
+        # Mark that we've allocated
         self.fitted_ = False
         self.converged_ = False
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
+
+    def _init_means_from_gmminitializer(self, X: torch.Tensor):
+        r"""
+        If means_ is still random (and means_init is None),
+        use self.init_params to call the appropriate GMMInitializer method on X.
+        """
+        init_method = self.init_params.lower()
+
+        X_cpu = X.cpu()  # GMMInitializer typically works on CPU
+        if init_method == 'kmeans':
+            self.means_ = GMMInitializer.kmeans(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'kpp':
+            self.means_ = GMMInitializer.kpp(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'points':
+            self.means_ = GMMInitializer.points(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'maxdist':
+            self.means_ = GMMInitializer.maxdist(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'random':
+            self.means_ = GMMInitializer.random(X_cpu, self.n_components).to(self.device)
+        else:
+            # fallback => do nothing; we already have random normal means
+            pass
 
     def _check_covariance_init_shape(self, cov_init: torch.Tensor):
         r"""
@@ -598,17 +615,25 @@ class GaussianMixture(nn.Module):
         if random_state is not None:
             self.random_state = random_state
 
+        X = X.to(self.device)
+        if X.dim() == 1:
+            X = X.unsqueeze(1)
+        if X.shape[1] != self.n_features:
+            raise ValueError(f"X has {X.shape[1]} features, but n_features={self.n_features}.")
+
         for init_idx in range(self.n_init):
             if warm_start and self.n_init > 1:
                 raise UserWarning("Leaving warm_start=True with n_init>1 will not re-initialize parameters for each run.")
 
-            # Allocate parameters if not warm-starting or if this is the first run or if n_init > 1
+            # 1) Allocate parameters (including data-based means if needed)
+            #    do this if not warm-starting or if it's the first run or if multiple inits
             if not warm_start or not self.fitted_ or init_idx > 0:
-                self._allocate_parameters()
+                self._allocate_parameters(X)
 
-            # Fit one run
+            # 2) Run one EM
             self._fit_single_run(X, max_iter, tol, run_idx=init_idx)
 
+            # 3) Track best solution
             if self.lower_bound_ > best_lower_bound:
                 best_lower_bound = self.lower_bound_
                 best_params = (
@@ -623,8 +648,11 @@ class GaussianMixture(nn.Module):
             self.fitted_ = True
 
         # Save best result
-        self.weights_, self.means_, self.covariances_, self.converged_, self.n_iter_, self.lower_bound_ = best_params
-        return self
+        if best_params is not None:
+            self.weights_, self.means_, self.covariances_, self.converged_, self.n_iter_, self.lower_bound_ = best_params
+        else:
+            # in rare edge case, if something fails, best_params might remain None
+            pass
 
     def _fit_single_run(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
         r"""
