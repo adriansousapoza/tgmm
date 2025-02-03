@@ -84,9 +84,9 @@ class GaussianMixture(nn.Module):
     covariances_ : torch.Tensor
         Mixture component covariances. Shape depends on `covariance_type`.
     fitted_ : bool
-        Whether the model has been fit at least once.
+        Whether the model has been fitted. This attribute is important when using `warm_start`.
     converged_ : bool
-        Whether the EM algorithm converged in the last run.
+        Whether the EM algorithm has converged.
     n_iter_ : int
         Number of EM iterations performed in the last run.
     lower_bound_ : float
@@ -177,6 +177,31 @@ class GaussianMixture(nn.Module):
         # Allocate parameters now if not warm-starting
         if not self.warm_start:
             self._allocate_parameters()
+
+    def _init_means_from_gmminitializer(self, X: torch.Tensor):
+        """
+        If means_init is None, use self.init_params to call
+        the appropriate GMMInitializer method on X.
+        """
+        if self.means_init is not None:
+            return  # already set
+
+        init_method = self.init_params.lower()
+        X_cpu = X.cpu()  # GMMInitializer expects CPU tensors typically
+
+        if init_method == 'kmeans':
+            self.means_ = GMMInitializer.kmeans(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'kpp':
+            self.means_ = GMMInitializer.kpp(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'points':
+            self.means_ = GMMInitializer.points(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'maxdist':
+            self.means_ = GMMInitializer.maxdist(X_cpu, self.n_components).to(self.device)
+        elif init_method == 'random':
+            self.means_ = GMMInitializer.random(X_cpu, self.n_components).to(self.device)
+        else:
+            # fallback: random normal if user gave unknown init string
+            self.means_ = torch.randn(self.n_components, self.n_features, device=self.device)
 
     def _init_priors(
         self,
