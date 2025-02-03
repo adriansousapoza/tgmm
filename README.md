@@ -92,7 +92,3 @@ We welcome improvements to both the code and the documentation.
 ## License
 Released under the MIT License.
 © 2025, Adrián A. Sousa-Poza
-
-pgsql
-Copy
-Edit
