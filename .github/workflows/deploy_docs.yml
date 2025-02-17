@@ -2,29 +2,40 @@ name: Deploy Documentation to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main  # Trigger deployment on pushes to main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to push to gh-pages branch
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: true   # In case you use submodules (e.g. for themes)
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Build Documentation
         working-directory: docs
-        run: make html
+        run: |
+          make clean
+          make html
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs/_build/html
+          # If you have a custom domain, add it here (e.g., 'docs.torchgmm.com')
+          cname: 'docs.torchgmm.com'
