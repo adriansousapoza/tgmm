@@ -1,26 +1,26 @@
 .. _modules:
 
 =======================
-API Reference (Modules)
+Modules
 =======================
 
 GaussianMixture
 ---------------
-.. automodule:: utils.gmm
+.. automodule:: src.gmm
    :members:
    :undoc-members:
    :show-inheritance:
 
 GMMInitializer
 --------------
-.. automodule:: utils.gmm_init
+.. automodule:: src.gmm_init
    :members:
    :undoc-members:
    :show-inheritance:
 
 ClusteringMetrics
 -----------------
-.. automodule:: utils.metrics
+.. automodule:: src.metrics
    :members:
    :undoc-members:
    :show-inheritance:

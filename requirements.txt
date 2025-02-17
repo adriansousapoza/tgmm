@@ -12,9 +12,9 @@ tqdm>=4.64
 scikit-learn>=1.0
 
 # Documentation tools
-sphinx>=4.0
-nbsphinx>=0.8.0
-sphinx-rtd-theme>=1.0  # or alabaster, if you prefer
+sphinx
+sphinx-rtd-theme
+nbsphinx
 
 # If you use Jupyter notebooks
 jupyter
