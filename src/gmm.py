@@ -603,18 +603,23 @@ class GaussianMixture(nn.Module):
             The fitted model instance.
         """
 
-        if self.n_features is None:
-            self.n_features = X.shape[1]
+        if X.size(0) < self.n_components:
+            raise ValueError(
+                f"n_components={self.n_components} should be <= n_samples={X.size(0)}."
+            )
+        if self.n_components <= 0:
+            raise ValueError(f"Invalid value for n_components: {self.n_components}")
+        if tol is not None and tol <= 0:
+            raise ValueError(f"Invalid value for tol: {tol}")
+        if max_iter is not None and max_iter <= 0:
+            raise ValueError(f"Invalid value for max_iter: {max_iter}")
 
         if warm_start is None:
             warm_start = self.warm_start
 
-        if not warm_start:
-            self._allocate_parameters()
-
         if max_iter is None:
             max_iter = self.max_iter
-            
+
         if tol is None:
             tol = self.tol
 
@@ -625,10 +630,14 @@ class GaussianMixture(nn.Module):
             self.random_state = random_state
 
         X = X.to(self.device)
+        if self.n_features is None:
+            self.n_features = X.shape[1]
         if X.dim() == 1:
             X = X.unsqueeze(1)
         if X.shape[1] != self.n_features:
             raise ValueError(f"X has {X.shape[1]} features, but n_features={self.n_features}.")
+        
+        self._allocate_parameters()
 
         for init_idx in range(self.n_init):
             if warm_start and self.n_init > 1:
@@ -642,6 +651,10 @@ class GaussianMixture(nn.Module):
             # 2) Run one EM
             self._fit_single_run(X, max_iter, tol, run_idx=init_idx)
 
+            # warning for degenerate clusters
+            if torch.any(self.weights_ < 1e-8):
+                raise UserWarning("Some cluster(s) have near-zero weight. Check for degenerate solutions.")
+                
             # 3) Track best solution
             if self.lower_bound_ > best_lower_bound:
                 best_lower_bound = self.lower_bound_
@@ -659,9 +672,10 @@ class GaussianMixture(nn.Module):
         # Save best result
         if best_params is not None:
             self.weights_, self.means_, self.covariances_, self.converged_, self.n_iter_, self.lower_bound_ = best_params
-        else:
-            # in rare edge case, if something fails, best_params might remain None
-            pass
+        
+        # warning if we didn't converge
+        if not self.converged_:
+            raise UserWarning("EM algorithm did not converge. Try increasing max_iter or lowering tol.")
 
     def _fit_single_run(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
         r"""
