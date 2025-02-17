@@ -95,8 +95,6 @@ class GaussianMixture(nn.Module):
         Log-likelihood lower bound on the fitted data for the best run.
     """
 
-    __module__ = "GaussianMixture"
-
     def __init__(
         self,
         n_components: int = 1,
