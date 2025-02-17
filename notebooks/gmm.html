@@ -1,0 +1,634 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tutorial: A Gaussian Mixture Model &mdash; TorchGMM 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Metrics" href="metrics.html" />
+    <link rel="prev" title="Tutorials" href="../source/tutorials.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TorchGMM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../source/modules.html">Modules</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../source/tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Tutorial: A Gaussian Mixture Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html">Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="priors.html">Priors</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TorchGMM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../source/tutorials.html">Tutorials</a></li>
+      <li class="breadcrumb-item active">Tutorial: A Gaussian Mixture Model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/notebooks/gmm.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Tutorial:-A-Gaussian-Mixture-Model">
+<h1>Tutorial: A Gaussian Mixture Model<a class="headerlink" href="#Tutorial:-A-Gaussian-Mixture-Model" title="Link to this heading"></a></h1>
+<p>In this tutorial, we demonstrate how to use the <code class="docutils literal notranslate"><span class="pre">GaussianMixture</span></code> class:</p>
+<ul class="simple">
+<li><p>Fit the GMM with various covariance types (full, diag, spherical, tied).</p></li>
+<li><p>Explore different initialization methods (random, points, kpp, kmeans, maxdist).</p></li>
+<li><p>Visualize model results, including responsibilities and generated samples.</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ellipse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ListedColormap</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;../../..&#39;</span><span class="p">)</span>
+<span class="c1">#print(os.listdir(&quot;../../..&quot;))</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">utils.gmm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">utils.metrics</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">gmm</span><span class="p">)</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">metrics</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">utils.gmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
+
+<span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
+<span class="n">random_state</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;torch._C.Generator at 0x7f4f1c0732b0&gt;
+</pre></div></div>
+</div>
+<p>Let’s generate four clusters in 2D with different covariances.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">])]</span>
+<span class="n">covs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]]),</span>  <span class="c1"># full covariance example</span>
+    <span class="mf">0.7</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>                      <span class="c1"># spherical-like</span>
+    <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>                      <span class="c1"># smaller spherical-like</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.7</span><span class="p">]])</span>    <span class="c1"># full covariance example</span>
+<span class="p">]</span>
+
+<span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">cov</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">covs</span><span class="p">):</span>
+    <span class="c1"># Generate multivariate normal data</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">cov</span><span class="p">)</span> <span class="o">+</span> <span class="n">center</span>
+    <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">components</span><span class="p">)</span>  <span class="c1"># shape (4000, 2)</span>
+<span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+<span class="n">n_features</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">n_components</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">plot_gmm_results</span><span class="p">(</span>
+    <span class="n">gmm</span><span class="p">,</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GMM Results&#39;</span><span class="p">,</span>
+    <span class="n">init_means</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot data points colored by cluster, the final GMM ellipses,</span>
+<span class="sd">    and optionally the initial means in red.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    gmm : GaussianMixture</span>
+<span class="sd">        A fitted GaussianMixture instance.</span>
+<span class="sd">    X : np.ndarray</span>
+<span class="sd">        Original 2D data (shape: (N, 2)).</span>
+<span class="sd">    labels : np.ndarray</span>
+<span class="sd">        Predicted cluster labels for each point in X.</span>
+<span class="sd">    ax : matplotlib.axes.Axes</span>
+<span class="sd">        Axes on which to plot. If None, uses current Axes.</span>
+<span class="sd">    title : str</span>
+<span class="sd">        Title for the subplot.</span>
+<span class="sd">    init_means : torch.Tensor or None</span>
+<span class="sd">        Initial means (k, 2) if you want to display them in red &#39;+&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+
+    <span class="c1"># Distinct colors for each cluster</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">ListedColormap</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">tab10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">)))</span>
+
+    <span class="c1"># Plot data points by predicted labels</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">color</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">),</span> <span class="n">cmap</span><span class="o">.</span><span class="n">colors</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">labels</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="p">[</span><span class="n">color</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Cluster </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">)</span>
+
+    <span class="c1"># Plot final means &amp; covariances</span>
+    <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">color</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">),</span> <span class="n">cmap</span><span class="o">.</span><span class="n">colors</span><span class="p">):</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">means_</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+        <span class="c1"># Determine the covariance based on gmm.covariance_type</span>
+        <span class="k">if</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;full&#39;</span><span class="p">:</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;diag&#39;</span><span class="p">:</span>
+            <span class="n">diag_vals</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">diag_vals</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;spherical&#39;</span><span class="p">:</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>  <span class="c1"># scalar</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_features</span><span class="p">)</span> <span class="o">*</span> <span class="n">var</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;tied_full&#39;</span><span class="p">:</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>  <span class="c1"># single shared matrix</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;tied_diag&#39;</span><span class="p">:</span>
+            <span class="n">diag_vals</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">diag_vals</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;tied_spherical&#39;</span><span class="p">:</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+            <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_features</span><span class="p">)</span> <span class="o">*</span> <span class="n">var</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported covariance_type: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Decompose covariance to plot an ellipse</span>
+        <span class="n">vals</span><span class="p">,</span> <span class="n">vecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">vals</span><span class="o">.</span><span class="n">argsort</span><span class="p">()[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">vals</span><span class="p">,</span> <span class="n">vecs</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">vecs</span><span class="p">[:,</span> <span class="n">order</span><span class="p">]</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="o">*</span><span class="n">vecs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+
+        <span class="c1"># Plot ellipses for 1,2,3 std devs</span>
+        <span class="k">for</span> <span class="n">std_dev</span><span class="p">,</span> <span class="n">alpha_ellipse</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]):</span>
+            <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span> <span class="o">*</span> <span class="n">std_dev</span>
+            <span class="n">e</span> <span class="o">=</span> <span class="n">Ellipse</span><span class="p">(</span>
+                <span class="n">mean</span><span class="p">,</span>
+                <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+                <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span>
+                <span class="n">angle</span><span class="o">=</span><span class="n">angle</span><span class="p">,</span>
+                <span class="n">facecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">alpha</span><span class="o">=</span><span class="n">alpha_ellipse</span><span class="p">,</span>
+                <span class="n">edgecolor</span><span class="o">=</span><span class="kc">None</span>
+            <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># Mark final mean as black circle</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mean</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;ko&#39;</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+    <span class="c1"># Optionally plot the initial means in red</span>
+    <span class="k">if</span> <span class="n">init_means</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">init_means_cpu</span> <span class="o">=</span> <span class="n">init_means</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">):</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">init_means_cpu</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">init_means_cpu</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                    <span class="s1">&#39;r+&#39;</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">markeredgewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialize the GMM</span>
+<span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+    <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
+    <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
+    <span class="n">tol</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>
+    <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+    <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
+    <span class="n">cov_init_method</span><span class="o">=</span><span class="s1">&#39;eye&#39;</span><span class="p">,</span>
+    <span class="n">weights_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">means_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">covariances_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_init</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">warm_start</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">verbose_interval</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cpu&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Fit the GMM</span>
+<span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+
+<span class="c1"># Get predictions</span>
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+
+<span class="c1"># Compute per-sample log-likelihoods</span>
+<span class="n">log_probs</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+
+<span class="c1"># Get probabilities for each sample for each component</span>
+<span class="n">probs</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+<span class="n">probs</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+
+<span class="c1"># Generate new samples</span>
+<span class="n">n_samples_to_generate</span> <span class="o">=</span> <span class="mi">4000</span>
+<span class="n">gmm_samples</span><span class="p">,</span> <span class="n">gmm_labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n_samples_to_generate</span><span class="p">)</span>
+<span class="n">gmm_samples</span> <span class="o">=</span> <span class="n">gmm_samples</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+<span class="n">gmm_labels</span> <span class="o">=</span> <span class="n">gmm_labels</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+<span class="c1"># Compute probabilities for each generated sample</span>
+<span class="n">generated_probs</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">gmm_samples</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">))</span>
+<span class="n">generated_probs</span> <span class="o">=</span> <span class="n">generated_probs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Mean per-sample log-likelihood:&#39;</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Std per-sample log-likelihood:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">log_probs</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Lower bound:&#39;</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Number of iterations:&#39;</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Sum of log-likelihoods:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">log_probs</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[InitRun 0] Iter 0, lower bound: -5.38992
+[InitRun 0] Iter 10, lower bound: -3.21788
+[InitRun 0] Iter 20, lower bound: -3.18038
+[InitRun 0] Iter 30, lower bound: -2.77929
+[InitRun 0] Converged at iteration 38, lower bound=-2.73262
+[InitRun 1] Iter 0, lower bound: -3.91078
+[InitRun 1] Iter 10, lower bound: -3.17127
+[InitRun 1] Iter 20, lower bound: -3.12612
+[InitRun 1] Iter 30, lower bound: -2.74164
+[InitRun 1] Converged at iteration 38, lower bound=-2.73285
+[InitRun 2] Iter 0, lower bound: -4.41680
+[InitRun 2] Iter 10, lower bound: -3.22166
+[InitRun 2] Iter 20, lower bound: -3.20861
+[InitRun 2] Iter 30, lower bound: -3.20091
+[InitRun 2] Iter 40, lower bound: -2.74187
+[InitRun 2] Converged at iteration 50, lower bound=-2.73273
+[InitRun 3] Iter 0, lower bound: -4.80912
+[InitRun 3] Iter 10, lower bound: -3.16844
+[InitRun 3] Iter 20, lower bound: -3.06464
+[InitRun 3] Iter 30, lower bound: -2.73293
+[InitRun 3] Converged at iteration 31, lower bound=-2.73272
+[InitRun 4] Iter 0, lower bound: -4.88786
+[InitRun 4] Iter 10, lower bound: -3.23513
+[InitRun 4] Iter 20, lower bound: -3.03600
+[InitRun 4] Iter 30, lower bound: -2.75072
+[InitRun 4] Iter 40, lower bound: -2.73286
+[InitRun 4] Converged at iteration 41, lower bound=-2.73266
+Mean per-sample log-likelihood: -2.7324881553649902
+Std per-sample log-likelihood: 1.2182121276855469
+Lower bound: -2.732619047164917
+Number of iterations: 38
+Sum of log-likelihoods: -10929.9521484375
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define your color map for up to 4 components (adjust if needed)</span>
+<span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;#1b9e77&#39;</span><span class="p">,</span> <span class="s1">&#39;#d95f02&#39;</span><span class="p">,</span> <span class="s1">&#39;#7570b3&#39;</span><span class="p">,</span> <span class="s1">&#39;#e7298a&#39;</span><span class="p">]</span>
+<span class="n">color_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">label</span><span class="p">:</span> <span class="n">color</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">color</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">colors</span><span class="p">)}</span>
+
+<span class="c1"># 1) Prepare your figure</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+
+<span class="c1">###############################################################################</span>
+<span class="c1"># Plot (1) - Per-Sample Log-Likelihood</span>
+<span class="c1">###############################################################################</span>
+
+<span class="n">scatter</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
+    <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+    <span class="n">c</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span>
+    <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
+    <span class="n">s</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Per-Sample Log-Likelihood&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
+<span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">scatter</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="s1">&#39;Log-Likelihood&#39;</span><span class="p">)</span>
+
+<span class="c1">###############################################################################</span>
+<span class="c1"># Plot (2) - Predicted Cluster Labels</span>
+<span class="c1">###############################################################################</span>
+
+<span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_components</span><span class="p">):</span>
+    <span class="n">cluster_points</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">y_pred</span> <span class="o">==</span> <span class="n">cluster</span><span class="p">]</span>
+    <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+        <span class="n">cluster_points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
+        <span class="n">cluster_points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+        <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Cluster </span><span class="si">{</span><span class="n">cluster</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="n">color</span><span class="o">=</span><span class="n">color_map</span><span class="p">[</span><span class="n">cluster</span><span class="p">],</span>
+        <span class="n">s</span><span class="o">=</span><span class="mi">2</span>
+    <span class="p">)</span>
+
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Predicted Cluster Labels&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Clusters&quot;</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+
+<span class="c1">###############################################################################</span>
+<span class="c1"># Plot (3) - Generated Samples from the GMM</span>
+<span class="c1">###############################################################################</span>
+
+<span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_components</span><span class="p">):</span>
+    <span class="n">cluster_samples</span> <span class="o">=</span> <span class="n">gmm_samples</span><span class="p">[</span><span class="n">gmm_labels</span> <span class="o">==</span> <span class="n">cluster</span><span class="p">]</span>
+    <span class="n">axs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+        <span class="n">cluster_samples</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
+        <span class="n">cluster_samples</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+        <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Cluster </span><span class="si">{</span><span class="n">cluster</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="n">color</span><span class="o">=</span><span class="n">color_map</span><span class="p">[</span><span class="n">cluster</span><span class="p">],</span>
+        <span class="n">s</span><span class="o">=</span><span class="mi">2</span>
+    <span class="p">)</span>
+
+<span class="n">axs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Generated Samples from GMM&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Clusters&quot;</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+
+<span class="c1">###############################################################################</span>
+<span class="c1"># Final Layout &amp; Save</span>
+<span class="c1">###############################################################################</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_gmm_6_0.png" src="../_images/notebooks_gmm_6_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Observed Data</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()):</span>
+    <span class="n">prob_k</span> <span class="o">=</span> <span class="n">probs</span><span class="p">[:,</span> <span class="n">k</span><span class="p">]</span>
+    <span class="n">scatter</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">prob_k</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Component </span><span class="si">{</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1"> Probability&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
+    <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">scatter</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+    <span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="s1">&#39;Probability&#39;</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Observed Data: Probability Distributions Across GMM Components&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.96</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># Generated Samples</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()):</span>
+    <span class="n">prob_k</span> <span class="o">=</span> <span class="n">generated_probs</span><span class="p">[:,</span> <span class="n">k</span><span class="p">]</span>
+    <span class="n">scatter</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">gmm_samples</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">gmm_samples</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">prob_k</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;inferno&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Component </span><span class="si">{</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1"> Probability&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
+    <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">scatter</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+    <span class="n">cbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="s1">&#39;Probability&#39;</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Generated Samples: Probability Distributions Across GMM Components&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.96</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_gmm_7_0.png" src="../_images/notebooks_gmm_7_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_gmm_7_1.png" src="../_images/notebooks_gmm_7_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;spherical&#39;</span><span class="p">,</span> <span class="s1">&#39;diag&#39;</span><span class="p">,</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_full&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_diag&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_spherical&#39;</span><span class="p">]</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">cov_type</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">cov_types</span><span class="p">):</span>
+    <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+        <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">n_components</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+        <span class="n">covariance_type</span><span class="o">=</span><span class="n">cov_type</span><span class="p">,</span>
+        <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+    <span class="p">)</span>
+    <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+    <span class="n">labels_pred</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">plot_gmm_results</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Covariance: </span><span class="si">{</span><span class="n">cov_type</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_gmm_8_0.png" src="../_images/notebooks_gmm_8_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;diag&#39;</span><span class="p">,</span> <span class="s1">&#39;spherical&#39;</span><span class="p">]</span>
+<span class="n">init_methods</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;random&#39;</span><span class="p">,</span> <span class="s1">&#39;points&#39;</span><span class="p">,</span> <span class="s1">&#39;kpp&#39;</span><span class="p">,</span> <span class="s1">&#39;kmeans&#39;</span><span class="p">,</span> <span class="s1">&#39;maxdist&#39;</span><span class="p">]</span>
+
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">utils.gmm_init</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_init_means</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns initial means for a given method from GMMInitializer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;random&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;points&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">points</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;kpp&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kpp</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;kmeans&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kmeans</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;maxdist&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">maxdist</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown init method: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+
+<span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;diag&#39;</span><span class="p">,</span> <span class="s1">&#39;spherical&#39;</span><span class="p">]</span>
+<span class="n">init_methods</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;random&#39;</span><span class="p">,</span> <span class="s1">&#39;points&#39;</span><span class="p">,</span> <span class="s1">&#39;kpp&#39;</span><span class="p">,</span> <span class="s1">&#39;kmeans&#39;</span><span class="p">,</span> <span class="s1">&#39;maxdist&#39;</span><span class="p">]</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span>
+    <span class="n">nrows</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">cov_types</span><span class="p">),</span>
+    <span class="n">ncols</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">init_methods</span><span class="p">),</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">25</span><span class="p">,</span> <span class="mi">15</span><span class="p">)</span>  <span class="c1"># adjust as you like</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">row_idx</span><span class="p">,</span> <span class="n">cov_type</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cov_types</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">col_idx</span><span class="p">,</span> <span class="n">method</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">init_methods</span><span class="p">):</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">]</span>
+
+        <span class="c1"># 1) Get initial means from our GMMInitializer</span>
+        <span class="n">init_means</span> <span class="o">=</span> <span class="n">get_init_means</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+        <span class="c1"># 2) Create GMM with &#39;means_init&#39; so it uses these means</span>
+        <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+            <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="n">n_components</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+            <span class="n">covariance_type</span><span class="o">=</span><span class="n">cov_type</span><span class="p">,</span>
+            <span class="n">means_init</span><span class="o">=</span><span class="n">init_means</span><span class="p">,</span>
+            <span class="n">init_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>      <span class="c1"># or &#39;none&#39; to bypass internal logic</span>
+            <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+        <span class="p">)</span>
+
+        <span class="c1"># 3) Fit the GMM on X_tensor</span>
+        <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+        <span class="c1"># 4) Predict cluster labels</span>
+        <span class="n">labels_pred</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+        <span class="c1"># 5) Plot</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Cov: </span><span class="si">{</span><span class="n">cov_type</span><span class="si">}</span><span class="s1">, Init: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">plot_gmm_results</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">init_means</span><span class="o">=</span><span class="n">init_means</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_gmm_9_0.png" src="../_images/notebooks_gmm_9_0.png" />
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../source/tutorials.html" class="btn btn-neutral float-left" title="Tutorials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="metrics.html" class="btn btn-neutral float-right" title="Metrics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Adrián A. Sousa-Poza.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
