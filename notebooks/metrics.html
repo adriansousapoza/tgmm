@@ -88,44 +88,44 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ellipse</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ListedColormap</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;../../..&#39;</span><span class="p">)</span>
-<span class="c1">#print(os.listdir(&quot;../../..&quot;))</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
+import torch
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+from matplotlib.colors import ListedColormap
+import seaborn as sns
+import pandas as pd
+import importlib
+import os
+import sys
+sys.path.append(&#39;../../..&#39;)
+#print(os.listdir(&quot;../../..&quot;))
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">utils.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClusteringMetrics</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">utils.gmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
+from utils.metrics import ClusteringMetrics
+from utils.gmm import GaussianMixture
 
-<span class="c1"># Scikit-learn for comparison</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.mixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span> <span class="k">as</span> <span class="n">SklearnGMM</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <span class="n">PCA</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">silhouette_score</span><span class="p">,</span>
-    <span class="n">davies_bouldin_score</span><span class="p">,</span>
-    <span class="n">calinski_harabasz_score</span><span class="p">,</span>
-    <span class="n">adjusted_rand_score</span><span class="p">,</span>
-    <span class="n">normalized_mutual_info_score</span><span class="p">,</span>
-    <span class="n">fowlkes_mallows_score</span><span class="p">,</span>
-    <span class="n">homogeneity_score</span><span class="p">,</span>
-    <span class="n">mutual_info_score</span><span class="p">,</span>
-    <span class="n">adjusted_mutual_info_score</span><span class="p">,</span>
-    <span class="n">completeness_score</span><span class="p">,</span>
-    <span class="n">v_measure_score</span><span class="p">,</span>
-    <span class="n">rand_score</span>
-<span class="p">)</span>
+# Scikit-learn for comparison
+from sklearn.mixture import GaussianMixture as SklearnGMM
+from sklearn.decomposition import PCA
+from sklearn.metrics import (
+    silhouette_score,
+    davies_bouldin_score,
+    calinski_harabasz_score,
+    adjusted_rand_score,
+    normalized_mutual_info_score,
+    fowlkes_mallows_score,
+    homogeneity_score,
+    mutual_info_score,
+    adjusted_mutual_info_score,
+    completeness_score,
+    v_measure_score,
+    rand_score
+)
 
-<span class="c1"># Detect device</span>
-<span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using device:&quot;</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+# Detect device
+device = &#39;cuda&#39; if torch.cuda.is_available() else &#39;cpu&#39;
+print(&quot;Using device:&quot;, device)
 </pre></div>
 </div>
 </div>
@@ -141,39 +141,39 @@ Using device: cuda
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># for reproducibility</span>
-<span class="n">n_samples_1</span> <span class="o">=</span> <span class="mi">1000</span>
-<span class="n">n_samples_2</span> <span class="o">=</span> <span class="mi">800</span>
-<span class="n">n_samples_3</span> <span class="o">=</span> <span class="mi">400</span>
-<span class="n">n_samples_4</span> <span class="o">=</span> <span class="mi">600</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>np.random.seed(0)  # for reproducibility
+n_samples_1 = 1000
+n_samples_2 = 800
+n_samples_3 = 400
+n_samples_4 = 600
 
-<span class="n">center_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-<span class="n">center_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
-<span class="n">center_3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">])</span>
-<span class="n">center_4</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+center_1 = np.array([0, 0, 0, 0])
+center_2 = np.array([-4, 4, -4, 4])
+center_3 = np.array([4, -4, 4, -4])
+center_4 = np.array([4, 4, 4, 4])
 
-<span class="c1"># Random transformation matrices to generate covariances</span>
-<span class="n">C_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
-<span class="n">C_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+# Random transformation matrices to generate covariances
+C_1 = np.random.rand(4, 4)
+C_2 = np.random.rand(4, 4)
 
-<span class="n">component_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">C_1</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_1</span>
-<span class="n">component_2</span> <span class="o">=</span> <span class="mf">0.7</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_2</span>
-<span class="n">component_3</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_3</span>
-<span class="n">component_4</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_4</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">C_2</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_4</span>
+component_1 = np.dot(np.random.randn(n_samples_1, 4), C_1) + center_1
+component_2 = 0.7 * np.random.randn(n_samples_2, 4) + center_2
+component_3 = 0.5 * np.random.randn(n_samples_3, 4) + center_3
+component_4 = np.dot(np.random.randn(n_samples_4, 4), C_2) + center_4
 
-<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">component_1</span><span class="p">,</span> <span class="n">component_2</span><span class="p">,</span> <span class="n">component_3</span><span class="p">,</span> <span class="n">component_4</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_samples_1</span><span class="p">),</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_samples_2</span><span class="p">),</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_samples_3</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_samples_4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<span class="p">])</span>
+X = np.concatenate([component_1, component_2, component_3, component_4], axis=0)
+y_true = np.concatenate([
+    np.zeros(n_samples_1),
+    np.ones(n_samples_2),
+    np.full(n_samples_3, 2),
+    np.full(n_samples_4, 3)
+])
 
-<span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-<span class="n">y_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
+y_tensor = torch.tensor(y_true, dtype=torch.long, device=device)
 
-<span class="n">true_n_components</span> <span class="o">=</span> <span class="mi">4</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data shape: </span><span class="si">{</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, true number of clusters: </span><span class="si">{</span><span class="n">true_n_components</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+true_n_components = 4
+print(f&quot;Data shape: {X_tensor.shape}, true number of clusters: {true_n_components}&quot;)
 <br/></pre></div>
 </div>
 </div>
@@ -189,95 +189,95 @@ Data shape: torch.Size([2800, 4]), true number of clusters: 4
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">components_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
-<span class="n">silhouette_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-<span class="n">davies_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-<span class="n">calinski_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-<span class="n">dunn_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-<span class="n">bic_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-<span class="n">aic_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>components_range = np.arange(2, 11)
+silhouette_vals = torch.zeros(len(components_range), device=device)
+davies_vals = torch.zeros(len(components_range), device=device)
+calinski_vals = torch.zeros(len(components_range), device=device)
+dunn_vals = torch.zeros(len(components_range), device=device)
+bic_vals = torch.zeros(len(components_range), device=device)
+aic_vals = torch.zeros(len(components_range), device=device)
 
-<span class="c1"># Fit a GMM for each n in components_range</span>
-<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Evaluating range&quot;</span><span class="p">):</span>
-    <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-        <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-        <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">,</span>
-        <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
-        <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-        <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
-        <span class="n">device</span><span class="o">=</span><span class="n">device</span>
-    <span class="p">)</span>
-    <span class="c1"># Fit</span>
-    <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
-    <span class="n">labels_pred</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>  <span class="c1"># shape (N,)</span>
+# Fit a GMM for each n in components_range
+for i, n in tqdm(enumerate(components_range), total=len(components_range), desc=&quot;Evaluating range&quot;):
+    gmm = GaussianMixture(
+        n_features=4,
+        n_components=n,
+        covariance_type=&#39;full&#39;,
+        max_iter=1000,
+        init_params=&#39;kmeans&#39;,
+        device=device
+    )
+    # Fit
+    gmm.fit(X_tensor)
+    labels_pred = gmm.predict(X_tensor)  # shape (N,)
 
-    <span class="c1"># Compute unsupervised metrics</span>
-    <span class="n">silhouette_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">silhouette_score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
-    <span class="n">davies_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">davies_bouldin_index</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
-    <span class="n">calinski_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">calinski_harabasz_score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
-    <span class="n">dunn_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">dunn_index</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
-    <span class="n">bic_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">bic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
-    <span class="n">aic_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">aic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
+    # Compute unsupervised metrics
+    silhouette_vals[i] = ClusteringMetrics.silhouette_score(X_tensor, labels_pred, n_components=n)
+    davies_vals[i] = ClusteringMetrics.davies_bouldin_index(X_tensor, labels_pred, n_components=n)
+    calinski_vals[i] = ClusteringMetrics.calinski_harabasz_score(X_tensor, labels_pred, n_components=n)
+    dunn_vals[i] = ClusteringMetrics.dunn_index(X_tensor, labels_pred, n_components=n)
+    bic_vals[i] = ClusteringMetrics.bic_score(gmm.lower_bound_, X_tensor, n, gmm.covariance_type)
+    aic_vals[i] = ClusteringMetrics.aic_score(gmm.lower_bound_, X_tensor, n, gmm.covariance_type)
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+fig, axs = plt.subplots(2, 3, figsize=(16, 8))
 
-<span class="c1"># 1) Silhouette</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">silhouette_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-b&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;True # of Components&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Silhouette Score&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Score&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+# 1) Silhouette
+axs[0, 0].plot(components_range, silhouette_vals.cpu(), &#39;o-b&#39;)
+axs[0, 0].axvline(x=true_n_components, color=&#39;r&#39;, linestyle=&#39;--&#39;, label=&#39;True # of Components&#39;)
+axs[0, 0].set_title(&#39;Silhouette Score&#39;)
+axs[0, 0].set_xlabel(&#39;Number of Components&#39;)
+axs[0, 0].set_ylabel(&#39;Score&#39;)
+axs[0, 0].grid(True)
+axs[0, 0].legend()
 
-<span class="c1"># 2) Davies-Bouldin</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">davies_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-g&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Davies-Bouldin Index&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+# 2) Davies-Bouldin
+axs[0, 1].plot(components_range, davies_vals.cpu(), &#39;o-g&#39;)
+axs[0, 1].axvline(x=true_n_components, color=&#39;r&#39;, linestyle=&#39;--&#39;)
+axs[0, 1].set_title(&#39;Davies-Bouldin Index&#39;)
+axs[0, 1].set_xlabel(&#39;Number of Components&#39;)
+axs[0, 1].grid(True)
 
-<span class="c1"># 3) Calinski-Harabasz</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">calinski_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-y&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Calinski-Harabasz Score&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+# 3) Calinski-Harabasz
+axs[0, 2].plot(components_range, calinski_vals.cpu(), &#39;o-y&#39;)
+axs[0, 2].axvline(x=true_n_components, color=&#39;r&#39;, linestyle=&#39;--&#39;)
+axs[0, 2].set_title(&#39;Calinski-Harabasz Score&#39;)
+axs[0, 2].set_xlabel(&#39;Number of Components&#39;)
+axs[0, 2].grid(True)
 
-<span class="c1"># 4) Dunn Index</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">dunn_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;orange&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Dunn Index&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+# 4) Dunn Index
+axs[1, 0].plot(components_range, dunn_vals.cpu(), &#39;o-&#39;, color=&#39;orange&#39;)
+axs[1, 0].axvline(x=true_n_components, color=&#39;r&#39;, linestyle=&#39;--&#39;)
+axs[1, 0].set_title(&#39;Dunn Index&#39;)
+axs[1, 0].set_xlabel(&#39;Number of Components&#39;)
+axs[1, 0].grid(True)
 
-<span class="c1"># 5) BIC</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">bic_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-m&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;BIC&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;BIC Score&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+# 5) BIC
+axs[1, 1].plot(components_range, bic_vals.cpu(), &#39;o-m&#39;, label=&#39;BIC&#39;)
+axs[1, 1].axvline(x=true_n_components, color=&#39;r&#39;, linestyle=&#39;--&#39;)
+axs[1, 1].set_title(&#39;BIC Score&#39;)
+axs[1, 1].set_xlabel(&#39;Number of Components&#39;)
+axs[1, 1].grid(True)
+axs[1, 1].legend()
 
-<span class="c1"># 6) AIC</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">aic_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-c&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;AIC&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;AIC Score&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+# 6) AIC
+axs[1, 2].plot(components_range, aic_vals.cpu(), &#39;o-c&#39;, label=&#39;AIC&#39;)
+axs[1, 2].axvline(x=true_n_components, color=&#39;r&#39;, linestyle=&#39;--&#39;)
+axs[1, 2].set_title(&#39;AIC Score&#39;)
+axs[1, 2].set_xlabel(&#39;Number of Components&#39;)
+axs[1, 2].grid(True)
+axs[1, 2].legend()
 
-<span class="n">plt</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Unsupervised Clustering Metrics for GMM (4D Data)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+plt.suptitle(&quot;Unsupervised Clustering Metrics for GMM (4D Data)&quot;, fontsize=16)
+plt.tight_layout()
+plt.show()
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== Best Number of Components According to Each Metric ===&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Silhouette Best: </span><span class="si">{</span><span class="n">components_range</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">silhouette_vals</span><span class="p">)]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Davies-Bouldin Best (lowest): </span><span class="si">{</span><span class="n">components_range</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">davies_vals</span><span class="p">)]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Calinski-Harabasz Best: </span><span class="si">{</span><span class="n">components_range</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">calinski_vals</span><span class="p">)]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dunn Index Best: </span><span class="si">{</span><span class="n">components_range</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dunn_vals</span><span class="p">)]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;BIC Best (lowest): </span><span class="si">{</span><span class="n">components_range</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">bic_vals</span><span class="p">)]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AIC Best (lowest): </span><span class="si">{</span><span class="n">components_range</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">aic_vals</span><span class="p">)]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(&quot;=== Best Number of Components According to Each Metric ===&quot;)
+print(f&quot;Silhouette Best: {components_range[torch.argmax(silhouette_vals)].item()}&quot;)
+print(f&quot;Davies-Bouldin Best (lowest): {components_range[torch.argmin(davies_vals)].item()}&quot;)
+print(f&quot;Calinski-Harabasz Best: {components_range[torch.argmax(calinski_vals)].item()}&quot;)
+print(f&quot;Dunn Index Best: {components_range[torch.argmax(dunn_vals)].item()}&quot;)
+print(f&quot;BIC Best (lowest): {components_range[torch.argmin(bic_vals)].item()}&quot;)
+print(f&quot;AIC Best (lowest): {components_range[torch.argmin(aic_vals)].item()}&quot;)
 <br/></pre></div>
 </div>
 </div>
@@ -314,87 +314,87 @@ AIC Best (lowest): 5
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_components</span> <span class="o">=</span> <span class="n">true_n_components</span>  <span class="c1"># 4</span>
-<span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-    <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-    <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
-    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
-    <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-    <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
-    <span class="n">device</span><span class="o">=</span><span class="n">device</span>
-<span class="p">)</span>
-<span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
-<span class="n">labels_pred</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>n_components = true_n_components  # 4
+gmm = GaussianMixture(
+    n_features=4,
+    n_components=n_components,
+    covariance_type=&#39;full&#39;,
+    max_iter=1000,
+    init_params=&#39;kmeans&#39;,
+    device=device
+)
+gmm.fit(X_tensor)
+labels_pred = gmm.predict(X_tensor)
 
-<span class="c1"># Metrics with custom ClusteringMetrics</span>
-<span class="n">requested_metrics</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;rand_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;adjusted_rand_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;mutual_info_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;normalized_mutual_info_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;adjusted_mutual_info_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;fowlkes_mallows_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;homogeneity_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;completeness_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;v_measure_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;purity_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;silhouette_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;davies_bouldin_index&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;calinski_harabasz_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;dunn_index&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;bic_score&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;aic_score&quot;</span><span class="p">,</span>
-<span class="p">]</span>
-<span class="n">scores_torch</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">evaluate_clustering</span><span class="p">(</span>
-    <span class="n">gmm</span><span class="p">,</span>
-    <span class="n">X_tensor</span><span class="p">,</span>
-    <span class="n">true_labels</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">,</span>
-    <span class="n">metrics</span><span class="o">=</span><span class="n">requested_metrics</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== Torch Metrics for n_components=4 ===&quot;</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">scores_torch</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-    <span class="c1"># Some items (e.g. classification_report) could be nested or dict, so check type</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+# Metrics with custom ClusteringMetrics
+requested_metrics = [
+    &quot;rand_score&quot;,
+    &quot;adjusted_rand_score&quot;,
+    &quot;mutual_info_score&quot;,
+    &quot;normalized_mutual_info_score&quot;,
+    &quot;adjusted_mutual_info_score&quot;,
+    &quot;fowlkes_mallows_score&quot;,
+    &quot;homogeneity_score&quot;,
+    &quot;completeness_score&quot;,
+    &quot;v_measure_score&quot;,
+    &quot;purity_score&quot;,
+    &quot;silhouette_score&quot;,
+    &quot;davies_bouldin_index&quot;,
+    &quot;calinski_harabasz_score&quot;,
+    &quot;dunn_index&quot;,
+    &quot;bic_score&quot;,
+    &quot;aic_score&quot;,
+]
+scores_torch = ClusteringMetrics.evaluate_clustering(
+    gmm,
+    X_tensor,
+    true_labels=y_tensor,
+    metrics=requested_metrics
+)
+print(&quot;=== Torch Metrics for n_components=4 ===&quot;)
+for k, v in scores_torch.items():
+    # Some items (e.g. classification_report) could be nested or dict, so check type
+    if isinstance(v, (int, float)):
+        print(f&quot;{k}: {v:.4f}&quot;)
+    else:
+        print(f&quot;{k}: {v}&quot;)
 
-<span class="c1"># Compare with sklearn</span>
-<span class="n">X_np</span> <span class="o">=</span> <span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-<span class="n">y_np</span> <span class="o">=</span> <span class="n">y_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-<span class="n">labels_pred_np</span> <span class="o">=</span> <span class="n">labels_pred</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+# Compare with sklearn
+X_np = X_tensor.cpu().numpy()
+y_np = y_tensor.cpu().numpy()
+labels_pred_np = labels_pred.cpu().numpy()
 
-<span class="n">sk_gmm</span> <span class="o">=</span> <span class="n">SklearnGMM</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">)</span>
-<span class="n">sk_gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_np</span><span class="p">)</span>
+sk_gmm = SklearnGMM(n_components=n_components, covariance_type=&#39;full&#39;, max_iter=1000, init_params=&#39;kmeans&#39;)
+sk_gmm.fit(X_np)
 
-<span class="n">scores_sklearn</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s2">&quot;rand_score&quot;</span><span class="p">:</span> <span class="n">rand_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;adjusted_rand_score&quot;</span><span class="p">:</span> <span class="n">adjusted_rand_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;mutual_info_score&quot;</span><span class="p">:</span> <span class="n">mutual_info_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;normalized_mutual_info_score&quot;</span><span class="p">:</span> <span class="n">normalized_mutual_info_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;adjusted_mutual_info_score&quot;</span><span class="p">:</span> <span class="n">adjusted_mutual_info_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;fowlkes_mallows_score&quot;</span><span class="p">:</span> <span class="n">fowlkes_mallows_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;homogeneity_score&quot;</span><span class="p">:</span> <span class="n">homogeneity_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;completeness_score&quot;</span><span class="p">:</span> <span class="n">completeness_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;v_measure_score&quot;</span><span class="p">:</span> <span class="n">v_measure_score</span><span class="p">(</span><span class="n">y_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;silhouette_score&quot;</span><span class="p">:</span> <span class="n">silhouette_score</span><span class="p">(</span><span class="n">X_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;davies_bouldin_index&quot;</span><span class="p">:</span> <span class="n">davies_bouldin_score</span><span class="p">(</span><span class="n">X_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-    <span class="s2">&quot;calinski_harabasz_score&quot;</span><span class="p">:</span> <span class="n">calinski_harabasz_score</span><span class="p">(</span><span class="n">X_np</span><span class="p">,</span> <span class="n">labels_pred_np</span><span class="p">),</span>
-<span class="p">}</span>
-<span class="n">sk_bic</span> <span class="o">=</span> <span class="n">sk_gmm</span><span class="o">.</span><span class="n">bic</span><span class="p">(</span><span class="n">X_np</span><span class="p">)</span>
-<span class="n">sk_aic</span> <span class="o">=</span> <span class="n">sk_gmm</span><span class="o">.</span><span class="n">aic</span><span class="p">(</span><span class="n">X_np</span><span class="p">)</span>
+scores_sklearn = {
+    &quot;rand_score&quot;: rand_score(y_np, labels_pred_np),
+    &quot;adjusted_rand_score&quot;: adjusted_rand_score(y_np, labels_pred_np),
+    &quot;mutual_info_score&quot;: mutual_info_score(y_np, labels_pred_np),
+    &quot;normalized_mutual_info_score&quot;: normalized_mutual_info_score(y_np, labels_pred_np),
+    &quot;adjusted_mutual_info_score&quot;: adjusted_mutual_info_score(y_np, labels_pred_np),
+    &quot;fowlkes_mallows_score&quot;: fowlkes_mallows_score(y_np, labels_pred_np),
+    &quot;homogeneity_score&quot;: homogeneity_score(y_np, labels_pred_np),
+    &quot;completeness_score&quot;: completeness_score(y_np, labels_pred_np),
+    &quot;v_measure_score&quot;: v_measure_score(y_np, labels_pred_np),
+    &quot;silhouette_score&quot;: silhouette_score(X_np, labels_pred_np),
+    &quot;davies_bouldin_index&quot;: davies_bouldin_score(X_np, labels_pred_np),
+    &quot;calinski_harabasz_score&quot;: calinski_harabasz_score(X_np, labels_pred_np),
+}
+sk_bic = sk_gmm.bic(X_np)
+sk_aic = sk_gmm.aic(X_np)
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">=== Sklearn Metrics for n_components=4 ===&quot;</span><span class="p">)</span>
-<span class="k">for</span> <span class="n">metric</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">scores_sklearn</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;BIC: </span><span class="si">{</span><span class="n">sk_bic</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AIC: </span><span class="si">{</span><span class="n">sk_aic</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+print(&quot;\n=== Sklearn Metrics for n_components=4 ===&quot;)
+for metric, val in scores_sklearn.items():
+    print(f&quot;{metric}: {val:.4f}&quot;)
+print(f&quot;BIC: {sk_bic:.4f}&quot;)
+print(f&quot;AIC: {sk_aic:.4f}&quot;)
 
-<span class="c1"># Compare BIC/AIC with Torch</span>
-<span class="n">torch_bic</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">bic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
-<span class="n">torch_aic</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">aic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Torch BIC: </span><span class="si">{</span><span class="n">torch_bic</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> vs Sklearn BIC: </span><span class="si">{</span><span class="n">sk_bic</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Torch AIC: </span><span class="si">{</span><span class="n">torch_aic</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> vs Sklearn AIC: </span><span class="si">{</span><span class="n">sk_aic</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+# Compare BIC/AIC with Torch
+torch_bic = ClusteringMetrics.bic_score(gmm.lower_bound_, X_tensor, n_components, gmm.covariance_type)
+torch_aic = ClusteringMetrics.aic_score(gmm.lower_bound_, X_tensor, n_components, gmm.covariance_type)
+print(f&quot;\nTorch BIC: {torch_bic:.4f} vs Sklearn BIC: {sk_bic:.4f}&quot;)
+print(f&quot;Torch AIC: {torch_aic:.4f} vs Sklearn AIC: {sk_aic:.4f}&quot;)
 <br/></pre></div>
 </div>
 </div>
@@ -445,93 +445,93 @@ Torch AIC: 28178.6209 vs Sklearn AIC: 28178.5131
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pca</span> <span class="o">=</span> <span class="n">PCA</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">X_pca</span> <span class="o">=</span> <span class="n">pca</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X_np</span><span class="p">)</span>  <span class="c1"># shape (N, 2)</span>
-<span class="n">X_pca_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X_pca</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_np)  # shape (N, 2)
+X_pca_tensor = torch.tensor(X_pca, dtype=torch.float32, device=device)
 
-<span class="c1"># Let&#39;s define a helper to project means/covariances into PCA space</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">transform_means_covariances</span><span class="p">(</span><span class="n">means</span><span class="p">,</span> <span class="n">covariances</span><span class="p">,</span> <span class="n">pca_sklearn</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Project the GMM means &amp; covariances into the PCA-reduced space.</span>
-<span class="sd">    We&#39;ll only keep the top 2 principal components, so each covariance</span>
-<span class="sd">    becomes 2x2 and each mean is 2D.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">means_cpu</span> <span class="o">=</span> <span class="n">means</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-    <span class="n">means_pca</span> <span class="o">=</span> <span class="n">pca_sklearn</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">means_cpu</span><span class="p">)</span>  <span class="c1"># NxD -&gt; Nx2</span>
+# Let&#39;s define a helper to project means/covariances into PCA space
+def transform_means_covariances(means, covariances, pca_sklearn):
+    &quot;&quot;&quot;
+    Project the GMM means &amp; covariances into the PCA-reduced space.
+    We&#39;ll only keep the top 2 principal components, so each covariance
+    becomes 2x2 and each mean is 2D.
+    &quot;&quot;&quot;
+    means_cpu = means.detach().cpu().numpy()
+    means_pca = pca_sklearn.transform(means_cpu)  # NxD -&gt; Nx2
 
-    <span class="c1"># For each covariance, do W * Cov * W^T, where W are the top 2 PC loadings.</span>
-    <span class="n">W</span> <span class="o">=</span> <span class="n">pca_sklearn</span><span class="o">.</span><span class="n">components_</span><span class="p">[:</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span>  <span class="c1"># shape (2, original_dim)</span>
-    <span class="n">covariances_pca</span> <span class="o">=</span> <span class="p">[]</span>
+    # For each covariance, do W * Cov * W^T, where W are the top 2 PC loadings.
+    W = pca_sklearn.components_[:2, :]  # shape (2, original_dim)
+    covariances_pca = []
 
-    <span class="k">if</span> <span class="n">covariances</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>  <span class="c1"># e.g., &#39;full&#39; shape = (n_components, d, d)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">covariances</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)):</span>
-            <span class="n">cov_cpu</span> <span class="o">=</span> <span class="n">covariances</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-            <span class="n">cov_2d</span> <span class="o">=</span> <span class="n">W</span> <span class="o">@</span> <span class="n">cov_cpu</span> <span class="o">@</span> <span class="n">W</span><span class="o">.</span><span class="n">T</span>
-            <span class="n">covariances_pca</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cov_2d</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># For diag or spherical, adapt accordingly</span>
-        <span class="c1"># We&#39;ll do an approximate approach for demonstration</span>
-        <span class="n">cov_2d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">covariances</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()[:</span><span class="mi">2</span><span class="p">])</span>
-        <span class="n">covariances_pca</span> <span class="o">=</span> <span class="p">[</span><span class="n">cov_2d</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">means</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">))]</span>
+    if covariances.dim() == 3:  # e.g., &#39;full&#39; shape = (n_components, d, d)
+        for i in range(covariances.size(0)):
+            cov_cpu = covariances[i].detach().cpu().numpy()
+            cov_2d = W @ cov_cpu @ W.T
+            covariances_pca.append(cov_2d)
+    else:
+        # For diag or spherical, adapt accordingly
+        # We&#39;ll do an approximate approach for demonstration
+        cov_2d = np.diag(covariances[0].cpu().numpy()[:2])
+        covariances_pca = [cov_2d for _ in range(means.size(0))]
 
-    <span class="n">covariances_pca</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">covariances_pca</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">means_pca</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">covariances_pca</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    covariances_pca = np.stack(covariances_pca, axis=0)
+    return torch.tensor(means_pca, dtype=torch.float32), torch.tensor(covariances_pca, dtype=torch.float32)
 
-<span class="n">means_pca</span><span class="p">,</span> <span class="n">covariances_pca</span> <span class="o">=</span> <span class="n">transform_means_covariances</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">means_</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">,</span> <span class="n">pca</span><span class="p">)</span>
+means_pca, covariances_pca = transform_means_covariances(gmm.means_, gmm.covariances_, pca)
 
-<span class="c1"># Next, let&#39;s define a quick function to match predicted labels to the</span>
-<span class="c1"># ground truth using the Hungarian algorithm (so that colors match).</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">linear_sum_assignment</span>
+# Next, let&#39;s define a quick function to match predicted labels to the
+# ground truth using the Hungarian algorithm (so that colors match).
+from scipy.optimize import linear_sum_assignment
 
-<span class="k">def</span><span class="w"> </span><span class="nf">match_labels</span><span class="p">(</span><span class="n">y_true_tensor</span><span class="p">,</span> <span class="n">y_pred_tensor</span><span class="p">):</span>
-    <span class="n">y_true_cpu</span> <span class="o">=</span> <span class="n">y_true_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-    <span class="n">y_pred_cpu</span> <span class="o">=</span> <span class="n">y_pred_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-    <span class="n">max_true</span> <span class="o">=</span> <span class="n">y_true_cpu</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
-    <span class="n">max_pred</span> <span class="o">=</span> <span class="n">y_pred_cpu</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
+def match_labels(y_true_tensor, y_pred_tensor):
+    y_true_cpu = y_true_tensor.cpu().long()
+    y_pred_cpu = y_pred_tensor.cpu().long()
+    max_true = y_true_cpu.max().item() + 1
+    max_pred = y_pred_cpu.max().item() + 1
 
-    <span class="c1"># Contingency matrix</span>
-    <span class="n">cont</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">max_true</span><span class="p">,</span> <span class="n">max_pred</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y_true_cpu</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)):</span>
-        <span class="n">cont</span><span class="p">[</span><span class="n">y_true_cpu</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y_pred_cpu</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
+    # Contingency matrix
+    cont = np.zeros((max_true, max_pred), dtype=int)
+    for i in range(y_true_cpu.size(0)):
+        cont[y_true_cpu[i], y_pred_cpu[i]] += 1
 
-    <span class="n">row_ind</span><span class="p">,</span> <span class="n">col_ind</span> <span class="o">=</span> <span class="n">linear_sum_assignment</span><span class="p">(</span><span class="o">-</span><span class="n">cont</span><span class="p">)</span>  <span class="c1"># maximize</span>
-    <span class="n">mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">col_ind</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span> <span class="n">row_ind</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">row_ind</span><span class="p">))}</span>
+    row_ind, col_ind = linear_sum_assignment(-cont)  # maximize
+    mapping = {col_ind[j]: row_ind[j] for j in range(len(row_ind))}
 
-    <span class="n">matched_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">y_pred_cpu</span><span class="o">.</span><span class="n">numpy</span><span class="p">()],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">matched_labels</span>
+    matched_labels = np.array([mapping.get(p, p) for p in y_pred_cpu.numpy()], dtype=int)
+    return matched_labels
 
-<span class="n">matched_pred</span> <span class="o">=</span> <span class="n">match_labels</span><span class="p">(</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">)</span>
+matched_pred = match_labels(y_tensor, labels_pred)
 
-<span class="c1"># Let&#39;s visualize</span>
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+# Let&#39;s visualize
+fig, ax = plt.subplots(figsize=(8, 6))
 
-<span class="n">correct</span> <span class="o">=</span> <span class="p">(</span><span class="n">matched_pred</span> <span class="o">==</span> <span class="n">y_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
-<span class="n">incorrect</span> <span class="o">=</span> <span class="o">~</span><span class="n">correct</span>
+correct = (matched_pred == y_tensor.cpu().numpy())
+incorrect = ~correct
 
-<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X_pca</span><span class="p">[</span><span class="n">correct</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X_pca</span><span class="p">[</span><span class="n">correct</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;lightblue&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Correctly predicted&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X_pca</span><span class="p">[</span><span class="n">incorrect</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X_pca</span><span class="p">[</span><span class="n">incorrect</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Incorrectly predicted&#39;</span><span class="p">)</span>
+ax.scatter(X_pca[correct, 0], X_pca[correct, 1], c=&#39;lightblue&#39;, s=5, label=&#39;Correctly predicted&#39;)
+ax.scatter(X_pca[incorrect, 0], X_pca[incorrect, 1], c=&#39;red&#39;, s=5, label=&#39;Incorrectly predicted&#39;)
 
-<span class="c1"># Plot the 2D means + ellipses for each component</span>
-<span class="n">n_comps</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_comps</span><span class="p">):</span>
-    <span class="n">mean_2d</span> <span class="o">=</span> <span class="n">means_pca</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-    <span class="n">cov_2d</span> <span class="o">=</span> <span class="n">covariances_pca</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+# Plot the 2D means + ellipses for each component
+n_comps = gmm.means_.shape[0]
+for i in range(n_comps):
+    mean_2d = means_pca[i].numpy()
+    cov_2d = covariances_pca[i].numpy()
 
-    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean_2d</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mean_2d</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
-    <span class="c1"># Ellipse for ~95% confidence region: factor ~5.991 for 2D</span>
-    <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">cov_2d</span><span class="p">)</span>
-    <span class="n">order</span> <span class="o">=</span> <span class="n">eigvals</span><span class="o">.</span><span class="n">argsort</span><span class="p">()[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">eigvals</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">eigvecs</span><span class="p">[:,</span> <span class="n">order</span><span class="p">]</span>
-    <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">eigvecs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">eigvecs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
-    <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.991</span> <span class="o">*</span> <span class="n">eigvals</span><span class="p">)</span>
-    <span class="n">ell</span> <span class="o">=</span> <span class="n">Ellipse</span><span class="p">(</span><span class="n">mean_2d</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="n">angle</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">ell</span><span class="p">)</span>
+    ax.scatter(mean_2d[0], mean_2d[1], c=&#39;black&#39;, marker=&#39;x&#39;)
+    # Ellipse for ~95% confidence region: factor ~5.991 for 2D
+    eigvals, eigvecs = np.linalg.eigh(cov_2d)
+    order = eigvals.argsort()[::-1]
+    eigvals, eigvecs = eigvals[order], eigvecs[:, order]
+    angle = np.degrees(np.arctan2(eigvecs[1, 0], eigvecs[0, 0]))
+    width, height = 2 * np.sqrt(5.991 * eigvals)
+    ell = Ellipse(mean_2d, width, height, angle=angle, edgecolor=&#39;black&#39;, facecolor=&#39;none&#39;, linestyle=&#39;--&#39;)
+    ax.add_patch(ell)
 
-<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Clustering Visualization in PCA (4D -&gt; 2D)&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;PCA 1&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;PCA 2&quot;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+ax.set_title(&quot;Clustering Visualization in PCA (4D -&gt; 2D)&quot;)
+ax.set_xlabel(&quot;PCA 1&quot;)
+ax.set_ylabel(&quot;PCA 2&quot;)
+ax.legend()
+plt.show()
 <br/></pre></div>
 </div>
 </div>
@@ -546,29 +546,29 @@ Torch AIC: 28178.6209 vs Sklearn AIC: 28178.5131
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cm</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">(</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Confusion Matrix:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cm</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>cm = ClusteringMetrics.confusion_matrix(
+    torch.tensor(y_true, dtype=torch.long),
+    torch.tensor(matched_pred, dtype=torch.long)
+)
+print(&quot;\nConfusion Matrix:\n&quot;, cm)
 
-<span class="n">report</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">classification_report</span><span class="p">(</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Classification Report:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">report</span><span class="p">)</span>
+report = ClusteringMetrics.classification_report(
+    torch.tensor(y_true, dtype=torch.long),
+    torch.tensor(matched_pred, dtype=torch.long)
+)
+print(&quot;\nClassification Report:\n&quot;, report)
 
-<span class="c1"># Heatmap of confusion matrix</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
-<span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">annot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Blues&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Confusion Matrix (Hungarian-Aligned Labels)&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Predicted Label&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;True Label&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+# Heatmap of confusion matrix
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt=&#39;d&#39;, cmap=&#39;Blues&#39;)
+plt.title(&quot;Confusion Matrix (Hungarian-Aligned Labels)&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;True Label&quot;)
+plt.show()
 
-<span class="c1"># Convert classification report to a DataFrame for display</span>
-<span class="n">report_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">report</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
-<span class="n">report_df</span>
+# Convert classification report to a DataFrame for display
+report_df = pd.DataFrame(report).T
+report_df
 <br/></pre></div>
 </div>
 </div>
@@ -671,42 +671,42 @@ Classification Report:
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">RUN_KL_DIVERGENCE</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="k">if</span> <span class="n">RUN_KL_DIVERGENCE</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Computing KL(p||q) for different numbers of components...&quot;</span><span class="p">)</span>
-    <span class="n">gmm_true</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-        <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-        <span class="n">n_components</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span>
-        <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
-        <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-        <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
-        <span class="n">device</span><span class="o">=</span><span class="n">device</span>
-    <span class="p">)</span>
-    <span class="n">gmm_true</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>RUN_KL_DIVERGENCE = True
+if RUN_KL_DIVERGENCE:
+    print(&quot;Computing KL(p||q) for different numbers of components...&quot;)
+    gmm_true = GaussianMixture(
+        n_features=4,
+        n_components=true_n_components,
+        covariance_type=&#39;full&#39;,
+        max_iter=1000,
+        init_params=&#39;kmeans&#39;,
+        device=device
+    )
+    gmm_true.fit(X_tensor)
 
-    <span class="n">test_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">)</span>
-    <span class="n">kl_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">test_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">test_range</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">test_range</span><span class="p">)):</span>
-        <span class="n">gmm_test</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-            <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-            <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">,</span>
-            <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
-            <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-            <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
-            <span class="n">device</span><span class="o">=</span><span class="n">device</span>
-        <span class="p">)</span>
-        <span class="n">gmm_test</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+    test_range = np.arange(5, 15)
+    kl_vals = torch.zeros(len(test_range), device=device)
+    for i, n in tqdm(enumerate(test_range), total=len(test_range)):
+        gmm_test = GaussianMixture(
+            n_features=4,
+            n_components=n,
+            covariance_type=&#39;full&#39;,
+            max_iter=1000,
+            init_params=&#39;kmeans&#39;,
+            device=device
+        )
+        gmm_test.fit(X_tensor)
 
-        <span class="n">kl_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">kl_divergence_gmm</span><span class="p">(</span><span class="n">gmm_true</span><span class="p">,</span> <span class="n">gmm_test</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+        kl_vals[i] = ClusteringMetrics.kl_divergence_gmm(gmm_true, gmm_test, n_samples=10000)
 
-    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">test_range</span><span class="p">,</span> <span class="n">kl_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;KL Divergence: True GMM vs. Various n_components&quot;</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Number of Components&quot;</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;KL Divergence (log scale)&quot;</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    plt.figure(figsize=(8, 5))
+    plt.plot(test_range, kl_vals.cpu().numpy(), marker=&#39;o&#39;)
+    plt.yscale(&#39;log&#39;)
+    plt.title(&quot;KL Divergence: True GMM vs. Various n_components&quot;)
+    plt.xlabel(&quot;Number of Components&quot;)
+    plt.ylabel(&quot;KL Divergence (log scale)&quot;)
+    plt.grid(True)
+    plt.show()
 <br/></pre></div>
 </div>
 </div>
