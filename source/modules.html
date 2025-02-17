@@ -313,6 +313,169 @@
 <span id="id1"></span><h1>Modules<a class="headerlink" href="#modules" title="Link to this heading">#</a></h1>
 <section id="module-src.gmm">
 <span id="gaussianmixture"></span><h2>GaussianMixture<a class="headerlink" href="#module-src.gmm" title="Link to this heading">#</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="src.gmm.GaussianMixture">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">src.gmm.</span></span><span class="sig-name descname"><span class="pre">GaussianMixture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariance_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'full'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reg_covar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'kmeans'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cov_init_method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'eye'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights_init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">means_init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariances_init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warm_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_concentration_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_precision_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariance_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">degrees_of_freedom_prior</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/src/gmm.html#GaussianMixture"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm.GaussianMixture" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></p>
+<p>A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch.</p>
+<p>This GMM supports:</p>
+<ul class="simple">
+<li><p>The Expectation-Maximization (EM) algorithm.</p></li>
+<li><p>Multiple initializations (n_init).</p></li>
+<li><p>Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical).</p></li>
+<li><p>Maximum Likelihood Estimation (MLE) and optional MAP estimation via priors.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_features</strong> (<em>int</em>) – Dimensionality of the input data (number of features).</p></li>
+<li><p><strong>n_components</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of mixture components (default: 1).</p></li>
+<li><p><strong>covariance_type</strong> (<em>str</em><em>, </em><em>optional</em>) – Type of covariance parameters to use. Must be one of:
+‘full’, ‘diag’, ‘spherical’, ‘tied_full’, ‘tied_diag’, ‘tied_spherical’.
+(default: ‘full’)</p></li>
+<li><p><strong>tol</strong> (<em>float</em><em>, </em><em>optional</em>) – Convergence threshold for EM (relative improvement in log-likelihood).
+(default: 1e-4)</p></li>
+<li><p><strong>reg_covar</strong> (<em>float</em><em>, </em><em>optional</em>) – Non-negative regularization added to the diagonal of covariance.
+Helps keep covariance matrices from becoming singular. (default: 1e-6)</p></li>
+<li><p><strong>max_iter</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of EM iterations to perform. (default: 1000)</p></li>
+<li><p><strong>init_params</strong> (<em>str</em><em>, </em><em>optional</em>) – Method for initializing means (kmeans, random, points, kpp, maxdist).
+(default: ‘kmeans’)</p></li>
+<li><p><strong>weights_init</strong> (<em>torch.Tensor</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – User-provided initial component weights of shape (n_components,).
+If None, weights are set uniformly. (default: None)</p></li>
+<li><p><strong>means_init</strong> (<em>torch.Tensor</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – User-provided initial component means of shape (n_components, n_features).
+If None, means are randomized according to <cite>init_params</cite>. (default: None)</p></li>
+<li><p><strong>covariances_init</strong> (<em>torch.Tensor</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – User-provided initial covariances. Shape depends on <cite>covariance_type</cite>. (default: None)</p></li>
+<li><p><strong>n_init</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of random initializations to try. The best run (highest log-likelihood)
+is kept. (default: 1)</p></li>
+<li><p><strong>random_state</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Random seed for reproducibility. If None, uses PyTorch’s internal seed. (default: None)</p></li>
+<li><p><strong>warm_start</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, reuse the solution of the previous call to <cite>fit</cite> as initialization.
+(default: False)</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, print progress during EM iterations. (default: False)</p></li>
+<li><p><strong>verbose_interval</strong> (<em>int</em><em>, </em><em>optional</em>) – Frequency (in iterations) at which to print progress. (default: 10)</p></li>
+<li><p><strong>device</strong> (<em>str</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Device on which to run computations (‘cpu’ or ‘cuda’). If None, uses GPU if
+available, otherwise CPU. (default: None)</p></li>
+<li><p><strong>weight_concentration_prior</strong> (<em>torch.Tensor</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Dirichlet concentration prior for the mixture weights, used in MAP. (default: None)</p></li>
+<li><p><strong>mean_prior</strong> (<em>torch.Tensor</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Prior for the means, used in MAP. If provided, must match <cite>mean_precision_prior</cite>.
+(default: None)</p></li>
+<li><p><strong>mean_precision_prior</strong> (<em>float</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Precision of the mean prior, used in MAP. (default: None)</p></li>
+<li><p><strong>covariance_prior</strong> (<em>torch.Tensor</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Prior on covariance(s), used in MAP. If provided, must match
+<cite>degrees_of_freedom_prior</cite>. (default: None)</p></li>
+<li><p><strong>degrees_of_freedom_prior</strong> (<em>float</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Degrees of freedom in the Wishart prior for covariances (MAP). (default: None)</p></li>
+<li><p><strong>cov_init_method</strong> (<em>str</em><em>, </em><em>optional</em>) – Method for initializing covariances if <cite>covariances_init</cite> is None.
+Supported: ‘eye’, ‘random’, ‘empirical’. (default: ‘eye’)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Variables<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>weights</strong> (<em>torch.Tensor</em>) – Mixture component weights of shape (n_components,).</p></li>
+<li><p><strong>means</strong> (<em>torch.Tensor</em>) – Mixture component means of shape (n_components, n_features).</p></li>
+<li><p><strong>covariances</strong> (<em>torch.Tensor</em>) – Mixture component covariances. Shape depends on <cite>covariance_type</cite>.</p></li>
+<li><p><strong>fitted</strong> (<em>bool</em>) – Whether the model has been fitted. This attribute is important when using <cite>warm_start</cite>.</p></li>
+<li><p><strong>converged</strong> (<em>bool</em>) – Whether the EM algorithm has converged in the best run.</p></li>
+<li><p><strong>n_iter</strong> (<em>int</em>) – Number of EM iterations performed in the best run.</p></li>
+<li><p><strong>lower_bound</strong> (<em>float</em>) – Log-likelihood lower bound on the fitted data for the best run.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="src.gmm.GaussianMixture.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warm_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#src.gmm.GaussianMixture" title="src.gmm.GaussianMixture"><span class="pre">GaussianMixture</span></a></span></span><a class="reference internal" href="../_modules/src/gmm.html#GaussianMixture.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm.GaussianMixture.fit" title="Link to this definition">#</a></dt>
+<dd><p>Fit the GMM to the data using the EM algorithm, possibly across multiple
+random initializations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Input data of shape (n_samples, n_features).</p></li>
+<li><p><strong>max_iter</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of EM iterations. If None, uses <cite>self.max_iter</cite>. (default: None)</p></li>
+<li><p><strong>tol</strong> (<em>float</em><em>, </em><em>optional</em>) – Convergence tolerance. If None, uses <cite>self.tol</cite>. (default: None)</p></li>
+<li><p><strong>random_state</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Random seed. Overrides <cite>self.random_state</cite> if provided. (default: None)</p></li>
+<li><p><strong>warm_start</strong> (<em>bool</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Whether to warm-start from previously fitted parameters in multi-init
+settings. If None, uses <cite>self.warm_start</cite>. (default: None)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>self</strong> (<em>GaussianMixture</em>) – The fitted model instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.gmm.GaussianMixture.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/src/gmm.html#GaussianMixture.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm.GaussianMixture.predict" title="Link to this definition">#</a></dt>
+<dd><p>Predict cluster labels for each sample in X (i.e., argmax of responsibilities).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.Tensor</em>) – Input data, shape (n_samples, n_features).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>labels</strong> (<em>torch.Tensor</em>) – Cluster labels for each sample, shape (n_samples,).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.gmm.GaussianMixture.predict_proba">
+<span class="sig-name descname"><span class="pre">predict_proba</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/src/gmm.html#GaussianMixture.predict_proba"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm.GaussianMixture.predict_proba" title="Link to this definition">#</a></dt>
+<dd><p>Return the posterior probabilities (responsibilities) of each sample
+belonging to each component.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.Tensor</em>) – Input data, shape (n_samples, n_features).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>resp</strong> (<em>torch.Tensor</em>) – Responsibilities, shape (n_samples, n_components).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.gmm.GaussianMixture.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/src/gmm.html#GaussianMixture.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm.GaussianMixture.sample" title="Link to this definition">#</a></dt>
+<dd><p>Generate new samples from the fitted GMM.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n_samples</strong> (<em>int</em>) – Number of samples to generate.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>samples</strong> (<em>torch.Tensor</em>) – Generated samples of shape (n_samples, n_features).</p></li>
+<li><p><strong>indices</strong> (<em>torch.Tensor</em>) – The indices of the component each sample came from, shape (n_samples,).</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.gmm.GaussianMixture.score">
+<span class="sig-name descname"><span class="pre">score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/src/gmm.html#GaussianMixture.score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm.GaussianMixture.score" title="Link to this definition">#</a></dt>
+<dd><p>Compute the average log-likelihood of X under the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.Tensor</em>) – Input data, shape (n_samples, n_features).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>score</strong> (<em>float</em>) – Mean log-likelihood across all samples.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="src.gmm.GaussianMixture.score_samples">
+<span class="sig-name descname"><span class="pre">score_samples</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/src/gmm.html#GaussianMixture.score_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm.GaussianMixture.score_samples" title="Link to this definition">#</a></dt>
+<dd><p>Compute per-sample log-likelihood under the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>X</strong> (<em>torch.Tensor</em>) – Input data, shape (n_samples, n_features).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>log_prob</strong> (<em>torch.Tensor</em>) – Log-likelihood for each sample, shape (n_samples,).</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 <section id="module-src.gmm_init">
 <span id="gmminitializer"></span><h2>GMMInitializer<a class="headerlink" href="#module-src.gmm_init" title="Link to this heading">#</a></h2>
@@ -706,7 +869,7 @@ of a single class.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gmm_model</strong> (<em>GaussianMixture</em>) – A fitted GMM model (must have <code class="docutils literal notranslate"><span class="pre">fitted_</span> <span class="pre">==</span> <span class="pre">True</span></code>).</p></li>
+<li><p><strong>gmm_model</strong> (<a class="reference internal" href="#src.gmm.GaussianMixture" title="src.gmm.GaussianMixture"><em>GaussianMixture</em></a>) – A fitted GMM model (must have <code class="docutils literal notranslate"><span class="pre">fitted_</span> <span class="pre">==</span> <span class="pre">True</span></code>).</p></li>
 <li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data to evaluate, shape (n_samples, n_features).</p></li>
 <li><p><strong>true_labels</strong> (<em>torch.Tensor</em><em> or </em><em>None</em>) – Ground-truth labels for supervised metrics (optional).</p></li>
 <li><p><strong>metrics</strong> (<em>list</em><em> of </em><em>str</em><em> or </em><em>None</em>) – Which metrics to compute. If None, uses a default set.</p></li>
@@ -760,8 +923,8 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>gmm_p</strong> (<em>GaussianMixture</em>) – The first GMM (interpreted as distribution p).</p></li>
-<li><p><strong>gmm_q</strong> (<em>GaussianMixture</em>) – The second GMM (interpreted as distribution q).</p></li>
+<li><p><strong>gmm_p</strong> (<a class="reference internal" href="#src.gmm.GaussianMixture" title="src.gmm.GaussianMixture"><em>GaussianMixture</em></a>) – The first GMM (interpreted as distribution p).</p></li>
+<li><p><strong>gmm_q</strong> (<a class="reference internal" href="#src.gmm.GaussianMixture" title="src.gmm.GaussianMixture"><em>GaussianMixture</em></a>) – The second GMM (interpreted as distribution q).</p></li>
 <li><p><strong>n_samples</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of samples to draw from gmm_p for the Monte Carlo approximation
 (default: 10000).</p></li>
 </ul>
@@ -958,7 +1121,18 @@ though it’s seldom negative in practice if distances are Euclidean).</p>
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-src.gmm">GaussianMixture</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-src.gmm">GaussianMixture</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm.GaussianMixture"><code class="docutils literal notranslate"><span class="pre">GaussianMixture</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm.GaussianMixture.fit"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.fit()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm.GaussianMixture.predict"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.predict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm.GaussianMixture.predict_proba"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.predict_proba()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm.GaussianMixture.sample"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.sample()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm.GaussianMixture.score"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.score()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm.GaussianMixture.score_samples"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.score_samples()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-src.gmm_init">GMMInitializer</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm_init.GMMInitializer"><code class="docutils literal notranslate"><span class="pre">GMMInitializer</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#src.gmm_init.GMMInitializer.random"><code class="docutils literal notranslate"><span class="pre">GMMInitializer.random()</span></code></a></li>
