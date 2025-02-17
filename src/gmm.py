@@ -2,14 +2,16 @@ import torch
 from torch import nn
 from torch.distributions import MultivariateNormal
 from typing import Optional, Tuple
+from .gmm_init import GMMInitializer
 
 EPS = 1e-10  # Small constant for numerical stability
 
 class GaussianMixture(nn.Module):
     r"""
-    A Gaussian Mixture Model (GMM) implemented in PyTorch.
+    A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch.
 
     This GMM supports:
+    
     - The Expectation-Maximization (EM) algorithm.
     - Multiple initializations (n_init).
     - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical).
@@ -34,7 +36,7 @@ class GaussianMixture(nn.Module):
     max_iter : int, optional
         Maximum number of EM iterations to perform. (default: 1000)
     init_params : str, optional
-        Method for initializing means (kmeans, random, points, kpp, etc.).
+        Method for initializing means (kmeans, random, points, kpp, maxdist).
         (default: 'kmeans')
     weights_init : torch.Tensor or None, optional
         User-provided initial component weights of shape (n_components,).
@@ -86,37 +88,39 @@ class GaussianMixture(nn.Module):
     fitted_ : bool
         Whether the model has been fitted. This attribute is important when using `warm_start`.
     converged_ : bool
-        Whether the EM algorithm has converged.
+        Whether the EM algorithm has converged in the best run.
     n_iter_ : int
-        Number of EM iterations performed in the last run.
+        Number of EM iterations performed in the best run.
     lower_bound_ : float
-        Log-likelihood lower bound on the fitted data for the last run.
+        Log-likelihood lower bound on the fitted data for the best run.
     """
+
+    __module__ = "GaussianMixture"
 
     def __init__(
         self,
-        n_features: int,
         n_components: int = 1,
+        n_features: int = None,
         covariance_type: str = 'full',
         tol: float = 1e-4,
         reg_covar: float = 1e-6,
         max_iter: int = 1000,
         init_params: str = 'kmeans',
         cov_init_method: str = 'eye',
-        weights_init: Optional[torch.Tensor] = None,
-        means_init: Optional[torch.Tensor] = None,
-        covariances_init: Optional[torch.Tensor] = None,
+        weights_init: torch.Tensor = None,
+        means_init: torch.Tensor = None,
+        covariances_init: torch.Tensor = None,
         n_init: int = 1,
-        random_state: Optional[int] = None,
+        random_state: int = None,
         warm_start: bool = False,
         verbose: bool = False,
         verbose_interval: int = 10,
-        device: Optional[str] = None,
-        weight_concentration_prior: Optional[torch.Tensor] = None,
-        mean_prior: Optional[torch.Tensor] = None,
-        mean_precision_prior: Optional[float] = None,
-        covariance_prior: Optional[torch.Tensor] = None,
-        degrees_of_freedom_prior: Optional[float] = None,
+        device: str = None,
+        weight_concentration_prior: torch.Tensor = None,
+        mean_prior: torch.Tensor = None,
+        mean_precision_prior: float = None,
+        covariance_prior: torch.Tensor = None,
+        degrees_of_freedom_prior: float = None,
     ):
         super().__init__()
 
@@ -173,10 +177,6 @@ class GaussianMixture(nn.Module):
         self.converged_ = False
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
-
-        # Allocate parameters now if not warm-starting
-        if not self.warm_start:
-            self._allocate_parameters()
 
     def _init_priors(
         self,
@@ -604,6 +604,16 @@ class GaussianMixture(nn.Module):
         self : GaussianMixture
             The fitted model instance.
         """
+
+        if self.n_features is None:
+            self.n_features = X.shape[1]
+
+        if warm_start is None:
+            warm_start = self.warm_start
+
+        if not self.warm_start:
+            self._allocate_parameters()
+
         if max_iter is None:
             max_iter = self.max_iter
         if tol is None:
