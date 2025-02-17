@@ -1,4 +1,10 @@
-# Documentation tools
+torch>=1.10.0
+numpy
+matplotlib
+tqdm
+seaborn
+pandas
+scikit-learn
 sphinx>=8.0
 sphinx-rtd-theme
 nbsphinx

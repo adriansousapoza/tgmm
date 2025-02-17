@@ -3,6 +3,10 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
+from pygments.lexers import PythonLexer
+from sphinx.highlighting import lexers
+lexers['ipython3'] = PythonLexer()
+
 project = 'TorchGMM'
 copyright = '2025, Adrián A. Sousa-Poza'
 author = 'Adrián A. Sousa-Poza'
