@@ -2,7 +2,7 @@
 
 .. image:: _static/logo-no-background.svg
    :align: center
-   :scale: 100%
+   :scale: 75%
 
 ==========================
 TorchGMM Documentation
@@ -13,6 +13,7 @@ Welcome to the **TorchGMM** documentation! Below you will find:
 - An overview of the :ref:`modules`.
 - Links to :ref:`tutorials`.
 - Basic usage instructions.
+- * :ref:`search`
 
 .. toctree::
    :maxdepth: 2
@@ -20,7 +21,3 @@ Welcome to the **TorchGMM** documentation! Below you will find:
 
    modules
    tutorials
-
-Indices and tables
-==================
-* :ref:`search`
