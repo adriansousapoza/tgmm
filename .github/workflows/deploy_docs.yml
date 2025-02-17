@@ -3,13 +3,13 @@ name: Deploy Documentation to GitHub Pages
 on:
   push:
     branches:
-      - main  # Deploy on pushes to main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Required to push to gh-pages branch
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
