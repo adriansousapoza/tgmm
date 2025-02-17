@@ -30,6 +30,7 @@
 <link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=5c7ff671" />
   
   <!-- So that users can add custom icons -->
   <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
@@ -277,7 +278,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.gmm_init</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span>
 
-<span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-10</span>  <span class="c1"># Small constant for numerical stability</span>
+<span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-20</span>  <span class="c1"># Small constant for numerical stability</span>
 
 <div class="viewcode-block" id="GaussianMixture">
 <a class="viewcode-back" href="../../source/gaussian_mixture.html#src.gmm.GaussianMixture">[docs]</a>
@@ -290,7 +291,7 @@
 <span class="sd">    - The Expectation-Maximization (EM) algorithm.</span>
 <span class="sd">    - Multiple initializations (n_init).</span>
 <span class="sd">    - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical).</span>
-<span class="sd">    - Maximum Likelihood Estimation (MLE) and optional MAP estimation via priors.</span>
+<span class="sd">    - Maximum Likelihood Estimation (MLE) and Maximum a Posteriori (MAP) estimation (i.e. with Priors).</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -325,7 +326,7 @@
 <span class="sd">        Number of random initializations to try. The best run (highest log-likelihood)</span>
 <span class="sd">        is kept. (default: 1)</span>
 <span class="sd">    random_state : int or None, optional</span>
-<span class="sd">        Random seed for reproducibility. If None, uses PyTorch’s internal seed. (default: None)</span>
+<span class="sd">        Random seed for reproducibility. If None, uses PyTorch&#39;s internal seed. (default: None)</span>
 <span class="sd">    warm_start : bool, optional</span>
 <span class="sd">        If True, reuse the solution of the previous call to `fit` as initialization.</span>
 <span class="sd">        (default: False)</span>
@@ -886,11 +887,12 @@
         <span class="k">if</span> <span class="n">warm_start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">warm_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">warm_start</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">warm_start</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">warm_start</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_allocate_parameters</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="n">max_iter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">max_iter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span>
+            
         <span class="k">if</span> <span class="n">tol</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">tol</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tol</span>
 
