@@ -8,8 +8,8 @@ Here are step-by-step guides on using TorchGMM.
 
 .. toctree::
    :maxdepth: 2
-   :caption: GMM Tutorials:
+   :caption: Contents:
 
-   tutorials/gmm
-   tutorials/metrics
-   tutorials/priors
+   ../notebooks/gmm.ipynb
+   ../notebooks/metrics.ipynb
+   ../notebooks/priors.ipynb
