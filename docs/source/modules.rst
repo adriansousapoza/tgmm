@@ -4,23 +4,10 @@
 Modules
 =======================
 
-GaussianMixture
----------------
-.. automodule:: src.gmm
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 1
+   :caption: Modules
 
-GMMInitializer
---------------
-.. automodule:: src.gmm_init
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-ClusteringMetrics
------------------
-.. automodule:: src.metrics
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   gaussian_mixture
+   gmm_initializer
+   clustering_metrics

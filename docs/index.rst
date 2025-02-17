@@ -18,8 +18,8 @@ Welcome to the **TorchGMM** documentation! Below you will find:
    :maxdepth: 2
    :caption: Contents:
 
-   source/modules
-   source/tutorials
+   modules
+   tutorials
 
 Indices and tables
 ==================
