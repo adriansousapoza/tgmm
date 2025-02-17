@@ -4,7 +4,7 @@ from torch.distributions import MultivariateNormal
 from typing import Optional, Tuple
 from .gmm_init import GMMInitializer
 
-EPS = 1e-10  # Small constant for numerical stability
+EPS = 1e-20  # Small constant for numerical stability
 
 class GaussianMixture(nn.Module):
     r"""
@@ -15,7 +15,7 @@ class GaussianMixture(nn.Module):
     - The Expectation-Maximization (EM) algorithm.
     - Multiple initializations (n_init).
     - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical).
-    - Maximum Likelihood Estimation (MLE) and optional MAP estimation via priors.
+    - Maximum Likelihood Estimation (MLE) and Maximum a Posteriori (MAP) estimation (i.e. with Priors).
 
     Parameters
     ----------
@@ -50,7 +50,7 @@ class GaussianMixture(nn.Module):
         Number of random initializations to try. The best run (highest log-likelihood)
         is kept. (default: 1)
     random_state : int or None, optional
-        Random seed for reproducibility. If None, uses PyTorch’s internal seed. (default: None)
+        Random seed for reproducibility. If None, uses PyTorch's internal seed. (default: None)
     warm_start : bool, optional
         If True, reuse the solution of the previous call to `fit` as initialization.
         (default: False)
@@ -609,11 +609,12 @@ class GaussianMixture(nn.Module):
         if warm_start is None:
             warm_start = self.warm_start
 
-        if not self.warm_start:
+        if not warm_start:
             self._allocate_parameters()
 
         if max_iter is None:
             max_iter = self.max_iter
+            
         if tol is None:
             tol = self.tol
 

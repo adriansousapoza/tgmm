@@ -1,12 +1,12 @@
 .. _index:
 
+.. image:: _static/logo-no-background.svg
+   :align: center
+   :scale: 100%
+
 ==========================
 TorchGMM Documentation
 ==========================
-
-.. image:: _static/logo-no-background.png
-   :align: center
-   :width: 400px
 
 Welcome to the **TorchGMM** documentation! Below you will find:
 
@@ -23,6 +23,4 @@ Welcome to the **TorchGMM** documentation! Below you will find:
 
 Indices and tables
 ==================
-* :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

@@ -49,6 +49,9 @@ html_theme = 'pydata_sphinx_theme'
 # Paths that contain custom static files (such as style sheets). They are copied into the final HTML build.
 html_static_path = ['_static']
 
+# Custom CSS files to include in the build.
+html_css_files = ['custom.css']
+
 # -- Options for Napoleon (docstring style) ----------------------------------
 
 # If True, use the "Parameters" section header in docstrings.
