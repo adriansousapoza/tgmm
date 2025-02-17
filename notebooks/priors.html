@@ -87,33 +87,33 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>import numpy as np
-import torch
-import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
-from matplotlib.colors import ListedColormap
-import importlib
-import os
-import sys
-sys.path.append(&#39;../../..&#39;)
-#print(os.listdir(&quot;../../..&quot;))
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ellipse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ListedColormap</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;../../..&#39;</span><span class="p">)</span>
+<span class="c1">#print(os.listdir(&quot;../../..&quot;))</span>
 
-import utils.gmm
-import utils.metrics
-import utils.gmm_init
-importlib.reload(utils.gmm)
-importlib.reload(utils.metrics)
-importlib.reload(utils.gmm_init)
-from utils.gmm import GaussianMixture
-from utils.gmm_init import GMMInitializer
+<span class="kn">import</span><span class="w"> </span><span class="nn">utils.gmm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">utils.metrics</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">utils.gmm_init</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">gmm</span><span class="p">)</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">metrics</span><span class="p">)</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">gmm_init</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">utils.gmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">utils.gmm_init</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span>
 
-device = &#39;cuda&#39; if torch.cuda.is_available() else &#39;cpu&#39;
-print(&quot;Using device:&quot;, device)
+<span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using device:&quot;</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
 
-# Set random seeds for reproducibility
-random_state = 42
-np.random.seed(random_state)
-torch.manual_seed(random_state)
+<span class="c1"># Set random seeds for reproducibility</span>
+<span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -138,30 +138,30 @@ Using device: cuda
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>n_features = 2
-n_components = 4
-max_iter = 1000
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_features</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">n_components</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">max_iter</span> <span class="o">=</span> <span class="mi">1000</span>
 
-n_samples_1 = 1000
-n_samples_2 = 500
-n_samples_3 = 200
-n_samples_4 = 300
+<span class="n">n_samples_1</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="n">n_samples_2</span> <span class="o">=</span> <span class="mi">500</span>
+<span class="n">n_samples_3</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">n_samples_4</span> <span class="o">=</span> <span class="mi">300</span>
 
-center_1 = np.array([0, 0])
-center_2 = np.array([-4, 4])
-center_3 = np.array([4, -4])
-center_4 = np.array([4, 4])
+<span class="n">center_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="n">center_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+<span class="n">center_3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">])</span>
+<span class="n">center_4</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
 
-C = np.array([[0.0, -0.5], [1.5, 0.5]])
-C_2 = np.array([[0.0, 0.2], [0.4, 1.7]])
+<span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]])</span>
+<span class="n">C_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.7</span><span class="p">]])</span>
 
-component_1 = np.dot(np.random.randn(n_samples_1, 2), C) + center_1
-component_2 = 0.7 * np.random.randn(n_samples_2, 2) + center_2
-component_3 = 0.5 * np.random.randn(n_samples_3, 2) + center_3
-component_4 = np.dot(np.random.randn(n_samples_4, 2), C_2) + center_4
+<span class="n">component_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">C</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_1</span>
+<span class="n">component_2</span> <span class="o">=</span> <span class="mf">0.7</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_2</span>
+<span class="n">component_3</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_3</span>
+<span class="n">component_4</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_4</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">C_2</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_4</span>
 
-X = np.concatenate([component_1, component_2, component_3, component_4], axis=0)
-X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">component_1</span><span class="p">,</span> <span class="n">component_2</span><span class="p">,</span> <span class="n">component_3</span><span class="p">,</span> <span class="n">component_4</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
 <br/></pre></div>
 </div>
 </div>
@@ -169,59 +169,59 @@ X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>def plot_gmm_ellipses(gmm, X, ax=None, title=&#39;&#39;, color=&#39;blue&#39;, alpha=1.0):
-    &quot;&quot;&quot;
-    Plot a scatter of all data points and overlay ellipses for each component
-    in the GMM, along with the component means.
-    &quot;&quot;&quot;
-    if ax is None:
-        ax = plt.gca()
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">plot_gmm_ellipses</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot a scatter of all data points and overlay ellipses for each component</span>
+<span class="sd">    in the GMM, along with the component means.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
 
-    ax.scatter(X[:, 0].cpu(), X[:, 1].cpu(), c=&#39;black&#39;, s=2, alpha=0.3, label=&#39;Data&#39;)
+    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Data&#39;</span><span class="p">)</span>
 
-    for k in range(gmm.n_components):
-        mean_k = gmm.means_[k].detach().cpu().numpy()
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">):</span>
+        <span class="n">mean_k</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">means_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
-        # Extract appropriate covariance
-        if gmm.covariance_type == &#39;full&#39;:
-            cov_k = gmm.covariances_[k].detach().cpu().numpy()
-        elif gmm.covariance_type == &#39;diag&#39;:
-            cov_k = np.diag(gmm.covariances_[k].detach().cpu().numpy())
-        elif gmm.covariance_type == &#39;spherical&#39;:
-            var = gmm.covariances_[k].detach().cpu().item()
-            cov_k = np.eye(gmm.n_features) * var
-        elif gmm.covariance_type == &#39;tied_full&#39;:
-            cov_k = gmm.covariances_.detach().cpu().numpy()  # one shared covariance
-        elif gmm.covariance_type == &#39;tied_diag&#39;:
-            diag_vals = gmm.covariances_.detach().cpu().numpy()
-            cov_k = np.diag(diag_vals)
-        elif gmm.covariance_type == &#39;tied_spherical&#39;:
-            var = gmm.covariances_.detach().cpu().item()
-            cov_k = np.eye(gmm.n_features) * var
-        else:
-            raise ValueError(&quot;Unsupported covariance type.&quot;)
+        <span class="c1"># Extract appropriate covariance</span>
+        <span class="k">if</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;full&#39;</span><span class="p">:</span>
+            <span class="n">cov_k</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;diag&#39;</span><span class="p">:</span>
+            <span class="n">cov_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;spherical&#39;</span><span class="p">:</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+            <span class="n">cov_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_features</span><span class="p">)</span> <span class="o">*</span> <span class="n">var</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;tied_full&#39;</span><span class="p">:</span>
+            <span class="n">cov_k</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>  <span class="c1"># one shared covariance</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;tied_diag&#39;</span><span class="p">:</span>
+            <span class="n">diag_vals</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">cov_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">diag_vals</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;tied_spherical&#39;</span><span class="p">:</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+            <span class="n">cov_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_features</span><span class="p">)</span> <span class="o">*</span> <span class="n">var</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unsupported covariance type.&quot;</span><span class="p">)</span>
 
-        # Decompose covariance to plot ellipse
-        eigvals, eigvecs = np.linalg.eigh(cov_k)
-        order = eigvals.argsort()[::-1]
-        eigvals, eigvecs = eigvals[order], eigvecs[:, order]
-        angle = np.degrees(np.arctan2(*eigvecs[:, 0][::-1]))
+        <span class="c1"># Decompose covariance to plot ellipse</span>
+        <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">cov_k</span><span class="p">)</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">eigvals</span><span class="o">.</span><span class="n">argsort</span><span class="p">()[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">eigvals</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">eigvecs</span><span class="p">[:,</span> <span class="n">order</span><span class="p">]</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="o">*</span><span class="n">eigvecs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
 
-        # For example, 2 std dev =&gt; coverage ~95%
-        std_dev = 2
-        width, height = 2 * std_dev * np.sqrt(eigvals)
-        ellipse = Ellipse(
-            mean_k, width, height, angle=angle,
-            edgecolor=color, facecolor=&#39;none&#39;, linewidth=2, alpha=alpha
-        )
-        ax.add_patch(ellipse)
+        <span class="c1"># For example, 2 std dev =&gt; coverage ~95%</span>
+        <span class="n">std_dev</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">std_dev</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">eigvals</span><span class="p">)</span>
+        <span class="n">ellipse</span> <span class="o">=</span> <span class="n">Ellipse</span><span class="p">(</span>
+            <span class="n">mean_k</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="n">angle</span><span class="p">,</span>
+            <span class="n">edgecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span>
+        <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">ellipse</span><span class="p">)</span>
 
-        # Mark the mean
-        ax.plot(mean_k[0], mean_k[1], &#39;o&#39;, color=color, markeredgecolor=&#39;black&#39;)
+        <span class="c1"># Mark the mean</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">mean_k</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mean_k</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">markeredgecolor</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">)</span>
 
-    ax.set_title(title)
-    ax.axis(&#39;equal&#39;)
-    ax.legend()
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 <br/></pre></div>
 </div>
 </div>
@@ -229,55 +229,55 @@ X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>weight_concentration_values = [
-    torch.tensor([1, 1, 1, 1], device=device),
-    torch.tensor([100.0, 100.0, 100.0, 100.0], device=device),
-    torch.tensor([10000.0, 10000.0, 10000.0, 10000.0], device=device)
-]
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">weight_concentration_values</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">100.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">],</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">10000.0</span><span class="p">,</span> <span class="mf">10000.0</span><span class="p">,</span> <span class="mf">10000.0</span><span class="p">,</span> <span class="mf">10000.0</span><span class="p">],</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+<span class="p">]</span>
 
-fig, axs = plt.subplots(1, 3, figsize=(15, 5))
-fig.suptitle(&quot;Weight Priors: Colored by Weights&quot;)
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Weight Priors: Colored by Weights&quot;</span><span class="p">)</span>
 
-colors = [&#39;red&#39;, &#39;blue&#39;, &#39;green&#39;, &#39;purple&#39;]
+<span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;purple&#39;</span><span class="p">]</span>
 
-for ax, alpha_vec in zip(axs, weight_concentration_values):
-    gmm_weight_prior = GaussianMixture(
-        n_features=n_features,
-        n_components=n_components,
-        covariance_type=&#39;full&#39;,
-        max_iter=1000,
-        device=device,
-        weight_concentration_prior=alpha_vec,
-        random_state=random_state
-    )
-    gmm_weight_prior.fit(X_tensor)
+<span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">alpha_vec</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">weight_concentration_values</span><span class="p">):</span>
+    <span class="n">gmm_weight_prior</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+        <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
+        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+        <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="n">weight_concentration_prior</span><span class="o">=</span><span class="n">alpha_vec</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span>
+    <span class="p">)</span>
+    <span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
-    # Plot
-    ax.scatter(X[:, 0], X[:, 1], c=&#39;black&#39;, s=2, alpha=0.2)
-    for i, base_color in enumerate(colors):
-        w_i = float(gmm_weight_prior.weights_[i].cpu().item())
-        # Retrieve mean, covariance
-        mean_i = gmm_weight_prior.means_[i].cpu().numpy()
-        cov_i = gmm_weight_prior.covariances_[i].cpu().numpy()
+    <span class="c1"># Plot</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">base_color</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">colors</span><span class="p">):</span>
+        <span class="n">w_i</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">weights_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
+        <span class="c1"># Retrieve mean, covariance</span>
+        <span class="n">mean_i</span> <span class="o">=</span> <span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">means_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">cov_i</span> <span class="o">=</span> <span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
-        eigvals, eigvecs = np.linalg.eigh(cov_i)
-        order = eigvals.argsort()[::-1]
-        eigvals, eigvecs = eigvals[order], eigvecs[:, order]
-        angle = np.degrees(np.arctan2(*eigvecs[:, 0][::-1]))
-        width, height = 2.0 * 2.0 * np.sqrt(eigvals)  # e.g. 2 std dev
+        <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">cov_i</span><span class="p">)</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">eigvals</span><span class="o">.</span><span class="n">argsort</span><span class="p">()[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">eigvals</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">eigvecs</span><span class="p">[:,</span> <span class="n">order</span><span class="p">]</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="o">*</span><span class="n">eigvecs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">][::</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">eigvals</span><span class="p">)</span>  <span class="c1"># e.g. 2 std dev</span>
 
-        ell = Ellipse(mean_i, width, height, angle=angle,
-                      edgecolor=base_color, facecolor=base_color,
-                      alpha=w_i, label=f&#39;Comp {i}, w={w_i:.2f}&#39;)
-        ax.add_patch(ell)
+        <span class="n">ell</span> <span class="o">=</span> <span class="n">Ellipse</span><span class="p">(</span><span class="n">mean_i</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="n">angle</span><span class="p">,</span>
+                      <span class="n">edgecolor</span><span class="o">=</span><span class="n">base_color</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="n">base_color</span><span class="p">,</span>
+                      <span class="n">alpha</span><span class="o">=</span><span class="n">w_i</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Comp </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">, w=</span><span class="si">{</span><span class="n">w_i</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">ell</span><span class="p">)</span>
 
-    # Label each subplot with prior strength and final LL
-    ax.set_title(f&quot;alpha={alpha_vec[0].item()}\nLL={gmm_weight_prior.lower_bound_:.4f}&quot;)
-    ax.axis(&#39;equal&#39;)
-    ax.legend(loc=&#39;upper right&#39;)
+    <span class="c1"># Label each subplot with prior strength and final LL</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">alpha_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
 
-plt.tight_layout()
-plt.show()
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 <br/></pre></div>
 </div>
 </div>
@@ -292,34 +292,34 @@ plt.show()
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>init_means_kmeans = GMMInitializer.kmeans(X_tensor.cpu(), k=n_components)  # do on CPU
-mean_prior = init_means_kmeans.clone().to(device)
-mean_precision_prior = 1e5  # large =&gt; strong push toward prior means
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">init_means_kmeans</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kmeans</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">k</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>  <span class="c1"># do on CPU</span>
+<span class="n">mean_prior</span> <span class="o">=</span> <span class="n">init_means_kmeans</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+<span class="n">mean_precision_prior</span> <span class="o">=</span> <span class="mf">1e5</span>  <span class="c1"># large =&gt; strong push toward prior means</span>
 
-# perturb the prior means slightly
-mean_prior += 0.5 * torch.randn_like(mean_prior)
+<span class="c1"># perturb the prior means slightly</span>
+<span class="n">mean_prior</span> <span class="o">+=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">mean_prior</span><span class="p">)</span>
 
-gmm_mean_prior = GaussianMixture(
-    n_features=n_features,
-    n_components=n_components,
-    covariance_type=&#39;full&#39;,
-    max_iter=max_iter,
-    device=device,
-    mean_prior=mean_prior,
-    mean_precision_prior=mean_precision_prior,
-    random_state=random_state
-)
-gmm_mean_prior.fit(X_tensor)
+<span class="n">gmm_mean_prior</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+    <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
+    <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="n">max_iter</span><span class="p">,</span>
+    <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+    <span class="n">mean_prior</span><span class="o">=</span><span class="n">mean_prior</span><span class="p">,</span>
+    <span class="n">mean_precision_prior</span><span class="o">=</span><span class="n">mean_precision_prior</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span>
+<span class="p">)</span>
+<span class="n">gmm_mean_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
-fig, ax = plt.subplots(1, 1, figsize=(6, 6))
-title = f&quot;Mean Prior (precision={mean_precision_prior})\nLL={gmm_mean_prior.lower_bound_:.2f}&quot;
-plot_gmm_ellipses(gmm_mean_prior, X_tensor, ax=ax, title=title, color=&#39;green&#39;)
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+<span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Mean Prior (precision=</span><span class="si">{</span><span class="n">mean_precision_prior</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_mean_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">plot_gmm_ellipses</span><span class="p">(</span><span class="n">gmm_mean_prior</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">)</span>
 
-# Plot the prior means as red crosses
-ax.scatter(mean_prior[:, 0].cpu(), mean_prior[:, 1].cpu(), marker=&#39;x&#39;, s=100, c=&#39;red&#39;, label=&#39;Mean Prior&#39;)
-ax.legend()
-plt.tight_layout()
-plt.show()
+<span class="c1"># Plot the prior means as red crosses</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean_prior</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">mean_prior</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Mean Prior&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 <br/></pre></div>
 </div>
 </div>
@@ -334,44 +334,44 @@ plt.show()
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>data_covariance = np.cov(X_tensor.cpu().numpy(), rowvar=False)  # shape (2, 2)
-data_covariance = torch.tensor(data_covariance, dtype=torch.float32, device=device)
-data_covariance = data_covariance.unsqueeze(0).expand(n_components, -1, -1)
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># shape (2, 2)</span>
+<span class="n">data_covariance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">data_covariance</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+<span class="n">data_covariance</span> <span class="o">=</span> <span class="n">data_covariance</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">n_components</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-degrees_of_freedom_prior = float(n_features + 2)
-prior_strengths = [0.01, 0.1, 1.0]
+<span class="n">degrees_of_freedom_prior</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">n_features</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">prior_strengths</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
 
-fig, axs = plt.subplots(1, 3, figsize=(15, 5))
-fig.suptitle(&quot;Covariance Priors: Varying Strength&quot;)
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Covariance Priors: Varying Strength&quot;</span><span class="p">)</span>
 
-for ax, strength in zip(axs, prior_strengths):
-    cov_prior = data_covariance * strength
+<span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">strength</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">prior_strengths</span><span class="p">):</span>
+    <span class="n">cov_prior</span> <span class="o">=</span> <span class="n">data_covariance</span> <span class="o">*</span> <span class="n">strength</span>
 
-    dummy_mean_prior = torch.zeros(n_components, n_features, device=device)
-    dummy_mean_precision_prior = 1e-10  # effectively no strong push on means
+    <span class="n">dummy_mean_prior</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_components</span><span class="p">,</span> <span class="n">n_features</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">dummy_mean_precision_prior</span> <span class="o">=</span> <span class="mf">1e-10</span>  <span class="c1"># effectively no strong push on means</span>
 
-    gmm_cov_prior = GaussianMixture(
-        n_features=n_features,
-        n_components=n_components,
-        covariance_type=&#39;full&#39;,
-        max_iter=max_iter,
-        device=device,
-        # Covariance prior:
-        covariance_prior=cov_prior,
-        degrees_of_freedom_prior=degrees_of_freedom_prior,
-        # Provide &quot;dummy&quot; mean priors so code doesn&#39;t crash
-        mean_prior=dummy_mean_prior,
-        mean_precision_prior=dummy_mean_precision_prior
-    )
-    gmm_cov_prior.fit(X_tensor)
+    <span class="n">gmm_cov_prior</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+        <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
+        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+        <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="o">=</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="c1"># Covariance prior:</span>
+        <span class="n">covariance_prior</span><span class="o">=</span><span class="n">cov_prior</span><span class="p">,</span>
+        <span class="n">degrees_of_freedom_prior</span><span class="o">=</span><span class="n">degrees_of_freedom_prior</span><span class="p">,</span>
+        <span class="c1"># Provide &quot;dummy&quot; mean priors so code doesn&#39;t crash</span>
+        <span class="n">mean_prior</span><span class="o">=</span><span class="n">dummy_mean_prior</span><span class="p">,</span>
+        <span class="n">mean_precision_prior</span><span class="o">=</span><span class="n">dummy_mean_precision_prior</span>
+    <span class="p">)</span>
+    <span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
 
-    title = (f&quot;CovPrior Strength={strength}\n&quot;
-             f&quot;dof={degrees_of_freedom_prior}\nLogLik={gmm_cov_prior.lower_bound_:.2f}&quot;)
-    plot_gmm_ellipses(gmm_cov_prior, X_tensor, ax=ax, title=title, color=&#39;magenta&#39;)
+    <span class="n">title</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CovPrior Strength=</span><span class="si">{</span><span class="n">strength</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+             <span class="sa">f</span><span class="s2">&quot;dof=</span><span class="si">{</span><span class="n">degrees_of_freedom_prior</span><span class="si">}</span><span class="se">\n</span><span class="s2">LogLik=</span><span class="si">{</span><span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">plot_gmm_ellipses</span><span class="p">(</span><span class="n">gmm_cov_prior</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;magenta&#39;</span><span class="p">)</span>
 
-plt.tight_layout()
-plt.show()
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -386,42 +386,42 @@ plt.show()
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>dof_values = [10.0, 100.0, 1000.0]  # must be &gt; n_features - 1 =&gt; &gt; 1 for 2D
-strength = 0.1  # fixed prior strength for demonstration
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dof_values</span> <span class="o">=</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">]</span>  <span class="c1"># must be &gt; n_features - 1 =&gt; &gt; 1 for 2D</span>
+<span class="n">strength</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># fixed prior strength for demonstration</span>
 
-fig, axs = plt.subplots(1, 3, figsize=(15, 5))
-fig.suptitle(&quot;Covariance Prior: Varying Degrees of Freedom&quot;)
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Covariance Prior: Varying Degrees of Freedom&quot;</span><span class="p">)</span>
 
-for ax, dof in zip(axs, dof_values):
-    cov_prior = data_covariance * strength
+<span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">dof</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">dof_values</span><span class="p">):</span>
+    <span class="n">cov_prior</span> <span class="o">=</span> <span class="n">data_covariance</span> <span class="o">*</span> <span class="n">strength</span>
 
-    # Example to skip MAP on means by making them &quot;neutral&quot;
-    dummy_mean_prior = torch.zeros(n_components, n_features, device=device)
-    dummy_mean_precision_prior = 1e-10  # effectively no strong push on means
+    <span class="c1"># Example to skip MAP on means by making them &quot;neutral&quot;</span>
+    <span class="n">dummy_mean_prior</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_components</span><span class="p">,</span> <span class="n">n_features</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">dummy_mean_precision_prior</span> <span class="o">=</span> <span class="mf">1e-10</span>  <span class="c1"># effectively no strong push on means</span>
 
-    gmm_cov_prior = GaussianMixture(
-        n_features=n_features,
-        n_components=n_components,
-        covariance_type=&#39;full&#39;,
-        max_iter=max_iter,
-        device=device,
-        # Covariance prior:
-        covariance_prior=cov_prior,
-        degrees_of_freedom_prior=dof,
-        # Provide &quot;dummy&quot; mean priors so code doesn&#39;t crash
-        mean_prior=dummy_mean_prior,
-        mean_precision_prior=dummy_mean_precision_prior,
-        random_state=random_state
-    )
-    gmm_cov_prior.fit(X_tensor)
+    <span class="n">gmm_cov_prior</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+        <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
+        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+        <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="o">=</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="c1"># Covariance prior:</span>
+        <span class="n">covariance_prior</span><span class="o">=</span><span class="n">cov_prior</span><span class="p">,</span>
+        <span class="n">degrees_of_freedom_prior</span><span class="o">=</span><span class="n">dof</span><span class="p">,</span>
+        <span class="c1"># Provide &quot;dummy&quot; mean priors so code doesn&#39;t crash</span>
+        <span class="n">mean_prior</span><span class="o">=</span><span class="n">dummy_mean_prior</span><span class="p">,</span>
+        <span class="n">mean_precision_prior</span><span class="o">=</span><span class="n">dummy_mean_precision_prior</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span>
+    <span class="p">)</span>
+    <span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
 
-    title = (f&quot;DOF={dof}, Strength={strength}\n&quot;
-             f&quot;LL={gmm_cov_prior.lower_bound_:.4f}&quot;)
-    plot_gmm_ellipses(gmm_cov_prior, X_tensor, ax=ax, title=title, color=&#39;green&#39;)
+    <span class="n">title</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DOF=</span><span class="si">{</span><span class="n">dof</span><span class="si">}</span><span class="s2">, Strength=</span><span class="si">{</span><span class="n">strength</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+             <span class="sa">f</span><span class="s2">&quot;LL=</span><span class="si">{</span><span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">plot_gmm_ellipses</span><span class="p">(</span><span class="n">gmm_cov_prior</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">)</span>
 
-plt.tight_layout()
-plt.show()
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
