@@ -292,15 +292,15 @@
 <span class="sd">    **Mathematical Descriptions:**</span>
 
 <span class="sd">    - **random:**  </span>
-<span class="sd">      Computes the empirical mean \(\bar{x}\) and covariance \(\Sigma\) of ``data`` and draws</span>
+<span class="sd">      Computes the empirical mean $\bar{x}$ and covariance $\Sigma$ of ``data`` and draws</span>
 <span class="sd">      initial centers as:</span>
 <span class="sd">      $$</span>
 <span class="sd">      \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),</span>
 <span class="sd">      $$</span>
-<span class="sd">      where \( L \) is the Cholesky factor of \(\Sigma\).</span>
+<span class="sd">      where $ L $ is the Cholesky factor of $\Sigma$.</span>
 
 <span class="sd">    - **points:**  </span>
-<span class="sd">      Randomly selects \( k \) data points:</span>
+<span class="sd">      Randomly selects $ k $ data points:</span>
 <span class="sd">      $$</span>
 <span class="sd">      \mu_i = x_{s_i}, \quad \text{for } s_i \in \text{random subset of } \{1, \dots, N\}.</span>
 <span class="sd">      $$</span>
@@ -346,12 +346,12 @@
 <span class="sd">        Randomly initialize cluster centers by sampling from the empirical</span>
 <span class="sd">        distribution of ``data``.</span>
 
-<span class="sd">        Mathematically, if \(\bar{x}\) and \(\Sigma\) are the sample mean and covariance</span>
+<span class="sd">        Mathematically, if $\bar{x}$ and $\Sigma$ are the sample mean and covariance</span>
 <span class="sd">        of the data, then:</span>
 <span class="sd">        $$</span>
 <span class="sd">        \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),</span>
 <span class="sd">        $$</span>
-<span class="sd">        where \(L\) is the Cholesky factor of \(\Sigma\).</span>
+<span class="sd">        where $L$ is the Cholesky factor of $\Sigma$.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -451,10 +451,10 @@
 <span class="sd">        Starting from a k-means++ initialization, k-means iteratively refines the centers by:</span>
 <span class="sd">        </span>
 <span class="sd">        1. **Assignment:**  </span>
-<span class="sd">           \(\displaystyle c_j = \arg\min_{i} \|x_j - \mu_i\|^2,\) for each data point \(x_j\).</span>
+<span class="sd">           $\displaystyle c_j = \arg\min_{i} \|x_j - \mu_i\|^2,$ for each data point $x_j$.</span>
 <span class="sd">        </span>
 <span class="sd">        2. **Update:**  </span>
-<span class="sd">           \(\displaystyle \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,\) where \(C_i\) is the set of points assigned to center \(\mu_i\).</span>
+<span class="sd">           $\displaystyle \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.</span>
 <span class="sd">        </span>
 <span class="sd">        The algorithm stops when the centers move by less than the specified tolerance.</span>
 
@@ -467,7 +467,7 @@
 <span class="sd">        max_iter : int, optional</span>
 <span class="sd">            Maximum number of iterations (default is 1000).</span>
 <span class="sd">        atol : float, optional</span>
-<span class="sd">            Convergence tolerance (default is \(1\times10^{-4}\)).</span>
+<span class="sd">            Convergence tolerance (default is $1\times10^{-4}$).</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>

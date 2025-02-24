@@ -299,14 +299,14 @@ Gaussian Mixture Models from a dataset <code class="docutils literal notranslate
 <p><strong>Mathematical Descriptions:</strong></p>
 <ul class="simple">
 <li><p><strong>random:</strong>
-Computes the empirical mean (bar{x}) and covariance (Sigma) of <code class="docutils literal notranslate"><span class="pre">data</span></code> and draws
+Computes the empirical mean $bar{x}$ and covariance $Sigma$ of <code class="docutils literal notranslate"><span class="pre">data</span></code> and draws
 initial centers as:
 $$
 mu_i = bar{x} + L z, quad z sim mathcal{N}(0, I_d),
 $$
-where ( L ) is the Cholesky factor of (Sigma).</p></li>
+where $ L $ is the Cholesky factor of $Sigma$.</p></li>
 <li><p><strong>points:</strong>
-Randomly selects ( k ) data points:
+Randomly selects $ k $ data points:
 $$
 mu_i = x_{s_i}, quad text{for } s_i in text{random subset of } {1, dots, N}.
 $$</p></li>
@@ -347,9 +347,9 @@ $$</p></li>
 <p>Starting from a k-means++ initialization, k-means iteratively refines the centers by:</p>
 <ol class="arabic simple">
 <li><p><strong>Assignment:</strong>
-(displaystyle c_j = argmin_{i} |x_j - mu_i|^2,) for each data point (x_j).</p></li>
+$displaystyle c_j = argmin_{i} |x_j - mu_i|^2,$ for each data point $x_j$.</p></li>
 <li><p><strong>Update:</strong>
-(displaystyle mu_i = frac{1}{<a href="#id3"><span class="problematic" id="id4">|C_i|</span></a>} sum_{x_j in C_i} x_j,) where (C_i) is the set of points assigned to center (mu_i).</p></li>
+$displaystyle mu_i = frac{1}{<a href="#id3"><span class="problematic" id="id4">|C_i|</span></a>} sum_{x_j in C_i} x_j,$ where $C_i$ is the set of points assigned to center $mu_i$.</p></li>
 </ol>
 <p>The algorithm stops when the centers move by less than the specified tolerance.</p>
 <dl class="field-list simple">
@@ -358,7 +358,7 @@ $$</p></li>
 <li><p><strong>data</strong> (<em>torch.Tensor</em>) – A 2D tensor of shape (N, D) representing the dataset.</p></li>
 <li><p><strong>k</strong> (<em>int</em>) – Number of cluster centers to generate.</p></li>
 <li><p><strong>max_iter</strong> (<em>int</em><em>, </em><em>optional</em>) – Maximum number of iterations (default is 1000).</p></li>
-<li><p><strong>atol</strong> (<em>float</em><em>, </em><em>optional</em>) – Convergence tolerance (default is (1times10^{-4})).</p></li>
+<li><p><strong>atol</strong> (<em>float</em><em>, </em><em>optional</em>) – Convergence tolerance (default is $1times10^{-4}$).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -439,12 +439,12 @@ $$</p>
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">random</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/src/gmm_init.html#GMMInitializer.random"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#src.gmm_init.GMMInitializer.random" title="Link to this definition">#</a></dt>
 <dd><p>Randomly initialize cluster centers by sampling from the empirical
 distribution of <code class="docutils literal notranslate"><span class="pre">data</span></code>.</p>
-<p>Mathematically, if (bar{x}) and (Sigma) are the sample mean and covariance
+<p>Mathematically, if $bar{x}$ and $Sigma$ are the sample mean and covariance
 of the data, then:
 $$
 mu_i = bar{x} + L z, quad z sim mathcal{N}(0, I_d),
 $$
-where (L) is the Cholesky factor of (Sigma).</p>
+where $L$ is the Cholesky factor of $Sigma$.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
