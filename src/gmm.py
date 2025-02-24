@@ -201,9 +201,15 @@ class GaussianMixture(nn.Module):
             Degrees of freedom for the Wishart prior on covariances.
         """
         if self.use_weight_prior:
-            if weight_concentration_prior.shape != (self.n_components,):
+            # Convert to torch.Tensor if not already.
+            if not isinstance(weight_concentration_prior, torch.Tensor):
+                weight_concentration_prior = torch.tensor(weight_concentration_prior, device=self.device)
+            # If a single value is provided, replicate it to shape (n_components,)
+            if weight_concentration_prior.dim() == 0 or (weight_concentration_prior.dim() == 1 and weight_concentration_prior.numel() == 1):
+                weight_concentration_prior = weight_concentration_prior.expand(self.n_components)
+            elif weight_concentration_prior.dim() == 1 and weight_concentration_prior.numel() != self.n_components:
                 raise ValueError(
-                    f"weight_concentration_prior must be of shape ({self.n_components},), "
+                    f"weight_concentration_prior must be of shape ({self.n_components},) or a single value, "
                     f"got {weight_concentration_prior.shape}."
                 )
             self.weight_concentration_prior = weight_concentration_prior.to(self.device).float()
