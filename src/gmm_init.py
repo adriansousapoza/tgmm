@@ -18,40 +18,40 @@ class GMMInitializer:
     - **random:**  
       Computes the empirical mean \(\bar{x}\) and covariance \(\Sigma\) of ``data`` and draws
       initial centers as:
-      \[
+      $$
       \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),
-      \]
+      $$
       where \( L \) is the Cholesky factor of \(\Sigma\).
 
     - **points:**  
       Randomly selects \( k \) data points:
-      \[
+      $$
       \mu_i = x_{s_i}, \quad \text{for } s_i \in \text{random subset of } \{1, \dots, N\}.
-      \]
+      $$
 
     - **kpp (k-means++):**  
       Chooses the first center uniformly at random and subsequent centers with probability
       proportional to the squared distance to the nearest already chosen center:
-      \[
+      $$
       P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad \text{where } D(x_j) = \min_{l} \|x_j - \mu_l\|^2.
-      \]
+      $$
 
     - **kmeans:**  
       Runs the k-means algorithm starting from k-means++ initialization. At each iteration:
-      \[
+      $$
       c_j = \arg\min_i \|x_j - \mu_i\|^2, \quad \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,
-      \]
+      $$
       until convergence.
 
     - **maxdist:**  
       A modified k-means++ that selects subsequent centers as:
-      \[
+      $$
       \mu_i = \arg\max_{x} \min_{l < i} \|x - \mu_l\|,
-      \]
+      $$
       and then reselects the first center as:
-      \[
+      $$
       \mu_1 = \arg\max_{x} \min_{l=2}^{k} \|x - \mu_l\|.
-      \]
+      $$
 
     Example usage::
 
@@ -60,20 +60,6 @@ class GMMInitializer:
         data = torch.randn(1000, 2)  # Synthetic data
         k = 4
         init_means = GMMInitializer.random(data, k)
-
-    Methods
-    -------
-    random(data: torch.Tensor, k: int) -> torch.Tensor
-        Randomly draw initial means based on the empirical distribution of ``data``.
-    points(data: torch.Tensor, k: int) -> torch.Tensor
-        Select ``k`` data points at random from ``data``.
-    kpp(data: torch.Tensor, k: int) -> torch.Tensor
-        Use the k-means++ algorithm to choose well-separated initial means.
-    kmeans(data: torch.Tensor, k: int, max_iter: int = 1000, atol: float = 1e-4) -> torch.Tensor
-        Run k-means on ``data`` to refine initial means.
-    maxdist(data: torch.Tensor, k: int) -> torch.Tensor
-        A variant of k-means++ that maximizes the minimum distance between centers and
-        reevaluates the first center.
     """
 
     @staticmethod
@@ -84,9 +70,9 @@ class GMMInitializer:
 
         Mathematically, if \(\bar{x}\) and \(\Sigma\) are the sample mean and covariance
         of the data, then:
-        \[
+        $$
         \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),
-        \]
+        $$
         where \(L\) is the Cholesky factor of \(\Sigma\).
 
         Parameters
@@ -139,9 +125,9 @@ class GMMInitializer:
         The first center is chosen uniformly at random. Subsequent centers are chosen
         with probability proportional to the squared distance from the nearest existing
         center:
-        \[
+        $$
         P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad D(x_j) = \min_{l} \|x_j - \mu_l\|^2.
-        \]
+        $$
 
         Parameters
         ----------
@@ -220,14 +206,14 @@ class GMMInitializer:
         between centers.
 
         After randomly selecting the first center, each subsequent center is chosen as:
-        \[
+        $$
         \mu_i = \arg\max_{x \in \mathcal{D}} \min_{l=1,\dots,i-1} \|x - \mu_l\|,
-        \]
+        $$
         ensuring that the new center is as far as possible from the existing centers.
         Finally, the first center is reselected as:
-        \[
+        $$
         \mu_1 = \arg\max_{x \in \mathcal{D}} \min_{l=2}^{k} \|x - \mu_l\|.
-        \]
+        $$
 
         Parameters
         ----------

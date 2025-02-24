@@ -13,7 +13,7 @@ Welcome to the **TorchGMM** documentation! Below you will find:
 - An overview of the :ref:`modules`.
 - Links to :ref:`tutorials`.
 - Basic usage instructions.
-- * :ref:`search`
+- :ref:`search`
 
 .. toctree::
    :maxdepth: 2
