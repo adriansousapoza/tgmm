@@ -285,8 +285,8 @@
                   
   <section id="Metrics">
 <h1>Metrics<a class="headerlink" href="#Metrics" title="Link to this heading">#</a></h1>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -294,39 +294,109 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ellipse</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ListedColormap</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
 
 <span class="c1">#print(os.getcwd())</span>
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">src.gmm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">src.metrics</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">gmm</span><span class="p">)</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">metrics</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.gmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">src.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClusteringMetrics</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">src.gmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
 
-<span class="c1"># Scikit-learn for comparison</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.mixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span> <span class="k">as</span> <span class="n">SklearnGMM</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <span class="n">PCA</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">silhouette_score</span><span class="p">,</span>
-    <span class="n">davies_bouldin_score</span><span class="p">,</span>
-    <span class="n">calinski_harabasz_score</span><span class="p">,</span>
-    <span class="n">adjusted_rand_score</span><span class="p">,</span>
-    <span class="n">normalized_mutual_info_score</span><span class="p">,</span>
-    <span class="n">fowlkes_mallows_score</span><span class="p">,</span>
-    <span class="n">homogeneity_score</span><span class="p">,</span>
-    <span class="n">mutual_info_score</span><span class="p">,</span>
-    <span class="n">adjusted_mutual_info_score</span><span class="p">,</span>
-    <span class="n">completeness_score</span><span class="p">,</span>
-    <span class="n">v_measure_score</span><span class="p">,</span>
-    <span class="n">rand_score</span>
-<span class="p">)</span>
-
-<span class="c1"># Detect device</span>
 <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using device:&quot;</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+<span class="n">random_state</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">dynamic_figsize</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">base_width</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">base_height</span><span class="o">=</span><span class="mi">6</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adjust figure size dynamically based on subplot rows and cols.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rows (int): Number of rows of subplots</span>
+<span class="sd">        cols (int): Number of columns of subplots</span>
+<span class="sd">        base_width (int): Width per subplot</span>
+<span class="sd">        base_height (int): Height per subplot</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: Adjusted figure size</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">cols</span> <span class="o">*</span> <span class="n">base_width</span><span class="p">,</span> <span class="n">rows</span> <span class="o">*</span> <span class="n">base_height</span><span class="p">)</span>
+
+<span class="c1"># Set global style parameters</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+    <span class="s2">&quot;figure.figsize&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>  <span class="c1"># Default figure size</span>
+    <span class="s2">&quot;figure.dpi&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span>  <span class="c1"># Default figure dpi</span>
+    <span class="s2">&quot;figure.titlesize&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>  <span class="c1"># Figure title size</span>
+    <span class="s2">&quot;figure.autolayout&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s2">&quot;axes.grid&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>  <span class="c1"># Add grid by default</span>
+    <span class="s2">&quot;grid.alpha&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span>  <span class="c1"># Grid transparency</span>
+    <span class="s2">&quot;axes.facecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;#f5f5f5&quot;</span><span class="p">,</span>  <span class="c1"># Light background for axes</span>
+    <span class="s2">&quot;axes.edgecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;#333333&quot;</span><span class="p">,</span> <span class="c1"># Change axes edge color</span>
+    <span class="s2">&quot;axes.labelsize&quot;</span><span class="p">:</span> <span class="mi">14</span><span class="p">,</span>  <span class="c1"># Font size for axis labels</span>
+    <span class="s2">&quot;axes.titlesize&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>  <span class="c1"># Font size for titles</span>
+    <span class="s2">&quot;xtick.labelsize&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>  <span class="c1"># Font size for x-ticks</span>
+    <span class="s2">&quot;ytick.labelsize&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>  <span class="c1"># Font size for y-ticks</span>
+    <span class="s2">&quot;legend.fontsize&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>  <span class="c1"># Font size for legends</span>
+    <span class="s2">&quot;lines.linewidth&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>  <span class="c1"># Default line width</span>
+    <span class="s2">&quot;lines.markersize&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>  <span class="c1"># Default marker size</span>
+    <span class="s2">&quot;font.family&quot;</span><span class="p">:</span> <span class="s2">&quot;DejaVu Sans&quot;</span><span class="p">,</span>  <span class="c1"># Font type</span>
+    <span class="s2">&quot;savefig.dpi&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span>  <span class="c1"># DPI for saved figures</span>
+    <span class="s2">&quot;savefig.format&quot;</span><span class="p">:</span> <span class="s2">&quot;pdf&quot;</span><span class="p">,</span>  <span class="c1"># Default save format</span>
+    <span class="s2">&quot;savefig.bbox&quot;</span><span class="p">:</span> <span class="s2">&quot;tight&quot;</span><span class="p">,</span>  <span class="c1"># Adjust layout when saving</span>
+<span class="p">})</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
+<span class="n">n_features</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])]</span>
+<span class="n">covs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="mf">1.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>                    <span class="c1"># spherical covariance</span>
+    <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>                    <span class="c1"># spherical covariance, fewer points</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]]),</span>       <span class="c1"># diagonal covariance</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>    <span class="c1"># full covariance</span>
+<span class="p">]</span>
+
+<span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">i</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">cov</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">covs</span><span class="p">):</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">cov</span><span class="p">)</span> <span class="o">+</span> <span class="n">center</span>
+    <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+    <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">components</span><span class="p">)</span>
+<span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+
+<span class="n">n_features</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">n_components</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+
+<span class="c1"># Plot the synthetic data</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Synthetic data&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;x1&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;x2&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -334,47 +404,17 @@
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<div class="highlight"><pre>
-Using device: cuda
-</pre></div></div>
+<img alt="../_images/notebooks_metrics_2_0.png" src="../_images/notebooks_metrics_2_0.png" />
+</div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># for reproducibility</span>
-<span class="n">n_samples_1</span> <span class="o">=</span> <span class="mi">1000</span>
-<span class="n">n_samples_2</span> <span class="o">=</span> <span class="mi">800</span>
-<span class="n">n_samples_3</span> <span class="o">=</span> <span class="mi">400</span>
-<span class="n">n_samples_4</span> <span class="o">=</span> <span class="mi">600</span>
-
-<span class="n">center_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
-<span class="n">center_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
-<span class="n">center_3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">4</span><span class="p">])</span>
-<span class="n">center_4</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
-
-<span class="c1"># Random transformation matrices to generate covariances</span>
-<span class="n">C_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
-<span class="n">C_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
-
-<span class="n">component_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">C_1</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_1</span>
-<span class="n">component_2</span> <span class="o">=</span> <span class="mf">0.7</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_2</span>
-<span class="n">component_3</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_3</span>
-<span class="n">component_4</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples_4</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">C_2</span><span class="p">)</span> <span class="o">+</span> <span class="n">center_4</span>
-
-<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">component_1</span><span class="p">,</span> <span class="n">component_2</span><span class="p">,</span> <span class="n">component_3</span><span class="p">,</span> <span class="n">component_4</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_samples_1</span><span class="p">),</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_samples_2</span><span class="p">),</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_samples_3</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_samples_4</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-<span class="p">])</span>
-
-<span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
 <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
 
-<span class="n">true_n_components</span> <span class="o">=</span> <span class="mi">4</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data shape: </span><span class="si">{</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, true number of clusters: </span><span class="si">{</span><span class="n">true_n_components</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data shape: </span><span class="si">{</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, true number of clusters: </span><span class="si">{</span><span class="n">n_components</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <br/></pre></div>
 </div>
 </div>
@@ -383,11 +423,11 @@ Using device: cuda
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Data shape: torch.Size([2800, 4]), true number of clusters: 4
+Data shape: torch.Size([3000, 2]), true number of clusters: 4
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">components_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
@@ -401,7 +441,7 @@ Data shape: torch.Size([2800, 4]), true number of clusters: 4
 <span class="c1"># Fit a GMM for each n in components_range</span>
 <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">components_range</span><span class="p">),</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Evaluating range&quot;</span><span class="p">):</span>
     <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-        <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+        <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
         <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">,</span>
         <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
         <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
@@ -424,7 +464,7 @@ Data shape: torch.Size([2800, 4]), true number of clusters: 4
 
 <span class="c1"># 1) Silhouette</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">silhouette_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-b&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;True # of Components&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;True # of Components&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Silhouette Score&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Score&#39;</span><span class="p">)</span>
@@ -433,28 +473,28 @@ Data shape: torch.Size([2800, 4]), true number of clusters: 4
 
 <span class="c1"># 2) Davies-Bouldin</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">davies_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-g&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Davies-Bouldin Index&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># 3) Calinski-Harabasz</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">calinski_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-y&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Calinski-Harabasz Score&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># 4) Dunn Index</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">dunn_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;orange&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Dunn Index&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># 5) BIC</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">bic_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-m&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;BIC&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;BIC Score&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
@@ -462,7 +502,7 @@ Data shape: torch.Size([2800, 4]), true number of clusters: 4
 
 <span class="c1"># 6) AIC</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">components_range</span><span class="p">,</span> <span class="n">aic_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="s1">&#39;o-c&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;AIC&#39;</span><span class="p">)</span>
-<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
+<span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;AIC Score&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Number of Components&#39;</span><span class="p">)</span>
 <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
@@ -487,14 +527,14 @@ Data shape: torch.Size([2800, 4]), true number of clusters: 4
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Evaluating range: 100%|██████████| 9/9 [00:00&lt;00:00, 17.32it/s]
+Evaluating range:   0%|          | 0/9 [00:00&lt;?, ?it/s]Evaluating range: 100%|██████████| 9/9 [00:00&lt;00:00, 18.70it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_3_1.png" src="../_images/notebooks_metrics_3_1.png" />
+<img alt="../_images/notebooks_metrics_4_1.png" src="../_images/notebooks_metrics_4_1.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -503,19 +543,37 @@ Evaluating range: 100%|██████████| 9/9 [00:00&lt;00:00, 17.3
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 === Best Number of Components According to Each Metric ===
-Silhouette Best: 9
-Davies-Bouldin Best (lowest): 4
-Calinski-Harabasz Best: 4
-Dunn Index Best: 4
+Silhouette Best: 4
+Davies-Bouldin Best (lowest): 2
+Calinski-Harabasz Best: 10
+Dunn Index Best: 2
 BIC Best (lowest): 4
-AIC Best (lowest): 5
+AIC Best (lowest): 4
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_components</span> <span class="o">=</span> <span class="n">true_n_components</span>  <span class="c1"># 4</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Scikit-learn for comparison</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.mixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span> <span class="k">as</span> <span class="n">SklearnGMM</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <span class="n">PCA</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">silhouette_score</span><span class="p">,</span>
+    <span class="n">davies_bouldin_score</span><span class="p">,</span>
+    <span class="n">calinski_harabasz_score</span><span class="p">,</span>
+    <span class="n">adjusted_rand_score</span><span class="p">,</span>
+    <span class="n">normalized_mutual_info_score</span><span class="p">,</span>
+    <span class="n">fowlkes_mallows_score</span><span class="p">,</span>
+    <span class="n">homogeneity_score</span><span class="p">,</span>
+    <span class="n">mutual_info_score</span><span class="p">,</span>
+    <span class="n">adjusted_mutual_info_score</span><span class="p">,</span>
+    <span class="n">completeness_score</span><span class="p">,</span>
+    <span class="n">v_measure_score</span><span class="p">,</span>
+    <span class="n">rand_score</span>
+<span class="p">)</span>
+
+<span class="n">n_components</span> <span class="o">=</span> <span class="n">true_n_components</span>  <span class="c1"># 4</span>
 <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
     <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
     <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
@@ -604,46 +662,24 @@ AIC Best (lowest): 5
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-=== Torch Metrics for n_components=4 ===
-rand_score: 0.9963
-adjusted_rand_score: 0.9908
-mutual_info_score: 1.3139
-adjusted_mutual_info_score: 0.9852
-normalized_mutual_info_score: 0.9852
-fowlkes_mallows_score: 0.9934
-homogeneity_score: 0.9851
-completeness_score: 0.9853
-v_measure_score: 0.9852
-purity_score: 0.9968
-silhouette_score: 0.6674
-davies_bouldin_index: 0.4736
-calinski_harabasz_score: 7822.9487
-dunn_index: 0.0179
-bic_score: 28528.9258
-aic_score: 28178.6209
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">ModuleNotFoundError</span>                       Traceback (most recent call last)
+Cell <span class="ansi-green-fg">In[27], line 2</span>
+<span class="ansi-green-intense-fg ansi-bold">      1</span> <span style="color: rgb(95,135,135)"># Scikit-learn for comparison</span>
+<span class="ansi-green-fg">----&gt; 2</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,0,255)">sklearn</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">mixture</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,135,0)">import</span> GaussianMixture <span class="ansi-bold" style="color: rgb(0,135,0)">as</span> SklearnGMM
+<span class="ansi-green-intense-fg ansi-bold">      3</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,0,255)">sklearn</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">decomposition</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,135,0)">import</span> PCA
+<span class="ansi-green-intense-fg ansi-bold">      4</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,0,255)">sklearn</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">metrics</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,135,0)">import</span> (
+<span class="ansi-green-intense-fg ansi-bold">      5</span>     silhouette_score,
+<span class="ansi-green-intense-fg ansi-bold">      6</span>     davies_bouldin_score,
+<span class="ansi-green-fg">   (...)</span>
+<span class="ansi-green-intense-fg ansi-bold">     16</span>     rand_score
+<span class="ansi-green-intense-fg ansi-bold">     17</span> )
 
-=== Sklearn Metrics for n_components=4 ===
-rand_score: 0.9963
-adjusted_rand_score: 0.9908
-mutual_info_score: 1.3139
-normalized_mutual_info_score: 0.9852
-adjusted_mutual_info_score: 0.9852
-fowlkes_mallows_score: 0.9934
-homogeneity_score: 0.9851
-completeness_score: 0.9853
-v_measure_score: 0.9852
-silhouette_score: 0.6674
-davies_bouldin_index: 0.4736
-calinski_harabasz_score: 7822.9492
-BIC: 28528.8182
-AIC: 28178.5131
-
-Torch BIC: 28528.9258 vs Sklearn BIC: 28528.8182
-Torch AIC: 28178.6209 vs Sklearn AIC: 28178.5131
+<span class="ansi-red-fg">ModuleNotFoundError</span>: No module named &#39;sklearn&#39;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pca</span> <span class="o">=</span> <span class="n">PCA</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
@@ -740,11 +776,22 @@ Torch AIC: 28178.6209 vs Sklearn AIC: 28178.5131
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_5_0.png" src="../_images/notebooks_metrics_5_0.png" />
-</div>
+<div class="highlight"><pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+Cell <span class="ansi-green-fg">In[30], line 29</span>
+<span class="ansi-green-intense-fg ansi-bold">     26</span>     covariances_pca <span style="color: rgb(98,98,98)">=</span> np<span style="color: rgb(98,98,98)">.</span>stack(covariances_pca, axis<span style="color: rgb(98,98,98)">=</span><span style="color: rgb(98,98,98)">0</span>)
+<span class="ansi-green-intense-fg ansi-bold">     27</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">return</span> torch<span style="color: rgb(98,98,98)">.</span>tensor(means_pca, dtype<span style="color: rgb(98,98,98)">=</span>torch<span style="color: rgb(98,98,98)">.</span>float32), torch<span style="color: rgb(98,98,98)">.</span>tensor(covariances_pca, dtype<span style="color: rgb(98,98,98)">=</span>torch<span style="color: rgb(98,98,98)">.</span>float32)
+<span class="ansi-green-fg">---&gt; 29</span> means_pca, covariances_pca <span style="color: rgb(98,98,98)">=</span> transform_means_covariances(gmm<span style="color: rgb(98,98,98)">.</span>means_, gmm<span style="color: rgb(98,98,98)">.</span>covariances_, <span class="ansi-yellow-bg">pca</span>)
+<span class="ansi-green-intense-fg ansi-bold">     31</span> <span style="color: rgb(95,135,135)"># Next, let&#39;s define a quick function to match predicted labels to the</span>
+<span class="ansi-green-intense-fg ansi-bold">     32</span> <span style="color: rgb(95,135,135)"># ground truth using the Hungarian algorithm (so that colors match).</span>
+<span class="ansi-green-intense-fg ansi-bold">     33</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,0,255)">scipy</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">optimize</span><span style="color: rgb(188,188,188)"> </span><span class="ansi-bold" style="color: rgb(0,135,0)">import</span> linear_sum_assignment
+
+<span class="ansi-red-fg">NameError</span>: name &#39;pca&#39; is not defined
+</pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cm</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">(</span>
@@ -793,12 +840,11 @@ Classification Report:
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_6_1.png" src="../_images/notebooks_metrics_6_1.png" />
+<img alt="../_images/notebooks_metrics_7_1.png" src="../_images/notebooks_metrics_7_1.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
-</pre></div>
+<div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
 <div>
@@ -869,15 +915,15 @@ Classification Report:
 </div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">RUN_KL_DIVERGENCE</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">if</span> <span class="n">RUN_KL_DIVERGENCE</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Computing KL(p||q) for different numbers of components...&quot;</span><span class="p">)</span>
     <span class="n">gmm_true</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-        <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-        <span class="n">n_components</span><span class="o">=</span><span class="n">true_n_components</span><span class="p">,</span>
+        <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
+        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
         <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
         <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
         <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
@@ -889,7 +935,7 @@ Classification Report:
     <span class="n">kl_vals</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">test_range</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">test_range</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">test_range</span><span class="p">)):</span>
         <span class="n">gmm_test</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-            <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+            <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
             <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">,</span>
             <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
             <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
@@ -924,14 +970,14 @@ Computing KL(p||q) for different numbers of components...
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 10/10 [00:01&lt;00:00,  7.98it/s]
+100%|██████████| 10/10 [00:00&lt;00:00, 11.48it/s]
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_7_2.png" src="../_images/notebooks_metrics_7_2.png" />
+<img alt="../_images/notebooks_metrics_8_2.png" src="../_images/notebooks_metrics_8_2.png" />
 </div>
 </div>
 </section>

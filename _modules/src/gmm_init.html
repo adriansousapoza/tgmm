@@ -281,7 +281,7 @@
 <span class="sd">    A utility class providing various initialization strategies for GMM means.</span>
 
 <span class="sd">    This class defines several static methods to produce initial means for</span>
-<span class="sd">    Gaussian Mixture Models from a dataset ``data``:</span>
+<span class="sd">    Gaussian Mixture Models from a dataset ``data`` (a 2D tensor of shape (N, D)):</span>
 
 <span class="sd">    - :func:`random`</span>
 <span class="sd">    - :func:`points`</span>
@@ -289,12 +289,49 @@
 <span class="sd">    - :func:`kmeans`</span>
 <span class="sd">    - :func:`maxdist`</span>
 
-<span class="sd">    All methods expect a 2D data tensor (N x D) and a number ``k`` of desired</span>
-<span class="sd">    cluster centers.</span>
+<span class="sd">    **Mathematical Descriptions:**</span>
+
+<span class="sd">    - **random:**  </span>
+<span class="sd">      Computes the empirical mean \(\bar{x}\) and covariance \(\Sigma\) of ``data`` and draws</span>
+<span class="sd">      initial centers as:</span>
+<span class="sd">      \[</span>
+<span class="sd">      \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),</span>
+<span class="sd">      \]</span>
+<span class="sd">      where \( L \) is the Cholesky factor of \(\Sigma\).</span>
+
+<span class="sd">    - **points:**  </span>
+<span class="sd">      Randomly selects \( k \) data points:</span>
+<span class="sd">      \[</span>
+<span class="sd">      \mu_i = x_{s_i}, \quad \text{for } s_i \in \text{random subset of } \{1, \dots, N\}.</span>
+<span class="sd">      \]</span>
+
+<span class="sd">    - **kpp (k-means++):**  </span>
+<span class="sd">      Chooses the first center uniformly at random and subsequent centers with probability</span>
+<span class="sd">      proportional to the squared distance to the nearest already chosen center:</span>
+<span class="sd">      \[</span>
+<span class="sd">      P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad \text{where } D(x_j) = \min_{l} \|x_j - \mu_l\|^2.</span>
+<span class="sd">      \]</span>
+
+<span class="sd">    - **kmeans:**  </span>
+<span class="sd">      Runs the k-means algorithm starting from k-means++ initialization. At each iteration:</span>
+<span class="sd">      \[</span>
+<span class="sd">      c_j = \arg\min_i \|x_j - \mu_i\|^2, \quad \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,</span>
+<span class="sd">      \]</span>
+<span class="sd">      until convergence.</span>
+
+<span class="sd">    - **maxdist:**  </span>
+<span class="sd">      A modified k-means++ that selects subsequent centers as:</span>
+<span class="sd">      \[</span>
+<span class="sd">      \mu_i = \arg\max_{x} \min_{l &lt; i} \|x - \mu_l\|,</span>
+<span class="sd">      \]</span>
+<span class="sd">      and then reselects the first center as:</span>
+<span class="sd">      \[</span>
+<span class="sd">      \mu_1 = \arg\max_{x} \min_{l=2}^{k} \|x - \mu_l\|.</span>
+<span class="sd">      \]</span>
 
 <span class="sd">    Example usage::</span>
 
-<span class="sd">        from myproject.gmm_initializer import GMMInitializer</span>
+<span class="sd">        from src.gmm_init import GMMInitializer</span>
 <span class="sd">        </span>
 <span class="sd">        data = torch.randn(1000, 2)  # Synthetic data</span>
 <span class="sd">        k = 4</span>
@@ -303,16 +340,16 @@
 <span class="sd">    Methods</span>
 <span class="sd">    -------</span>
 <span class="sd">    random(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        Randomly draw initial means based on the distribution of ``data``.</span>
+<span class="sd">        Randomly draw initial means based on the empirical distribution of ``data``.</span>
 <span class="sd">    points(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        Select ``k`` points at random from ``data`` to serve as means.</span>
+<span class="sd">        Select ``k`` data points at random from ``data``.</span>
 <span class="sd">    kpp(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        Use the k-means++ procedure to choose initial means that are far apart.</span>
-<span class="sd">    kmeans(data: torch.Tensor, k: int, max_iter=1000, atol=1e-4) -&gt; torch.Tensor</span>
-<span class="sd">        Run the k-means algorithm to find stable initial means.</span>
+<span class="sd">        Use the k-means++ algorithm to choose well-separated initial means.</span>
+<span class="sd">    kmeans(data: torch.Tensor, k: int, max_iter: int = 1000, atol: float = 1e-4) -&gt; torch.Tensor</span>
+<span class="sd">        Run k-means on ``data`` to refine initial means.</span>
 <span class="sd">    maxdist(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        A modified k-means++ that maximizes the minimum distance between centroids</span>
-<span class="sd">        and reevaluates the first cluster center.</span>
+<span class="sd">        A variant of k-means++ that maximizes the minimum distance between centers and</span>
+<span class="sd">        reevaluates the first center.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="GMMInitializer.random">
@@ -323,6 +360,13 @@
 <span class="sd">        Randomly initialize cluster centers by sampling from the empirical</span>
 <span class="sd">        distribution of ``data``.</span>
 
+<span class="sd">        Mathematically, if \(\bar{x}\) and \(\Sigma\) are the sample mean and covariance</span>
+<span class="sd">        of the data, then:</span>
+<span class="sd">        \[</span>
+<span class="sd">        \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),</span>
+<span class="sd">        \]</span>
+<span class="sd">        where \(L\) is the Cholesky factor of \(\Sigma\).</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        data : torch.Tensor</span>
@@ -332,16 +376,14 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        means : torch.Tensor</span>
+<span class="sd">        torch.Tensor</span>
 <span class="sd">            A (k, D) tensor representing the initial cluster centers.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">mu</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="c1"># 1D data case</span>
             <span class="n">cov</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
             <span class="n">samples</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># 2D or higher</span>
             <span class="n">cov</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">t</span><span class="p">())</span>
             <span class="n">samples</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="o">@</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span><span class="o">.</span><span class="n">t</span><span class="p">()</span>
         <span class="n">samples</span> <span class="o">+=</span> <span class="n">mu</span>
@@ -364,7 +406,7 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        means : torch.Tensor</span>
+<span class="sd">        torch.Tensor</span>
 <span class="sd">            A (k, D) tensor representing the initial cluster centers.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randperm</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)[:</span><span class="n">k</span><span class="p">]</span>
@@ -378,9 +420,12 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize cluster centers using the k-means++ algorithm.</span>
 
-<span class="sd">        The first center is chosen uniformly at random from ``data``.</span>
-<span class="sd">        Subsequent centers are chosen with probability proportional to</span>
-<span class="sd">        their squared distance from the nearest existing center.</span>
+<span class="sd">        The first center is chosen uniformly at random. Subsequent centers are chosen</span>
+<span class="sd">        with probability proportional to the squared distance from the nearest existing</span>
+<span class="sd">        center:</span>
+<span class="sd">        \[</span>
+<span class="sd">        P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad D(x_j) = \min_{l} \|x_j - \mu_l\|^2.</span>
+<span class="sd">        \]</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -391,18 +436,17 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        means : torch.Tensor</span>
+<span class="sd">        torch.Tensor</span>
 <span class="sd">            A (k, D) tensor representing the initial cluster centers.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n_samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">centroids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">)),</span> <span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
-        <span class="c1"># Pick the first center</span>
+        <span class="c1"># Pick the first center uniformly at random</span>
         <span class="n">initial_idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,),</span> <span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
         <span class="n">centroids</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">initial_idx</span><span class="p">]</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
-            <span class="c1"># Compute distances to the nearest center</span>
             <span class="n">dist_sq</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cdist</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">centroids</span><span class="p">[:</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">probabilities</span> <span class="o">=</span> <span class="n">dist_sq</span> <span class="o">/</span> <span class="n">dist_sq</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
             <span class="n">selected_idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">multinomial</span><span class="p">(</span><span class="n">probabilities</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
@@ -418,6 +462,16 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize cluster centers by running the k-means algorithm on ``data``.</span>
 
+<span class="sd">        Starting from a k-means++ initialization, k-means iteratively refines the centers by:</span>
+<span class="sd">        </span>
+<span class="sd">        1. **Assignment:**  </span>
+<span class="sd">           \(\displaystyle c_j = \arg\min_{i} \|x_j - \mu_i\|^2,\) for each data point \(x_j\).</span>
+<span class="sd">        </span>
+<span class="sd">        2. **Update:**  </span>
+<span class="sd">           \(\displaystyle \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,\) where \(C_i\) is the set of points assigned to center \(\mu_i\).</span>
+<span class="sd">        </span>
+<span class="sd">        The algorithm stops when the centers move by less than the specified tolerance.</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        data : torch.Tensor</span>
@@ -425,27 +479,21 @@
 <span class="sd">        k : int</span>
 <span class="sd">            Number of cluster centers to generate.</span>
 <span class="sd">        max_iter : int, optional</span>
-<span class="sd">            Maximum number of iterations to run the k-means refinement.</span>
+<span class="sd">            Maximum number of iterations (default is 1000).</span>
 <span class="sd">        atol : float, optional</span>
-<span class="sd">            Tolerance for convergence (if the centroids move less than this</span>
-<span class="sd">            amount, the algorithm stops).</span>
+<span class="sd">            Convergence tolerance (default is \(1\times10^{-4}\)).</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        means : torch.Tensor</span>
-<span class="sd">            A (k, D) tensor representing the final cluster centers after</span>
-<span class="sd">            k-means refinement.</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            A (k, D) tensor representing the final cluster centers.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Start with k-means++ initialization</span>
         <span class="n">centroids</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kpp</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
             <span class="n">distances</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cdist</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">centroids</span><span class="p">)</span>
             <span class="n">labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-
             <span class="n">new_centroids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">data</span><span class="p">[</span><span class="n">labels</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)])</span>
-
-            <span class="c1"># Check if converged</span>
             <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">new_centroids</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">):</span>
                 <span class="k">break</span>
             <span class="n">centroids</span> <span class="o">=</span> <span class="n">new_centroids</span>
@@ -458,11 +506,18 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">maxdist</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        A modified k-means++ that aims to maximize the minimum distance</span>
-<span class="sd">        between chosen cluster centers. After selecting the first center</span>
-<span class="sd">        randomly, each subsequent center is the point in ``data`` with</span>
-<span class="sd">        the largest distance to any existing center. Finally, the</span>
-<span class="sd">        first center is reevaluated based on the new centers.</span>
+<span class="sd">        A modified k-means++ initialization that maximizes the minimum distance</span>
+<span class="sd">        between centers.</span>
+
+<span class="sd">        After randomly selecting the first center, each subsequent center is chosen as:</span>
+<span class="sd">        \[</span>
+<span class="sd">        \mu_i = \arg\max_{x \in \mathcal{D}} \min_{l=1,\dots,i-1} \|x - \mu_l\|,</span>
+<span class="sd">        \]</span>
+<span class="sd">        ensuring that the new center is as far as possible from the existing centers.</span>
+<span class="sd">        Finally, the first center is reselected as:</span>
+<span class="sd">        \[</span>
+<span class="sd">        \mu_1 = \arg\max_{x \in \mathcal{D}} \min_{l=2}^{k} \|x - \mu_l\|.</span>
+<span class="sd">        \]</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -473,24 +528,21 @@
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        means : torch.Tensor</span>
-<span class="sd">            A (k, D) tensor of initial cluster centers.</span>
+<span class="sd">        torch.Tensor</span>
+<span class="sd">            A (k, D) tensor representing the initial cluster centers.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n_samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">centroids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">)),</span> <span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
-        <span class="c1"># Pick the first center randomly</span>
         <span class="n">initial_idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,),</span> <span class="n">device</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
         <span class="n">centroids</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">initial_idx</span><span class="p">]</span>
 
-        <span class="c1"># Pick subsequent centers by maximum distance</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
             <span class="n">dist_sq</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cdist</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">centroids</span><span class="p">[:</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">min_dist</span> <span class="o">=</span> <span class="n">dist_sq</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">selected_idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">min_dist</span><span class="p">)</span>
             <span class="n">centroids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">selected_idx</span><span class="p">]</span>
 
-        <span class="c1"># Reevaluate the first center based on new sets of centers</span>
         <span class="n">dist_sq_to_first</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cdist</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">centroids</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">min_dist_to_first</span> <span class="o">=</span> <span class="n">dist_sq_to_first</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">new_first_idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">min_dist_to_first</span><span class="p">)</span>
