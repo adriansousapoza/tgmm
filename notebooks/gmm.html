@@ -1,291 +1,90 @@
 
+
 <!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gaussian Mixture Model (GMM) Usage, Analysis and Visualization &mdash; TorchGMM 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=5c7ff671" />
 
-<html lang="en" data-content_root="../" >
-
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>Gaussian Mixture Model (GMM) Usage, Analysis and Visualization &#8212; TorchGMM 0.1.0 documentation</title>
   
-  
-  
-  <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
-  </script>
-  <!--
-    this give us a css class that will be invisible only if js is disabled
-  -->
-  <noscript>
-    <style>
-      .pst-js-only { display: none !important; }
-
-    </style>
-  </noscript>
-  
-  <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
-    <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
-    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=5c7ff671" />
-  
-  <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
-  <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
-
-    <script src="../_static/documentation_options.js?v=01f34227"></script>
-    <script src="../_static/doctools.js?v=9bcbadda"></script>
-    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'notebooks/gmm';</script>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="" />
-  </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
 
-  
-  
-  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
-  
-  <div id="pst-scroll-pixel-helper"></div>
-  
-  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
-    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
 
-  
-  <dialog id="pst-search-dialog">
-    
-<form class="bd-search d-flex align-items-center"
-      action="../search.html"
-      method="get">
-  <i class="fa-solid fa-magnifying-glass"></i>
-  <input type="search"
-         class="form-control"
-         name="q"
-         placeholder="Search the docs ..."
-         aria-label="Search the docs ..."
-         autocomplete="off"
-         autocorrect="off"
-         autocapitalize="off"
-         spellcheck="false"/>
-  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
-</form>
-  </dialog>
-
-  <div class="pst-async-banner-revealer d-none">
-  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
-</div>
-
-  
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
-<div class="bd-header__inner bd-page-width">
-  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
-    <span class="fa-solid fa-bars"></span>
-  </button>
-  
-  
-  <div class="col-lg-3 navbar-header-items__start">
-    
-      <div class="navbar-item">
-
-  
-    
-  
-
-<a class="navbar-brand logo" href="../index.html">
-  
-  
-  
-  
-  
-  
-    <p class="title logo__title">TorchGMM 0.1.0 documentation</p>
-  
-</a></div>
-    
-  </div>
-  
-  <div class="col-lg-9 navbar-header-items">
-    
-    <div class="me-auto navbar-header-items__center">
-      
-        <div class="navbar-item">
-<nav>
-  <ul class="bd-navbar-elements navbar-nav">
-    
-  </ul>
-</nav></div>
-      
-    </div>
-    
-    
-    <div class="navbar-header-items__end">
-      
-        <div class="navbar-item navbar-persistent--container">
           
-
-<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
- <i class="fa-solid fa-magnifying-glass"></i>
- <span class="search-button__default-text">Search</span>
- <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
-</button>
+          
+          <a href="../index.html" class="icon icon-home">
+            TorchGMM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</a><ul>
+<li><a class="reference internal" href="#Synthetic-Data-Generation-and-Initial-Visualization">Synthetic Data Generation and Initial Visualization</a></li>
+<li><a class="reference internal" href="#Fitting-the-Gaussian-Mixture-Model">Fitting the Gaussian Mixture Model</a></li>
+<li><a class="reference internal" href="#Inspecting-the-Learned-GMM-Parameters">Inspecting the Learned GMM Parameters</a></li>
+<li><a class="reference internal" href="#Visualization-of-Clustering-and-Generated-Samples">Visualization of Clustering and Generated Samples</a></li>
+<li><a class="reference internal" href="#Visualizing-Component-Probability-Distributions">Visualizing Component Probability Distributions</a></li>
+<li><a class="reference internal" href="#Comparing-Different-Covariance-Types">Comparing Different Covariance Types</a></li>
+<li><a class="reference internal" href="#Comparing-Different-Initialization-Methods">Comparing Different Initialization Methods</a></li>
+</ul>
+</li>
+</ul>
+</div>
         </div>
-      
-      
-        <div class="navbar-item">
+      </div>
+    </nav>
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button></div>
-      
-    </div>
-    
-  </div>
-  
-  
-    <div class="navbar-persistent--mobile">
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TorchGMM</a>
+      </nav>
 
-<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
- <i class="fa-solid fa-magnifying-glass"></i>
- <span class="search-button__default-text">Search</span>
- <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
-</button>
-    </div>
-  
-
-  
-    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
-      <span class="fa-solid fa-outdent"></span>
-    </button>
-  
-</div>
-
-    </header>
-  
-
-  <div class="bd-container">
-    <div class="bd-container__inner bd-page-width">
-      
-      
-      
-      <dialog id="pst-primary-sidebar-modal"></dialog>
-      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
-        
-
-  
-  <div class="sidebar-header-items sidebar-primary__section">
-    
-    
-      <div class="sidebar-header-items__center">
-        
-          
-          
-            <div class="navbar-item">
-<nav>
-  <ul class="bd-navbar-elements navbar-nav">
-    
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
   </ul>
-</nav></div>
-          
-        
-      </div>
-    
-    
-    
-      <div class="sidebar-header-items__end">
-        
-          <div class="navbar-item">
-
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button></div>
-        
-      </div>
-    
-  </div>
-  
-    <div class="sidebar-primary-items__start sidebar-primary__section">
-        <div class="sidebar-primary-item">
-<nav class="bd-docs-nav bd-links"
-     aria-label="Section Navigation">
-  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"></div>
-</nav></div>
-    </div>
-  
-  
-  <div class="sidebar-primary-items__end sidebar-primary__section">
-      <div class="sidebar-primary-item">
-<div id="ethical-ad-placement"
-      class="flat"
-      data-ea-publisher="readthedocs"
-      data-ea-type="readthedocs-sidebar"
-      data-ea-manual="true">
-</div></div>
-  </div>
-
-
-      </div>
-      
-      <main id="main-content" class="bd-main" role="main">
-        
-        
-          <div class="bd-content">
-            <div class="bd-article-container">
-              
-              <div class="bd-header-article d-print-none">
-<div class="header-article-items header-article__inner">
-  
-    <div class="header-article-items__start">
-      
-        <div class="header-article-item">
-
-<nav aria-label="Breadcrumb" class="d-print-none">
-  <ul class="bd-breadcrumbs">
-    
-    <li class="breadcrumb-item breadcrumb-home">
-      <a href="../index.html" class="nav-link" aria-label="Home">
-        <i class="fa-solid fa-home"></i>
-      </a>
-    </li>
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</span></li>
-  </ul>
-</nav>
+  <hr/>
 </div>
-      
-    </div>
-  
-  
-</div>
-</div>
-              
-              
-              
-                
-<div id="searchbox"></div>
-                <article class="bd-article">
-                  
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
   <hr class="docutils" />
 <section id="Gaussian-Mixture-Model-(GMM)-Usage,-Analysis-and-Visualization">
-<h1>Gaussian Mixture Model (GMM) Usage, Analysis and Visualization<a class="headerlink" href="#Gaussian-Mixture-Model-(GMM)-Usage,-Analysis-and-Visualization" title="Link to this heading">#</a></h1>
+<h1>Gaussian Mixture Model (GMM) Usage, Analysis and Visualization<a class="headerlink" href="#Gaussian-Mixture-Model-(GMM)-Usage,-Analysis-and-Visualization" title="Link to this heading"></a></h1>
 <p>This notebook demonstrates how to generate synthetic data, fit a Gaussian Mixture Model (GMM) using an Expectation-Maximization (EM) algorithm, inspect the learned parameters, and visualize both the clustering results and the per-sample probabilities. We will also generate new samples from the fitted model and analyze component probability distributions.</p>
 <p>The notebook is organized into the following sections:</p>
 <ol class="arabic">
@@ -316,7 +115,7 @@
 </li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -345,7 +144,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -355,7 +154,7 @@
 </div>
 <hr class="docutils" />
 <section id="Synthetic-Data-Generation-and-Initial-Visualization">
-<h2>Synthetic Data Generation and Initial Visualization<a class="headerlink" href="#Synthetic-Data-Generation-and-Initial-Visualization" title="Link to this heading">#</a></h2>
+<h2>Synthetic Data Generation and Initial Visualization<a class="headerlink" href="#Synthetic-Data-Generation-and-Initial-Visualization" title="Link to this heading"></a></h2>
 <p>In this section, we generate synthetic 2D data for multiple components using:</p>
 <ul class="simple">
 <li><p><strong>n_samples:</strong> A list that specifies the number of data points for each component. In order to test the capabilities of the GMM we choose unequal cluster sizes.</p></li>
@@ -365,7 +164,7 @@
 <p>The code generates samples by drawing from a standard normal distribution, transforming the samples using the covariance matrix, and shifting them by the specified center. The individual component samples are then concatenated to form the full dataset <code class="docutils literal notranslate"><span class="pre">X</span></code>, and corresponding labels are generated for visualization.</p>
 <p>Finally, we visualize the original data using a custom plotting function (<code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code>) that colors points according to their component labels.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -407,7 +206,7 @@
 </section>
 <hr class="docutils" />
 <section id="Fitting-the-Gaussian-Mixture-Model">
-<h2>Fitting the Gaussian Mixture Model<a class="headerlink" href="#Fitting-the-Gaussian-Mixture-Model" title="Link to this heading">#</a></h2>
+<h2>Fitting the Gaussian Mixture Model<a class="headerlink" href="#Fitting-the-Gaussian-Mixture-Model" title="Link to this heading"></a></h2>
 <p>This section converts the synthetic data (<code class="docutils literal notranslate"><span class="pre">X</span></code>) into a PyTorch tensor (<code class="docutils literal notranslate"><span class="pre">X_tensor</span></code>) and sets up the GMM with the following parameters:</p>
 <ul class="simple">
 <li><p><strong>n_components:</strong> Number of clusters (set to 4).</p></li>
@@ -424,7 +223,7 @@
 </ul>
 <p>Diagnostic information such as mean log-likelihood, convergence status, and number of iterations is printed to verify the model’s performance.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert to tensor (if needed for further processing)</span>
@@ -511,7 +310,7 @@ Converged:                                              True
 </section>
 <hr class="docutils" />
 <section id="Inspecting-the-Learned-GMM-Parameters">
-<h2>Inspecting the Learned GMM Parameters<a class="headerlink" href="#Inspecting-the-Learned-GMM-Parameters" title="Link to this heading">#</a></h2>
+<h2>Inspecting the Learned GMM Parameters<a class="headerlink" href="#Inspecting-the-Learned-GMM-Parameters" title="Link to this heading"></a></h2>
 <p>After fitting the model, we inspect the parameters learned by the GMM. For each component, the following are printed:</p>
 <ul class="simple">
 <li><p><strong>Weight:</strong> The mixing proportion for the component.</p></li>
@@ -519,7 +318,7 @@ Converged:                                              True
 <li><p><strong>Covariance:</strong> The covariance matrix (or vector/scalar for other types) representing the spread of the component.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># weights, means, covariances of each component</span>
@@ -589,7 +388,7 @@ Covariance:
 </section>
 <hr class="docutils" />
 <section id="Visualization-of-Clustering-and-Generated-Samples">
-<h2>Visualization of Clustering and Generated Samples<a class="headerlink" href="#Visualization-of-Clustering-and-Generated-Samples" title="Link to this heading">#</a></h2>
+<h2>Visualization of Clustering and Generated Samples<a class="headerlink" href="#Visualization-of-Clustering-and-Generated-Samples" title="Link to this heading"></a></h2>
 <p>In this section, we visualize several key results using our custom <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function:</p>
 <ol class="arabic">
 <li><div class="line-block">
@@ -609,7 +408,7 @@ Covariance:
 </li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Per-Sample Log-Likelihood&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;continuous&#39;</span><span class="p">,</span> <span class="n">color_values</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span> <span class="n">cmap_cont</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">cbar_label</span><span class="o">=</span><span class="s1">&#39;Log-Likelihood&#39;</span><span class="p">)</span>
@@ -647,7 +446,7 @@ Covariance:
 </section>
 <hr class="docutils" />
 <section id="Visualizing-Component-Probability-Distributions">
-<h2>Visualizing Component Probability Distributions<a class="headerlink" href="#Visualizing-Component-Probability-Distributions" title="Link to this heading">#</a></h2>
+<h2>Visualizing Component Probability Distributions<a class="headerlink" href="#Visualizing-Component-Probability-Distributions" title="Link to this heading"></a></h2>
 <p>Finally, we analyze the distribution of component responsibilities (i.e., the probability that each sample belongs to a particular component):</p>
 <ul>
 <li><div class="line-block">
@@ -663,7 +462,7 @@ Covariance:
 </ul>
 <p>These plots provide insight into how the GMM assigns probabilities to each data point and how well each component is represented in both the original and generated data.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -709,7 +508,7 @@ Covariance:
 </section>
 <hr class="docutils" />
 <section id="Comparing-Different-Covariance-Types">
-<h2>Comparing Different Covariance Types<a class="headerlink" href="#Comparing-Different-Covariance-Types" title="Link to this heading">#</a></h2>
+<h2>Comparing Different Covariance Types<a class="headerlink" href="#Comparing-Different-Covariance-Types" title="Link to this heading"></a></h2>
 <p>In this section, we examine how the choice of covariance type affects the clustering results of the GMM. We consider six different covariance types:</p>
 <ul>
 <li><div class="line-block">
@@ -811,7 +610,7 @@ Covariance:
 <li><p>Visualize the clustering results with our custom <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function in a grid of subplots.</p></li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;tied_spherical&#39;</span><span class="p">,</span> <span class="s1">&#39;spherical&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_diag&#39;</span><span class="p">,</span> <span class="s1">&#39;diag&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_full&#39;</span><span class="p">,</span> <span class="s1">&#39;full&#39;</span><span class="p">]</span>
@@ -853,7 +652,7 @@ Covariance:
 </section>
 <hr class="docutils" />
 <section id="Comparing-Different-Initialization-Methods">
-<h2>Comparing Different Initialization Methods<a class="headerlink" href="#Comparing-Different-Initialization-Methods" title="Link to this heading">#</a></h2>
+<h2>Comparing Different Initialization Methods<a class="headerlink" href="#Comparing-Different-Initialization-Methods" title="Link to this heading"></a></h2>
 <p>In this section, we investigate how different initialization methods affect the GMM clustering results when using a fixed covariance type (here, <strong>full</strong>). The initialization methods compared are:</p>
 <ul class="simple">
 <li><p><strong>random</strong></p></li>
@@ -940,7 +739,7 @@ Recompute each center as the mean of its assigned points:</p>
 <li><p>Predict cluster labels and visualize the clustering results with our <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function, which also overlays the initial means (marked in red).</p></li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;full&#39;</span><span class="p">]</span>
@@ -1015,108 +814,31 @@ Recompute each center as the mean of its assigned points:</p>
 </section>
 
 
-                </article>
-              
-              
-              
-              
-              
-                <footer class="prev-next-footer d-print-none">
-                  
-<div class="prev-next-area">
-</div>
-                </footer>
-              
-            </div>
-            
-            
-              
-                <dialog id="pst-secondary-sidebar-modal"></dialog>
-                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
-
-
-  <div class="sidebar-secondary-item">
-<div
-    id="pst-page-navigation-heading-2"
-    class="page-toc tocsection onthispage">
-    <i class="fa-solid fa-list"></i> On this page
-  </div>
-  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Synthetic-Data-Generation-and-Initial-Visualization">Synthetic Data Generation and Initial Visualization</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Fitting-the-Gaussian-Mixture-Model">Fitting the Gaussian Mixture Model</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Inspecting-the-Learned-GMM-Parameters">Inspecting the Learned GMM Parameters</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Visualization-of-Clustering-and-Generated-Samples">Visualization of Clustering and Generated Samples</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Visualizing-Component-Probability-Distributions">Visualizing Component Probability Distributions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Comparing-Different-Covariance-Types">Comparing Different Covariance Types</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Comparing-Different-Initialization-Methods">Comparing Different Initialization Methods</a></li>
-</ul>
-  </nav></div>
-
-  <div class="sidebar-secondary-item">
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="../_sources/notebooks/gmm.ipynb.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div></div>
-
-</div></div>
-              
-            
+           </div>
           </div>
-          <footer class="bd-footer-content">
-            
-          </footer>
-        
-      </main>
-    </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Adrián A. Sousa-Poza.</p>
   </div>
-  
-  <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
 
-  <footer class="bd-footer">
-<div class="bd-footer__inner bd-page-width">
-  
-    <div class="footer-items__start">
-      
-        <div class="footer-item">
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
-  <p class="copyright">
-    
-      © Copyright 2025, Adrián A. Sousa-Poza.
-      <br/>
-    
-  </p>
-</div>
-      
-        <div class="footer-item">
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
 
-  <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
-    <br/>
-  </p>
-</div>
-      
-    </div>
-  
-  
-  
-    <div class="footer-items__end">
-      
-        <div class="footer-item">
-<p class="theme-version">
-  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
-  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
-</p></div>
-      
-    </div>
-  
-</div>
-
-  </footer>
-  </body>
+</body>
 </html>
