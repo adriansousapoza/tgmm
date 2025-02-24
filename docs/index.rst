@@ -4,16 +4,16 @@
    :align: center
    :scale: 75%
 
-==========================
+=================================
 TorchGMM Documentation
-==========================
+=================================
 
-Welcome to the **TorchGMM** documentation! Below you will find:
+Welcome to the **TorchGMM** documentation! Here you will find:
 
 - An overview of the :ref:`modules`.
-- Links to :ref:`tutorials`.
+- Step-by-step guides in the :ref:`tutorials`.
 - Basic usage instructions.
-- :ref:`search`
+- A search interface for quickly finding information.
 
 .. toctree::
    :maxdepth: 2
@@ -21,3 +21,4 @@ Welcome to the **TorchGMM** documentation! Below you will find:
 
    modules
    tutorials
+

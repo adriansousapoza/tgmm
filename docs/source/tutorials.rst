@@ -1,8 +1,8 @@
 .. _tutorials:
 
-=========
+===========
 Tutorials
-=========
+===========
 
 Here are step-by-step guides on using TorchGMM.
 
