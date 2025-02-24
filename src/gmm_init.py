@@ -16,15 +16,15 @@ class GMMInitializer:
     **Mathematical Descriptions:**
 
     - **random:**  
-      Computes the empirical mean \(\bar{x}\) and covariance \(\Sigma\) of ``data`` and draws
+      Computes the empirical mean $\bar{x}$ and covariance $\Sigma$ of ``data`` and draws
       initial centers as:
       $$
       \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),
       $$
-      where \( L \) is the Cholesky factor of \(\Sigma\).
+      where $ L $ is the Cholesky factor of $\Sigma$.
 
     - **points:**  
-      Randomly selects \( k \) data points:
+      Randomly selects $ k $ data points:
       $$
       \mu_i = x_{s_i}, \quad \text{for } s_i \in \text{random subset of } \{1, \dots, N\}.
       $$
@@ -68,12 +68,12 @@ class GMMInitializer:
         Randomly initialize cluster centers by sampling from the empirical
         distribution of ``data``.
 
-        Mathematically, if \(\bar{x}\) and \(\Sigma\) are the sample mean and covariance
+        Mathematically, if $\bar{x}$ and $\Sigma$ are the sample mean and covariance
         of the data, then:
         $$
         \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),
         $$
-        where \(L\) is the Cholesky factor of \(\Sigma\).
+        where $L$ is the Cholesky factor of $\Sigma$.
 
         Parameters
         ----------
@@ -164,10 +164,10 @@ class GMMInitializer:
         Starting from a k-means++ initialization, k-means iteratively refines the centers by:
         
         1. **Assignment:**  
-           \(\displaystyle c_j = \arg\min_{i} \|x_j - \mu_i\|^2,\) for each data point \(x_j\).
+           $\displaystyle c_j = \arg\min_{i} \|x_j - \mu_i\|^2,$ for each data point $x_j$.
         
         2. **Update:**  
-           \(\displaystyle \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,\) where \(C_i\) is the set of points assigned to center \(\mu_i\).
+           $\displaystyle \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.
         
         The algorithm stops when the centers move by less than the specified tolerance.
 
@@ -180,7 +180,7 @@ class GMMInitializer:
         max_iter : int, optional
             Maximum number of iterations (default is 1000).
         atol : float, optional
-            Convergence tolerance (default is \(1\times10^{-4}\)).
+            Convergence tolerance (default is $1\times10^{-4}$).
 
         Returns
         -------
