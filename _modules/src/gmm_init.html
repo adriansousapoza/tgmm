@@ -294,40 +294,40 @@
 <span class="sd">    - **random:**  </span>
 <span class="sd">      Computes the empirical mean \(\bar{x}\) and covariance \(\Sigma\) of ``data`` and draws</span>
 <span class="sd">      initial centers as:</span>
-<span class="sd">      \[</span>
+<span class="sd">      $$</span>
 <span class="sd">      \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),</span>
-<span class="sd">      \]</span>
+<span class="sd">      $$</span>
 <span class="sd">      where \( L \) is the Cholesky factor of \(\Sigma\).</span>
 
 <span class="sd">    - **points:**  </span>
 <span class="sd">      Randomly selects \( k \) data points:</span>
-<span class="sd">      \[</span>
+<span class="sd">      $$</span>
 <span class="sd">      \mu_i = x_{s_i}, \quad \text{for } s_i \in \text{random subset of } \{1, \dots, N\}.</span>
-<span class="sd">      \]</span>
+<span class="sd">      $$</span>
 
 <span class="sd">    - **kpp (k-means++):**  </span>
 <span class="sd">      Chooses the first center uniformly at random and subsequent centers with probability</span>
 <span class="sd">      proportional to the squared distance to the nearest already chosen center:</span>
-<span class="sd">      \[</span>
+<span class="sd">      $$</span>
 <span class="sd">      P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad \text{where } D(x_j) = \min_{l} \|x_j - \mu_l\|^2.</span>
-<span class="sd">      \]</span>
+<span class="sd">      $$</span>
 
 <span class="sd">    - **kmeans:**  </span>
 <span class="sd">      Runs the k-means algorithm starting from k-means++ initialization. At each iteration:</span>
-<span class="sd">      \[</span>
+<span class="sd">      $$</span>
 <span class="sd">      c_j = \arg\min_i \|x_j - \mu_i\|^2, \quad \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,</span>
-<span class="sd">      \]</span>
+<span class="sd">      $$</span>
 <span class="sd">      until convergence.</span>
 
 <span class="sd">    - **maxdist:**  </span>
 <span class="sd">      A modified k-means++ that selects subsequent centers as:</span>
-<span class="sd">      \[</span>
+<span class="sd">      $$</span>
 <span class="sd">      \mu_i = \arg\max_{x} \min_{l &lt; i} \|x - \mu_l\|,</span>
-<span class="sd">      \]</span>
+<span class="sd">      $$</span>
 <span class="sd">      and then reselects the first center as:</span>
-<span class="sd">      \[</span>
+<span class="sd">      $$</span>
 <span class="sd">      \mu_1 = \arg\max_{x} \min_{l=2}^{k} \|x - \mu_l\|.</span>
-<span class="sd">      \]</span>
+<span class="sd">      $$</span>
 
 <span class="sd">    Example usage::</span>
 
@@ -336,20 +336,6 @@
 <span class="sd">        data = torch.randn(1000, 2)  # Synthetic data</span>
 <span class="sd">        k = 4</span>
 <span class="sd">        init_means = GMMInitializer.random(data, k)</span>
-
-<span class="sd">    Methods</span>
-<span class="sd">    -------</span>
-<span class="sd">    random(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        Randomly draw initial means based on the empirical distribution of ``data``.</span>
-<span class="sd">    points(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        Select ``k`` data points at random from ``data``.</span>
-<span class="sd">    kpp(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        Use the k-means++ algorithm to choose well-separated initial means.</span>
-<span class="sd">    kmeans(data: torch.Tensor, k: int, max_iter: int = 1000, atol: float = 1e-4) -&gt; torch.Tensor</span>
-<span class="sd">        Run k-means on ``data`` to refine initial means.</span>
-<span class="sd">    maxdist(data: torch.Tensor, k: int) -&gt; torch.Tensor</span>
-<span class="sd">        A variant of k-means++ that maximizes the minimum distance between centers and</span>
-<span class="sd">        reevaluates the first center.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="GMMInitializer.random">
@@ -362,9 +348,9 @@
 
 <span class="sd">        Mathematically, if \(\bar{x}\) and \(\Sigma\) are the sample mean and covariance</span>
 <span class="sd">        of the data, then:</span>
-<span class="sd">        \[</span>
+<span class="sd">        $$</span>
 <span class="sd">        \mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),</span>
-<span class="sd">        \]</span>
+<span class="sd">        $$</span>
 <span class="sd">        where \(L\) is the Cholesky factor of \(\Sigma\).</span>
 
 <span class="sd">        Parameters</span>
@@ -423,9 +409,9 @@
 <span class="sd">        The first center is chosen uniformly at random. Subsequent centers are chosen</span>
 <span class="sd">        with probability proportional to the squared distance from the nearest existing</span>
 <span class="sd">        center:</span>
-<span class="sd">        \[</span>
+<span class="sd">        $$</span>
 <span class="sd">        P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad D(x_j) = \min_{l} \|x_j - \mu_l\|^2.</span>
-<span class="sd">        \]</span>
+<span class="sd">        $$</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -510,14 +496,14 @@
 <span class="sd">        between centers.</span>
 
 <span class="sd">        After randomly selecting the first center, each subsequent center is chosen as:</span>
-<span class="sd">        \[</span>
+<span class="sd">        $$</span>
 <span class="sd">        \mu_i = \arg\max_{x \in \mathcal{D}} \min_{l=1,\dots,i-1} \|x - \mu_l\|,</span>
-<span class="sd">        \]</span>
+<span class="sd">        $$</span>
 <span class="sd">        ensuring that the new center is as far as possible from the existing centers.</span>
 <span class="sd">        Finally, the first center is reselected as:</span>
-<span class="sd">        \[</span>
+<span class="sd">        $$</span>
 <span class="sd">        \mu_1 = \arg\max_{x \in \mathcal{D}} \min_{l=2}^{k} \|x - \mu_l\|.</span>
-<span class="sd">        \]</span>
+<span class="sd">        $$</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
