@@ -90,7 +90,7 @@
 <li><p>Visualize the clustering results using our custom <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[120]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[171]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -136,16 +136,16 @@ Using device: cuda
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[120]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[171]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;torch._C.Generator at 0x7f92dca33bd0&gt;
+&lt;torch._C.Generator at 0x7f1b4357f610&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[121]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[172]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -186,81 +186,6 @@ Using device: cuda
 <img alt="../_images/notebooks_priors_2_0.png" src="../_images/notebooks_priors_2_0.png" />
 </div>
 </div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[125]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">plotly.subplots</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_subplots</span>
-
-<span class="c1"># Define different alpha (concentration) vectors for 3 components</span>
-<span class="n">alpha_vectors</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s2">&quot;Uniform (α=1)&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]),</span>
-    <span class="s2">&quot;Sparse (α=0.1)&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]),</span>
-    <span class="s2">&quot;Concentrated (α=10)&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">]),</span>
-    <span class="s2">&quot;Imbalanced (0.5, 1, 5)&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
-<span class="p">}</span>
-
-<span class="n">n_samples</span> <span class="o">=</span> <span class="mi">10000</span>  <span class="c1"># Number of samples to generate per setting</span>
-
-<span class="c1"># Create a 2x2 subplot with each subplot being a ternary plot.</span>
-<span class="n">rows</span> <span class="o">=</span> <span class="mi">2</span>
-<span class="n">cols</span> <span class="o">=</span> <span class="mi">2</span>
-<span class="n">fig</span> <span class="o">=</span> <span class="n">make_subplots</span><span class="p">(</span>
-    <span class="n">rows</span><span class="o">=</span><span class="n">rows</span><span class="p">,</span>
-    <span class="n">cols</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span>
-    <span class="n">specs</span><span class="o">=</span><span class="p">[[{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;ternary&#39;</span><span class="p">}</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cols</span><span class="p">)]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">)],</span>
-    <span class="n">subplot_titles</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">alpha_vectors</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-<span class="p">)</span>
-
-<span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">for</span> <span class="n">title</span><span class="p">,</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="n">alpha_vectors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-    <span class="c1"># Sample from the Dirichlet distribution using the gamma sampling method.</span>
-    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
-    <span class="n">samples</span> <span class="o">/=</span> <span class="n">samples</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Normalize to make each sample sum to 1</span>
-
-    <span class="c1"># Determine subplot position.</span>
-    <span class="n">row</span> <span class="o">=</span> <span class="n">i</span> <span class="o">//</span> <span class="n">cols</span> <span class="o">+</span> <span class="mi">1</span>
-    <span class="n">col</span> <span class="o">=</span> <span class="n">i</span> <span class="o">%</span> <span class="n">cols</span> <span class="o">+</span> <span class="mi">1</span>
-
-    <span class="c1"># Create a ternary scatter trace.</span>
-    <span class="n">trace</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Scatterternary</span><span class="p">(</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
-        <span class="n">b</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
-        <span class="n">c</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span>
-        <span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;markers&#39;</span><span class="p">,</span>
-        <span class="n">marker</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">opacity</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="n">title</span>
-    <span class="p">)</span>
-
-    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span><span class="n">trace</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="n">col</span><span class="p">)</span>
-    <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
-
-<span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Samples from a Dirichlet Distribution (3 Components)&quot;</span><span class="p">,</span>
-    <span class="n">ternary</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
-        <span class="nb">sum</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="n">aaxis</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;Component A&quot;</span><span class="p">),</span>
-        <span class="n">baxis</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;Component B&quot;</span><span class="p">),</span>
-        <span class="n">caxis</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;Component C&quot;</span><span class="p">)</span>
-    <span class="p">),</span>
-    <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span>
-<span class="p">)</span>
-
-<span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-<br/></pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="admonition warning">
-<p>Data type cannot be displayed: application/vnd.plotly.v1+json</p>
-</div>
-</div>
-</div>
 <section id="Impact-of-\alpha-in-the-Dirichlet-Distribution-and-Visualization">
 <h2>Impact of <span class="math notranslate nohighlight">\(\alpha\)</span> in the Dirichlet Distribution and Visualization<a class="headerlink" href="#Impact-of-\alpha-in-the-Dirichlet-Distribution-and-Visualization" title="Link to this heading"></a></h2>
 <p>In a Gaussian Mixture Model (GMM) with a Dirichlet prior on the mixture weights, the concentration parameter, often denoted as <span class="math notranslate nohighlight">\(\alpha\)</span>, plays a key role in shaping the prior distribution over the component weights.</p>
@@ -284,7 +209,79 @@ Using device: cuda
 </li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[173]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.special</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">dirichlet_pdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">alpha</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the Dirichlet density for point (x, y, z)</span>
+<span class="sd">    given parameters alpha = (α1, α2, α3).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">,</span> <span class="n">a3</span> <span class="o">=</span> <span class="n">alpha</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">a1</span><span class="p">)</span> <span class="o">*</span> <span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">a2</span><span class="p">)</span> <span class="o">*</span> <span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">a3</span><span class="p">)</span> <span class="o">/</span>
+         <span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">gamma</span><span class="p">(</span><span class="n">a1</span> <span class="o">+</span> <span class="n">a2</span> <span class="o">+</span> <span class="n">a3</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="p">(</span><span class="n">a1</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">y</span><span class="o">**</span><span class="p">(</span><span class="n">a2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">z</span><span class="o">**</span><span class="p">(</span><span class="n">a3</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="n">B</span>
+
+<span class="n">alpha_list</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;Dirichlet Density (α=2,2,2)&quot;</span><span class="p">),</span>
+    <span class="p">((</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="s2">&quot;Dirichlet Density (α=8,8,8)&quot;</span><span class="p">),</span>
+    <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;Dirichlet Density (α=1,1,2)&quot;</span><span class="p">),</span>
+    <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;Dirichlet Density (α=1,2,2)&quot;</span><span class="p">),</span>
+    <span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="s2">&quot;Dirichlet Density (α=2,4,8)&quot;</span><span class="p">),</span>
+    <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;Dirichlet Density (α=1,1,1)&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="n">N</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">a_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.9999</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<span class="n">b_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.9999</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span>
+<span class="n">A</span><span class="p">,</span> <span class="n">B_mesh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">a_vals</span><span class="p">,</span> <span class="n">b_vals</span><span class="p">)</span>
+<span class="n">C</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">A</span> <span class="o">-</span> <span class="n">B_mesh</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="n">C</span> <span class="o">&gt;</span> <span class="mi">0</span>
+<span class="n">x_grid</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+<span class="n">y_grid</span> <span class="o">=</span> <span class="n">B_mesh</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+<span class="n">z_grid</span> <span class="o">=</span> <span class="n">C</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+<span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span>
+                         <span class="n">subplot_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;projection&#39;</span><span class="p">:</span> <span class="s1">&#39;ternary&#39;</span><span class="p">},</span>
+                         <span class="n">figsize</span><span class="o">=</span><span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axes</span><span class="o">.</span><span class="n">flat</span><span class="p">,</span> <span class="n">alpha_list</span><span class="p">):</span>
+    <span class="n">densities</span> <span class="o">=</span> <span class="n">dirichlet_pdf</span><span class="p">(</span><span class="n">x_grid</span><span class="p">,</span> <span class="n">y_grid</span><span class="p">,</span> <span class="n">z_grid</span><span class="p">,</span> <span class="n">alpha</span><span class="p">)</span>
+
+    <span class="c1"># Draw the simplex boundary.</span>
+    <span class="n">vertices</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">],</span>
+            <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Plot filled contours using the clipped densities.</span>
+    <span class="n">triang</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">tricontourf</span><span class="p">(</span><span class="n">x_grid</span><span class="p">,</span> <span class="n">y_grid</span><span class="p">,</span> <span class="n">z_grid</span><span class="p">,</span> <span class="n">densities</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">tricontour</span><span class="p">(</span><span class="n">x_grid</span><span class="p">,</span> <span class="n">y_grid</span><span class="p">,</span> <span class="n">z_grid</span><span class="p">,</span> <span class="n">densities</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="n">triang</span><span class="o">.</span><span class="n">levels</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidths</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Different Dirichlet Distributions&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_priors_4_0.png" src="../_images/notebooks_priors_4_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[174]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">weigths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">])</span>
@@ -331,7 +328,7 @@ Using device: cuda
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[175]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: One dominant prior and three nearly zero priors.</span>
@@ -359,11 +356,11 @@ Using device: cuda
     <span class="p">)</span>
     <span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
     <span class="c1"># Plot only ellipses and means, with alpha based on component weights.</span>
-    <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_weight_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+    <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_weight_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
              <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">weight</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
              <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
              <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;ellipses&#39;</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
 
@@ -389,9 +386,6 @@ Using device: cuda
 <span class="n">mean_prior</span> <span class="o">=</span> <span class="n">init_means_kmeans</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
 <span class="n">mean_precision_prior</span> <span class="o">=</span> <span class="mf">1e5</span>  <span class="c1"># large =&gt; strong push toward prior means</span>
 
-<span class="c1"># perturb the prior means slightly</span>
-<span class="n">mean_prior</span> <span class="o">+=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">mean_prior</span><span class="p">)</span>
-
 <span class="n">gmm_mean_prior</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
     <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
     <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
@@ -404,12 +398,12 @@ Using device: cuda
 <span class="p">)</span>
 <span class="n">gmm_mean_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+<span class="n">ncols</span><span class="p">,</span> <span class="n">nrows</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">ncols</span><span class="p">,</span> <span class="n">nrows</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
 <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Mean Prior (precision=</span><span class="si">{</span><span class="n">mean_precision_prior</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_mean_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
-<span class="n">plot_gmm_ellipses</span><span class="p">(</span><span class="n">gmm_mean_prior</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">)</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_mean_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;dots&#39;</span><span class="p">)</span>
 
-<span class="c1"># Plot the prior means as red crosses</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean_prior</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">mean_prior</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Mean Prior&#39;</span><span class="p">)</span>
 <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -424,7 +418,7 @@ Using device: cuda
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[193]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># shape (2, 2)</span>
@@ -432,7 +426,7 @@ Using device: cuda
 <span class="n">data_covariance</span> <span class="o">=</span> <span class="n">data_covariance</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">n_components</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
 <span class="n">degrees_of_freedom_prior</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">n_features</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
-<span class="n">prior_strengths</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
+<span class="n">prior_strengths</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span>
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Covariance Priors: Varying Strength&quot;</span><span class="p">)</span>
@@ -447,7 +441,7 @@ Using device: cuda
         <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
         <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
         <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
-        <span class="n">max_iter</span><span class="o">=</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
         <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
         <span class="c1"># Covariance prior:</span>
         <span class="n">covariance_prior</span><span class="o">=</span><span class="n">cov_prior</span><span class="p">,</span>
@@ -459,58 +453,28 @@ Using device: cuda
     <span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
 
-    <span class="n">title</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CovPrior Strength=</span><span class="si">{</span><span class="n">strength</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-             <span class="sa">f</span><span class="s2">&quot;dof=</span><span class="si">{</span><span class="n">degrees_of_freedom_prior</span><span class="si">}</span><span class="se">\n</span><span class="s2">LogLik=</span><span class="si">{</span><span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">plot_gmm_ellipses</span><span class="p">(</span><span class="n">gmm_cov_prior</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;magenta&#39;</span><span class="p">)</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DOF=</span><span class="si">{</span><span class="n">degrees_of_freedom_prior</span><span class="si">}</span><span class="s2">, Strength=</span><span class="si">{</span><span class="n">strength</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cov_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;dots&#39;</span><span class="p">)</span>
+
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
-<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
-Cell <span class="ansi-green-fg">In[114], line 21</span>
-<span class="ansi-green-intense-fg ansi-bold">     14</span> dummy_mean_prior <span style="color: rgb(98,98,98)">=</span> torch<span style="color: rgb(98,98,98)">.</span>zeros(n_components, n_features, device<span style="color: rgb(98,98,98)">=</span>device)
-<span class="ansi-green-intense-fg ansi-bold">     15</span> dummy_mean_precision_prior <span style="color: rgb(98,98,98)">=</span> <span style="color: rgb(98,98,98)">1e-10</span>  <span style="color: rgb(95,135,135)"># effectively no strong push on means</span>
-<span class="ansi-green-intense-fg ansi-bold">     17</span> gmm_cov_prior <span style="color: rgb(98,98,98)">=</span> GaussianMixture(
-<span class="ansi-green-intense-fg ansi-bold">     18</span>     n_features<span style="color: rgb(98,98,98)">=</span>n_features,
-<span class="ansi-green-intense-fg ansi-bold">     19</span>     n_components<span style="color: rgb(98,98,98)">=</span>n_components,
-<span class="ansi-green-intense-fg ansi-bold">     20</span>     covariance_type<span style="color: rgb(98,98,98)">=</span><span style="color: rgb(175,0,0)">&#39;</span><span style="color: rgb(175,0,0)">full</span><span style="color: rgb(175,0,0)">&#39;</span>,
-<span class="ansi-green-fg">---&gt; 21</span>     max_iter<span style="color: rgb(98,98,98)">=</span><span class="ansi-yellow-bg">max_iter</span>,
-<span class="ansi-green-intense-fg ansi-bold">     22</span>     device<span style="color: rgb(98,98,98)">=</span>device,
-<span class="ansi-green-intense-fg ansi-bold">     23</span>     <span style="color: rgb(95,135,135)"># Covariance prior:</span>
-<span class="ansi-green-intense-fg ansi-bold">     24</span>     covariance_prior<span style="color: rgb(98,98,98)">=</span>cov_prior,
-<span class="ansi-green-intense-fg ansi-bold">     25</span>     degrees_of_freedom_prior<span style="color: rgb(98,98,98)">=</span>degrees_of_freedom_prior,
-<span class="ansi-green-intense-fg ansi-bold">     26</span>     <span style="color: rgb(95,135,135)"># Provide &#34;dummy&#34; mean priors so code doesn&#39;t crash</span>
-<span class="ansi-green-intense-fg ansi-bold">     27</span>     mean_prior<span style="color: rgb(98,98,98)">=</span>dummy_mean_prior,
-<span class="ansi-green-intense-fg ansi-bold">     28</span>     mean_precision_prior<span style="color: rgb(98,98,98)">=</span>dummy_mean_precision_prior
-<span class="ansi-green-intense-fg ansi-bold">     29</span> )
-<span class="ansi-green-intense-fg ansi-bold">     30</span> gmm_cov_prior<span style="color: rgb(98,98,98)">.</span>fit(X_tensor)
-<span class="ansi-green-intense-fg ansi-bold">     33</span> title <span style="color: rgb(98,98,98)">=</span> (<span style="color: rgb(175,0,0)">f</span><span style="color: rgb(175,0,0)">&#34;</span><span style="color: rgb(175,0,0)">CovPrior Strength=</span><span class="ansi-bold" style="color: rgb(175,95,135)">{</span>strength<span class="ansi-bold" style="color: rgb(175,95,135)">}</span><span class="ansi-bold" style="color: rgb(175,95,0)">\n</span><span style="color: rgb(175,0,0)">&#34;</span>
-<span class="ansi-green-intense-fg ansi-bold">     34</span>          <span style="color: rgb(175,0,0)">f</span><span style="color: rgb(175,0,0)">&#34;</span><span style="color: rgb(175,0,0)">dof=</span><span class="ansi-bold" style="color: rgb(175,95,135)">{</span>degrees_of_freedom_prior<span class="ansi-bold" style="color: rgb(175,95,135)">}</span><span class="ansi-bold" style="color: rgb(175,95,0)">\n</span><span style="color: rgb(175,0,0)">LogLik=</span><span class="ansi-bold" style="color: rgb(175,95,135)">{</span>gmm_cov_prior<span style="color: rgb(98,98,98)">.</span>lower_bound_<span class="ansi-bold" style="color: rgb(175,95,135)">:</span><span style="color: rgb(175,0,0)">.2f</span><span class="ansi-bold" style="color: rgb(175,95,135)">}</span><span style="color: rgb(175,0,0)">&#34;</span>)
-
-<span class="ansi-red-fg">NameError</span>: name &#39;max_iter&#39; is not defined
-</pre></div></div>
-</div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_priors_8_1.png" src="../_images/notebooks_priors_8_1.png" />
+<img alt="../_images/notebooks_priors_8_0.png" src="../_images/notebooks_priors_8_0.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[191]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dof_values</span> <span class="o">=</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">]</span>  <span class="c1"># must be &gt; n_features - 1 =&gt; &gt; 1 for 2D</span>
-<span class="n">strength</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># fixed prior strength for demonstration</span>
+<span class="n">strength</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># fixed prior strength for demonstration</span>
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Covariance Prior: Varying Degrees of Freedom&quot;</span><span class="p">)</span>
@@ -526,7 +490,7 @@ Cell <span class="ansi-green-fg">In[114], line 21</span>
         <span class="n">n_features</span><span class="o">=</span><span class="n">n_features</span><span class="p">,</span>
         <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
         <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
-        <span class="n">max_iter</span><span class="o">=</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
         <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
         <span class="c1"># Covariance prior:</span>
         <span class="n">covariance_prior</span><span class="o">=</span><span class="n">cov_prior</span><span class="p">,</span>
@@ -539,9 +503,8 @@ Cell <span class="ansi-green-fg">In[114], line 21</span>
     <span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
 
-    <span class="n">title</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DOF=</span><span class="si">{</span><span class="n">dof</span><span class="si">}</span><span class="s2">, Strength=</span><span class="si">{</span><span class="n">strength</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-             <span class="sa">f</span><span class="s2">&quot;LL=</span><span class="si">{</span><span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">plot_gmm_ellipses</span><span class="p">(</span><span class="n">gmm_cov_prior</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">)</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DOF=</span><span class="si">{</span><span class="n">dof</span><span class="si">}</span><span class="s2">, Strength=</span><span class="si">{</span><span class="n">strength</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cov_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;dots&#39;</span><span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
