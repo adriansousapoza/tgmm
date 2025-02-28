@@ -51,7 +51,7 @@ def plot_gmm(
     legend_labels=None,
     xlabel='Feature 1',
     ylabel='Feature 2',
-    mode='cluster',           # 'cluster' or 'continuous'
+    mode='cluster',           # 'cluster', 'continuous', 'ellipses', or 'dots'
     color_values=None,        # required in continuous mode
     cmap_cont='viridis',      # colormap for continuous mode
     cbar_label='Color',       # label for colorbar in continuous mode
@@ -61,13 +61,18 @@ def plot_gmm(
     dashed_outer=False        # if True, draw the outer ellipse with a dashed outline (only in alpha_from_weight mode)
 ):
     """
-    Plot function that supports two modes:
+    Plot function that supports four modes:
     
     1. 'cluster': Plot data points colored by cluster, with optional GMM ellipses and means.
        If gmm is provided, ellipses are drawn; if labels are not provided and X is given, they are computed.
        
     2. 'continuous': Plot data points with colors representing continuous values (e.g., log-likelihood or probabilities),
        and add a colorbar.
+
+    3. 'ellipses': Plot only the ellipses and means of the GMM components.
+
+    4. 'dots': Plot only the data points as small black dots (marker '.') with no labels.  
+       If gmm is provided, additionally plot a red dashed ellipse at 2 std dev and red dots for component means.
     
     If X is None, only ellipses and means are plotted.
     
@@ -86,40 +91,98 @@ def plot_gmm(
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     
-    # Plot data points only if X is provided and mode is 'cluster'
-    if X is not None and mode == 'cluster':
-        if labels is None:
+    # Plot data points if X is provided.
+    if X is not None:
+        if mode == 'dots':
+            ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
             if gmm is not None:
-                X_tensor = torch.from_numpy(X).float() if not isinstance(X, torch.Tensor) else X
-                labels = gmm.predict(X_tensor).detach().cpu().numpy()
-            else:
-                labels = np.zeros(X.shape[0], dtype=int)
-        else:
-            if not isinstance(labels, np.ndarray):
-                labels = labels.detach().cpu().numpy() if hasattr(labels, 'detach') else np.array(labels)
-        
-        if gmm is not None:
-            n_components = gmm.n_components
-        else:
-            n_components = int(np.max(labels)) + 1
-        
-        cmap = ListedColormap(plt.cm.Dark2(np.linspace(0, 1, n_components)))
-        if legend_labels is None:
-            legend_labels = [f'Cluster {i}' for i in range(n_components)]
+                std_to_plot = 2
+                for n in range(gmm.n_components):
+                    mean = gmm.means_[n].detach().cpu().numpy() if hasattr(gmm.means_[n], 'detach') else gmm.means_[n]
+                    if gmm.covariance_type in ['full', 'diag', 'spherical']:
+                        if gmm.covariance_type == 'full':
+                            cov = gmm.covariances_[n].detach().cpu().numpy()
+                        elif gmm.covariance_type == 'diag':
+                            diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                            cov = np.diag(diag_vals)
+                        elif gmm.covariance_type == 'spherical':
+                            var = gmm.covariances_[n].detach().cpu().item()
+                            cov = np.eye(gmm.n_features) * var
+                    elif gmm.covariance_type in ['tied_full', 'tied_diag', 'tied_spherical']:
+                        if gmm.covariance_type == 'tied_full':
+                            cov = gmm.covariances_.detach().cpu().numpy()
+                        elif gmm.covariance_type == 'tied_diag':
+                            diag_vals = gmm.covariances_.detach().cpu().numpy()
+                            cov = np.diag(diag_vals)
+                        elif gmm.covariance_type == 'tied_spherical':
+                            var = gmm.covariances_.detach().cpu().item()
+                            cov = np.eye(gmm.n_features) * var
+                    else:
+                        raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
+                    
+                    vals, vecs = np.linalg.eigh(cov)
+                    order = vals.argsort()[::-1]
+                    vals, vecs = vals[order], vecs[:, order]
+                    angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+                    
+                    width, height = 2 * std_to_plot * np.sqrt(vals)
+                    ell = Ellipse(
+                        xy=mean,
+                        width=width,
+                        height=height,
+                        angle=angle,
+                        facecolor='none',
+                        edgecolor='red',
+                        linestyle='-',
+                        linewidth=1.5,
+                    )
+                    ax.add_patch(ell)
+                # Plot the mean as a red dot.
+                means = gmm.means_.detach().cpu().numpy() if hasattr(gmm.means_, 'detach') else gmm.means_
+                ax.plot(means[:, 0], means[:, 1], 'r+', markersize=10, markeredgewidth=2, label='Means')
+                    
+        elif mode in ['cluster', 'continuous']:
+            if mode == 'cluster':
+                if labels is None:
+                    if gmm is not None:
+                        X_tensor = torch.from_numpy(X).float() if not isinstance(X, torch.Tensor) else X
+                        labels = gmm.predict(X_tensor).detach().cpu().numpy()
+                    else:
+                        labels = np.zeros(X.shape[0], dtype=int)
+                else:
+                    if not isinstance(labels, np.ndarray):
+                        labels = labels.detach().cpu().numpy() if hasattr(labels, 'detach') else np.array(labels)
+                
+                if gmm is not None:
+                    n_components = gmm.n_components
+                else:
+                    n_components = int(np.max(labels)) + 1
+                
+                cmap = ListedColormap(plt.cm.Dark2(np.linspace(0, 1, n_components)))
+                if legend_labels is None:
+                    legend_labels = [f'Cluster {i}' for i in range(n_components)]
     
-        for i, color, ll in zip(range(n_components), cmap.colors, legend_labels):
-            mask = (labels == i)
-            ax.scatter(X[mask, 0], X[mask, 1], c=[color], s=10, label=ll, alpha=0.5, marker='o')
+                for i, color, ll in zip(range(n_components), cmap.colors, legend_labels):
+                    mask_pts = (labels == i)
+                    ax.scatter(X[mask_pts, 0], X[mask_pts, 1], c=[color], s=10, label=ll, alpha=0.5, marker='o')
+            elif mode == 'continuous':
+                if color_values is None:
+                    raise ValueError("In continuous mode, the parameter 'color_values' must be provided.")
+                if not isinstance(color_values, np.ndarray):
+                    color_values = color_values.detach().cpu().numpy() if hasattr(color_values, 'detach') else np.array(color_values)
+                scatter = ax.scatter(X[:, 0], X[:, 1], c=color_values, cmap=cmap_cont, s=2)
+                cbar = plt.gcf().colorbar(scatter, ax=ax)
+                cbar.set_label(cbar_label)
     
-    # Plot ellipses and means if gmm is provided.
-    if gmm is not None:
+    # Plot ellipses and means if gmm is provided and mode is 'cluster' or 'ellipses'.
+    if gmm is not None and mode in ['cluster', 'ellipses']:
         if alpha_from_weight:
-            # Compute maximum weight among components.
             weights_array = np.array([float(w.detach().cpu().item()) for w in gmm.weights_])
             max_weight = weights_array.max()
             std_to_plot = 2  # fixed multiplier for outer ellipse
-        for n, color in zip(range(gmm.n_components), 
-                              cmap.colors if 'cmap' in locals() else plt.cm.Dark2(np.linspace(0, 1, gmm.n_components))):
+        if 'cmap' not in locals():
+            cmap = ListedColormap(plt.cm.Dark2(np.linspace(0, 1, gmm.n_components)))
+        for n, color in zip(range(gmm.n_components), cmap.colors):
             mean = gmm.means_[n].detach().cpu().numpy()
             if gmm.covariance_type in ['full', 'diag', 'spherical']:
                 if gmm.covariance_type == 'full':
@@ -148,14 +211,12 @@ def plot_gmm(
             angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
             
             if alpha_from_weight:
-                # Compute alpha proportional to the component weight.
                 w = float(gmm.weights_[n].detach().cpu().item())
                 alpha_val = (w / max_weight) * base_alpha
                 width, height = 2 * std_to_plot * np.sqrt(vals)
                 kwargs = {}
                 if dashed_outer:
-                    kwargs['linestyle'] = '--'
-                label_str = f"w={w:.2f}"
+                    kwargs['linestyle'] = '-'
                 ell = Ellipse(
                     xy=mean,
                     width=width,
@@ -164,7 +225,7 @@ def plot_gmm(
                     facecolor=color,
                     alpha=alpha_val,
                     edgecolor=color,
-                    label=label_str,
+                    label=f"w={w:.2f}",
                     **kwargs
                 )
                 ax.add_patch(ell)
@@ -179,7 +240,7 @@ def plot_gmm(
                     alphas = [base_alpha, base_alpha * 0.66, base_alpha * 0.33]
                 else:
                     alphas = [base_alpha * (1 - i / len(std_devs)) for i in range(len(std_devs))]
-                for std_dev, alpha in zip(std_devs, alphas):
+                for std_dev, alpha_val in zip(std_devs, alphas):
                     width, height = 2 * np.sqrt(vals) * std_dev
                     ell = Ellipse(
                         xy=mean,
@@ -187,16 +248,14 @@ def plot_gmm(
                         height=height,
                         angle=angle,
                         facecolor=color,
-                        alpha=alpha,
+                        alpha=alpha_val,
                         edgecolor=None
                     )
                     ax.add_patch(ell)
             
-            if n == len(gmm.means_) - 1:
-                ax.plot(mean[0], mean[1], 'k.', markersize=10, label='Final Means')
-            else:
-                ax.plot(mean[0], mean[1], 'k.', markersize=10)
+            ax.plot(mean[0], mean[1], 'k.', markersize=10)
     
+    # Plot initial means if provided.
     if init_means is not None:
         init_means_cpu = init_means.detach().cpu().numpy() if hasattr(init_means, 'detach') else np.array(init_means)
         for i in range(init_means_cpu.shape[0]):
@@ -205,9 +264,8 @@ def plot_gmm(
             else:
                 ax.plot(init_means_cpu[i, 0], init_means_cpu[i, 1], 'r+', markersize=10, markeredgewidth=2)
     
-    if mode == 'cluster' and X is not None:
-        ax.legend(loc='best', markerscale=1.5)
-    elif mode == 'continuous':
+    # Handle continuous mode.
+    if mode == 'continuous':
         if color_values is None:
             raise ValueError("In continuous mode, the parameter 'color_values' must be provided.")
         if not isinstance(color_values, np.ndarray):
@@ -215,6 +273,11 @@ def plot_gmm(
         scatter = ax.scatter(X[:, 0], X[:, 1], c=color_values, cmap=cmap_cont, s=2)
         cbar = plt.gcf().colorbar(scatter, ax=ax)
         cbar.set_label(cbar_label)
-    else:
-        if mode not in ['cluster', 'continuous']:
-            raise ValueError("Mode must be either 'cluster' or 'continuous'.")
+    
+    # In 'cluster' mode, add legend.
+    elif mode == 'cluster' and X is not None:
+        ax.legend(loc='best', markerscale=1.5)
+    
+    # In 'dots' mode, do not add a legend.
+    elif mode not in ['cluster', 'continuous', 'ellipses', 'dots']:
+        raise ValueError("Mode must be one of 'cluster', 'continuous', 'ellipses', or 'dots'.")
