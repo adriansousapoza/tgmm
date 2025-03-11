@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gaussian Mixture Models with Priors &mdash; TorchGMM 0.1.0 documentation</title>
+  <title>Priors in Gaussian Mixture Models &mdash; TorchGMM 0.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -47,11 +47,18 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Gaussian Mixture Models with Priors</a><ul>
-<li><a class="reference internal" href="#Impact-of-\alpha-in-the-Dirichlet-Distribution-and-Visualization">Impact of <span class="math notranslate nohighlight">\(\alpha\)</span> in the Dirichlet Distribution and Visualization</a><ul>
-<li><a class="reference internal" href="#How-\alpha-Affects-the-Dirichlet-Distribution">How <span class="math notranslate nohighlight">\(\alpha\)</span> Affects the Dirichlet Distribution</a></li>
+<li><a class="reference internal" href="#">Priors in Gaussian Mixture Models</a><ul>
+<li><a class="reference internal" href="#1.-Weights:-Dirichlet-Distribution">1. Weights: Dirichlet Distribution</a><ul>
+<li><a class="reference internal" href="#Impact-of-\alpha-in-the-Dirichlet-Distribution-and-Visualization">Impact of <span class="math notranslate nohighlight">\(\alpha\)</span> in the Dirichlet Distribution and Visualization</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#How-\alpha-Affects-the-Dirichlet-Distribution">How <span class="math notranslate nohighlight">\(\alpha\)</span> Affects the Dirichlet Distribution</a><ul>
+<li><a class="reference internal" href="#Gamma-Distribution">Gamma Distribution</a></li>
+<li><a class="reference internal" href="#Transforming-to-the-Inverse-Gamma-Distribution">Transforming to the Inverse Gamma Distribution</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#Mean-of-the-Inverse-Gamma-Distribution">Mean of the Inverse Gamma Distribution</a></li>
+<li><a class="reference internal" href="#Impact-of-the-Parameters">Impact of the Parameters</a></li>
 </ul>
 </li>
 </ul>
@@ -70,7 +77,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Gaussian Mixture Models with Priors</li>
+      <li class="breadcrumb-item active">Priors in Gaussian Mixture Models</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -79,18 +86,24 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="Gaussian-Mixture-Models-with-Priors">
-<h1>Gaussian Mixture Models with Priors<a class="headerlink" href="#Gaussian-Mixture-Models-with-Priors" title="Link to this heading"></a></h1>
-<p>In this notebook, we explore how to incorporate prior information into Gaussian Mixture Models (GMMs) to perform Maximum A Posteriori (MAP) estimation rather than the standard Maximum Likelihood Estimation (MLE). By specifying priors on the weights, means, and covariances, we can guide the model toward more robust or informed clustering solutions, especially in situations where data may be noisy or sparse.</p>
-<p>We will:</p>
+  <section id="Priors-in-Gaussian-Mixture-Models">
+<h1>Priors in Gaussian Mixture Models<a class="headerlink" href="#Priors-in-Gaussian-Mixture-Models" title="Link to this heading"></a></h1>
+<p>When fitting a GMM via maximum a posteriori (MAP) estimation, we not only maximize the likelihood of the data but also incorporate prior beliefs about the parameters. In our implementation, we support priors on:</p>
+<section id="1.-Weights:-Dirichlet-Distribution">
+<h2>1. Weights: Dirichlet Distribution<a class="headerlink" href="#1.-Weights:-Dirichlet-Distribution" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>Set up our plotting functions and global style parameters.</p></li>
-<li><p>Demonstrate how to include priors in the GMM initialization.</p></li>
-<li><p>Fit the GMM to a dataset and compute diagnostic metrics.</p></li>
-<li><p>Visualize the clustering results using our custom <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function.</p></li>
+<li><p>The mixture weights represent the probability that a given data point belongs to each component.</p></li>
+<li><p>A Dirichlet prior (often called the weight concentration prior) ensures that the weights remain well-behaved and helps avoid degenerate solutions (e.g., a component having nearly zero weight).</p></li>
+<li><p>In our code, this is passed as weight_concentration_prior. ### 2. Means: Gaussian (Normal) Distribution</p></li>
+<li><p>Each component’s mean can be assigned a Gaussian prior.</p></li>
+<li><p>This is controlled by specifying a prior mean (through mean_prior) and a precision factor (inverse variance) via mean_precision_prior.</p></li>
+<li><p>A higher precision implies a stronger belief that the component means should remain close to the prior. ### 3. Covariances: Wishart Distribution</p></li>
+<li><p>For full covariance matrices, the Wishart distribution is the conjugate prior. It’s a distribution over positive-definite matrices.</p></li>
+<li><p>In cases of diagonal or spherical covariance matrices, the conjugate prior for the variance is typically a Gamma distribution.</p></li>
+<li><p>In our GMM, these are passed as covariance_prior (with degrees_of_freedom_prior controlling its shape).</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[171]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[76]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -100,8 +113,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ListedColormap</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.special</span>
 
-<span class="c1">#print(os.getcwd())</span>
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">src.gmm</span>
@@ -118,34 +131,30 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">src.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_gmm</span><span class="p">,</span> <span class="n">dynamic_figsize</span>
 
 <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Using device:&quot;</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
-
-<span class="c1"># Set random seeds for reproducibility</span>
 <span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
 <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
 <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">device</span> <span class="o">==</span> <span class="s1">&#39;cuda&#39;</span><span class="p">:</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;CUDA version:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">cuda</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Device:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Using CPU&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
+<div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Using device: cuda
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[171]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&lt;torch._C.Generator at 0x7f1b4357f610&gt;
+CUDA version: 12.4
+Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[172]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[77]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -187,10 +196,12 @@ Using device: cuda
 </div>
 </div>
 <section id="Impact-of-\alpha-in-the-Dirichlet-Distribution-and-Visualization">
-<h2>Impact of <span class="math notranslate nohighlight">\(\alpha\)</span> in the Dirichlet Distribution and Visualization<a class="headerlink" href="#Impact-of-\alpha-in-the-Dirichlet-Distribution-and-Visualization" title="Link to this heading"></a></h2>
+<h3>Impact of <span class="math notranslate nohighlight">\(\alpha\)</span> in the Dirichlet Distribution and Visualization<a class="headerlink" href="#Impact-of-\alpha-in-the-Dirichlet-Distribution-and-Visualization" title="Link to this heading"></a></h3>
 <p>In a Gaussian Mixture Model (GMM) with a Dirichlet prior on the mixture weights, the concentration parameter, often denoted as <span class="math notranslate nohighlight">\(\alpha\)</span>, plays a key role in shaping the prior distribution over the component weights.</p>
+</section>
+</section>
 <section id="How-\alpha-Affects-the-Dirichlet-Distribution">
-<h3>How <span class="math notranslate nohighlight">\(\alpha\)</span> Affects the Dirichlet Distribution<a class="headerlink" href="#How-\alpha-Affects-the-Dirichlet-Distribution" title="Link to this heading"></a></h3>
+<h2>How <span class="math notranslate nohighlight">\(\alpha\)</span> Affects the Dirichlet Distribution<a class="headerlink" href="#How-\alpha-Affects-the-Dirichlet-Distribution" title="Link to this heading"></a></h2>
 <ul>
 <li><div class="line-block">
 <div class="line"><strong>Small :math:`alpha` (e.g., :math:`alpha ll 1`):</strong></div>
@@ -209,12 +220,15 @@ Using device: cuda
 </li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[173]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[78]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.special</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># if mpltern is installed, we can use the ternary projection</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">mpltern</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="err">!</span><span class="n">pip</span> <span class="n">install</span> <span class="n">mpltern</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">mpltern</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">dirichlet_pdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">alpha</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -269,6 +283,7 @@ Using device: cuda
     <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Different Dirichlet Distributions&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 <br/></pre></div>
 </div>
@@ -281,7 +296,7 @@ Using device: cuda
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[174]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[79]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">weigths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">])</span>
@@ -291,8 +306,6 @@ Using device: cuda
 <span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
 <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Different Priors: Small vs Large Weight&quot;</span><span class="p">)</span>
-
-<span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;purple&#39;</span><span class="p">]</span>
 
 <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">weigths</span><span class="p">):</span>
     <span class="n">gmm_weight_prior</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
@@ -306,18 +319,16 @@ Using device: cuda
         <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;random&#39;</span>
     <span class="p">)</span>
     <span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
-    <span class="c1"># Plot only ellipses and means, with alpha based on component weights.</span>
-    <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_weight_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+    <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_weight_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
              <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">weight</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
              <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
              <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+             <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;weights&#39;</span><span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-<br/></pre></div>
+<br/><br/></pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -328,7 +339,7 @@ Using device: cuda
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[175]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[80]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: One dominant prior and three nearly zero priors.</span>
@@ -360,12 +371,8 @@ Using device: cuda
              <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">weight</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
              <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
              <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;ellipses&#39;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;weights&#39;</span><span class="p">)</span>
 
-<span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.98</span><span class="p">])</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 <br/></pre></div>
@@ -378,8 +385,241 @@ Using device: cuda
 <img alt="../_images/notebooks_priors_6_0.png" src="../_images/notebooks_priors_6_0.png" />
 </div>
 </div>
+<section id="Gamma-Distribution">
+<h3>Gamma Distribution<a class="headerlink" href="#Gamma-Distribution" title="Link to this heading"></a></h3>
+<p>The Gamma distribution is given by the density function</p>
+<div class="math notranslate nohighlight">
+\[f(x; \alpha, \theta) = \frac{1}{\Gamma(\alpha)\,\theta^\alpha}\, x^{\alpha-1} \exp\left(-\frac{x}{\theta}\right), \quad x &gt; 0,\]</div>
+<p>where:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\alpha\)</span> is the <strong>shape parameter</strong>,</p></li>
+<li><p><span class="math notranslate nohighlight">\(\theta\)</span> is the <strong>scale parameter</strong>,</p></li>
+<li><p><span class="math notranslate nohighlight">\(\Gamma(\alpha)\)</span> is the gamma function.</p></li>
+</ul>
+<p>The mean of the Gamma distribution is</p>
+<div class="math notranslate nohighlight">
+\[E[X] = \alpha \theta.\]</div>
+</section>
+<section id="Transforming-to-the-Inverse-Gamma-Distribution">
+<h3>Transforming to the Inverse Gamma Distribution<a class="headerlink" href="#Transforming-to-the-Inverse-Gamma-Distribution" title="Link to this heading"></a></h3>
+<p>If we define</p>
+<div class="math notranslate nohighlight">
+\[Y = \frac{1}{X},\]</div>
+<p>then using the standard transformation method the density of <span class="math notranslate nohighlight">\(Y\)</span> becomes</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
+f_Y(y) &amp;= f_X\left(\frac{1}{y}\right) \left|\frac{d}{dy}\left(\frac{1}{y}\right)\right| \\
+&amp;= \frac{1}{\Gamma(\alpha)\,\theta^\alpha} \left(\frac{1}{y}\right)^{\alpha-1} \exp\left(-\frac{1}{\theta y}\right) \frac{1}{y^2} \\
+&amp;= \frac{1}{\Gamma(\alpha)\,\theta^\alpha}\, y^{-\alpha-1} \exp\left(-\frac{1}{\theta y}\right), \quad y &gt; 0.
+\end{aligned}\end{split}\]</div>
+<p>This density is of the form of an inverse Gamma distribution. A standard parameterization for the inverse Gamma distribution is:</p>
+<div class="math notranslate nohighlight">
+\[f_Y(y; \alpha, \beta) = \frac{\beta^\alpha}{\Gamma(\alpha)}\, y^{-\alpha-1} \exp\left(-\frac{\beta}{y}\right), \quad y &gt; 0,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\beta &gt; 0\)</span> is the <strong>scale parameter</strong> of the inverse Gamma. By comparing the two forms, we identify</p>
+<div class="math notranslate nohighlight">
+\[\beta^\alpha = \frac{1}{\theta^\alpha} \quad \Longrightarrow \quad \beta = \frac{1}{\theta}.\]</div>
+</section>
+</section>
+<section id="Mean-of-the-Inverse-Gamma-Distribution">
+<h2>Mean of the Inverse Gamma Distribution<a class="headerlink" href="#Mean-of-the-Inverse-Gamma-Distribution" title="Link to this heading"></a></h2>
+<p>For the inverse Gamma distribution with parameters <span class="math notranslate nohighlight">\(\alpha\)</span> and <span class="math notranslate nohighlight">\(\beta\)</span>, the mean exists for <span class="math notranslate nohighlight">\(\alpha &gt; 1\)</span> and is given by</p>
+<div class="math notranslate nohighlight">
+\[E[Y] = \frac{\beta}{\alpha - 1}.\]</div>
+<p>Substituting <span class="math notranslate nohighlight">\(\beta = \frac{1}{\theta}\)</span> into the formula, we get</p>
+<div class="math notranslate nohighlight">
+\[E[Y] = \frac{1/\theta}{\alpha - 1} = \frac{1}{\theta (\alpha - 1)}.\]</div>
+</section>
+<section id="Impact-of-the-Parameters">
+<h2>Impact of the Parameters<a class="headerlink" href="#Impact-of-the-Parameters" title="Link to this heading"></a></h2>
+<ul>
+<li><div class="line-block">
+<div class="line"><strong>Shape (:math:`alpha`)</strong>:</div>
+<div class="line">The shape parameter <span class="math notranslate nohighlight">\(\alpha\)</span> affects the tail behavior and the concentration of the distribution. Increasing <span class="math notranslate nohighlight">\(\alpha\)</span> (with <span class="math notranslate nohighlight">\(\beta\)</span> fixed) causes both the mean and the mode to decrease:</div>
+</div>
+<div class="math notranslate nohighlight">
+\[E[Y] = \frac{\beta}{\alpha - 1}, \qquad \text{mode} = \frac{\beta}{\alpha + 1}.\]</div>
+<p>Thus, a higher <span class="math notranslate nohighlight">\(\alpha\)</span> results in a distribution that is more concentrated near zero and has lighter tails, while a lower <span class="math notranslate nohighlight">\(\alpha\)</span> produces heavier tails.</p>
+</li>
+<li><div class="line-block">
+<div class="line"><strong>Scale (:math:`beta`)</strong>:</div>
+<div class="line">The scale parameter <span class="math notranslate nohighlight">\(\beta\)</span> shifts the distribution. A larger <span class="math notranslate nohighlight">\(\beta\)</span> leads to higher values of the mean and mode. In many Bayesian contexts, the inverse gamma is obtained by inverting a Gamma-distributed variable with scale parameter <span class="math notranslate nohighlight">\(\theta\)</span>, where <span class="math notranslate nohighlight">\(\beta = \frac{1}{\theta}\)</span>. In that case, increasing <span class="math notranslate nohighlight">\(\theta\)</span> (making the Gamma distribution more spread out) results in a smaller <span class="math notranslate nohighlight">\(\beta\)</span>, which in turn shifts the inverse gamma distribution toward lower
+values.</div>
+</div>
+</li>
+</ul>
+<p>Overall:</p>
+<ul class="simple">
+<li><p>A larger <span class="math notranslate nohighlight">\(\alpha\)</span> (with fixed <span class="math notranslate nohighlight">\(\beta\)</span>) makes the inverse gamma distribution more concentrated near zero and less heavy-tailed.</p></li>
+<li><p>A larger <span class="math notranslate nohighlight">\(\beta\)</span> shifts the distribution toward higher values.</p></li>
+</ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[122]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">invgamma</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">18</span><span class="p">))</span>
+
+<span class="c1"># -------------------------------</span>
+<span class="c1"># Plot 1: Varying $\alpha$, fixed $\theta$</span>
+<span class="c1"># -------------------------------</span>
+<span class="n">fixed_theta</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">alphas</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">]</span>
+
+<span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="n">alphas</span><span class="p">:</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">fixed_theta</span>
+    <span class="n">pdf_vals</span> <span class="o">=</span> <span class="n">invgamma</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">beta</span><span class="p">)</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">/</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">line</span><span class="p">,</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">pdf_vals</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">alpha=</span><span class="si">{</span><span class="n">alpha</span><span class="si">}</span><span class="s2">,</span><span class="se">\\</span><span class="s2">,</span><span class="se">\\</span><span class="s2">theta=</span><span class="si">{</span><span class="n">fixed_theta</span><span class="si">}</span><span class="s2">,</span><span class="se">\\</span><span class="s2">,</span><span class="se">\\</span><span class="s2">mathrm</span><span class="se">{{</span><span class="s2">mode</span><span class="se">}}</span><span class="s2">=</span><span class="si">{</span><span class="n">mode</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">$&quot;</span><span class="p">)</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">line</span><span class="o">.</span><span class="n">get_color</span><span class="p">(),</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Inverse Gamma PDF (Varying $</span><span class="se">\\</span><span class="s2">alpha$, Fixed $</span><span class="se">\\</span><span class="s2">theta$)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;$x$&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Density&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># -------------------------------</span>
+<span class="c1"># Plot 2: Fixed $\alpha$, varying $\theta$</span>
+<span class="c1"># -------------------------------</span>
+<span class="n">fixed_alpha</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">thetas</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+
+<span class="k">for</span> <span class="n">theta</span> <span class="ow">in</span> <span class="n">thetas</span><span class="p">:</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">theta</span>
+    <span class="n">pdf_vals</span> <span class="o">=</span> <span class="n">invgamma</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">fixed_alpha</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">beta</span><span class="p">)</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">/</span> <span class="p">(</span><span class="n">fixed_alpha</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">line</span><span class="p">,</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">pdf_vals</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">alpha=</span><span class="si">{</span><span class="n">fixed_alpha</span><span class="si">}</span><span class="s2">,</span><span class="se">\\</span><span class="s2">,</span><span class="se">\\</span><span class="s2">theta=</span><span class="si">{</span><span class="n">theta</span><span class="si">}</span><span class="s2">,</span><span class="se">\\</span><span class="s2">,</span><span class="se">\\</span><span class="s2">mathrm</span><span class="se">{{</span><span class="s2">mode</span><span class="se">}}</span><span class="s2">=</span><span class="si">{</span><span class="n">mode</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">$&quot;</span><span class="p">)</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">line</span><span class="o">.</span><span class="n">get_color</span><span class="p">(),</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Inverse Gamma PDF (Fixed $</span><span class="se">\\</span><span class="s2">alpha$, Varying $</span><span class="se">\\</span><span class="s2">theta$)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;$x$&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Density&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># -------------------------------</span>
+<span class="c1"># Plot 3: Varying both $\alpha$ and $\theta$ to get the same mode</span>
+<span class="c1"># -------------------------------</span>
+<span class="n">alphas_equal</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">15</span><span class="p">]</span>
+<span class="n">thetas_equal</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.125</span><span class="p">]</span>
+
+<span class="k">for</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">theta</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alphas_equal</span><span class="p">,</span> <span class="n">thetas_equal</span><span class="p">):</span>
+    <span class="n">beta</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">theta</span>
+    <span class="n">pdf_vals</span> <span class="o">=</span> <span class="n">invgamma</span><span class="o">.</span><span class="n">pdf</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">beta</span><span class="p">)</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="n">beta</span> <span class="o">/</span> <span class="p">(</span><span class="n">alpha</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">line</span><span class="p">,</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">pdf_vals</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">alpha=</span><span class="si">{</span><span class="n">alpha</span><span class="si">}</span><span class="s2">,</span><span class="se">\\</span><span class="s2">,</span><span class="se">\\</span><span class="s2">theta=</span><span class="si">{</span><span class="n">theta</span><span class="si">}</span><span class="s2">,</span><span class="se">\\</span><span class="s2">,</span><span class="se">\\</span><span class="s2">mathrm</span><span class="se">{{</span><span class="s2">mode</span><span class="se">}}</span><span class="s2">=</span><span class="si">{</span><span class="n">mode</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">$&quot;</span><span class="p">)</span>
+    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">line</span><span class="o">.</span><span class="n">get_color</span><span class="p">(),</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Inverse Gamma PDF (Varying both $</span><span class="se">\\</span><span class="s2">alpha$ and $</span><span class="se">\\</span><span class="s2">theta$ to get the same mode)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;$x$&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Density&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_priors_8_0.png" src="../_images/notebooks_priors_8_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[82]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">wishart</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="kn">import</span> <span class="n">gaussian_filter</span>
+
+<span class="c1"># Initial covariance matrix</span>
+<span class="n">covariance_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+
+<span class="c1"># Degrees of freedom and scale factors</span>
+<span class="n">dfs</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+<span class="n">scales</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+<span class="n">scale_matrices</span> <span class="o">=</span> <span class="p">[</span><span class="n">covariance_matrix</span> <span class="o">*</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">scale</span> <span class="ow">in</span> <span class="n">scales</span><span class="p">]</span>
+
+<span class="c1"># Collect inverse Wishart samples</span>
+<span class="n">inv_wishart_samples_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dfs</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">scale_matrix</span> <span class="ow">in</span> <span class="n">scale_matrices</span><span class="p">:</span>
+        <span class="c1"># Sample from the Wishart distribution</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">wishart</span><span class="o">.</span><span class="n">rvs</span><span class="p">(</span><span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">scale_matrix</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">1000000</span><span class="p">)</span>
+        <span class="c1"># Invert the samples to obtain inverse Wishart samples</span>
+        <span class="n">inv_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+        <span class="n">inv_wishart_samples_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">df</span><span class="p">,</span> <span class="n">scale_matrix</span><span class="p">,</span> <span class="n">inv_samples</span><span class="p">))</span>
+
+<span class="c1"># Set fixed axis limits (adjust as needed)</span>
+<span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.01</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.01</span><span class="p">,</span> <span class="mi">2</span>
+
+<span class="c1"># Set up the figure for multiple hexbin plots</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dfs</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">scale_matrices</span><span class="p">),</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span> <span class="mi">13</span><span class="p">))</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Hexbin Plots with Smoothed Gradient Contours</span><span class="se">\n</span><span class="s2">of 2D Inverse Wishart Distributions&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+
+<span class="c1"># Loop over different degrees of freedom and scale matrices</span>
+<span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">dfs</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">scale_matrix</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">scale_matrices</span><span class="p">):</span>
+        <span class="n">df_current</span><span class="p">,</span> <span class="n">scale_matrix_current</span><span class="p">,</span> <span class="n">inv_samples</span> <span class="o">=</span> <span class="n">inv_wishart_samples_list</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="c1"># Extract diagonal elements (variances) from the inverse Wishart samples</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">inv_samples</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">inv_samples</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span>
+        <span class="c1"># Create hexbin plot</span>
+        <span class="n">hb</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">hexbin</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">gridsize</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;PiYG&#39;</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">])</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">hb</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;vertical&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Compute a 2D histogram for contour lines</span>
+        <span class="n">H</span><span class="p">,</span> <span class="n">xedges</span><span class="p">,</span> <span class="n">yedges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">[[</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">],</span> <span class="p">[</span><span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">]])</span>
+        <span class="c1"># Smooth the histogram using a Gaussian filter</span>
+        <span class="n">H_smooth</span> <span class="o">=</span> <span class="n">gaussian_filter</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Compute the centers of the bins</span>
+        <span class="n">Xc</span> <span class="o">=</span> <span class="p">(</span><span class="n">xedges</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">xedges</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">Yc</span> <span class="o">=</span> <span class="p">(</span><span class="n">yedges</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">yedges</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">X_mesh</span><span class="p">,</span> <span class="n">Y_mesh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">Xc</span><span class="p">,</span> <span class="n">Yc</span><span class="p">)</span>
+
+        <span class="c1"># Overlay smoothed contour lines to show density gradients</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">contour</span><span class="p">(</span><span class="n">X_mesh</span><span class="p">,</span> <span class="n">Y_mesh</span><span class="p">,</span> <span class="n">H_smooth</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidths</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="n">ymin</span><span class="p">,</span> <span class="n">ymax</span><span class="p">])</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DF=</span><span class="si">{</span><span class="n">df</span><span class="si">}</span><span class="s2">, Scale=</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">scale_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="mi">1</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Diagonal Element 1&quot;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Diagonal Element 2&quot;</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_priors_9_0.png" src="../_images/notebooks_priors_9_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[83]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">init_means_kmeans</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kmeans</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">k</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>  <span class="c1"># do on CPU</span>
@@ -410,15 +650,24 @@ Using device: cuda
 <br/></pre></div>
 </div>
 </div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/tmp/ipykernel_16744/4083178823.py:23: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+  ax.legend()
+</pre></div></div>
+</div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_priors_7_0.png" src="../_images/notebooks_priors_7_0.png" />
+<img alt="../_images/notebooks_priors_10_1.png" src="../_images/notebooks_priors_10_1.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[193]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[84]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># shape (2, 2)</span>
@@ -466,11 +715,11 @@ Using device: cuda
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_priors_8_0.png" src="../_images/notebooks_priors_8_0.png" />
+<img alt="../_images/notebooks_priors_11_0.png" src="../_images/notebooks_priors_11_0.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[191]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[85]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dof_values</span> <span class="o">=</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">]</span>  <span class="c1"># must be &gt; n_features - 1 =&gt; &gt; 1 for 2D</span>
@@ -515,10 +764,9 @@ Using device: cuda
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_priors_9_0.png" src="../_images/notebooks_priors_9_0.png" />
+<img alt="../_images/notebooks_priors_12_0.png" src="../_images/notebooks_priors_12_0.png" />
 </div>
 </div>
-</section>
 </section>
 </section>
 

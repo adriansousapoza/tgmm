@@ -115,7 +115,7 @@
 </li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -124,7 +124,6 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 
-<span class="c1">#print(os.getcwd())</span>
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">src.gmm</span>
@@ -140,16 +139,23 @@
 <span class="n">random_state</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
 <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">device</span> <span class="o">==</span> <span class="s1">&#39;cuda&#39;</span><span class="p">:</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;CUDA version:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">cuda</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Device:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Using CPU&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
-</pre></div>
+<div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;torch._C.Generator at 0x7f17681bbbd0&gt;
+CUDA version: 12.4
+Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
 <hr class="docutils" />
@@ -164,7 +170,7 @@
 <p>The code generates samples by drawing from a standard normal distribution, transforming the samples using the covariance matrix, and shifting them by the specified center. The individual component samples are then concatenated to form the full dataset <code class="docutils literal notranslate"><span class="pre">X</span></code>, and corresponding labels are generated for visualization.</p>
 <p>Finally, we visualize the original data using a custom plotting function (<code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code>) that colors points according to their component labels.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -223,7 +229,7 @@
 </ul>
 <p>Diagnostic information such as mean log-likelihood, convergence status, and number of iterations is printed to verify the model’s performance.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert to tensor (if needed for further processing)</span>
@@ -318,7 +324,7 @@ Converged:                                              True
 <li><p><strong>Covariance:</strong> The covariance matrix (or vector/scalar for other types) representing the spread of the component.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># weights, means, covariances of each component</span>
@@ -378,11 +384,20 @@ Covariance:
  [1.0945222  4.2454743 ]]
 </pre></div></div>
 </div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Axes: title={&#39;center&#39;: &#39;GMM&#39;}, xlabel=&#39;Feature 1&#39;, ylabel=&#39;Feature 2&#39;&gt;
+</pre></div></div>
+</div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_gmm_7_1.png" src="../_images/notebooks_gmm_7_1.png" />
+<img alt="../_images/notebooks_gmm_7_2.png" src="../_images/notebooks_gmm_7_2.png" />
 </div>
 </div>
 </section>
@@ -408,7 +423,7 @@ Covariance:
 </li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Per-Sample Log-Likelihood&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;continuous&#39;</span><span class="p">,</span> <span class="n">color_values</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span> <span class="n">cmap_cont</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">cbar_label</span><span class="o">=</span><span class="s1">&#39;Log-Likelihood&#39;</span><span class="p">)</span>
@@ -462,7 +477,7 @@ Covariance:
 </ul>
 <p>These plots provide insight into how the GMM assigns probabilities to each data point and how well each component is represented in both the original and generated data.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -610,7 +625,7 @@ Covariance:
 <li><p>Visualize the clustering results with our custom <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function in a grid of subplots.</p></li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;tied_spherical&#39;</span><span class="p">,</span> <span class="s1">&#39;spherical&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_diag&#39;</span><span class="p">,</span> <span class="s1">&#39;diag&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_full&#39;</span><span class="p">,</span> <span class="s1">&#39;full&#39;</span><span class="p">]</span>
@@ -739,7 +754,7 @@ Recompute each center as the mean of its assigned points:</p>
 <li><p>Predict cluster labels and visualize the clustering results with our <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function, which also overlays the initial means (marked in red).</p></li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;full&#39;</span><span class="p">]</span>
