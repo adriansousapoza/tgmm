@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="torchgmm",
-    version="0.1.1",
+    name="tgmm",
+    version="0.1.5",
     author="Your Name",
     author_email="adrian.sousapoza@gmail.com",
     description="A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch",

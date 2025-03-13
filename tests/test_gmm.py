@@ -1,6 +1,6 @@
 import torch
 import pytest
-from torchgmm import GaussianMixture
+from tgmm import GaussianMixture
 
 def test_gaussian_mixture_fit_predict():
     # Generate a synthetic dataset
