@@ -103,32 +103,18 @@
 <li><p>In our GMM, these are passed as covariance_prior (with degrees_of_freedom_prior controlling its shape).</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[76]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ellipse</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ListedColormap</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">scipy.special</span>
 
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">src.gmm</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">src.metrics</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">src.gmm_init</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">src.plotting</span>
-<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">gmm</span><span class="p">)</span>
-<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">metrics</span><span class="p">)</span>
-<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">gmm_init</span><span class="p">)</span>
-<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">plotting</span><span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">src.gmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">src.gmm_init</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">src.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClusteringMetrics</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">src.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_gmm</span><span class="p">,</span> <span class="n">dynamic_figsize</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torchgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">GMMInitializer</span><span class="p">,</span> <span class="n">ClusteringMetrics</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span>
 
 <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
 <span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
@@ -154,7 +140,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[77]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -220,7 +206,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[78]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># if mpltern is installed, we can use the ternary projection</span>
@@ -296,7 +282,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[79]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">weigths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">])</span>
@@ -339,7 +325,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[80]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: One dominant prior and three nearly zero priors.</span>
@@ -453,7 +439,7 @@ values.</div>
 <li><p>A larger <span class="math notranslate nohighlight">\(\beta\)</span> shifts the distribution toward higher values.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[122]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -537,7 +523,7 @@ values.</div>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[82]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -619,7 +605,7 @@ values.</div>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[83]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">init_means_kmeans</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kmeans</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">k</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>  <span class="c1"># do on CPU</span>
@@ -655,7 +641,7 @@ values.</div>
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-/tmp/ipykernel_16744/4083178823.py:23: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+/tmp/ipykernel_10479/4083178823.py:23: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
   ax.legend()
 </pre></div></div>
 </div>
@@ -667,7 +653,7 @@ values.</div>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[84]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># shape (2, 2)</span>
@@ -719,7 +705,7 @@ values.</div>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[85]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dof_values</span> <span class="o">=</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">1000.0</span><span class="p">]</span>  <span class="c1"># must be &gt; n_features - 1 =&gt; &gt; 1 for 2D</span>
