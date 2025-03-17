@@ -24,7 +24,6 @@ plt.rcParams.update({
     "savefig.dpi": 400,
     "savefig.format": "pdf",
     "savefig.bbox": "tight",
-    # background for legend
     "legend.frameon": True,
     "legend.framealpha": 1,
     "legend.edgecolor": "black",
@@ -47,32 +46,112 @@ def dynamic_figsize(rows, cols, base_width=8, base_height=6):
     return (cols * base_width, rows * base_height)
 
 
+
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+from scipy.optimize import linear_sum_assignment
+
+# Helper: Hungarian algorithm to match predicted and true labels.
+def match_labels(y_true_tensor, y_pred_tensor):
+    y_true_cpu = y_true_tensor.cpu().long()
+    y_pred_cpu = y_pred_tensor.cpu().long()
+    max_true = y_true_cpu.max().item() + 1
+    max_pred = y_pred_cpu.max().item() + 1
+
+    # Build contingency matrix.
+    cont = np.zeros((max_true, max_pred), dtype=int)
+    for i in range(y_true_cpu.size(0)):
+        cont[y_true_cpu[i], y_pred_cpu[i]] += 1
+
+    row_ind, col_ind = linear_sum_assignment(-cont)  # maximize total assignment
+    mapping = {col_ind[j]: row_ind[j] for j in range(len(row_ind))}
+    matched_labels = np.array([mapping.get(p, p) for p in y_pred_cpu.numpy()], dtype=int)
+    return matched_labels
+
+# Updated plot_gmm function with a new mode 'outliers'
 def plot_gmm(
     X=None,
     gmm=None,
-    labels=None,
+    labels=None,        # Predicted labels (tensor or numpy array)
+    true_labels=None,   # True labels (tensor or numpy array)
     ax=None,
     title='GMM Results',
     init_means=None,
     legend_labels=None,
     xlabel='Feature 1',
     ylabel='Feature 2',
-    mode='cluster',           # 'cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', or 'covariances'
-    color_values=None,        # required in continuous mode
-    cmap_cont='viridis',      # colormap for continuous mode
-    cmap_seq='Greens',        # sequential colormap for "covariances" mode (default: Greens)
-    cbar_label='Color',       # label for colorbar in continuous mode
-    std_devs=[1, 2, 3],       # standard deviations to plot ellipses (ignored if alpha_from_weight is True)
-    base_alpha=0.8,           # base alpha for the ellipses
-    alpha_from_weight=False,  # if True, use component weights as the ellipse alpha and plot only one ellipse at 2 std dev
-    dashed_outer=False        # if True, draw the outer ellipse with a dashed outline (only in alpha_from_weight mode)
+    mode='cluster',     # 'cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', 'covariances', or 'outliers'
+    color_values=None,
+    cmap_cont='viridis',
+    cmap_seq='Greens',
+    cbar_label='Color',
+    std_devs=[1, 2, 3],
+    base_alpha=0.8,
+    alpha_from_weight=False,
+    dashed_outer=False
 ):
     if ax is None:
         ax = plt.gca()
     
-    ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    
+    if mode == 'outliers':
+        if true_labels is None:
+            raise ValueError("For mode 'outliers', true_labels must be provided.")
+        # Assume X is 2D; no PCA needed.
+        # Ensure X is a NumPy array.
+        if isinstance(X, torch.Tensor):
+            X_np = X.detach().cpu().numpy()
+        else:
+            X_np = X
+        
+        # Ensure labels is a tensor.
+        if not isinstance(labels, torch.Tensor):
+            labels_tensor = torch.tensor(labels)
+        else:
+            labels_tensor = labels
+
+        # Similarly, ensure true_labels is a tensor.
+        if not isinstance(true_labels, torch.Tensor):
+            true_labels_tensor = torch.tensor(true_labels)
+        else:
+            true_labels_tensor = true_labels
+        
+        # Match predicted labels with true labels.
+        matched_pred = match_labels(true_labels_tensor, labels_tensor)
+        correct = (matched_pred == true_labels_tensor.cpu().numpy())
+        incorrect = ~correct
+        
+        ax.scatter(X_np[correct, 0], X_np[correct, 1], c='green', s=25, 
+                   label='Correctly predicted', marker='.', alpha=0.3)
+        ax.scatter(X_np[incorrect, 0], X_np[incorrect, 1], c='red', s=25, 
+                   label='Incorrectly predicted', marker='.', alpha=1)
+        
+        # Plot the 2D means and ellipses for each component.
+        n_comps = gmm.means_.shape[0]
+        for i in range(n_comps):
+            mean_2d = gmm.means_[i].detach().cpu().numpy()
+            cov_2d = gmm.covariances_[i].detach().cpu().numpy()  # Expected shape: (2, 2)
+            ax.scatter(mean_2d[0], mean_2d[1], c='black', marker='x')
+            
+            # Compute eigenvalues and eigenvectors for the 2D covariance.
+            eigvals, eigvecs = np.linalg.eigh(cov_2d)
+            order = eigvals.argsort()[::-1]
+            eigvals, eigvecs = eigvals[order], eigvecs[:, order]
+            angle = np.degrees(np.arctan2(eigvecs[1, 0], eigvecs[0, 0]))
+            
+            # 95% confidence ellipse: scaling factor ~5.991 for 2D.
+            width, height = 2 * np.sqrt(5.991 * eigvals)
+            ell = Ellipse(mean_2d, width, height, angle=angle,
+                          edgecolor='black', facecolor='none', linestyle='--')
+            ax.add_patch(ell)
+        
+        ax.set_title(title)
+        ax.legend(markerscale=2)
+        return ax
     
     # --- Plot data points ---
     if X is not None:
@@ -135,10 +214,10 @@ def plot_gmm(
                     if gmm.covariance_type == 'tied_full':
                         cov = gmm.covariances_.detach().cpu().numpy()
                     elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        diag_vals = gmm.covariances_.detach().cpu().numpy()
                         cov = np.diag(diag_vals)
                     elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
+                        var = gmm.covariances_.detach().cpu().item()
                         cov = np.eye(gmm.n_features) * var
                 else:
                     raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
@@ -216,10 +295,10 @@ def plot_gmm(
                     if gmm.covariance_type == 'tied_full':
                         cov = gmm.covariances_.detach().cpu().numpy()
                     elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        diag_vals = gmm.covariances_.detach().cpu().numpy()
                         cov = np.diag(diag_vals)
                     elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
+                        var = gmm.covariances_.detach().cpu().item()
                         cov = np.eye(gmm.n_features) * var
                 else:
                     raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
@@ -279,10 +358,10 @@ def plot_gmm(
                     if gmm.covariance_type == 'tied_full':
                         cov = gmm.covariances_.detach().cpu().numpy()
                     elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        diag_vals = gmm.covariances_.detach().cpu().numpy()
                         cov = np.diag(diag_vals)
                     elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
+                        var = gmm.covariances_.detach().cpu().item()
                         cov = np.eye(gmm.n_features) * var
                 else:
                     raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
@@ -336,10 +415,10 @@ def plot_gmm(
                     if gmm.covariance_type == 'tied_full':
                         cov = gmm.covariances_.detach().cpu().numpy()
                     elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        diag_vals = gmm.covariances_.detach().cpu().numpy()
                         cov = np.diag(diag_vals)
                     elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
+                        var = gmm.covariances_.detach().cpu().item()
                         cov = np.eye(gmm.n_features) * var
                 else:
                     raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
