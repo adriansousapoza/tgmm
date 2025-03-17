@@ -24,6 +24,11 @@ plt.rcParams.update({
     "savefig.dpi": 400,
     "savefig.format": "pdf",
     "savefig.bbox": "tight",
+    # background for legend
+    "legend.frameon": True,
+    "legend.framealpha": 1,
+    "legend.edgecolor": "black",
+    "legend.facecolor": "lightgrey",
 })
 
 def dynamic_figsize(rows, cols, base_width=8, base_height=6):
@@ -42,8 +47,6 @@ def dynamic_figsize(rows, cols, base_width=8, base_height=6):
     return (cols * base_width, rows * base_height)
 
 
-
-
 def plot_gmm(
     X=None,
     gmm=None,
@@ -54,12 +57,13 @@ def plot_gmm(
     legend_labels=None,
     xlabel='Feature 1',
     ylabel='Feature 2',
-    mode='cluster',           # 'cluster', 'continuous', 'ellipses', 'dots', or 'weights'
+    mode='cluster',           # 'cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', or 'covariances'
     color_values=None,        # required in continuous mode
     cmap_cont='viridis',      # colormap for continuous mode
+    cmap_seq='Greens',        # sequential colormap for "covariances" mode (default: Greens)
     cbar_label='Color',       # label for colorbar in continuous mode
     std_devs=[1, 2, 3],       # standard deviations to plot ellipses (ignored if alpha_from_weight is True)
-    base_alpha=0.8,           # base alpha for the component with the largest weight
+    base_alpha=0.8,           # base alpha for the ellipses
     alpha_from_weight=False,  # if True, use component weights as the ellipse alpha and plot only one ellipse at 2 std dev
     dashed_outer=False        # if True, draw the outer ellipse with a dashed outline (only in alpha_from_weight mode)
 ):
@@ -72,8 +76,7 @@ def plot_gmm(
     
     # --- Plot data points ---
     if X is not None:
-        if mode in ['dots', 'weights']:
-            # Plot data points as black dots.
+        if mode in ['dots', 'weights', 'means', 'covariances']:
             ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
         elif mode in ['cluster', 'continuous']:
             if mode == 'cluster':
@@ -92,7 +95,7 @@ def plot_gmm(
                 else:
                     n_components = int(np.max(labels)) + 1
                 
-                cmap = ListedColormap(plt.cm.Dark2(np.linspace(0, 1, n_components)))
+                cmap = ListedColormap(plt.get_cmap('Dark2')(np.linspace(0, 1, n_components)))
                 if legend_labels is None:
                     legend_labels = [f'Cluster {i}' for i in range(n_components)]
     
@@ -110,17 +113,15 @@ def plot_gmm(
     
     # --- Plot ellipses and means ---
     if gmm is not None:
-        # Existing behavior for 'cluster' and 'ellipses'
         if mode in ['cluster', 'ellipses']:
             if alpha_from_weight:
                 weights_array = np.array([float(w.detach().cpu().item()) for w in gmm.weights_])
                 max_weight = weights_array.max()
-                std_to_plot = 2  # fixed multiplier for outer ellipse
+                std_to_plot = 2
             if 'cmap' not in locals():
-                cmap = ListedColormap(plt.cm.Dark2(np.linspace(0, 1, gmm.n_components)))
+                cmap = ListedColormap(plt.get_cmap('Dark2')(np.linspace(0, 1, gmm.n_components)))
             for n, color in zip(range(gmm.n_components), cmap.colors):
                 mean = gmm.means_[n].detach().cpu().numpy()
-                # Extract covariance
                 if gmm.covariance_type in ['full', 'diag', 'spherical']:
                     if gmm.covariance_type == 'full':
                         cov = gmm.covariances_[n].detach().cpu().numpy()
@@ -134,10 +135,10 @@ def plot_gmm(
                     if gmm.covariance_type == 'tied_full':
                         cov = gmm.covariances_.detach().cpu().numpy()
                     elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_.detach().cpu().numpy()
+                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
                         cov = np.diag(diag_vals)
                     elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_.detach().cpu().item()
+                        var = gmm.covariances_[n].detach().cpu().item()
                         cov = np.eye(gmm.n_features) * var
                 else:
                     raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
@@ -189,27 +190,19 @@ def plot_gmm(
                             edgecolor=None
                         )
                         ax.add_patch(ell)
-                
-                # Plot the mean as a black dot.
-                ax.plot(mean[0], mean[1], 'k.', markersize=10)
-        
-        # --- New branch: mode 'weights'
+                ax.scatter(mean[0], mean[1], c='k', s=10, marker='.')
         
         elif mode == 'weights':
-            # Get the weights and maximum weight for normalization.
             weights_array = np.array([float(w.detach().cpu().item()) for w in gmm.weights_])
             max_weight = weights_array.max()
-            std_to_plot = 2  # fixed multiplier for ellipse size
+            std_to_plot = 2
             n_components = gmm.n_components
-            # Fixed fill color (orange) for all ellipses.
             fill_color = "orange"
-            # Generate unique line/marker colors from the OrRd colormap.
             line_colors = plt.cm.OrRd(np.linspace(0.4, 0.9, n_components))
             proxy_handles = []
             proxy_labels = []
             for n in range(n_components):
                 mean = gmm.means_[n].detach().cpu().numpy()
-                # Extract covariance.
                 if gmm.covariance_type in ['full', 'diag', 'spherical']:
                     if gmm.covariance_type == 'full':
                         cov = gmm.covariances_[n].detach().cpu().numpy()
@@ -223,10 +216,10 @@ def plot_gmm(
                     if gmm.covariance_type == 'tied_full':
                         cov = gmm.covariances_.detach().cpu().numpy()
                     elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_.detach().cpu().numpy()
+                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
                         cov = np.diag(diag_vals)
                     elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_.detach().cpu().item()
+                        var = gmm.covariances_[n].detach().cpu().item()
                         cov = np.eye(gmm.n_features) * var
                 else:
                     raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
@@ -237,9 +230,8 @@ def plot_gmm(
                 angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
                 width, height = 2 * std_to_plot * np.sqrt(vals)
                 w = float(gmm.weights_[n].detach().cpu().item())
-                alpha_val = (w / max_weight) * base_alpha  # scale alpha by weight
+                alpha_val = (w / max_weight) * base_alpha
 
-                # Draw the filled ellipse (always orange) with weight-scaled transparency.
                 ell_filled = Ellipse(
                     xy=mean,
                     width=width,
@@ -250,7 +242,6 @@ def plot_gmm(
                     edgecolor='none'
                 )
                 ax.add_patch(ell_filled)
-                # Draw the outline using a unique color.
                 outline_color = line_colors[n]
                 ell_outline = Ellipse(
                     xy=mean,
@@ -262,28 +253,134 @@ def plot_gmm(
                     linewidth=2.0,
                 )
                 ax.add_patch(ell_outline)
-                # Plot the mean as a marker using the same unique color.
-                ax.plot(mean[0], mean[1], marker='.', color=outline_color, markersize=10)
-                # Create a proxy artist for the legend.
-                proxy = Ellipse((0, 0), 1, 1, alpha=1, facecolor='none',edgecolor=outline_color, linewidth=2.0)
+                ax.scatter(mean[0], mean[1], c=outline_color, s=10, marker='.')
+                proxy = Ellipse((0, 0), 1, 1, alpha=1, facecolor='none', edgecolor=outline_color, linewidth=2.0)
                 proxy_handles.append(proxy)
                 proxy_labels.append(f"w={w:.2f}")
-            ax.legend(proxy_handles, proxy_labels, loc='best', markerscale=1.5)
-
-
+            # Only call legend if there are handles.
+            handles, _ = ax.get_legend_handles_labels()
+            if handles:
+                ax.legend(proxy_handles, proxy_labels, loc='best', markerscale=1.5)
+        
+        elif mode == 'means':
+            std_to_plot = 2
+            for n in range(gmm.n_components):
+                mean = gmm.means_[n].detach().cpu().numpy()
+                if gmm.covariance_type in ['full', 'diag', 'spherical']:
+                    if gmm.covariance_type == 'full':
+                        cov = gmm.covariances_[n].detach().cpu().numpy()
+                    elif gmm.covariance_type == 'diag':
+                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        cov = np.diag(diag_vals)
+                    elif gmm.covariance_type == 'spherical':
+                        var = gmm.covariances_[n].detach().cpu().item()
+                        cov = np.eye(gmm.n_features) * var
+                elif gmm.covariance_type in ['tied_full', 'tied_diag', 'tied_spherical']:
+                    if gmm.covariance_type == 'tied_full':
+                        cov = gmm.covariances_.detach().cpu().numpy()
+                    elif gmm.covariance_type == 'tied_diag':
+                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        cov = np.diag(diag_vals)
+                    elif gmm.covariance_type == 'tied_spherical':
+                        var = gmm.covariances_[n].detach().cpu().item()
+                        cov = np.eye(gmm.n_features) * var
+                else:
+                    raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
+                
+                vals, vecs = np.linalg.eigh(cov)
+                order = vals.argsort()[::-1]
+                vals, vecs = vals[order], vecs[:, order]
+                angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+                width, height = 2 * std_to_plot * np.sqrt(vals)
+                ell = Ellipse(
+                    xy=mean,
+                    width=width,
+                    height=height,
+                    angle=angle,
+                    facecolor='blue',
+                    alpha=base_alpha,
+                    edgecolor='blue'
+                )
+                ax.add_patch(ell)
+                if n == 0:
+                    ax.scatter(mean[0], mean[1], c='yellow', s=50, marker='.', label='Final Mean')
+                else:
+                    ax.scatter(mean[0], mean[1], c='yellow', s=50, marker='.')
+        
+        elif mode == 'covariances':
+            # Use a single base color from the sequential colormap for all components.
+            base_color = plt.get_cmap(cmap_seq)(0.7)
+            if not isinstance(std_devs, (list, tuple)):
+                std_devs = [std_devs]
+            if len(std_devs) == 1:
+                alphas = [base_alpha]
+            elif len(std_devs) == 2:
+                alphas = [base_alpha, base_alpha * 2/3]
+            elif len(std_devs) == 3:
+                alphas = [base_alpha, base_alpha * 2/3, base_alpha * 1/3]
+            else:
+                alphas = [base_alpha * (1 - i / len(std_devs)) for i in range(len(std_devs))]
+                
+            for n in range(gmm.n_components):
+                mean = gmm.means_[n].detach().cpu().numpy()
+                if gmm.covariance_type in ['full', 'diag', 'spherical']:
+                    if gmm.covariance_type == 'full':
+                        cov = gmm.covariances_[n].detach().cpu().numpy()
+                    elif gmm.covariance_type == 'diag':
+                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        cov = np.diag(diag_vals)
+                    elif gmm.covariance_type == 'spherical':
+                        var = gmm.covariances_[n].detach().cpu().item()
+                        cov = np.eye(gmm.n_features) * var
+                elif gmm.covariance_type in ['tied_full', 'tied_diag', 'tied_spherical']:
+                    if gmm.covariance_type == 'tied_full':
+                        cov = gmm.covariances_.detach().cpu().numpy()
+                    elif gmm.covariance_type == 'tied_diag':
+                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
+                        cov = np.diag(diag_vals)
+                    elif gmm.covariance_type == 'tied_spherical':
+                        var = gmm.covariances_[n].detach().cpu().item()
+                        cov = np.eye(gmm.n_features) * var
+                else:
+                    raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
+                
+                vals, vecs = np.linalg.eigh(cov)
+                order = vals.argsort()[::-1]
+                vals, vecs = vals[order], vecs[:, order]
+                angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+                
+                # Draw ellipses from outer (largest std) first to inner.
+                for std_dev, alpha_val in zip(std_devs, alphas):
+                    width, height = 2 * std_dev * np.sqrt(vals)
+                    ell = Ellipse(
+                        xy=mean,
+                        width=width,
+                        height=height,
+                        angle=angle,
+                        facecolor=base_color,
+                        alpha=alpha_val,
+                        edgecolor=base_color
+                    )
+                    ax.add_patch(ell)
+                ax.scatter(mean[0], mean[1], c='k', s=10, marker='.')
+    
     # --- Plot initial means if provided ---
     if init_means is not None:
         init_means_cpu = init_means.detach().cpu().numpy() if hasattr(init_means, 'detach') else np.array(init_means)
+        marker = 'x' if mode == 'means' else '+'
         for i in range(init_means_cpu.shape[0]):
             if i == 0:
-                ax.plot(init_means_cpu[i, 0], init_means_cpu[i, 1], 'r+', markersize=10, markeredgewidth=2, label='Initial Means')
+                ax.scatter(init_means_cpu[i, 0], init_means_cpu[i, 1],
+                           c='r', marker=marker, s=50, label='Initial Means')
             else:
-                ax.plot(init_means_cpu[i, 0], init_means_cpu[i, 1], 'r+', markersize=10, markeredgewidth=2)
+                ax.scatter(init_means_cpu[i, 0], init_means_cpu[i, 1],
+                           c='r', marker=marker, s=50)
     
-    # --- Legend handling for other modes ---
     if mode in ['cluster']:
-        ax.legend(loc='best', markerscale=1.5)
-    elif mode not in ['cluster', 'continuous', 'ellipses', 'dots', 'weights']:
-        raise ValueError("Mode must be one of 'cluster', 'continuous', 'ellipses', 'dots', or 'weights'.")
-
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            ax.legend(loc='best', markerscale=1.5)
+    elif mode not in ['cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', 'covariances']:
+        raise ValueError("Mode must be one of 'cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', or 'covariances'.")
+    
     return ax
