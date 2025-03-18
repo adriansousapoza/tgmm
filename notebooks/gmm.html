@@ -141,21 +141,13 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
+<div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Using CPU
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-/home/asp/miniforge3/lib/python3.12/site-packages/torch/cuda/__init__.py:129: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 803: system has unsupported display driver / cuda driver combination (Triggered internally at /opt/conda/conda-bld/pytorch_1729647378361/work/c10/cuda/CUDAFunctions.cpp:108.)
-  return torch._C._cuda_getDeviceCount() &gt; 0
+CUDA version: 12.4
+Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
 <hr class="docutils" />
@@ -228,7 +220,7 @@ Using CPU
 </ul>
 <p>Diagnostic information such as mean log-likelihood, convergence status, and number of iterations is printed to verify the model’s performance.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert to tensor (if needed for further processing)</span>
@@ -281,7 +273,7 @@ Using CPU
 
 <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Mean per-sample log-likelihood:                        &#39;</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">))</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Mean per-sample log-likelihood (torch.mean(log_probs)):&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">log_probs</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Lower bound (before last M-step):                      &#39;</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Lower bound:                                           &#39;</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">probs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
     <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">probs</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="mf">1.0</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Probabilities for sample </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> do not sum to 1&quot;</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Number of iterations:                                  &#39;</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span><span class="p">)</span>
@@ -294,20 +286,20 @@ Using CPU
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[InitRun 0] Iter 0, lower bound: -4.65710
+[InitRun 0] Iter 0, lower bound: -3.82055
 [InitRun 0] Converged at iteration 74, lower bound=-3.15907
-[InitRun 1] Iter 0, lower bound: -4.21044
+[InitRun 1] Iter 0, lower bound: -3.79736
 [InitRun 1] Converged at iteration 55, lower bound=-3.15908
-[InitRun 2] Iter 0, lower bound: -5.22066
-[InitRun 2] Iter 100, lower bound: -3.23102
+[InitRun 2] Iter 0, lower bound: -3.83079
+[InitRun 2] Iter 100, lower bound: -3.23099
 [InitRun 2] Converged at iteration 176, lower bound=-3.23034
-[InitRun 3] Iter 0, lower bound: -4.36445
+[InitRun 3] Iter 0, lower bound: -3.71217
 [InitRun 3] Converged at iteration 32, lower bound=-3.15908
-[InitRun 4] Iter 0, lower bound: -4.58557
+[InitRun 4] Iter 0, lower bound: -3.81120
 [InitRun 4] Converged at iteration 63, lower bound=-3.15907
 Mean per-sample log-likelihood:                         -3.159071683883667
 Mean per-sample log-likelihood (torch.mean(log_probs)): -3.159071683883667
-Lower bound (before last M-step):                       -3.1590726375579834
+Lower bound (before last M-step):                       -3.159071683883667
 Number of iterations:                                   74
 Converged:                                              True
 </pre></div></div>
@@ -389,7 +381,7 @@ Covariance:
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Axes: title={&#39;center&#39;: &#39;GMM&#39;}, xlabel=&#39;Feature 1&#39;, ylabel=&#39;Feature 2&#39;&gt;
+&lt;Axes: xlabel=&#39;Feature 1&#39;, ylabel=&#39;Feature 2&#39;&gt;
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -753,7 +745,7 @@ Recompute each center as the mean of its assigned points:</p>
 <li><p>Predict cluster labels and visualize the clustering results with our <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function, which also overlays the initial means (marked in red).</p></li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;full&#39;</span><span class="p">]</span>

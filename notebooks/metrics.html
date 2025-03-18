@@ -88,22 +88,20 @@
   <section id="Metrics">
 <h1>Metrics<a class="headerlink" href="#Metrics" title="Link to this heading"></a></h1>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ellipse</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">linear_sum_assignment</span>
 
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">ClusteringMetrics</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">ClusteringMetrics</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span><span class="p">,</span> <span class="n">match_labels</span>
 
 <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
 <span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
@@ -119,21 +117,13 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
+<div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Using CPU
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-/home/asp/miniforge3/lib/python3.12/site-packages/torch/cuda/__init__.py:129: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 803: system has unsupported display driver / cuda driver combination (Triggered internally at /opt/conda/conda-bld/pytorch_1729647378361/work/c10/cuda/CUDAFunctions.cpp:108.)
-  return torch._C._cuda_getDeviceCount() &gt; 0
+CUDA version: 12.4
+Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
 <hr class="docutils" />
@@ -147,7 +137,7 @@ Using CPU
 <li><p><strong>Component 4:</strong> Centered at <code class="docutils literal notranslate"><span class="pre">[2,</span> <span class="pre">2]</span></code> with full covariance.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -264,7 +254,7 @@ Using CPU
 <p>As with BIC, lower AIC values suggest a model that achieves a good trade-off between complexity and fit quality.</p>
 <p><strong>Note:</strong> In practice, the ideal number of clusters is typically determined by seeking a maximum in the Silhouette Score, Calinski-Harabasz Score, and Dunn Index, while simultaneously looking for minima in the Davies-Bouldin Index, AIC, and BIC.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">components_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
@@ -283,7 +273,10 @@ Using CPU
         <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
         <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
         <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
-        <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+        <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-7</span>
     <span class="p">)</span>
     <span class="c1"># Fit</span>
     <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
@@ -294,8 +287,8 @@ Using CPU
     <span class="n">davies_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">davies_bouldin_index</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
     <span class="n">calinski_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">calinski_harabasz_score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
     <span class="n">dunn_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">dunn_index</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
-    <span class="n">bic_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">bic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
-    <span class="n">aic_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">aic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">,</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
+    <span class="n">bic_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">bic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">),</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
+    <span class="n">aic_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">aic_score</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">),</span> <span class="n">X_tensor</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
 
 <span class="c1"># Compute the predicted ideal number of components for each metric</span>
 <span class="n">sil_best</span> <span class="o">=</span> <span class="n">components_range</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">silhouette_vals</span><span class="p">)]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
@@ -383,7 +376,7 @@ Using CPU
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Evaluating range: 100%|██████████| 9/9 [00:02&lt;00:00,  3.66it/s]
+Evaluating range: 100%|██████████| 9/9 [00:01&lt;00:00,  8.70it/s]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -402,13 +395,13 @@ Evaluating range: 100%|██████████| 9/9 [00:02&lt;00:00,  3.6
 Silhouette Best: 3
 Davies-Bouldin Best (lowest): 4
 Calinski-Harabasz Best: 3
-Dunn Index Best: 3
+Dunn Index Best: 5
 BIC Best (lowest): 4
 AIC Best (lowest): 4
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Scikit-learn for comparison</span>
@@ -471,7 +464,7 @@ AIC Best (lowest): 4
 <span class="n">y_np</span> <span class="o">=</span> <span class="n">y_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 <span class="n">labels_pred_np</span> <span class="o">=</span> <span class="n">labels_pred</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
-<span class="n">sk_gmm</span> <span class="o">=</span> <span class="n">SklearnGMM</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">)</span>
+<span class="n">sk_gmm</span> <span class="o">=</span> <span class="n">SklearnGMM</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span> <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-7</span><span class="p">)</span>
 <span class="n">sk_gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_np</span><span class="p">)</span>
 
 <span class="n">scores_sklearn</span> <span class="o">=</span> <span class="p">{</span>
@@ -508,162 +501,248 @@ AIC Best (lowest): 4
     <span class="k">else</span><span class="p">:</span>
         <span class="n">sklearn_val</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="c1"># Calculate the absolute difference if both values are available.</span>
+    <span class="c1"># Calculate the absolute difference and the relative difference in percent.</span>
     <span class="k">if</span> <span class="n">torch_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">sklearn_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">abs_diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">torch_val</span> <span class="o">-</span> <span class="n">sklearn_val</span><span class="p">)</span>
+        <span class="c1"># Avoid division by zero; if sklearn_val is zero, set relative difference to None.</span>
+        <span class="n">rel_diff</span> <span class="o">=</span> <span class="p">(</span><span class="n">abs_diff</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sklearn_val</span><span class="p">))</span> <span class="o">*</span> <span class="mi">100</span> <span class="k">if</span> <span class="n">sklearn_val</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">abs_diff</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">rel_diff</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
         <span class="s2">&quot;Metric&quot;</span><span class="p">:</span> <span class="n">metric</span><span class="p">,</span>
         <span class="s2">&quot;Torch Score&quot;</span><span class="p">:</span> <span class="n">torch_val</span><span class="p">,</span>
         <span class="s2">&quot;Sklearn Score&quot;</span><span class="p">:</span> <span class="n">sklearn_val</span><span class="p">,</span>
         <span class="s2">&quot;Absolute Difference&quot;</span><span class="p">:</span> <span class="n">abs_diff</span><span class="p">,</span>
+        <span class="s2">&quot;Relative Difference (%)&quot;</span><span class="p">:</span> <span class="n">rel_diff</span>
     <span class="p">})</span>
-
-<span class="n">df_metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">df_metrics</span><span class="p">)</span>
-<br/></pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-                          Metric   Torch Score  Sklearn Score  \
-0                     rand_score      0.923271       0.923271
-1            adjusted_rand_score      0.817356       0.817356
-2              mutual_info_score      0.981350       0.981350
-3   normalized_mutual_info_score      0.778634       0.778634
-4     adjusted_mutual_info_score      0.778541       0.778370
-5          fowlkes_mallows_score      0.872198       0.872198
-6              homogeneity_score      0.773706       0.775518
-7             completeness_score      0.783523       0.781776
-8                v_measure_score      0.778584       0.778634
-9               silhouette_score      0.184275       0.184275
-10          davies_bouldin_index      1.252935       1.252935
-11       calinski_harabasz_score    701.043823     701.044158
-12                  purity_score      0.931333            NaN
-13                    dunn_index      0.002177            NaN
-14                     bic_score  19292.806641   19294.685580
-15                     aic_score  19154.660698   19156.539126
-
-    Absolute Difference
-0          3.013397e-09
-1          1.114718e-08
-2          9.328487e-08
-3          2.509567e-08
-4          1.717328e-04
-5          7.088139e-09
-6          1.811489e-03
-7          1.746931e-03
-8          5.064571e-05
-9          2.980232e-08
-10         1.540217e-07
-11         3.347747e-04
-12                  NaN
-13                  NaN
-14         1.878940e+00
-15         1.878428e+00
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="c1"># Assume X_np is already 2D and convert it to a tensor if needed</span>
-<span class="n">X_pca</span> <span class="o">=</span> <span class="n">X_np</span>  <span class="c1"># Data is 2D already.</span>
-<span class="n">X_pca_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X_pca</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-
-<span class="c1"># Function to match predicted labels to ground truth using the Hungarian algorithm.</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">match_labels</span><span class="p">(</span><span class="n">y_true_tensor</span><span class="p">,</span> <span class="n">y_pred_tensor</span><span class="p">):</span>
-    <span class="n">y_true_cpu</span> <span class="o">=</span> <span class="n">y_true_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-    <span class="n">y_pred_cpu</span> <span class="o">=</span> <span class="n">y_pred_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-    <span class="n">max_true</span> <span class="o">=</span> <span class="n">y_true_cpu</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
-    <span class="n">max_pred</span> <span class="o">=</span> <span class="n">y_pred_cpu</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
-
-    <span class="c1"># Build contingency matrix</span>
-    <span class="n">cont</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">max_true</span><span class="p">,</span> <span class="n">max_pred</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y_true_cpu</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)):</span>
-        <span class="n">cont</span><span class="p">[</span><span class="n">y_true_cpu</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y_pred_cpu</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
-
-    <span class="n">row_ind</span><span class="p">,</span> <span class="n">col_ind</span> <span class="o">=</span> <span class="n">linear_sum_assignment</span><span class="p">(</span><span class="o">-</span><span class="n">cont</span><span class="p">)</span>  <span class="c1"># maximize the total assignment</span>
-    <span class="n">mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">col_ind</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span> <span class="n">row_ind</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">row_ind</span><span class="p">))}</span>
-
-    <span class="n">matched_labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">y_pred_cpu</span><span class="o">.</span><span class="n">numpy</span><span class="p">()],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">matched_labels</span>
-
-<span class="n">matched_pred</span> <span class="o">=</span> <span class="n">match_labels</span><span class="p">(</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">)</span>
 
 <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">dynamic_figsize</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X_np</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels_pred</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;outliers&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GMM Predictions&#39;</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</pre></div>
+
+<span class="n">df_metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+<span class="n">df_metrics</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_metrics_6_0.png" src="../_images/notebooks_metrics_6_0.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Metric</th>
+      <th>Torch Score</th>
+      <th>Sklearn Score</th>
+      <th>Absolute Difference</th>
+      <th>Relative Difference (%)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>rand_score</td>
+      <td>0.922936</td>
+      <td>0.922936</td>
+      <td>7.921422e-09</td>
+      <td>8.582850e-07</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>adjusted_rand_score</td>
+      <td>0.816571</td>
+      <td>0.816571</td>
+      <td>9.265805e-09</td>
+      <td>1.134721e-06</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>mutual_info_score</td>
+      <td>0.980560</td>
+      <td>0.980560</td>
+      <td>2.375290e-08</td>
+      <td>2.422381e-06</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>normalized_mutual_info_score</td>
+      <td>0.778043</td>
+      <td>0.778043</td>
+      <td>1.091963e-07</td>
+      <td>1.403475e-05</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>adjusted_mutual_info_score</td>
+      <td>0.777949</td>
+      <td>0.777777</td>
+      <td>1.721395e-04</td>
+      <td>2.213223e-02</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>fowlkes_mallows_score</td>
+      <td>0.871655</td>
+      <td>0.871655</td>
+      <td>3.285231e-08</td>
+      <td>3.768957e-06</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>homogeneity_score</td>
+      <td>0.773056</td>
+      <td>0.774893</td>
+      <td>1.837321e-03</td>
+      <td>2.371064e-01</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>completeness_score</td>
+      <td>0.782989</td>
+      <td>0.781218</td>
+      <td>1.771340e-03</td>
+      <td>2.267408e-01</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>v_measure_score</td>
+      <td>0.777991</td>
+      <td>0.778043</td>
+      <td>5.184373e-05</td>
+      <td>6.663353e-03</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>silhouette_score</td>
+      <td>0.184356</td>
+      <td>0.184356</td>
+      <td>4.470348e-08</td>
+      <td>2.424840e-05</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>davies_bouldin_index</td>
+      <td>1.252130</td>
+      <td>1.252130</td>
+      <td>1.186502e-07</td>
+      <td>9.475868e-06</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>calinski_harabasz_score</td>
+      <td>701.308289</td>
+      <td>701.308570</td>
+      <td>2.811115e-04</td>
+      <td>4.008385e-05</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>purity_score</td>
+      <td>0.931000</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>dunn_index</td>
+      <td>0.002177</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>bic_score</td>
+      <td>19292.576172</td>
+      <td>19292.308851</td>
+      <td>2.673210e-01</td>
+      <td>1.385635e-03</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>aic_score</td>
+      <td>19154.428955</td>
+      <td>19154.162397</td>
+      <td>2.665582e-01</td>
+      <td>1.391646e-03</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get matched predictions</span>
+<span class="n">matched_pred</span> <span class="o">=</span> <span class="n">match_labels</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">)</span>
+
+<span class="c1"># Compute confusion matrix using ClusteringMetrics.confusion_matrix</span>
+<span class="n">cm</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">(</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="c1"># Convert the confusion matrix to percentages (normalize per true label)</span>
+<span class="n">cm_np</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+<span class="n">cm_percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">cm_np</span><span class="o">.</span><span class="n">T</span> <span class="o">/</span> <span class="n">cm_np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="mi">100</span>
+
+<span class="c1"># Plot heatmap of the percent confusion matrix</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="n">cm_percent</span><span class="p">,</span> <span class="n">annot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;.1f&quot;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;Blues&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Confusion Matrix (%)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Predicted Label&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;True Label&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># Generate classification report</span>
+<span class="n">report</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">classification_report</span><span class="p">(</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="c1"># Convert classification report to a DataFrame for display</span>
+<span class="n">report_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">report</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="n">report_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <img alt="../_images/notebooks_metrics_7_0.png" src="../_images/notebooks_metrics_7_0.png" />
 </div>
 </div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cm</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">(</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Confusion Matrix:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cm</span><span class="p">)</span>
-
-<span class="n">report</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">classification_report</span><span class="p">(</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Classification Report:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">report</span><span class="p">)</span>
-
-<span class="c1"># Heatmap of confusion matrix</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
-<span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">annot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Blues&#39;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Confusion Matrix&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Predicted Label&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;True Label&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-
-<span class="c1"># Convert classification report to a DataFrame for display</span>
-<span class="n">report_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">report</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
-<span class="n">report_df</span>
-<br/></pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-
-Confusion Matrix:
- tensor([[694,   0,  91,  15],
-        [  0, 188,   4,   8],
-        [ 32,   5, 925,  38],
-        [  3,   1,   9, 987]], dtype=torch.int32)
-
-Classification Report:
- {0: {&#39;precision&#39;: 0.9519890260631001, &#39;recall&#39;: 0.8675, &#39;f1-score&#39;: 0.9077828646173971, &#39;support&#39;: 800, &#39;jaccard&#39;: 0.8311377245508982, &#39;roc_auc&#39;: 0.9026442766189575}, 1: {&#39;precision&#39;: 0.9690721649484536, &#39;recall&#39;: 0.94, &#39;f1-score&#39;: 0.9543147208121826, &#39;support&#39;: 200, &#39;jaccard&#39;: 0.912621359223301, &#39;roc_auc&#39;: 0.9455070495605469}, 2: {&#39;precision&#39;: 0.8989310009718173, &#39;recall&#39;: 0.925, &#39;f1-score&#39;: 0.9117792015771317, &#39;support&#39;: 1000, &#39;jaccard&#39;: 0.8378623188405797, &#39;roc_auc&#39;: 0.9339924454689026}, 3: {&#39;precision&#39;: 0.941793893129771, &#39;recall&#39;: 0.987, &#39;f1-score&#39;: 0.9638671875, &#39;support&#39;: 1000, &#39;jaccard&#39;: 0.9302544769085768, &#39;roc_auc&#39;: 0.9784834980964661}}
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_8_1.png" src="../_images/notebooks_metrics_8_1.png" />
-</div>
-</div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -696,17 +775,17 @@ Classification Report:
   <tbody>
     <tr>
       <th>0</th>
-      <td>0.951989</td>
-      <td>0.8675</td>
-      <td>0.907783</td>
+      <td>0.951923</td>
+      <td>0.86625</td>
+      <td>0.907068</td>
       <td>800.0</td>
-      <td>0.831138</td>
-      <td>0.902644</td>
+      <td>0.829940</td>
+      <td>0.901432</td>
     </tr>
     <tr>
       <th>1</th>
       <td>0.969072</td>
-      <td>0.9400</td>
+      <td>0.94000</td>
       <td>0.954315</td>
       <td>200.0</td>
       <td>0.912621</td>
@@ -714,17 +793,17 @@ Classification Report:
     </tr>
     <tr>
       <th>2</th>
-      <td>0.898931</td>
-      <td>0.9250</td>
-      <td>0.911779</td>
+      <td>0.898058</td>
+      <td>0.92500</td>
+      <td>0.911330</td>
       <td>1000.0</td>
-      <td>0.837862</td>
-      <td>0.933992</td>
+      <td>0.837104</td>
+      <td>0.913193</td>
     </tr>
     <tr>
       <th>3</th>
       <td>0.941794</td>
-      <td>0.9870</td>
+      <td>0.98700</td>
       <td>0.963867</td>
       <td>1000.0</td>
       <td>0.930254</td>
@@ -735,7 +814,7 @@ Classification Report:
 </div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">RUN_KL_DIVERGENCE</span> <span class="o">=</span> <span class="kc">True</span>
@@ -790,14 +869,14 @@ Computing KL(p||q) for different numbers of components...
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 10/10 [00:02&lt;00:00,  3.52it/s]
+100%|██████████| 10/10 [00:02&lt;00:00,  3.45it/s]
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_9_2.png" src="../_images/notebooks_metrics_9_2.png" />
+<img alt="../_images/notebooks_metrics_8_2.png" src="../_images/notebooks_metrics_8_2.png" />
 </div>
 </div>
 </section>
