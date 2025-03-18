@@ -3,6 +3,7 @@ import torch
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Ellipse
+from scipy.optimize import linear_sum_assignment
 
 # Set global style parameters.
 plt.rcParams.update({
@@ -46,15 +47,13 @@ def dynamic_figsize(rows, cols, base_width=8, base_height=6):
     return (cols * base_width, rows * base_height)
 
 
-
-import numpy as np
-import torch
-import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
-from scipy.optimize import linear_sum_assignment
-
 # Helper: Hungarian algorithm to match predicted and true labels.
 def match_labels(y_true_tensor, y_pred_tensor):
+    if isinstance(y_true_tensor, np.ndarray):
+        y_true_tensor = torch.tensor(y_true_tensor)
+    if isinstance(y_pred_tensor, np.ndarray):
+        y_pred_tensor = torch.tensor(y_pred_tensor)
+        
     y_true_cpu = y_true_tensor.cpu().long()
     y_pred_cpu = y_pred_tensor.cpu().long()
     max_true = y_true_cpu.max().item() + 1
@@ -69,6 +68,7 @@ def match_labels(y_true_tensor, y_pred_tensor):
     mapping = {col_ind[j]: row_ind[j] for j in range(len(row_ind))}
     matched_labels = np.array([mapping.get(p, p) for p in y_pred_cpu.numpy()], dtype=int)
     return matched_labels
+
 
 # Updated plot_gmm function with a new mode 'outliers'
 def plot_gmm(

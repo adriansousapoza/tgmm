@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.distributions import MultivariateNormal
 from typing import Optional, Tuple
+import warnings
 from .gmm_init import GMMInitializer
 
 EPS = 1e-20  # Small constant for numerical stability
@@ -705,24 +706,30 @@ class GaussianMixture(nn.Module):
         if X.shape[1] != self.n_features:
             raise ValueError(f"X has {X.shape[1]} features, but n_features={self.n_features}.")
 
-        prev_lower_bound = None
+        prev_lower_bound = -float("inf")
+        resp, log_prob_norm = self._e_step(X)
+        self.lower_bound_ = log_prob_norm.mean().item()
         for n_iter in range(max_iter):
+            self._m_step(X, resp)
+
+            rel_change = abs(self.lower_bound_ - prev_lower_bound) / (abs(prev_lower_bound) + EPS)
+            if rel_change < tol:
+                self.converged_ = True
+                if self.verbose:
+                    print(f"[InitRun {run_idx}] Converged at iteration {n_iter}, lower bound={self.lower_bound_:.5f}")
+                break
+            prev_lower_bound = self.lower_bound_
             resp, log_prob_norm = self._e_step(X)
             self.lower_bound_ = log_prob_norm.mean().item()
 
-            self._m_step(X, resp)
-
-            if prev_lower_bound is not None:
-                rel_change = abs(self.lower_bound_ - prev_lower_bound) / (abs(prev_lower_bound) + EPS)
-                if rel_change < tol:
-                    self.converged_ = True
-                    if self.verbose:
-                        print(f"[InitRun {run_idx}] Converged at iteration {n_iter}, lower bound={self.lower_bound_:.5f}")
-                    break
-            prev_lower_bound = self.lower_bound_
-
             if self.verbose and (n_iter % self.verbose_interval == 0):
                 print(f"[InitRun {run_idx}] Iter {n_iter}, lower bound: {self.lower_bound_:.5f}")
+
+        if self.converged_:
+            resp, log_prob_norm = self._e_step(X)
+            self.lower_bound_ = log_prob_norm.mean().item()
+        else:
+            warnings.warn("EM algorithm did not converge. Try increasing max_iter or lowering tol.", UserWarning)
 
         self.n_iter_ = n_iter
 
