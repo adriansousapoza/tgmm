@@ -18,6 +18,8 @@
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
@@ -44,7 +46,33 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">ClusteringMetrics</a></li>
+<li><a class="reference internal" href="#">ClusteringMetrics</a><ul>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics</span></code></a><ul>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.adjusted_mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.adjusted_mutual_info_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.adjusted_rand_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.adjusted_rand_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.aic_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.aic_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.bic_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.bic_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.calinski_harabasz_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.calinski_harabasz_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.classification_report"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.classification_report()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.completeness_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.completeness_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.confusion_matrix"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.confusion_matrix()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.davies_bouldin_index"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.davies_bouldin_index()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.dunn_index"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.dunn_index()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.evaluate_clustering"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.evaluate_clustering()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.fowlkes_mallows_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.fowlkes_mallows_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.homogeneity_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.homogeneity_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.kl_divergence_gmm()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.mutual_info_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.normalized_mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.normalized_mutual_info_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.purity_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.purity_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.rand_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.rand_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.roc_auc_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.roc_auc_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.silhouette_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.silhouette_score()</span></code></a></li>
+<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.v_measure_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.v_measure_score()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </div>
         </div>
@@ -70,8 +98,443 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="clusteringmetrics">
-<span id="clustering-metrics"></span><h1>ClusteringMetrics<a class="headerlink" href="#clusteringmetrics" title="Link to this heading"></a></h1>
+  <section id="module-tgmm.metrics">
+<span id="clusteringmetrics"></span><span id="clustering-metrics"></span><h1>ClusteringMetrics<a class="headerlink" href="#module-tgmm.metrics" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">tgmm.metrics.</span></span><span class="sig-name descname"><span class="pre">ClusteringMetrics</span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A collection of clustering and classification metrics, both unsupervised and supervised.</p>
+<p>This class provides methods such as:</p>
+<ul class="simple">
+<li><p><strong>KL divergence</strong> for comparing two GMMs (via Monte Carlo).</p></li>
+<li><p><strong>Information criteria</strong> (AIC, BIC) for model selection.</p></li>
+<li><p><strong>Unsupervised metrics</strong> (silhouette, Davies-Bouldin, Calinski-Harabasz, Dunn index).</p></li>
+<li><p><strong>Supervised metrics</strong> (Rand index, ARI, mutual info variants, purity, classification report).</p></li>
+</ul>
+<p>All methods are static for convenience, and most accept data in PyTorch Tensors
+(potentially on GPU). For supervised metrics, the user must provide <cite>labels_true</cite>
+and <cite>labels_pred</cite> as integer-encoded 1D tensors of the same shape.</p>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">myproject.clustering_metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClusteringMetrics</span>
+
+<span class="c1"># Suppose gmm is a fitted GaussianMixture, gmm2 is another GMM</span>
+<span class="c1"># Compare them via KL divergence:</span>
+<span class="n">kl_pq</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">kl_divergence_gmm</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">gmm2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;KL(p||q) =&quot;</span><span class="p">,</span> <span class="n">kl_pq</span><span class="p">)</span>
+
+<span class="c1"># Evaluate clustering performance w.r.t. true labels:</span>
+<span class="n">pred_labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+<span class="n">ari</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">adjusted_rand_score</span><span class="p">(</span><span class="n">labels_true</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ARI =&quot;</span><span class="p">,</span> <span class="n">ari</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.adjusted_mutual_info_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">adjusted_mutual_info_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.adjusted_mutual_info_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.adjusted_mutual_info_score" title="Link to this definition"></a></dt>
+<dd><p>Adjusted Mutual Information (AMI).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Predicted labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – AMI in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.adjusted_rand_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">adjusted_rand_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.adjusted_rand_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.adjusted_rand_score" title="Link to this definition"></a></dt>
+<dd><p>Adjusted Rand Index (ARI), which adjusts RI for chance.</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] }\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Predicted labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – ARI in [-1, 1], though it’s typically in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.aic_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aic_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower_bound_</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariance_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.aic_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.aic_score" title="Link to this definition"></a></dt>
+<dd><p>Compute the Akaike Information Criterion (AIC) for a GMM.</p>
+<p>AIC = 2 * n_params - 2 * log_likelihood</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lower_bound</strong> (<em>float</em>) – Average (per-sample) log-likelihood from the GMM.</p></li>
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data used in fitting, shape (n_samples, n_features).</p></li>
+<li><p><strong>n_components</strong> (<em>int</em>) – Number of mixture components.</p></li>
+<li><p><strong>covariance_type</strong> (<em>str</em>) – Covariance type, one of {‘full’, ‘tied’, ‘diag’, ‘spherical’}.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – The AIC score (lower is better).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.bic_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bic_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower_bound_</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariance_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.bic_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.bic_score" title="Link to this definition"></a></dt>
+<dd><p>Compute the Bayesian Information Criterion (BIC) for a GMM given its
+average log-likelihood (lower bound).</p>
+<p>BIC = n_params * ln(n_samples) - 2 * log_likelihood</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lower_bound</strong> (<em>float</em>) – Average (per-sample) log-likelihood or lower bound from the GMM.</p></li>
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data used in fitting, shape (n_samples, n_features).</p></li>
+<li><p><strong>n_components</strong> (<em>int</em>) – Number of mixture components in the GMM.</p></li>
+<li><p><strong>covariance_type</strong> (<em>str</em>) – Covariance type, one of {‘full’, ‘tied’, ‘diag’, ‘spherical’}.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – The BIC score (lower is better).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.calinski_harabasz_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">calinski_harabasz_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.calinski_harabasz_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.calinski_harabasz_score" title="Link to this definition"></a></dt>
+<dd><p>Compute the Calinski-Harabasz index (a ratio of between-cluster dispersion
+to within-cluster dispersion).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data, shape (n_samples, n_features).</p></li>
+<li><p><strong>labels</strong> (<em>torch.Tensor</em>) – Cluster labels.</p></li>
+<li><p><strong>n_components</strong> (<em>int</em>) – Number of clusters.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Calinski-Harabasz index (higher is better).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.classification_report">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">classification_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.classification_report"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.classification_report" title="Link to this definition"></a></dt>
+<dd><p>Compute a simple classification report for each class: precision, recall, F1,
+Jaccard index, ROC-AUC, and support.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>)</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>dict</em> – A dictionary keyed by class label, each containing:
+“precision”, “recall”, “f1-score”, “support”, “jaccard”, “roc_auc”.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.completeness_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">completeness_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.completeness_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.completeness_score" title="Link to this definition"></a></dt>
+<dd><p>Completeness score measures how much each cluster contains only samples
+of a single class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Predicted labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Completeness in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.confusion_matrix">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">confusion_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.confusion_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.confusion_matrix" title="Link to this definition"></a></dt>
+<dd><p>Compute a confusion matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>)</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>torch.Tensor</em> – A 2D (C x C) matrix, where C is the number of unique labels.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.davies_bouldin_index">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">davies_bouldin_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.davies_bouldin_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.davies_bouldin_index" title="Link to this definition"></a></dt>
+<dd><p>Compute the Davies-Bouldin index (lower is better).</p>
+<div class="math notranslate nohighlight">
+\[DB = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}}\]</div>
+<p>Where:
+- (S_i) is the average distance of points in cluster i to its centroid.
+- (M_{ij}) is the distance between cluster centroids i and j.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data, shape (n_samples, n_features).</p></li>
+<li><p><strong>labels</strong> (<em>torch.Tensor</em>) – Cluster labels, shape (n_samples,).</p></li>
+<li><p><strong>n_components</strong> (<em>int</em>) – Number of clusters (must be &gt;= 2).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Davies-Bouldin index.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.dunn_index">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dunn_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.dunn_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.dunn_index" title="Link to this definition"></a></dt>
+<dd><p>Compute the Dunn index:</p>
+<div class="math notranslate nohighlight">
+\[D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)}\]</div>
+<p>Where:
+- (d(C_i, C_j)) is the minimum distance between any points in clusters i, j.
+- (mathrm{diam}(C_k)) is the maximum distance between any points in cluster k.</p>
+<p>Higher Dunn index indicates better cluster separation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data, shape (n_samples, n_features).</p></li>
+<li><p><strong>labels</strong> (<em>torch.Tensor</em>) – Cluster labels.</p></li>
+<li><p><strong>n_components</strong> (<em>int</em>) – Number of clusters.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Dunn index (higher is better).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.evaluate_clustering">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">evaluate_clustering</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gmm_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">true_labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.evaluate_clustering"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.evaluate_clustering" title="Link to this definition"></a></dt>
+<dd><p>Evaluate a fitted GMM using a set of requested metrics, possibly with ground-truth labels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gmm_model</strong> (<a class="reference internal" href="gaussian_mixture.html#tgmm.gmm.GaussianMixture" title="tgmm.gmm.GaussianMixture"><em>GaussianMixture</em></a>) – A fitted GMM model (must have <code class="docutils literal notranslate"><span class="pre">fitted_</span> <span class="pre">==</span> <span class="pre">True</span></code>).</p></li>
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data to evaluate, shape (n_samples, n_features).</p></li>
+<li><p><strong>true_labels</strong> (<em>torch.Tensor</em><em> or </em><em>None</em>) – Ground-truth labels for supervised metrics (optional).</p></li>
+<li><p><strong>metrics</strong> (<em>list</em><em> of </em><em>str</em><em> or </em><em>None</em>) – Which metrics to compute. If None, uses a default set.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>results</strong> (<em>dict</em>) – A dictionary of metric_name -&gt; metric_value pairs.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.fowlkes_mallows_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fowlkes_mallows_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.fowlkes_mallows_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.fowlkes_mallows_score" title="Link to this definition"></a></dt>
+<dd><p>Fowlkes-Mallows index (FM) = sqrt(precision * recall).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Predicted labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – FM in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.homogeneity_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">homogeneity_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.homogeneity_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.homogeneity_score" title="Link to this definition"></a></dt>
+<dd><p>Homogeneity score measures if each cluster contains samples of only one class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>)</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Homogeneity in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.kl_divergence_gmm">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">kl_divergence_gmm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gmm_p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gmm_q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10000</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.kl_divergence_gmm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm" title="Link to this definition"></a></dt>
+<dd><p>Approximate the KL divergence <span class="math notranslate nohighlight">\(D_{KL}(p \Vert q)\)</span> between two
+Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils literal notranslate"><span class="pre">gmm_p</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gmm_p</strong> (<a class="reference internal" href="gaussian_mixture.html#tgmm.gmm.GaussianMixture" title="tgmm.gmm.GaussianMixture"><em>GaussianMixture</em></a>) – The first GMM (interpreted as distribution p).</p></li>
+<li><p><strong>gmm_q</strong> (<a class="reference internal" href="gaussian_mixture.html#tgmm.gmm.GaussianMixture" title="tgmm.gmm.GaussianMixture"><em>GaussianMixture</em></a>) – The second GMM (interpreted as distribution q).</p></li>
+<li><p><strong>n_samples</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of samples to draw from gmm_p for the Monte Carlo approximation
+(default: 10000).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Approximated KL divergence <span class="math notranslate nohighlight">\(\mathrm{E}_{x \sim p} [\log p(x) - \log q(x)]\)</span>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.mutual_info_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mutual_info_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.mutual_info_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.mutual_info_score" title="Link to this definition"></a></dt>
+<dd><p>Mutual Information (MI) between two clusterings.</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)}\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Predicted labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Mutual information (&gt;= 0).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.normalized_mutual_info_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">normalized_mutual_info_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.normalized_mutual_info_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.normalized_mutual_info_score" title="Link to this definition"></a></dt>
+<dd><p>Normalized Mutual Information (NMI) in [0, 1].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Predicted labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – NMI = 2 * MI / (H(true) + H(pred)).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.purity_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">purity_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.purity_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.purity_score" title="Link to this definition"></a></dt>
+<dd><p>Purity score measures how many samples belong to the correct cluster.</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{purity} = \frac{1}{N} \sum_k \max_j |C_k \cap U_j|\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>)</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Purity in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.rand_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">rand_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.rand_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.rand_score" title="Link to this definition"></a></dt>
+<dd><p>Rand Index (RI) measures the similarity between two clusterings.
+It counts the agreement of pairwise assignments.</p>
+<div class="math notranslate nohighlight">
+\[\text{RI} = \frac{TP + TN}{TP + TN + FP + FN}\]</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels, shape (n_samples,).</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Predicted labels, shape (n_samples,).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Rand Index in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.roc_auc_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">roc_auc_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.roc_auc_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.roc_auc_score" title="Link to this definition"></a></dt>
+<dd><p>Compute a naive ROC-AUC for binary predictions (0 or 1).
+If all labels are the same class, returns 1.0 by definition.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Binary ground-truth (0 or 1), shape (n_samples,).</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>) – Binary predictions or real-valued probabilities, shape (n_samples,).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – Area Under the ROC Curve (AUC).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.silhouette_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">silhouette_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.silhouette_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.silhouette_score" title="Link to this definition"></a></dt>
+<dd><p>Compute the silhouette score for a partition of the data.</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)}\]</div>
+<p>Where:
+- (a_i) is the mean distance to points in the same cluster.
+- (b_i) is the minimum mean distance to points in a different cluster.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>torch.Tensor</em>) – Data, shape (n_samples, n_features).</p></li>
+<li><p><strong>labels</strong> (<em>torch.Tensor</em>) – Cluster labels, shape (n_samples,).</p></li>
+<li><p><strong>n_components</strong> (<em>int</em>) – Number of clusters (must be &gt;= 2).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – The mean silhouette score over all samples (range is typically [-1, 1],
+though it’s seldom negative in practice if distances are Euclidean).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.v_measure_score">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">v_measure_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.v_measure_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.v_measure_score" title="Link to this definition"></a></dt>
+<dd><p>V-measure = 2 * (homogeneity * completeness) / (homogeneity + completeness).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>labels_true</strong> (<em>torch.Tensor</em>)</p></li>
+<li><p><strong>labels_pred</strong> (<em>torch.Tensor</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>float</em> – V-measure in [0, 1].</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 
 
