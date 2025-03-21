@@ -8,6 +8,6 @@ Modules
    :maxdepth: 1
    :caption: Modules
 
-   gmm
-   gmm_init
-   metrics
+   gaussian_mixture
+   gmm_initializer
+   clustering_metrics

@@ -18,11 +18,11 @@
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" /> 
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorials" href="tutorials.html" />
+    <link rel="prev" title="GMMInitializer" href="gmm_initializer.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -44,37 +44,43 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">ClusteringMetrics</a><ul>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics</span></code></a><ul>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.adjusted_mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.adjusted_mutual_info_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.adjusted_rand_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.adjusted_rand_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.aic_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.aic_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.bic_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.bic_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.calinski_harabasz_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.calinski_harabasz_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.classification_report"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.classification_report()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.completeness_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.completeness_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.confusion_matrix"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.confusion_matrix()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.davies_bouldin_index"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.davies_bouldin_index()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.dunn_index"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.dunn_index()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.evaluate_clustering"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.evaluate_clustering()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.fowlkes_mallows_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.fowlkes_mallows_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.homogeneity_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.homogeneity_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.kl_divergence_gmm()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.mutual_info_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.normalized_mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.normalized_mutual_info_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.purity_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.purity_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.rand_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.rand_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.roc_auc_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.roc_auc_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.silhouette_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.silhouette_score()</span></code></a></li>
-<li><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.v_measure_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.v_measure_score()</span></code></a></li>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="gaussian_mixture.html">GaussianMixture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gmm_initializer.html">GMMInitializer</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">ClusteringMetrics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.adjusted_mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.adjusted_mutual_info_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.adjusted_rand_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.adjusted_rand_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.aic_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.aic_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.bic_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.bic_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.calinski_harabasz_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.calinski_harabasz_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.classification_report"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.classification_report()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.completeness_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.completeness_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.confusion_matrix"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.confusion_matrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.davies_bouldin_index"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.davies_bouldin_index()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.dunn_index"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.dunn_index()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.evaluate_clustering"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.evaluate_clustering()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.fowlkes_mallows_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.fowlkes_mallows_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.homogeneity_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.homogeneity_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.kl_divergence_gmm()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.mutual_info_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.normalized_mutual_info_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.normalized_mutual_info_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.purity_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.purity_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.rand_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.rand_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.roc_auc_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.roc_auc_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.silhouette_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.silhouette_score()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.metrics.ClusteringMetrics.v_measure_score"><code class="docutils literal notranslate"><span class="pre">ClusteringMetrics.v_measure_score()</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
 </ul>
-</div>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
+</ul>
+
         </div>
       </div>
     </nav>
@@ -89,6 +95,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Modules</a></li>
       <li class="breadcrumb-item active">ClusteringMetrics</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -150,9 +157,9 @@ and <cite>labels_pred</cite> as integer-encoded 1D tensors of the same shape.</p
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.adjusted_rand_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">adjusted_rand_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.adjusted_rand_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.adjusted_rand_score" title="Link to this definition"></a></dt>
 <dd><p>Adjusted Rand Index (ARI), which adjusts RI for chance.</p>
-<div class="math notranslate nohighlight">
-\[\mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] }\]</div>
-<dl class="field-list simple">
+<div class="math">
+<p><span class="math">\mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] }</span></p>
+</div><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
@@ -283,9 +290,9 @@ of a single class.</p>
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.davies_bouldin_index">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">davies_bouldin_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.davies_bouldin_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.davies_bouldin_index" title="Link to this definition"></a></dt>
 <dd><p>Compute the Davies-Bouldin index (lower is better).</p>
-<div class="math notranslate nohighlight">
-\[DB = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}}\]</div>
-<p>Where:
+<div class="math">
+<p><span class="math">DB = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}}</span></p>
+</div><p>Where:
 - (S_i) is the average distance of points in cluster i to its centroid.
 - (M_{ij}) is the distance between cluster centroids i and j.</p>
 <dl class="field-list simple">
@@ -306,9 +313,9 @@ of a single class.</p>
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.dunn_index">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dunn_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.dunn_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.dunn_index" title="Link to this definition"></a></dt>
 <dd><p>Compute the Dunn index:</p>
-<div class="math notranslate nohighlight">
-\[D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)}\]</div>
-<p>Where:
+<div class="math">
+<p><span class="math">D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)}</span></p>
+</div><p>Where:
 - (d(C_i, C_j)) is the minimum distance between any points in clusters i, j.
 - (mathrm{diam}(C_k)) is the maximum distance between any points in cluster k.</p>
 <p>Higher Dunn index indicates better cluster separation.</p>
@@ -382,7 +389,7 @@ of a single class.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.kl_divergence_gmm">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">kl_divergence_gmm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gmm_p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gmm_q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10000</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.kl_divergence_gmm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm" title="Link to this definition"></a></dt>
-<dd><p>Approximate the KL divergence <span class="math notranslate nohighlight">\(D_{KL}(p \Vert q)\)</span> between two
+<dd><p>Approximate the KL divergence <span class="math">D_{KL}(p \Vert q)</span> between two
 Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils literal notranslate"><span class="pre">gmm_p</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -394,7 +401,7 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>float</em> – Approximated KL divergence <span class="math notranslate nohighlight">\(\mathrm{E}_{x \sim p} [\log p(x) - \log q(x)]\)</span>.</p>
+<dd class="field-even"><p><em>float</em> – Approximated KL divergence <span class="math">\mathrm{E}_{x \sim p} [\log p(x) - \log q(x)]</span>.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -403,9 +410,9 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.mutual_info_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mutual_info_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.mutual_info_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.mutual_info_score" title="Link to this definition"></a></dt>
 <dd><p>Mutual Information (MI) between two clusterings.</p>
-<div class="math notranslate nohighlight">
-\[\mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)}\]</div>
-<dl class="field-list simple">
+<div class="math">
+<p><span class="math">\mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)}</span></p>
+</div><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
@@ -439,9 +446,9 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.purity_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">purity_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.purity_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.purity_score" title="Link to this definition"></a></dt>
 <dd><p>Purity score measures how many samples belong to the correct cluster.</p>
-<div class="math notranslate nohighlight">
-\[\mathrm{purity} = \frac{1}{N} \sum_k \max_j |C_k \cap U_j|\]</div>
-<dl class="field-list simple">
+<div class="math">
+<p><span class="math">\mathrm{purity} = \frac{1}{N} \sum_k \max_j |C_k \cap U_j|</span></p>
+</div><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>)</p></li>
@@ -459,9 +466,9 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">rand_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.rand_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.rand_score" title="Link to this definition"></a></dt>
 <dd><p>Rand Index (RI) measures the similarity between two clusterings.
 It counts the agreement of pairwise assignments.</p>
-<div class="math notranslate nohighlight">
-\[\text{RI} = \frac{TP + TN}{TP + TN + FP + FN}\]</div>
-<dl class="field-list simple">
+<div class="math">
+<p><span class="math">\text{RI} = \frac{TP + TN}{TP + TN + FP + FN}</span></p>
+</div><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels, shape (n_samples,).</p></li>
@@ -496,9 +503,9 @@ If all labels are the same class, returns 1.0 by definition.</p>
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.silhouette_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">silhouette_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.silhouette_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.silhouette_score" title="Link to this definition"></a></dt>
 <dd><p>Compute the silhouette score for a partition of the data.</p>
-<div class="math notranslate nohighlight">
-\[\mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)}\]</div>
-<p>Where:
+<div class="math">
+<p><span class="math">\mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)}</span></p>
+</div><p>Where:
 - (a_i) is the mean distance to points in the same cluster.
 - (b_i) is the minimum mean distance to points in a different cluster.</p>
 <dl class="field-list simple">
@@ -540,7 +547,10 @@ though it’s seldom negative in practice if distances are Euclidean).</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="gmm_initializer.html" class="btn btn-neutral float-left" title="GMMInitializer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorials.html" class="btn btn-neutral float-right" title="Tutorials" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 

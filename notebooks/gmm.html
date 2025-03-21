@@ -19,11 +19,11 @@
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" /> 
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Metrics" href="metrics.html" />
+    <link rel="prev" title="Tutorials" href="../source/tutorials.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -45,20 +45,26 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</a><ul>
-<li><a class="reference internal" href="#Synthetic-Data-Generation">Synthetic Data Generation</a></li>
-<li><a class="reference internal" href="#Fitting-the-Gaussian-Mixture-Model">Fitting the Gaussian Mixture Model</a></li>
-<li><a class="reference internal" href="#Inspecting-the-Learned-GMM-Parameters">Inspecting the Learned GMM Parameters</a></li>
-<li><a class="reference internal" href="#Visualization-of-Clustering-and-Generated-Samples">Visualization of Clustering and Generated Samples</a></li>
-<li><a class="reference internal" href="#Visualizing-Component-Probability-Distributions">Visualizing Component Probability Distributions</a></li>
-<li><a class="reference internal" href="#Comparing-Different-Covariance-Types">Comparing Different Covariance Types</a></li>
-<li><a class="reference internal" href="#Comparing-Different-Initialization-Methods">Comparing Different Initialization Methods</a></li>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../source/modules.html">Modules</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../source/tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Synthetic-Data-Generation">Synthetic Data Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Fitting-the-Gaussian-Mixture-Model">Fitting the Gaussian Mixture Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Inspecting-the-Learned-GMM-Parameters">Inspecting the Learned GMM Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Visualization-of-Clustering-and-Generated-Samples">Visualization of Clustering and Generated Samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Visualizing-Component-Probability-Distributions">Visualizing Component Probability Distributions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Comparing-Different-Covariance-Types">Comparing Different Covariance Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Comparing-Different-Initialization-Methods">Comparing Different Initialization Methods</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html">Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="priors.html">Priors in Gaussian Mixture Models</a></li>
 </ul>
 </li>
 </ul>
-</div>
+
         </div>
       </div>
     </nav>
@@ -73,6 +79,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../source/tutorials.html">Tutorials</a></li>
       <li class="breadcrumb-item active">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -522,90 +529,90 @@ Covariance:
 <div class="line">All components share the same covariance matrix, which is spherical:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\begin{split}\Sigma_1 = \Sigma_2 = \cdots = \Sigma_K = \sigma^2 I_d
+<div><div class="math">
+<p><span class="math">\Sigma_1 = \Sigma_2 = \cdots = \Sigma_K = \sigma^2 I_d
 = \sigma^2 \begin{bmatrix}
     1 &amp; 0 &amp; \cdots &amp; 0 \\
     0 &amp; 1 &amp; \cdots &amp; 0 \\
     \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
     0 &amp; 0 &amp; \cdots &amp; 1
-\end{bmatrix}.\end{split}\]</div>
-</div></blockquote>
+\end{bmatrix}.</span></p>
+</div></div></blockquote>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Spherical Covariance:</strong></div>
 <div class="line">Each component $ k $ has its own spherical covariance matrix:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\begin{split}\Sigma_k = \sigma_k^2 I_d
+<div><div class="math">
+<p><span class="math">\Sigma_k = \sigma_k^2 I_d
 = \sigma_k^2 \begin{bmatrix}
     1 &amp; 0 &amp; \cdots &amp; 0 \\
     0 &amp; 1 &amp; \cdots &amp; 0 \\
     \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
     0 &amp; 0 &amp; \cdots &amp; 1
-\end{bmatrix}, \quad k = 1,\dots,K.\end{split}\]</div>
-</div></blockquote>
+\end{bmatrix}, \quad k = 1,\dots,K.</span></p>
+</div></div></blockquote>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Tied Diagonal Covariance:</strong></div>
 <div class="line">All components share the same diagonal covariance matrix:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\begin{split}\Sigma_1 = \Sigma_2 = \cdots = \Sigma_K =
+<div><div class="math">
+<p><span class="math">\Sigma_1 = \Sigma_2 = \cdots = \Sigma_K =
 \begin{bmatrix}
     \sigma_1^2 &amp; 0         &amp; \cdots &amp; 0 \\
     0         &amp; \sigma_2^2 &amp; \cdots &amp; 0 \\
     \vdots    &amp; \vdots    &amp; \ddots &amp; \vdots \\
     0         &amp; 0         &amp; \cdots &amp; \sigma_d^2
-\end{bmatrix}.\end{split}\]</div>
-</div></blockquote>
+\end{bmatrix}.</span></p>
+</div></div></blockquote>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Diagonal Covariance:</strong></div>
 <div class="line">Each component $ k $ has its own diagonal covariance matrix:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\begin{split}\Sigma_k =
+<div><div class="math">
+<p><span class="math">\Sigma_k =
 \begin{bmatrix}
     \sigma_{k1}^2 &amp; 0            &amp; \cdots &amp; 0 \\
     0            &amp; \sigma_{k2}^2 &amp; \cdots &amp; 0 \\
     \vdots       &amp; \vdots       &amp; \ddots &amp; \vdots \\
     0            &amp; 0            &amp; \cdots &amp; \sigma_{kd}^2
-\end{bmatrix}, \quad k = 1,\dots,K.\end{split}\]</div>
-</div></blockquote>
+\end{bmatrix}, \quad k = 1,\dots,K.</span></p>
+</div></div></blockquote>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Tied Full Covariance:</strong></div>
 <div class="line">All components share the same full covariance matrix:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\begin{split}\Sigma_1 = \Sigma_2 = \cdots = \Sigma_K = \Sigma =
+<div><div class="math">
+<p><span class="math">\Sigma_1 = \Sigma_2 = \cdots = \Sigma_K = \Sigma =
 \begin{bmatrix}
     \sigma_{11} &amp; \sigma_{12} &amp; \cdots &amp; \sigma_{1d} \\
     \sigma_{12} &amp; \sigma_{22} &amp; \cdots &amp; \sigma_{2d} \\
     \vdots     &amp; \vdots     &amp; \ddots &amp; \vdots \\
     \sigma_{1d} &amp; \sigma_{2d} &amp; \cdots &amp; \sigma_{dd}
-\end{bmatrix}.\end{split}\]</div>
-</div></blockquote>
+\end{bmatrix}.</span></p>
+</div></div></blockquote>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Full Covariance:</strong></div>
 <div class="line">Each component $ k $ has its own full covariance matrix:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\begin{split}\Sigma_k =
+<div><div class="math">
+<p><span class="math">\Sigma_k =
 \begin{bmatrix}
     \sigma_{k11} &amp; \sigma_{k12} &amp; \cdots &amp; \sigma_{k1d} \\
     \sigma_{k12} &amp; \sigma_{k22} &amp; \cdots &amp; \sigma_{k2d} \\
     \vdots       &amp; \vdots       &amp; \ddots &amp; \vdots \\
     \sigma_{k1d} &amp; \sigma_{k2d} &amp; \cdots &amp; \sigma_{kdd}
-\end{bmatrix}, \quad k = 1,\dots,K.\end{split}\]</div>
-</div></blockquote>
+\end{bmatrix}, \quad k = 1,\dots,K.</span></p>
+</div></div></blockquote>
 </li>
 </ul>
 <p>For each covariance type, we:</p>
@@ -674,9 +681,9 @@ Covariance:
 <div class="line">This method computes the empirical mean $:nbsphinx-math:<cite>bar`{x} $ and covariance :math:</cite>Sigma` of the dataset and then draws each initial center from a Gaussian distribution:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),\]</div>
-<p>where $ L $ is the Cholesky factor of <span class="math notranslate nohighlight">\(\Sigma\)</span> (i.e. <span class="math notranslate nohighlight">\(\Sigma = LL^\top\)</span>).</p>
+<div><div class="math">
+<p><span class="math">\mu_i = \bar{x} + L z, \quad z \sim \mathcal{N}(0, I_d),</span></p>
+</div><p>where $ L $ is the Cholesky factor of <span class="math">\Sigma</span> (i.e. <span class="math">\Sigma = LL^\top</span>).</p>
 </div></blockquote>
 <div class="line-block">
 <div class="line">This yields centers that roughly follow the global data distribution.</div>
@@ -687,18 +694,18 @@ Covariance:
 <div class="line">This method simply selects $ k $ points uniformly at random from the dataset. Mathematically, if $ S <span class="math">\subset `{1,2,:nbsphinx-math:</span>dots`,N} $ is a random subset of $ k $ indices, then:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[\mu_i = x_{s_i}, \quad i = 1, \dots, k.\]</div>
-</div></blockquote>
+<div><div class="math">
+<p><span class="math">\mu_i = x_{s_i}, \quad i = 1, \dots, k.</span></p>
+</div></div></blockquote>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>k-means++ Initialization (kpp)</strong>:</div>
 <div class="line">The first center is chosen uniformly at random. For each subsequent center, the probability of selecting data point $ x_j $ is proportional to the square of its distance to the nearest already-chosen center:</div>
 </div>
 <blockquote>
-<div><div class="math notranslate nohighlight">
-\[P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad \text{with } D(x_j) = \min_{l=1,\dots,i-1} \|x_j - \mu_l\|^2.\]</div>
-<p>This procedure tends to choose centers that are spread out.</p>
+<div><div class="math">
+<p><span class="math">P(x_j) = \frac{D(x_j)}{\sum_{j=1}^{N} D(x_j)}, \quad \text{with } D(x_j) = \min_{l=1,\dots,i-1} \|x_j - \mu_l\|^2.</span></p>
+</div><p>This procedure tends to choose centers that are spread out.</p>
 </div></blockquote>
 </li>
 <li><div class="line-block">
@@ -708,14 +715,14 @@ Covariance:
 <ul>
 <li><p><strong>Assignment step:</strong>
 Assign each point $ x_j $ to the nearest center:</p>
-<div class="math notranslate nohighlight">
-\[c_j = \arg\min_{i} \|x_j - \mu_i\|^2.\]</div>
-</li>
+<div class="math">
+<p><span class="math">c_j = \arg\min_{i} \|x_j - \mu_i\|^2.</span></p>
+</div></li>
 <li><p><strong>Update step:</strong>
 Recompute each center as the mean of its assigned points:</p>
-<div class="math notranslate nohighlight">
-\[\mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j.\]</div>
-<p>These steps repeat until convergence (i.e. the centers do not change significantly).</p>
+<div class="math">
+<p><span class="math">\mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j.</span></p>
+</div><p>These steps repeat until convergence (i.e. the centers do not change significantly).</p>
 </li>
 </ul>
 </li>
@@ -726,14 +733,14 @@ Recompute each center as the mean of its assigned points:</p>
 <ul>
 <li><p>The first center is chosen randomly.</p></li>
 <li><p>For $ i = 2,:nbsphinx-math:<cite>dots</cite>,k $, choose the next center as:</p>
-<div class="math notranslate nohighlight">
-\[\mu_i = \arg\max_{x \in \mathcal{D}} \min_{l=1,\dots,i-1} \|x - \mu_l\|,\]</div>
-<p>ensuring that the new center is the point with the largest minimum distance to the existing centers.</p>
+<div class="math">
+<p><span class="math">\mu_i = \arg\max_{x \in \mathcal{D}} \min_{l=1,\dots,i-1} \|x - \mu_l\|,</span></p>
+</div><p>ensuring that the new center is the point with the largest minimum distance to the existing centers.</p>
 </li>
 <li><p>Finally, the first center is reselected as the point with the largest distance from the centers $ <span class="math">\mu</span>_2,:nbsphinx-math:<cite>dots</cite>,:nbsphinx-math:<cite>mu</cite>_k $:</p>
-<div class="math notranslate nohighlight">
-\[\mu_1 = \arg\max_{x \in \mathcal{D}} \min_{l=2,\dots,k} \|x - \mu_l\|.\]</div>
-</li>
+<div class="math">
+<p><span class="math">\mu_1 = \arg\max_{x \in \mathcal{D}} \min_{l=2,\dots,k} \|x - \mu_l\|.</span></p>
+</div></li>
 </ul>
 </li>
 </ol>
@@ -823,7 +830,10 @@ Recompute each center as the mean of its assigned points:</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../source/tutorials.html" class="btn btn-neutral float-left" title="Tutorials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="metrics.html" class="btn btn-neutral float-right" title="Metrics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
