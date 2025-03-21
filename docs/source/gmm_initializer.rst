@@ -3,7 +3,7 @@
 GMMInitializer
 ===============
 
-.. automodule:: src.gmm_init
+.. automodule:: tgmm.gmm_init
     :members:
     :undoc-members:
     :show-inheritance:

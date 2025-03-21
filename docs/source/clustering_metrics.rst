@@ -3,7 +3,7 @@
 ClusteringMetrics
 =================
 
-.. automodule:: src.metrics
+.. automodule:: tgmm.metrics
     :members:
     :undoc-members:
     :show-inheritance:

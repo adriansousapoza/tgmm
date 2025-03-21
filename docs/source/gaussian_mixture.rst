@@ -3,7 +3,7 @@
 GaussianMixture
 ===============
 
-.. automodule:: src.gmm
+.. automodule:: tgmm.gmm
     :members:
     :undoc-members:
     :show-inheritance:

@@ -660,8 +660,8 @@ class GaussianMixture(nn.Module):
 
             # warning for degenerate clusters
             if torch.any(self.weights_ < 1e-8):
-                raise UserWarning("Some cluster(s) have near-zero weight. Check for degenerate solutions.")
-                
+                warnings.warn("Some cluster(s) have near-zero weight. Check for degenerate solutions.", UserWarning)
+
             # 3) Track best solution
             if self.lower_bound_ > best_lower_bound:
                 best_lower_bound = self.lower_bound_
@@ -682,7 +682,8 @@ class GaussianMixture(nn.Module):
         
         # warning if we didn't converge
         if not self.converged_:
-            raise UserWarning("EM algorithm did not converge. Try increasing max_iter or lowering tol.")
+            warnings.warn("EM algorithm did not converge. Try increasing max_iter or lowering tol.", UserWarning)
+
 
     def _fit_single_run(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
         r"""
