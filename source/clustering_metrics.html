@@ -157,9 +157,8 @@ and <cite>labels_pred</cite> as integer-encoded 1D tensors of the same shape.</p
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.adjusted_rand_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">adjusted_rand_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.adjusted_rand_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.adjusted_rand_score" title="Link to this definition"></a></dt>
 <dd><p>Adjusted Rand Index (ARI), which adjusts RI for chance.</p>
-<div class="math">
-<p><span class="math">\mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] }</span></p>
-</div><dl class="field-list simple">
+<p>$ mathrm{ARI} = frac{ mathrm{RI} - mathrm{E}[mathrm{RI}] }{ max(mathrm{RI}) - mathrm{E}[mathrm{RI}] } $</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
@@ -176,7 +175,7 @@ and <cite>labels_pred</cite> as integer-encoded 1D tensors of the same shape.</p
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.aic_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aic_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower_bound_</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariance_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.aic_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.aic_score" title="Link to this definition"></a></dt>
 <dd><p>Compute the Akaike Information Criterion (AIC) for a GMM.</p>
-<p>AIC = 2 * n_params - 2 * log_likelihood</p>
+<p>$ text{AIC} = 2 times n_{text{params}} - 2 times text{log_likelihood} $</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -197,7 +196,7 @@ and <cite>labels_pred</cite> as integer-encoded 1D tensors of the same shape.</p
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">bic_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lower_bound_</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">covariance_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.bic_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.bic_score" title="Link to this definition"></a></dt>
 <dd><p>Compute the Bayesian Information Criterion (BIC) for a GMM given its
 average log-likelihood (lower bound).</p>
-<p>BIC = n_params * ln(n_samples) - 2 * log_likelihood</p>
+<p>$ text{BIC} = n_{text{params}} ln(n_{text{samples}}) - 2 times text{log_likelihood} $</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -290,11 +289,10 @@ of a single class.</p>
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.davies_bouldin_index">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">davies_bouldin_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.davies_bouldin_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.davies_bouldin_index" title="Link to this definition"></a></dt>
 <dd><p>Compute the Davies-Bouldin index (lower is better).</p>
-<div class="math">
-<p><span class="math">DB = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}}</span></p>
-</div><p>Where:
-- (S_i) is the average distance of points in cluster i to its centroid.
-- (M_{ij}) is the distance between cluster centroids i and j.</p>
+<p>$$ text{DB} = frac{1}{k} sum_i max_{j neq i} frac{S_i + S_j}{M_{ij}} $$</p>
+<p>Where:
+- $S_i$ is the average distance of points in cluster i to its centroid.
+- $M_{ij}$ is the distance between cluster centroids i and j.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -313,11 +311,10 @@ of a single class.</p>
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.dunn_index">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">dunn_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.dunn_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.dunn_index" title="Link to this definition"></a></dt>
 <dd><p>Compute the Dunn index:</p>
-<div class="math">
-<p><span class="math">D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)}</span></p>
-</div><p>Where:
-- (d(C_i, C_j)) is the minimum distance between any points in clusters i, j.
-- (mathrm{diam}(C_k)) is the maximum distance between any points in cluster k.</p>
+<p>$$ D = frac{min_{i neq j} d(C_i, C_j)}{max_k mathrm{diam}(C_k)} $$</p>
+<p>Where:
+- $d(C_i, C_j)$ is the minimum distance between any points in clusters i, j.
+- $mathrm{diam}(C_k)$ is the maximum distance between any points in cluster k.</p>
 <p>Higher Dunn index indicates better cluster separation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -355,7 +352,7 @@ of a single class.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.fowlkes_mallows_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fowlkes_mallows_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.fowlkes_mallows_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.fowlkes_mallows_score" title="Link to this definition"></a></dt>
-<dd><p>Fowlkes-Mallows index (FM) = sqrt(precision * recall).</p>
+<dd><p>Fowlkes-Mallows index (FM) = $ sqrt{ text{precision} times text{recall} } $.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -389,7 +386,7 @@ of a single class.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.kl_divergence_gmm">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">kl_divergence_gmm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gmm_p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gmm_q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10000</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.kl_divergence_gmm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm" title="Link to this definition"></a></dt>
-<dd><p>Approximate the KL divergence <span class="math">D_{KL}(p \Vert q)</span> between two
+<dd><p>Approximate the KL divergence $D_{KL}(p Vert q)$ between two
 Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils literal notranslate"><span class="pre">gmm_p</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -401,7 +398,7 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>float</em> – Approximated KL divergence <span class="math">\mathrm{E}_{x \sim p} [\log p(x) - \log q(x)]</span>.</p>
+<dd class="field-even"><p><em>float</em> – Approximated KL divergence $ mathrm{E}_{x sim p}[log p(x) - log q(x)]$.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -410,9 +407,8 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.mutual_info_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mutual_info_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.mutual_info_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.mutual_info_score" title="Link to this definition"></a></dt>
 <dd><p>Mutual Information (MI) between two clusterings.</p>
-<div class="math">
-<p><span class="math">\mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)}</span></p>
-</div><dl class="field-list simple">
+<p>$ mathrm{MI}(U, V) = sum_{u in U}sum_{v in V} p(u, v) logfrac{p(u,v)}{p(u)p(v)} $</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels.</p></li>
@@ -429,6 +425,7 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.normalized_mutual_info_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">normalized_mutual_info_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.normalized_mutual_info_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.normalized_mutual_info_score" title="Link to this definition"></a></dt>
 <dd><p>Normalized Mutual Information (NMI) in [0, 1].</p>
+<p>$ text{NMI} = frac{2 times mathrm{MI}}{H(text{true}) + H(text{pred})} $</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -437,7 +434,7 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><em>float</em> – NMI = 2 * MI / (H(true) + H(pred)).</p>
+<dd class="field-even"><p><em>float</em> – NMI.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -446,9 +443,8 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.purity_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">purity_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.purity_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.purity_score" title="Link to this definition"></a></dt>
 <dd><p>Purity score measures how many samples belong to the correct cluster.</p>
-<div class="math">
-<p><span class="math">\mathrm{purity} = \frac{1}{N} \sum_k \max_j |C_k \cap U_j|</span></p>
-</div><dl class="field-list simple">
+<p>$ mathrm{purity} = frac{1}{N} sum_k max_j lvert C_k cap U_j rvert $</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>)</p></li>
@@ -466,9 +462,8 @@ Gaussian Mixture Models using Monte Carlo sampling from <code class="docutils li
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">rand_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.rand_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.rand_score" title="Link to this definition"></a></dt>
 <dd><p>Rand Index (RI) measures the similarity between two clusterings.
 It counts the agreement of pairwise assignments.</p>
-<div class="math">
-<p><span class="math">\text{RI} = \frac{TP + TN}{TP + TN + FP + FN}</span></p>
-</div><dl class="field-list simple">
+<p>$ text{RI} = frac{text{TP} + text{TN}}{text{TP} + text{TN} + text{FP} + text{FN}} $</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>labels_true</strong> (<em>torch.Tensor</em>) – Ground-truth labels, shape (n_samples,).</p></li>
@@ -503,11 +498,10 @@ If all labels are the same class, returns 1.0 by definition.</p>
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.silhouette_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">silhouette_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.silhouette_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.silhouette_score" title="Link to this definition"></a></dt>
 <dd><p>Compute the silhouette score for a partition of the data.</p>
-<div class="math">
-<p><span class="math">\mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)}</span></p>
-</div><p>Where:
-- (a_i) is the mean distance to points in the same cluster.
-- (b_i) is the minimum mean distance to points in a different cluster.</p>
+<p>$$ mathrm{silhouette}(i) = frac{b_i - a_i}{max(a_i, b_i)} $$</p>
+<p>Where:
+- $a_i$ is the mean distance to points in the same cluster.
+- $b_i$ is the minimum mean distance to points in a different cluster.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -526,7 +520,10 @@ though it’s seldom negative in practice if distances are Euclidean).</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="tgmm.metrics.ClusteringMetrics.v_measure_score">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">v_measure_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels_true</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels_pred</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/tgmm/metrics.html#ClusteringMetrics.v_measure_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.metrics.ClusteringMetrics.v_measure_score" title="Link to this definition"></a></dt>
-<dd><p>V-measure = 2 * (homogeneity * completeness) / (homogeneity + completeness).</p>
+<dd><dl class="simple">
+<dt>V-measure = $ frac{2 times (text{homogeneity} times text{completeness})}</dt><dd><p>{text{homogeneity} + text{completeness}} $.</p>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

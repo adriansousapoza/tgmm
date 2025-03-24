@@ -114,7 +114,7 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">kl_divergence_gmm</span><span class="p">(</span><span class="n">gmm_p</span><span class="p">,</span> <span class="n">gmm_q</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Approximate the KL divergence :math:`D_{KL}(p \Vert q)` between two</span>
+<span class="sd">        Approximate the KL divergence $D_{KL}(p \Vert q)$ between two</span>
 <span class="sd">        Gaussian Mixture Models using Monte Carlo sampling from ``gmm_p``.</span>
 
 <span class="sd">        Parameters</span>
@@ -130,7 +130,7 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        float</span>
-<span class="sd">            Approximated KL divergence :math:`\mathrm{E}_{x \sim p} [\log p(x) - \log q(x)]`.</span>
+<span class="sd">            Approximated KL divergence $ \mathrm{E}_{x \sim p}[\log p(x) - \log q(x)]$.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">device</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">device</span>
         <span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>  <span class="c1"># (n_samples, n_features)</span>
@@ -157,7 +157,7 @@
 <span class="sd">        Compute the Bayesian Information Criterion (BIC) for a GMM given its</span>
 <span class="sd">        average log-likelihood (lower bound).</span>
 
-<span class="sd">        BIC = n_params * ln(n_samples) - 2 * log_likelihood</span>
+<span class="sd">        $ \text{BIC} = n_{\text{params}} \ln(n_{\text{samples}}) - 2 \times \text{log\_likelihood} $</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -212,7 +212,7 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the Akaike Information Criterion (AIC) for a GMM.</span>
 
-<span class="sd">        AIC = 2 * n_params - 2 * log_likelihood</span>
+<span class="sd">        $ \text{AIC} = 2 \times n_{\text{params}} - 2 \times \text{log\_likelihood} $</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -263,12 +263,11 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the silhouette score for a partition of the data.</span>
 
-<span class="sd">        .. math::</span>
-<span class="sd">            \mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)}</span>
+<span class="sd">        $$ \mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)} $$</span>
 
 <span class="sd">        Where:</span>
-<span class="sd">        - \(a_i\) is the mean distance to points in the same cluster.</span>
-<span class="sd">        - \(b_i\) is the minimum mean distance to points in a different cluster.</span>
+<span class="sd">        - $a_i$ is the mean distance to points in the same cluster.</span>
+<span class="sd">        - $b_i$ is the minimum mean distance to points in a different cluster.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -324,12 +323,11 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the Davies-Bouldin index (lower is better).</span>
 
-<span class="sd">        .. math::</span>
-<span class="sd">            DB = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}}</span>
+<span class="sd">        $$ \text{DB} = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}} $$</span>
 
 <span class="sd">        Where:</span>
-<span class="sd">        - \(S_i\) is the average distance of points in cluster i to its centroid.</span>
-<span class="sd">        - \(M_{ij}\) is the distance between cluster centroids i and j.</span>
+<span class="sd">        - $S_i$ is the average distance of points in cluster i to its centroid.</span>
+<span class="sd">        - $M_{ij}$ is the distance between cluster centroids i and j.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -419,12 +417,11 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute the Dunn index:</span>
 
-<span class="sd">        .. math::</span>
-<span class="sd">            D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)}</span>
+<span class="sd">        $$ D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)} $$</span>
 
 <span class="sd">        Where:</span>
-<span class="sd">        - \(d(C_i, C_j)\) is the minimum distance between any points in clusters i, j.</span>
-<span class="sd">        - \(\mathrm{diam}(C_k)\) is the maximum distance between any points in cluster k.</span>
+<span class="sd">        - $d(C_i, C_j)$ is the minimum distance between any points in clusters i, j.</span>
+<span class="sd">        - $\mathrm{diam}(C_k)$ is the maximum distance between any points in cluster k.</span>
 
 <span class="sd">        Higher Dunn index indicates better cluster separation.</span>
 
@@ -480,8 +477,7 @@
 <span class="sd">        Rand Index (RI) measures the similarity between two clusterings.</span>
 <span class="sd">        It counts the agreement of pairwise assignments.</span>
 
-<span class="sd">        .. math::</span>
-<span class="sd">            \text{RI} = \frac{TP + TN}{TP + TN + FP + FN}</span>
+<span class="sd">        $ \text{RI} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}} $</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -526,8 +522,7 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adjusted Rand Index (ARI), which adjusts RI for chance.</span>
 
-<span class="sd">        .. math::</span>
-<span class="sd">            \mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] }</span>
+<span class="sd">        $ \mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] } $</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -571,8 +566,7 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Mutual Information (MI) between two clusterings.</span>
 
-<span class="sd">        .. math::</span>
-<span class="sd">            \mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)}</span>
+<span class="sd">        $ \mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)} $</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -631,7 +625,8 @@
         <span class="n">h_pred</span> <span class="o">=</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">pred_counts</span> <span class="o">/</span> <span class="n">n_samples</span><span class="p">)</span> <span class="o">*</span>
                             <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">pred_counts</span> <span class="o">/</span> <span class="n">n_samples</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">))</span>
 
-        <span class="n">expected_mi</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_true</span> <span class="o">*</span> <span class="n">h_pred</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_samples</span>  <span class="c1"># rough approximation</span>
+        <span class="c1"># This &quot;expected_mi&quot; here is a rough approximation</span>
+        <span class="n">expected_mi</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_true</span> <span class="o">*</span> <span class="n">h_pred</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_samples</span>
         <span class="n">ami</span> <span class="o">=</span> <span class="p">(</span><span class="n">mi</span> <span class="o">-</span> <span class="n">expected_mi</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">h_true</span> <span class="o">+</span> <span class="n">h_pred</span><span class="p">)</span> <span class="o">-</span> <span class="n">expected_mi</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ami</span><span class="o">.</span><span class="n">item</span><span class="p">()</span></div>
 
@@ -643,6 +638,8 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Normalized Mutual Information (NMI) in [0, 1].</span>
 
+<span class="sd">        $ \text{NMI} = \frac{2 \times \mathrm{MI}}{H(\text{true}) + H(\text{pred})} $</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        labels_true : torch.Tensor</span>
@@ -653,7 +650,7 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        float</span>
-<span class="sd">            NMI = 2 * MI / (H(true) + H(pred)).</span>
+<span class="sd">            NMI.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">mi</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">mutual_info_score</span><span class="p">(</span><span class="n">labels_true</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">)</span>
         <span class="n">n_samples</span> <span class="o">=</span> <span class="n">labels_true</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -674,7 +671,7 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">fowlkes_mallows_score</span><span class="p">(</span><span class="n">labels_true</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Fowlkes-Mallows index (FM) = sqrt(precision * recall).</span>
+<span class="sd">        Fowlkes-Mallows index (FM) = $ \sqrt{ \text{precision} \times \text{recall} } $.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -789,7 +786,8 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">v_measure_score</span><span class="p">(</span><span class="n">labels_true</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        V-measure = 2 * (homogeneity * completeness) / (homogeneity + completeness).</span>
+<span class="sd">        V-measure = $ \frac{2 \times (\text{homogeneity} \times \text{completeness})}</span>
+<span class="sd">                           {\text{homogeneity} + \text{completeness}} $.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -815,8 +813,7 @@
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Purity score measures how many samples belong to the correct cluster.</span>
 
-<span class="sd">        .. math::</span>
-<span class="sd">            \mathrm{purity} = \frac{1}{N} \sum_k \max_j |C_k \cap U_j|</span>
+<span class="sd">        $ \mathrm{purity} = \frac{1}{N} \sum_k \max_j \lvert C_k \cap U_j \rvert $</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -949,7 +946,6 @@
 
         <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">labels_pred</span><span class="p">,</span> <span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">labels_true</span> <span class="o">=</span> <span class="n">labels_true</span><span class="p">[</span><span class="n">sorted_indices</span><span class="p">]</span>
-        <span class="c1"># labels_pred = labels_pred[sorted_indices]  # not strictly needed for AUC calc</span>
 
         <span class="n">tpr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">labels_true</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">labels_true</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
         <span class="n">fpr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">labels_true</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">labels_true</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="n">labels_true</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>

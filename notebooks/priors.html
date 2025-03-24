@@ -19,6 +19,8 @@
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "displayMath": [["$$", "$$"], ["\\[", "\\]"]]}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -55,10 +57,10 @@
 <li class="toctree-l3"><a class="reference internal" href="#Dirichlet-Distribution:-Definition-and-Derivation-from-the-Beta-Distribution">Dirichlet Distribution: Definition and Derivation from the Beta Distribution</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#Derivation-from-the-Beta-Distribution">Derivation from the Beta Distribution</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Symmetric-Dirichlet-Distribution">Symmetric Dirichlet Distribution</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#How-Does-\alpha-Affect-the-Dirichlet-Distribution?">How Does <span class="math">\alpha</span> Affect the Dirichlet Distribution?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#How-Does-\alpha-Affect-the-Dirichlet-Distribution?">How Does <span class="math notranslate nohighlight">\(\alpha\)</span> Affect the Dirichlet Distribution?</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#Weight-Priors-in-GMM:-Small-vs.-Large-\alpha">Weight Priors in GMM: Small vs. Large <span class="math">\alpha</span></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Weight-Priors-in-GMM:-Small-vs.-Large-\alpha">Weight Priors in GMM: Small vs. Large <span class="math notranslate nohighlight">\(\alpha\)</span></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#Unbalanced-Weight-Priors:-Dominant-Component-Effect">Unbalanced Weight Priors: Dominant Component Effect</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#Prior-on-the-Means-in-Gaussian-Mixture-Models">Prior on the Means in Gaussian Mixture Models</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#Gaussian-Prior-on-the-Means">Gaussian Prior on the Means</a></li>
@@ -228,65 +230,65 @@ Using CPU
 <section id="Dirichlet-Distribution:-Definition-and-Derivation-from-the-Beta-Distribution">
 <h2>Dirichlet Distribution: Definition and Derivation from the Beta Distribution<a class="headerlink" href="#Dirichlet-Distribution:-Definition-and-Derivation-from-the-Beta-Distribution" title="Link to this heading"></a></h2>
 <p>The Dirichlet distribution is a multivariate generalization of the Beta distribution. For a vector</p>
-<div class="math">
-<p><span class="math">\mathbf{x} = (x_1, x_2, \dots, x_K)</span></p>
-</div><p>that lies in the <span class="math">(K-1)</span>-simplex, i.e.,</p>
-<div class="math">
-<p><span class="math">\sum_{i=1}^K x_i = 1 \quad \text{and} \quad x_i \ge 0 \quad \text{for all } i,</span></p>
-</div><p>the Dirichlet distribution with parameter vector</p>
-<div class="math">
-<p><span class="math">\boldsymbol{\alpha} = (\alpha_1, \alpha_2, \dots, \alpha_K) \quad \text{with} \quad \alpha_i &gt; 0,</span></p>
-</div><p>is defined by its probability density function</p>
-<div class="math">
-<p><span class="math">f(x_1, \dots, x_K; \boldsymbol{\alpha}) = \frac{1}{B(\boldsymbol{\alpha})} \prod_{i=1}^K x_i^{\alpha_i - 1},</span></p>
-</div><p>where the normalizing constant <span class="math">B(\boldsymbol{\alpha})</span> is the multivariate Beta function:</p>
-<div class="math">
-<p><span class="math">B(\boldsymbol{\alpha}) = \frac{\prod_{i=1}^K \Gamma(\alpha_i)}{\Gamma\left(\sum_{i=1}^K \alpha_i\right)}.</span></p>
-</div><section id="Derivation-from-the-Beta-Distribution">
+<div class="math notranslate nohighlight">
+\[\mathbf{x} = (x_1, x_2, \dots, x_K)\]</div>
+<p>that lies in the <span class="math notranslate nohighlight">\((K-1)\)</span>-simplex, i.e.,</p>
+<div class="math notranslate nohighlight">
+\[\sum_{i=1}^K x_i = 1 \quad \text{and} \quad x_i \ge 0 \quad \text{for all } i,\]</div>
+<p>the Dirichlet distribution with parameter vector</p>
+<div class="math notranslate nohighlight">
+\[\boldsymbol{\alpha} = (\alpha_1, \alpha_2, \dots, \alpha_K) \quad \text{with} \quad \alpha_i &gt; 0,\]</div>
+<p>is defined by its probability density function</p>
+<div class="math notranslate nohighlight">
+\[f(x_1, \dots, x_K; \boldsymbol{\alpha}) = \frac{1}{B(\boldsymbol{\alpha})} \prod_{i=1}^K x_i^{\alpha_i - 1},\]</div>
+<p>where the normalizing constant <span class="math notranslate nohighlight">\(B(\boldsymbol{\alpha})\)</span> is the multivariate Beta function:</p>
+<div class="math notranslate nohighlight">
+\[B(\boldsymbol{\alpha}) = \frac{\prod_{i=1}^K \Gamma(\alpha_i)}{\Gamma\left(\sum_{i=1}^K \alpha_i\right)}.\]</div>
+<section id="Derivation-from-the-Beta-Distribution">
 <h3>Derivation from the Beta Distribution<a class="headerlink" href="#Derivation-from-the-Beta-Distribution" title="Link to this heading"></a></h3>
-<p>For the special case <span class="math">K=2</span>, let</p>
-<div class="math">
-<p><span class="math">x_1 = x \quad \text{and} \quad x_2 = 1 - x.</span></p>
-</div><p>Then the Dirichlet density becomes</p>
-<div class="math">
-<p><span class="math">f(x; \alpha_1, \alpha_2) = \frac{1}{B(\alpha_1, \alpha_2)} x^{\alpha_1 - 1} (1 - x)^{\alpha_2 - 1},</span></p>
-</div><p>with</p>
-<div class="math">
-<p><span class="math">B(\alpha_1, \alpha_2) = \frac{\Gamma(\alpha_1)\Gamma(\alpha_2)}{\Gamma(\alpha_1 + \alpha_2)}.</span></p>
-</div><p>This is exactly the density of the Beta distribution, denoted as</p>
-<div class="math">
-<p><span class="math">\operatorname{Beta}(\alpha_1,\alpha_2).</span></p>
-</div></section>
+<p>For the special case <span class="math notranslate nohighlight">\(K=2\)</span>, let</p>
+<div class="math notranslate nohighlight">
+\[x_1 = x \quad \text{and} \quad x_2 = 1 - x.\]</div>
+<p>Then the Dirichlet density becomes</p>
+<div class="math notranslate nohighlight">
+\[f(x; \alpha_1, \alpha_2) = \frac{1}{B(\alpha_1, \alpha_2)} x^{\alpha_1 - 1} (1 - x)^{\alpha_2 - 1},\]</div>
+<p>with</p>
+<div class="math notranslate nohighlight">
+\[B(\alpha_1, \alpha_2) = \frac{\Gamma(\alpha_1)\Gamma(\alpha_2)}{\Gamma(\alpha_1 + \alpha_2)}.\]</div>
+<p>This is exactly the density of the Beta distribution, denoted as</p>
+<div class="math notranslate nohighlight">
+\[\operatorname{Beta}(\alpha_1,\alpha_2).\]</div>
+</section>
 <section id="Symmetric-Dirichlet-Distribution">
 <h3>Symmetric Dirichlet Distribution<a class="headerlink" href="#Symmetric-Dirichlet-Distribution" title="Link to this heading"></a></h3>
-<p>In its most general form, the Dirichlet distribution has a parameter vector <span class="math">\boldsymbol{\alpha} = (\alpha_1, \alpha_2, \dots, \alpha_K)</span>, with each <span class="math">\alpha_i</span> playing a role similar to that in the Beta distribution. However, in many practical applications—especially when there is no prior reason to favor one category over another—a <strong>symmetric Dirichlet distribution</strong> is used. In the symmetric case, all parameters are set equal, i.e.,</p>
-<div class="math">
-<p><span class="math">\alpha_1 = \alpha_2 = \cdots = \alpha_K = \alpha.</span></p>
-</div><p>This reduces the number of free parameters from <span class="math">K</span> to one, and the density function simplifies to</p>
-<div class="math">
-<p><span class="math">f(x_1,\dots,x_K; \alpha) = \frac{\Gamma(K\alpha)}{[\Gamma(\alpha)]^K} \prod_{i=1}^K x_i^{\alpha - 1}.</span></p>
-</div><p>Thus, while the general Dirichlet has <span class="math">K</span> parameters, the symmetric case is completely described by a single concentration parameter <span class="math">\alpha</span>.</p>
+<p>In its most general form, the Dirichlet distribution has a parameter vector <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} = (\alpha_1, \alpha_2, \dots, \alpha_K)\)</span>, with each <span class="math notranslate nohighlight">\(\alpha_i\)</span> playing a role similar to that in the Beta distribution. However, in many practical applications—especially when there is no prior reason to favor one category over another—a <strong>symmetric Dirichlet distribution</strong> is used. In the symmetric case, all parameters are set equal, i.e.,</p>
+<div class="math notranslate nohighlight">
+\[\alpha_1 = \alpha_2 = \cdots = \alpha_K = \alpha.\]</div>
+<p>This reduces the number of free parameters from <span class="math notranslate nohighlight">\(K\)</span> to one, and the density function simplifies to</p>
+<div class="math notranslate nohighlight">
+\[f(x_1,\dots,x_K; \alpha) = \frac{\Gamma(K\alpha)}{[\Gamma(\alpha)]^K} \prod_{i=1}^K x_i^{\alpha - 1}.\]</div>
+<p>Thus, while the general Dirichlet has <span class="math notranslate nohighlight">\(K\)</span> parameters, the symmetric case is completely described by a single concentration parameter <span class="math notranslate nohighlight">\(\alpha\)</span>.</p>
 </section>
 <section id="How-Does-\alpha-Affect-the-Dirichlet-Distribution?">
-<h3>How Does <span class="math">\alpha</span> Affect the Dirichlet Distribution?<a class="headerlink" href="#How-Does-\alpha-Affect-the-Dirichlet-Distribution?" title="Link to this heading"></a></h3>
+<h3>How Does <span class="math notranslate nohighlight">\(\alpha\)</span> Affect the Dirichlet Distribution?<a class="headerlink" href="#How-Does-\alpha-Affect-the-Dirichlet-Distribution?" title="Link to this heading"></a></h3>
 <ul>
 <li><div class="line-block">
 <div class="line"><strong>Small :math:`alpha` (:math:`alpha ll 1`):</strong></div>
-<div class="line">When <span class="math">\alpha</span> is much less than 1, the distribution is <em>sparse</em>, favoring configurations where one or a few weights are near 1 while the others are close to 0. This tends to lead to “hard” clustering where only a few components dominate.</div>
+<div class="line">When <span class="math notranslate nohighlight">\(\alpha\)</span> is much less than 1, the distribution is <em>sparse</em>, favoring configurations where one or a few weights are near 1 while the others are close to 0. This tends to lead to “hard” clustering where only a few components dominate.</div>
 </div>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Uniform Case (:math:`alpha = 1`):</strong></div>
-<div class="line">For <span class="math">\alpha = 1</span>, the Dirichlet distribution is uniform over the simplex, meaning that all weight configurations are equally likely a priori.</div>
+<div class="line">For <span class="math notranslate nohighlight">\(\alpha = 1\)</span>, the Dirichlet distribution is uniform over the simplex, meaning that all weight configurations are equally likely a priori.</div>
 </div>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Large :math:`alpha` (:math:`alpha gg 1`):</strong></div>
-<div class="line">With a large <span class="math">\alpha</span>, the distribution becomes more concentrated around the center of the simplex, promoting balanced weights across all components.</div>
+<div class="line">With a large <span class="math notranslate nohighlight">\(\alpha\)</span>, the distribution becomes more concentrated around the center of the simplex, promoting balanced weights across all components.</div>
 </div>
 </li>
 </ul>
-<p>The plots below visualize how different <span class="math">\alpha</span> values affect the Dirichlet density over a ternary plot.</p>
+<p>The plots below visualize how different <span class="math notranslate nohighlight">\(\alpha\)</span> values affect the Dirichlet density over a ternary plot.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
@@ -366,8 +368,8 @@ Using CPU
 </section>
 <hr class="docutils" />
 <section id="Weight-Priors-in-GMM:-Small-vs.-Large-\alpha">
-<h2>Weight Priors in GMM: Small vs. Large <span class="math">\alpha</span><a class="headerlink" href="#Weight-Priors-in-GMM:-Small-vs.-Large-\alpha" title="Link to this heading"></a></h2>
-<p>Weight priors directly influence the mixing proportions of the GMM. Here, we compare the effects of setting a very small versus a very large <span class="math">\alpha</span> value:</p>
+<h2>Weight Priors in GMM: Small vs. Large <span class="math notranslate nohighlight">\(\alpha\)</span><a class="headerlink" href="#Weight-Priors-in-GMM:-Small-vs.-Large-\alpha" title="Link to this heading"></a></h2>
+<p>Weight priors directly influence the mixing proportions of the GMM. Here, we compare the effects of setting a very small versus a very large <span class="math notranslate nohighlight">\(\alpha\)</span> value:</p>
 <ul class="simple">
 <li><p><strong>Small :math:`alpha`:</strong> Leads to a model where few components dominate.</p></li>
 <li><p><strong>Large :math:`alpha`:</strong> Encourages the model to assign roughly equal weights to all components.</p></li>
@@ -484,31 +486,31 @@ Using CPU
 <p>In our Gaussian Mixture Model (GMM), we use a <strong>Gaussian prior</strong> on the component means to regularize the model and to guide the parameter estimation during Maximum a Posteriori (MAP) inference. This prior prevents the estimated means from drifting too far away from a reasonable central location, which is particularly useful when the data is noisy or scarce.</p>
 <section id="Gaussian-Prior-on-the-Means">
 <h3>Gaussian Prior on the Means<a class="headerlink" href="#Gaussian-Prior-on-the-Means" title="Link to this heading"></a></h3>
-<p>We assume that each component mean, <span class="math">\mu_k</span>, has a Gaussian (normal) prior of the form</p>
-<div class="math">
-<p><span class="math">p(\mu_k) = \mathcal{N}(\mu_k; \mu_0, \Lambda_0^{-1}),</span></p>
-</div><p>where:</p>
+<p>We assume that each component mean, <span class="math notranslate nohighlight">\(\mu_k\)</span>, has a Gaussian (normal) prior of the form</p>
+<div class="math notranslate nohighlight">
+\[p(\mu_k) = \mathcal{N}(\mu_k; \mu_0, \Lambda_0^{-1}),\]</div>
+<p>where:</p>
 <ul class="simple">
-<li><p><span class="math">\mu_0</span> is the <strong>prior mean</strong> (often set using an initialization procedure such as K-means),</p></li>
-<li><p><span class="math">\Lambda_0</span> is the <strong>prior precision matrix</strong> (the inverse of the prior covariance).</p></li>
+<li><p><span class="math notranslate nohighlight">\(\mu_0\)</span> is the <strong>prior mean</strong> (often set using an initialization procedure such as K-means),</p></li>
+<li><p><span class="math notranslate nohighlight">\(\Lambda_0\)</span> is the <strong>prior precision matrix</strong> (the inverse of the prior covariance).</p></li>
 </ul>
 <p>For simplicity, it is common to assume that the precision matrix is a scalar multiple of the identity matrix:</p>
-<div class="math">
-<p><span class="math">\Lambda_0 = \lambda I,</span></p>
-</div><p>which implies that the prior treats every feature equally and independently.</p>
+<div class="math notranslate nohighlight">
+\[\Lambda_0 = \lambda I,\]</div>
+<p>which implies that the prior treats every feature equally and independently.</p>
 </section>
 <section id="Impact-of-the-Mean-Precision-Prior">
 <h3>Impact of the Mean Precision Prior<a class="headerlink" href="#Impact-of-the-Mean-Precision-Prior" title="Link to this heading"></a></h3>
-<p>The influence of the mean prior is governed by the scalar precision parameter <span class="math">\lambda</span> (denoted in our code as <code class="docutils literal notranslate"><span class="pre">mean_precision_prior</span></code>):</p>
+<p>The influence of the mean prior is governed by the scalar precision parameter <span class="math notranslate nohighlight">\(\lambda\)</span> (denoted in our code as <code class="docutils literal notranslate"><span class="pre">mean_precision_prior</span></code>):</p>
 <ul>
 <li><div class="line-block">
 <div class="line"><strong>Weak Prior (Small :math:`lambda`)</strong>:</div>
-<div class="line">When <span class="math">\lambda</span> is small, the prior has little influence on the estimated means. In this regime, the data likelihood dominates, and the means are largely determined by the observed data. This can lead to greater flexibility in the estimated means but may also allow for overfitting, especially with noisy data.</div>
+<div class="line">When <span class="math notranslate nohighlight">\(\lambda\)</span> is small, the prior has little influence on the estimated means. In this regime, the data likelihood dominates, and the means are largely determined by the observed data. This can lead to greater flexibility in the estimated means but may also allow for overfitting, especially with noisy data.</div>
 </div>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Strong Prior (Large :math:`lambda`)</strong>:</div>
-<div class="line">Conversely, when <span class="math">\lambda</span> is large, the prior is very informative. In this case, the estimated means are pulled more strongly toward the prior mean <span class="math">\mu_0</span>. This is particularly useful when you have limited data or when you want to impose prior knowledge about the location of the clusters. However, a very strong prior might oversmooth the model, preventing it from fully adapting to the data.</div>
+<div class="line">Conversely, when <span class="math notranslate nohighlight">\(\lambda\)</span> is large, the prior is very informative. In this case, the estimated means are pulled more strongly toward the prior mean <span class="math notranslate nohighlight">\(\mu_0\)</span>. This is particularly useful when you have limited data or when you want to impose prior knowledge about the location of the clusters. However, a very strong prior might oversmooth the model, preventing it from fully adapting to the data.</div>
 </div>
 </li>
 </ul>
@@ -572,56 +574,56 @@ Using CPU
 <section id="The-Gamma-Distribution-and-its-Inverse">
 <h2>The Gamma Distribution and its Inverse<a class="headerlink" href="#The-Gamma-Distribution-and-its-Inverse" title="Link to this heading"></a></h2>
 <p>The Gamma distribution is given by the density function</p>
-<div class="math">
-<p><span class="math">f(x; \alpha, \theta) = \frac{1}{\Gamma(\alpha)\,\theta^\alpha}\, x^{\alpha-1} \exp\left(-\frac{x}{\theta}\right), \quad x &gt; 0,</span></p>
-</div><p>where:</p>
+<div class="math notranslate nohighlight">
+\[f(x; \alpha, \theta) = \frac{1}{\Gamma(\alpha)\,\theta^\alpha}\, x^{\alpha-1} \exp\left(-\frac{x}{\theta}\right), \quad x &gt; 0,\]</div>
+<p>where:</p>
 <ul class="simple">
-<li><p><span class="math">\alpha</span> is the <strong>shape parameter</strong>,</p></li>
-<li><p><span class="math">\theta</span> is the <strong>scale parameter</strong>,</p></li>
-<li><p><span class="math">\Gamma(\alpha)</span> is the gamma function.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\alpha\)</span> is the <strong>shape parameter</strong>,</p></li>
+<li><p><span class="math notranslate nohighlight">\(\theta\)</span> is the <strong>scale parameter</strong>,</p></li>
+<li><p><span class="math notranslate nohighlight">\(\Gamma(\alpha)\)</span> is the gamma function.</p></li>
 </ul>
 <p>The mean of the Gamma distribution is</p>
-<div class="math">
-<p><span class="math">E[X] = \alpha \theta.</span></p>
-</div><p>If we define</p>
-<div class="math">
-<p><span class="math">Y = \frac{1}{X},</span></p>
-</div><p>then using the standard transformation method the density of <span class="math">Y</span> becomes</p>
-<div class="math">
-<p><span class="math">\begin{aligned}
+<div class="math notranslate nohighlight">
+\[E[X] = \alpha \theta.\]</div>
+<p>If we define</p>
+<div class="math notranslate nohighlight">
+\[Y = \frac{1}{X},\]</div>
+<p>then using the standard transformation method the density of <span class="math notranslate nohighlight">\(Y\)</span> becomes</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{aligned}
 f_Y(y) &amp;= f_X\left(\frac{1}{y}\right) \left|\frac{d}{dy}\left(\frac{1}{y}\right)\right| \\
 &amp;= \frac{1}{\Gamma(\alpha)\,\theta^\alpha} \left(\frac{1}{y}\right)^{\alpha-1} \exp\left(-\frac{1}{\theta y}\right) \frac{1}{y^2} \\
 &amp;= \frac{1}{\Gamma(\alpha)\,\theta^\alpha}\, y^{-\alpha-1} \exp\left(-\frac{1}{\theta y}\right), \quad y &gt; 0.
-\end{aligned}</span></p>
-</div><p>This density is of the form of an inverse Gamma distribution. A standard parameterization for the inverse Gamma distribution is:</p>
-<div class="math">
-<p><span class="math">f_Y(y; \alpha, \beta) = \frac{\beta^\alpha}{\Gamma(\alpha)}\, y^{-\alpha-1} \exp\left(-\frac{\beta}{y}\right), \quad y &gt; 0,</span></p>
-</div><p>where <span class="math">\beta &gt; 0</span> is the <strong>scale parameter</strong> of the inverse Gamma. By comparing the two forms, we identify</p>
-<div class="math">
-<p><span class="math">\beta^\alpha = \frac{1}{\theta^\alpha} \quad \Longrightarrow \quad \beta = \frac{1}{\theta}.</span></p>
-</div><section id="Mean-of-the-Inverse-Gamma-Distribution">
+\end{aligned}\end{split}\]</div>
+<p>This density is of the form of an inverse Gamma distribution. A standard parameterization for the inverse Gamma distribution is:</p>
+<div class="math notranslate nohighlight">
+\[f_Y(y; \alpha, \beta) = \frac{\beta^\alpha}{\Gamma(\alpha)}\, y^{-\alpha-1} \exp\left(-\frac{\beta}{y}\right), \quad y &gt; 0,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\beta &gt; 0\)</span> is the <strong>scale parameter</strong> of the inverse Gamma. By comparing the two forms, we identify</p>
+<div class="math notranslate nohighlight">
+\[\beta^\alpha = \frac{1}{\theta^\alpha} \quad \Longrightarrow \quad \beta = \frac{1}{\theta}.\]</div>
+<section id="Mean-of-the-Inverse-Gamma-Distribution">
 <h3>Mean of the Inverse Gamma Distribution<a class="headerlink" href="#Mean-of-the-Inverse-Gamma-Distribution" title="Link to this heading"></a></h3>
-<p>For the inverse Gamma distribution with parameters <span class="math">\alpha</span> and <span class="math">\beta</span>, the mean exists for <span class="math">\alpha &gt; 1</span> and is given by</p>
-<div class="math">
-<p><span class="math">E[Y] = \frac{\beta}{\alpha - 1}.</span></p>
-</div><p>Substituting <span class="math">\beta = \frac{1}{\theta}</span> into the formula, we get</p>
-<div class="math">
-<p><span class="math">E[Y] = \frac{1/\theta}{\alpha - 1} = \frac{1}{\theta (\alpha - 1)}.</span></p>
-</div></section>
+<p>For the inverse Gamma distribution with parameters <span class="math notranslate nohighlight">\(\alpha\)</span> and <span class="math notranslate nohighlight">\(\beta\)</span>, the mean exists for <span class="math notranslate nohighlight">\(\alpha &gt; 1\)</span> and is given by</p>
+<div class="math notranslate nohighlight">
+\[E[Y] = \frac{\beta}{\alpha - 1}.\]</div>
+<p>Substituting <span class="math notranslate nohighlight">\(\beta = \frac{1}{\theta}\)</span> into the formula, we get</p>
+<div class="math notranslate nohighlight">
+\[E[Y] = \frac{1/\theta}{\alpha - 1} = \frac{1}{\theta (\alpha - 1)}.\]</div>
+</section>
 <section id="Impact-of-the-Parameters">
 <h3>Impact of the Parameters<a class="headerlink" href="#Impact-of-the-Parameters" title="Link to this heading"></a></h3>
 <ul>
 <li><div class="line-block">
 <div class="line"><strong>Shape (:math:`alpha`)</strong>:</div>
-<div class="line">The shape parameter <span class="math">\alpha</span> affects the tail behavior and the concentration of the distribution. Increasing <span class="math">\alpha</span> (with <span class="math">\beta</span> fixed) causes both the mean and the mode to decrease:</div>
+<div class="line">The shape parameter <span class="math notranslate nohighlight">\(\alpha\)</span> affects the tail behavior and the concentration of the distribution. Increasing <span class="math notranslate nohighlight">\(\alpha\)</span> (with <span class="math notranslate nohighlight">\(\beta\)</span> fixed) causes both the mean and the mode to decrease:</div>
 </div>
-<div class="math">
-<p><span class="math">E[Y] = \frac{\beta}{\alpha - 1}, \qquad \text{mode} = \frac{\beta}{\alpha + 1}.</span></p>
-</div><p>Thus, a higher <span class="math">\alpha</span> results in a distribution that is more concentrated near zero and has lighter tails, while a lower <span class="math">\alpha</span> produces heavier tails.</p>
+<div class="math notranslate nohighlight">
+\[E[Y] = \frac{\beta}{\alpha - 1}, \qquad \text{mode} = \frac{\beta}{\alpha + 1}.\]</div>
+<p>Thus, a higher <span class="math notranslate nohighlight">\(\alpha\)</span> results in a distribution that is more concentrated near zero and has lighter tails, while a lower <span class="math notranslate nohighlight">\(\alpha\)</span> produces heavier tails.</p>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Scale (:math:`beta`)</strong>:</div>
-<div class="line">The scale parameter <span class="math">\beta</span> shifts the distribution. A larger <span class="math">\beta</span> leads to higher values of the mean and mode. In many Bayesian contexts, the inverse gamma is obtained by inverting a Gamma-distributed variable with scale parameter <span class="math">\theta</span>, where <span class="math">\beta = \frac{1}{\theta}</span>. In that case, increasing <span class="math">\theta</span> (making the Gamma distribution more spread out) results in a smaller <span class="math">\beta</span>, which in turn shifts the inverse gamma distribution toward lower
+<div class="line">The scale parameter <span class="math notranslate nohighlight">\(\beta\)</span> shifts the distribution. A larger <span class="math notranslate nohighlight">\(\beta\)</span> leads to higher values of the mean and mode. In many Bayesian contexts, the inverse gamma is obtained by inverting a Gamma-distributed variable with scale parameter <span class="math notranslate nohighlight">\(\theta\)</span>, where <span class="math notranslate nohighlight">\(\beta = \frac{1}{\theta}\)</span>. In that case, increasing <span class="math notranslate nohighlight">\(\theta\)</span> (making the Gamma distribution more spread out) results in a smaller <span class="math notranslate nohighlight">\(\beta\)</span>, which in turn shifts the inverse gamma distribution toward lower
 values.</div>
 </div>
 </li>
@@ -645,7 +647,7 @@ values.</div>
 </li>
 <li><div class="line-block">
 <div class="line"><strong>Varying Both to Maintain the Same Mode:</strong></div>
-<div class="line">How different combinations of <span class="math">\alpha</span> and <span class="math">\theta</span> can yield the same mode, illustrating the trade-off between the parameters.</div>
+<div class="line">How different combinations of <span class="math notranslate nohighlight">\(\alpha\)</span> and <span class="math notranslate nohighlight">\(\theta\)</span> can yield the same mode, illustrating the trade-off between the parameters.</div>
 </div>
 </li>
 </ol>
@@ -740,9 +742,9 @@ one-dimensional counterpart, the <strong>inverse Gamma</strong>) is commonly use
 <section id="The-Gamma-Distribution-(Scalar-Case)">
 <h4>The Gamma Distribution (Scalar Case)<a class="headerlink" href="#The-Gamma-Distribution-(Scalar-Case)" title="Link to this heading"></a></h4>
 <p>The Gamma distribution is defined as</p>
-<div class="math">
-<p><span class="math">f(x; \alpha, \theta) = \frac{1}{\Gamma(\alpha)\,\theta^\alpha}\, x^{\alpha-1} \exp\left(-\frac{x}{\theta}\right), \quad x &gt; 0,</span></p>
-</div><p>where:</p>
+<div class="math notranslate nohighlight">
+\[f(x; \alpha, \theta) = \frac{1}{\Gamma(\alpha)\,\theta^\alpha}\, x^{\alpha-1} \exp\left(-\frac{x}{\theta}\right), \quad x &gt; 0,\]</div>
+<p>where:</p>
 <ul class="simple">
 <li><p>$ :nbsphinx-math:<a href="#id1"><span class="problematic" id="id2">`</span></a>alpha <a href="#id3"><span class="problematic" id="id4">`</span></a>$ is the <strong>shape parameter</strong>,</p></li>
 <li><p>$ :nbsphinx-math:<a href="#id5"><span class="problematic" id="id6">`</span></a>theta <a href="#id7"><span class="problematic" id="id8">`</span></a>$ is the <strong>scale parameter</strong>, and</p></li>
@@ -753,9 +755,9 @@ one-dimensional counterpart, the <strong>inverse Gamma</strong>) is commonly use
 <section id="The-Wishart-Distribution-(Multivariate-Case)">
 <h4>The Wishart Distribution (Multivariate Case)<a class="headerlink" href="#The-Wishart-Distribution-(Multivariate-Case)" title="Link to this heading"></a></h4>
 <p>When we generalize to matrices, the Wishart distribution arises naturally. Its density over $ d :nbsphinx-math:<a href="#id9"><span class="problematic" id="id10">`</span></a>times <a href="#id11"><span class="problematic" id="id12">`</span></a>d $ positive-definite matrices is</p>
-<div class="math">
-<p><span class="math">p(\mathbf{S}; \nu, \Psi) \propto |\mathbf{S}|^{\frac{\nu-d-1}{2}} \exp\left(-\frac{1}{2}\operatorname{tr}\left(\Psi^{-1} \mathbf{S}\right)\right),</span></p>
-</div><p>where:</p>
+<div class="math notranslate nohighlight">
+\[p(\mathbf{S}; \nu, \Psi) \propto |\mathbf{S}|^{\frac{\nu-d-1}{2}} \exp\left(-\frac{1}{2}\operatorname{tr}\left(\Psi^{-1} \mathbf{S}\right)\right),\]</div>
+<p>where:</p>
 <ul class="simple">
 <li><p>$ <span class="math">\mathbf{S}</span> $ is a positive-definite matrix,</p></li>
 <li><p>$ :nbsphinx-math:<a href="#id13"><span class="problematic" id="id14">`</span></a>nu <a href="#id15"><span class="problematic" id="id16">`</span></a>$ is the <strong>degrees of freedom</strong> (playing a role similar to the shape parameter),</p></li>

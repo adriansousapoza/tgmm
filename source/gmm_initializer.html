@@ -128,7 +128,7 @@ $$</p></li>
 <li><p><strong>kmeans:</strong>
 Runs the k-means algorithm starting from k-means++ initialization. At each iteration:
 $$
-c_j = argmin_i |x_j - mu_i|^2, quad mu_i = frac{1}{<a href="#id1"><span class="problematic" id="id2">|C_i|</span></a>} sum_{x_j in C_i} x_j,
+c_j = argmin_i |x_j - mu_i|^2, quad mu_i = frac{1}{|C_i|} sum_{x_j in C_i} x_j,
 $$
 until convergence.</p></li>
 <li><p><strong>maxdist:</strong>
@@ -156,9 +156,9 @@ $$</p></li>
 <p>Starting from a k-means++ initialization, k-means iteratively refines the centers by:</p>
 <ol class="arabic simple">
 <li><p><strong>Assignment:</strong>
-$displaystyle c_j = argmin_{i} |x_j - mu_i|^2,$ for each data point $x_j$.</p></li>
+$c_j = argmin_{i} |x_j - mu_i|^2,$ for each data point $x_j$.</p></li>
 <li><p><strong>Update:</strong>
-$displaystyle mu_i = frac{1}{<a href="#id3"><span class="problematic" id="id4">|C_i|</span></a>} sum_{x_j in C_i} x_j,$ where $C_i$ is the set of points assigned to center $mu_i$.</p></li>
+$mu_i = frac{1}{|C_i|} sum_{x_j in C_i} x_j,$ where $C_i$ is the set of points assigned to center $mu_i$.</p></li>
 </ol>
 <p>The algorithm stops when the centers move by less than the specified tolerance.</p>
 <dl class="field-list simple">
