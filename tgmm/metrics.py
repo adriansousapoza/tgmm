@@ -36,7 +36,7 @@ class ClusteringMetrics:
     @staticmethod
     def kl_divergence_gmm(gmm_p, gmm_q, n_samples: int = 10000) -> float:
         r"""
-        Approximate the KL divergence :math:`D_{KL}(p \Vert q)` between two
+        Approximate the KL divergence $D_{KL}(p \Vert q)$ between two
         Gaussian Mixture Models using Monte Carlo sampling from ``gmm_p``.
 
         Parameters
@@ -52,7 +52,7 @@ class ClusteringMetrics:
         Returns
         -------
         float
-            Approximated KL divergence :math:`\mathrm{E}_{x \sim p} [\log p(x) - \log q(x)]`.
+            Approximated KL divergence $ \mathrm{E}_{x \sim p}[\log p(x) - \log q(x)]$.
         """
         device = gmm_p.device
         samples, _ = gmm_p.sample(n_samples)  # (n_samples, n_features)
@@ -76,7 +76,7 @@ class ClusteringMetrics:
         Compute the Bayesian Information Criterion (BIC) for a GMM given its
         average log-likelihood (lower bound).
 
-        BIC = n_params * ln(n_samples) - 2 * log_likelihood
+        $ \text{BIC} = n_{\text{params}} \ln(n_{\text{samples}}) - 2 \times \text{log\_likelihood} $
 
         Parameters
         ----------
@@ -128,7 +128,7 @@ class ClusteringMetrics:
         r"""
         Compute the Akaike Information Criterion (AIC) for a GMM.
 
-        AIC = 2 * n_params - 2 * log_likelihood
+        $ \text{AIC} = 2 \times n_{\text{params}} - 2 \times \text{log\_likelihood} $
 
         Parameters
         ----------
@@ -176,12 +176,11 @@ class ClusteringMetrics:
         r"""
         Compute the silhouette score for a partition of the data.
 
-        .. math::
-            \mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)}
+        $$ \mathrm{silhouette}(i) = \frac{b_i - a_i}{\max(a_i, b_i)} $$
 
         Where:
-        - \(a_i\) is the mean distance to points in the same cluster.
-        - \(b_i\) is the minimum mean distance to points in a different cluster.
+        - $a_i$ is the mean distance to points in the same cluster.
+        - $b_i$ is the minimum mean distance to points in a different cluster.
 
         Parameters
         ----------
@@ -234,12 +233,11 @@ class ClusteringMetrics:
         r"""
         Compute the Davies-Bouldin index (lower is better).
 
-        .. math::
-            DB = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}}
+        $$ \text{DB} = \frac{1}{k} \sum_i \max_{j \neq i} \frac{S_i + S_j}{M_{ij}} $$
 
         Where:
-        - \(S_i\) is the average distance of points in cluster i to its centroid.
-        - \(M_{ij}\) is the distance between cluster centroids i and j.
+        - $S_i$ is the average distance of points in cluster i to its centroid.
+        - $M_{ij}$ is the distance between cluster centroids i and j.
 
         Parameters
         ----------
@@ -323,12 +321,11 @@ class ClusteringMetrics:
         r"""
         Compute the Dunn index:
 
-        .. math::
-            D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)}
+        $$ D = \frac{\min_{i \neq j} d(C_i, C_j)}{\max_k \mathrm{diam}(C_k)} $$
 
         Where:
-        - \(d(C_i, C_j)\) is the minimum distance between any points in clusters i, j.
-        - \(\mathrm{diam}(C_k)\) is the maximum distance between any points in cluster k.
+        - $d(C_i, C_j)$ is the minimum distance between any points in clusters i, j.
+        - $\mathrm{diam}(C_k)$ is the maximum distance between any points in cluster k.
 
         Higher Dunn index indicates better cluster separation.
 
@@ -381,8 +378,7 @@ class ClusteringMetrics:
         Rand Index (RI) measures the similarity between two clusterings.
         It counts the agreement of pairwise assignments.
 
-        .. math::
-            \text{RI} = \frac{TP + TN}{TP + TN + FP + FN}
+        $ \text{RI} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}} $
 
         Parameters
         ----------
@@ -424,8 +420,7 @@ class ClusteringMetrics:
         r"""
         Adjusted Rand Index (ARI), which adjusts RI for chance.
 
-        .. math::
-            \mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] }
+        $ \mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] } $
 
         Parameters
         ----------
@@ -466,8 +461,7 @@ class ClusteringMetrics:
         r"""
         Mutual Information (MI) between two clusterings.
 
-        .. math::
-            \mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)}
+        $ \mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)} $
 
         Parameters
         ----------
@@ -523,7 +517,8 @@ class ClusteringMetrics:
         h_pred = -torch.sum((pred_counts / n_samples) *
                             torch.log(pred_counts / n_samples + 1e-10))
 
-        expected_mi = (h_true * h_pred) / n_samples  # rough approximation
+        # This "expected_mi" here is a rough approximation
+        expected_mi = (h_true * h_pred) / n_samples
         ami = (mi - expected_mi) / (0.5 * (h_true + h_pred) - expected_mi)
         return ami.item()
 
@@ -531,6 +526,8 @@ class ClusteringMetrics:
     def normalized_mutual_info_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
         r"""
         Normalized Mutual Information (NMI) in [0, 1].
+
+        $ \text{NMI} = \frac{2 \times \mathrm{MI}}{H(\text{true}) + H(\text{pred})} $
 
         Parameters
         ----------
@@ -542,7 +539,7 @@ class ClusteringMetrics:
         Returns
         -------
         float
-            NMI = 2 * MI / (H(true) + H(pred)).
+            NMI.
         """
         mi = ClusteringMetrics.mutual_info_score(labels_true, labels_pred)
         n_samples = labels_true.size(0)
@@ -560,7 +557,7 @@ class ClusteringMetrics:
     @staticmethod
     def fowlkes_mallows_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
         r"""
-        Fowlkes-Mallows index (FM) = sqrt(precision * recall).
+        Fowlkes-Mallows index (FM) = $ \sqrt{ \text{precision} \times \text{recall} } $.
 
         Parameters
         ----------
@@ -666,7 +663,8 @@ class ClusteringMetrics:
     @staticmethod
     def v_measure_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
         r"""
-        V-measure = 2 * (homogeneity * completeness) / (homogeneity + completeness).
+        V-measure = $ \frac{2 \times (\text{homogeneity} \times \text{completeness})}
+                           {\text{homogeneity} + \text{completeness}} $.
 
         Parameters
         ----------
@@ -689,8 +687,7 @@ class ClusteringMetrics:
         r"""
         Purity score measures how many samples belong to the correct cluster.
 
-        .. math::
-            \mathrm{purity} = \frac{1}{N} \sum_k \max_j |C_k \cap U_j|
+        $ \mathrm{purity} = \frac{1}{N} \sum_k \max_j \lvert C_k \cap U_j \rvert $
 
         Parameters
         ----------
@@ -814,7 +811,6 @@ class ClusteringMetrics:
 
         sorted_indices = torch.argsort(labels_pred, descending=True)
         labels_true = labels_true[sorted_indices]
-        # labels_pred = labels_pred[sorted_indices]  # not strictly needed for AUC calc
 
         tpr = torch.cumsum(labels_true, dim=0) / labels_true.sum()
         fpr = torch.cumsum(1 - labels_true, dim=0) / (labels_true.size(0) - labels_true.sum())

@@ -39,7 +39,7 @@ class GMMInitializer:
     - **kmeans:**  
       Runs the k-means algorithm starting from k-means++ initialization. At each iteration:
       $$
-      c_j = \arg\min_i \|x_j - \mu_i\|^2, \quad \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,
+      c_j = \arg\min_i \|x_j - \mu_i\|^2, \quad \mu_i = \frac{1}{\|C_i\|} \sum_{x_j \in C_i} x_j,
       $$
       until convergence.
 
@@ -164,10 +164,10 @@ class GMMInitializer:
         Starting from a k-means++ initialization, k-means iteratively refines the centers by:
         
         1. **Assignment:**  
-           $\displaystyle c_j = \arg\min_{i} \|x_j - \mu_i\|^2,$ for each data point $x_j$.
+           $c_j = \arg\min_{i} \|x_j - \mu_i\|^2,$ for each data point $x_j$.
         
         2. **Update:**  
-           $\displaystyle \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.
+           $\mu_i = \frac{1}{\|C_i\|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.
         
         The algorithm stops when the centers move by less than the specified tolerance.
 
