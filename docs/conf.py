@@ -15,23 +15,29 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.imgmath',  # Add this line for $-style math
+    'sphinx.ext.mathjax',   # For dollar-sign math
+    # 'sphinx.ext.imgmath', # Omit or comment out this line to avoid image-based math
     'nbsphinx',
     'sphinx_rtd_theme',
 ]
 
-# Enable $-style math syntax:
+# Configure MathJax to allow $...$ inline and $$...$$ display math
 mathjax3_config = {
-    'tex': {'inlineMath': [['$', '$'], ['\\(', '\\)']]}
+    'tex': {
+        'inlineMath': [
+            ['$', '$'],        # dollar-sign inline math
+            ['\\(', '\\)']     # optional: \( ... \) as well
+        ],
+        'displayMath': [
+            ['$$', '$$'],      # dollar-sign display math
+            ['\\[', '\\]']     # optional: \[ ... \]
+        ]
+    }
 }
-
-# Note: if you see warnings about "File `anyfontsize.sty` not found," you may need to install
-# additional LaTeX packages that provide that .sty file, or remove references to it in your
-# Sphinx configuration. The warnings are unrelated to using $ for math, but come from the
-# LaTeX installation missing certain files.
-
-mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
+# By default, ReadTheDocs will load MathJax from its CDN:
+mathjax_path = (
+    'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
+)
 
 exclude_patterns = []
 
@@ -41,6 +47,7 @@ html_show_sourcelink = False
 html_static_path = ['_static']
 html_css_files = ['custom.css']
 
+# Napoleon settings
 napoleon_use_param = True
 napoleon_use_rtype = False
 napoleon_use_ivar = True
