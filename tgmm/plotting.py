@@ -1,11 +1,10 @@
-import numpy as np
 import torch
+import math
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Ellipse
-from scipy.optimize import linear_sum_assignment
 
-# Set global style parameters.
+# --- Matplotlib defaults ---
 plt.rcParams.update({
     "figure.figsize": (8, 6),
     "figure.dpi": 400,
@@ -31,435 +30,528 @@ plt.rcParams.update({
     "legend.facecolor": "lightgrey",
 })
 
+
+##############################################################################
+# Helper functions
+##############################################################################
+
 def dynamic_figsize(rows, cols, base_width=8, base_height=6):
-    """
-    Adjust figure size dynamically based on subplot rows and cols.
-    
-    Args:
-        rows (int): Number of rows of subplots.
-        cols (int): Number of columns of subplots.
-        base_width (int): Width per subplot.
-        base_height (int): Height per subplot.
-    
-    Returns:
-        tuple: Adjusted figure size.
-    """
     return (cols * base_width, rows * base_height)
 
+def ensure_tensor_on_cpu(tensor_or_array, dtype=None):
+    """
+    Convert the input to a CPU torch.Tensor of a specified dtype (if given).
+    - If already a torch.Tensor, just .cpu() it.
+    - If it's a NumPy array (or list/scalar), convert via torch.tensor(...).
+    """
+    if isinstance(tensor_or_array, torch.Tensor):
+        out = tensor_or_array.cpu()
+    else:
+        out = torch.tensor(tensor_or_array, device='cpu')
+    if dtype is not None:
+        out = out.to(dtype)
+    return out
 
-# Helper: Hungarian algorithm to match predicted and true labels.
-def match_labels(y_true_tensor, y_pred_tensor):
-    if isinstance(y_true_tensor, np.ndarray):
-        y_true_tensor = torch.tensor(y_true_tensor)
-    if isinstance(y_pred_tensor, np.ndarray):
-        y_pred_tensor = torch.tensor(y_pred_tensor)
+def make_colormap(name, n_colors=8):
+    """
+    Create a list of RGBA color tuples from a matplotlib colormap.
+    We'll do a simple linear stepping.
+    """
+    cmap = plt.get_cmap(name)
+    if n_colors == 1:
+        # Just pick the middle color if there's only 1 cluster
+        return [cmap(0.5)]
+    step = 1.0 / (n_colors - 1)
+    return [cmap(i * step) for i in range(n_colors)]
+
+def torch_unique_with_counts(x):
+    """
+    PyTorch equivalent of np.unique(x, return_counts=True).
+    Returns (unique_vals, counts).
+    """
+    uniques, counts = x.unique(return_counts=True)
+    return uniques, counts
+
+
+##############################################################################
+# Single Label-Matching Function (by size)
+##############################################################################
+
+from scipy.optimize import linear_sum_assignment
+
+def match_true_labels(labels_ref, labels_pred):
+    """
+    Remap `labels_pred` onto `labels_ref` using linear assignment (Hungarian algorithm)
+    on the contingency matrix between true and predicted labels.
+    
+    Parameters
+    ----------
+    labels_ref : torch.Tensor
+        Ground-truth labels as a 1D tensor.
+    labels_pred : torch.Tensor
+        Predicted cluster labels as a 1D tensor.
+    
+    Returns
+    -------
+    torch.Tensor
+        A new tensor where each predicted label is remapped to the corresponding true label.
+    """
+    # Flatten the tensors
+    labels_ref = labels_ref.view(-1)
+    labels_pred = labels_pred.view(-1)
+
+    # Get unique labels from true and predicted labels
+    unique_true = torch.unique(labels_ref)
+    unique_pred = torch.unique(labels_pred)
+
+    # Build the contingency matrix (rows: true labels, cols: predicted labels)
+    contingency = torch.zeros((len(unique_true), len(unique_pred)), dtype=torch.int64)
+    for i, t in enumerate(unique_true):
+        for j, p in enumerate(unique_pred):
+            contingency[i, j] = torch.sum((labels_ref == t) & (labels_pred == p))
+    
+    # Convert contingency matrix to numpy array for the Hungarian algorithm
+    contingency_np = contingency.numpy()
+
+    # Solve the linear assignment problem on the negative contingency (to maximize matching)
+    row_ind, col_ind = linear_sum_assignment(-contingency_np)
+
+    # Create mapping: predicted label (from unique_pred) -> true label (from unique_true)
+    mapping = { int(unique_pred[j].item()): int(unique_true[i].item()) 
+                for i, j in zip(row_ind, col_ind) }
+
+    # Remap each entry in labels_pred using the mapping; if a label is not mapped, leave it unchanged
+    remapped = labels_pred.clone()
+    for idx in range(remapped.size(0)):
+        old_label = int(remapped[idx])
+        remapped[idx] = mapping.get(old_label, old_label)
         
-    y_true_cpu = y_true_tensor.cpu().long()
-    y_pred_cpu = y_pred_tensor.cpu().long()
-    max_true = y_true_cpu.max().item() + 1
-    max_pred = y_pred_cpu.max().item() + 1
-
-    # Build contingency matrix.
-    cont = np.zeros((max_true, max_pred), dtype=int)
-    for i in range(y_true_cpu.size(0)):
-        cont[y_true_cpu[i], y_pred_cpu[i]] += 1
-
-    row_ind, col_ind = linear_sum_assignment(-cont)  # maximize total assignment
-    mapping = {col_ind[j]: row_ind[j] for j in range(len(row_ind))}
-    matched_labels = np.array([mapping.get(p, p) for p in y_pred_cpu.numpy()], dtype=int)
-    return matched_labels
+    return remapped
 
 
-# Updated plot_gmm function with a new mode 'outliers'
+
+##############################################################################
+# Main Plot Function
+##############################################################################
+
 def plot_gmm(
-    X=None,
+    X,                # torch.Tensor or NumPy array (N x 2)
     gmm=None,
-    labels=None,        # Predicted labels (tensor or numpy array)
-    true_labels=None,   # True labels (tensor or numpy array)
+    labels=None,      # "True" labels, or user-provided
+    match_labels=False,
     ax=None,
+    mode='cluster',   # can be 'cluster', 'outliers', etc.
     title='GMM Results',
-    init_means=None,
-    legend_labels=None,
-    xlabel='Feature 1',
-    ylabel='Feature 2',
-    mode='cluster',     # 'cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', 'covariances', or 'outliers'
-    color_values=None,
+    weights=None,     # user-provided mixture weights (if gmm=None)
+    means=None,       # user-provided means
+    covariances=None, # user-provided covariances
+    covariance_type='full',
+    init_means=None,  
     cmap_cont='viridis',
     cmap_seq='Greens',
-    cbar_label='Color',
-    std_devs=[1, 2, 3],
+    std_devs=(1, 2, 3),
     base_alpha=0.8,
     alpha_from_weight=False,
-    dashed_outer=False
+    dashed_outer=False,
+    xlabel='Feature 1',
+    ylabel='Feature 2',
+    legend_labels=None,
+    color_values=None,
+    cbar_label='Color',
 ):
+    """
+    Plots data in 2D using either:
+      - 'cluster' or 'outliers' (colored by cluster correctness),
+      - 'continuous' (color_values),
+      - 'dots' (plain),
+      - 'ellipses', 'weights', 'means', 'covariances' (show component ellipses).
+
+    If mode='outliers', we must have both `gmm` and `labels` (the "true" labels).
+    Then we do GMM.predict(X), optionally match them to the true labels if
+    match_labels=True, and highlight correct vs incorrect.
+
+    GMM is expected to have:
+      - gmm.predict(X) => torch.LongTensor (cluster IDs)
+      - gmm.weights_, gmm.means_, gmm.covariances_, gmm.covariance_type
+      - gmm.n_components
+    """
     if ax is None:
         ax = plt.gca()
-    
+
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    
-    if mode == 'outliers':
-        if true_labels is None:
-            raise ValueError("For mode 'outliers', true_labels must be provided.")
-        # Assume X is 2D; no PCA needed.
-        # Ensure X is a NumPy array.
-        if isinstance(X, torch.Tensor):
-            X_np = X.detach().cpu().numpy()
-        else:
-            X_np = X
-        
-        # Ensure labels is a tensor.
-        if not isinstance(labels, torch.Tensor):
-            labels_tensor = torch.tensor(labels)
-        else:
-            labels_tensor = labels
 
-        # Similarly, ensure true_labels is a tensor.
-        if not isinstance(true_labels, torch.Tensor):
-            true_labels_tensor = torch.tensor(true_labels)
-        else:
-            true_labels_tensor = true_labels
-        
-        # Match predicted labels with true labels.
-        matched_pred = match_labels(true_labels_tensor, labels_tensor)
-        correct = (matched_pred == true_labels_tensor.cpu().numpy())
-        incorrect = ~correct
-        
-        ax.scatter(X_np[correct, 0], X_np[correct, 1], c='green', s=25, 
-                   label='Correctly predicted', marker='.', alpha=0.3)
-        ax.scatter(X_np[incorrect, 0], X_np[incorrect, 1], c='red', s=25, 
-                   label='Incorrectly predicted', marker='.', alpha=1)
-        
-        # Plot the 2D means and ellipses for each component.
-        n_comps = gmm.means_.shape[0]
-        for i in range(n_comps):
-            mean_2d = gmm.means_[i].detach().cpu().numpy()
-            cov_2d = gmm.covariances_[i].detach().cpu().numpy()  # Expected shape: (2, 2)
-            ax.scatter(mean_2d[0], mean_2d[1], c='black', marker='x')
-            
-            # Compute eigenvalues and eigenvectors for the 2D covariance.
-            eigvals, eigvecs = np.linalg.eigh(cov_2d)
-            order = eigvals.argsort()[::-1]
-            eigvals, eigvecs = eigvals[order], eigvecs[:, order]
-            angle = np.degrees(np.arctan2(eigvecs[1, 0], eigvecs[0, 0]))
-            
-            # 95% confidence ellipse: scaling factor ~5.991 for 2D.
-            width, height = 2 * np.sqrt(5.991 * eigvals)
-            ell = Ellipse(mean_2d, width, height, angle=angle,
-                          edgecolor='black', facecolor='none', linestyle='--')
-            ax.add_patch(ell)
-        
-        ax.set_title(title)
-        ax.legend(markerscale=2)
-        return ax
-    
-    # --- Plot data points ---
-    if X is not None:
-        if mode in ['dots', 'weights', 'means', 'covariances']:
-            ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
-        elif mode in ['cluster', 'continuous']:
-            if mode == 'cluster':
-                if labels is None:
-                    if gmm is not None:
-                        X_tensor = torch.from_numpy(X).float() if not isinstance(X, torch.Tensor) else X
-                        labels = gmm.predict(X_tensor).detach().cpu().numpy()
-                    else:
-                        labels = np.zeros(X.shape[0], dtype=int)
-                else:
-                    if not isinstance(labels, np.ndarray):
-                        labels = labels.detach().cpu().numpy() if hasattr(labels, 'detach') else np.array(labels)
-                
-                if gmm is not None:
-                    n_components = gmm.n_components
-                else:
-                    n_components = int(np.max(labels)) + 1
-                
-                cmap = ListedColormap(plt.get_cmap('Dark2')(np.linspace(0, 1, n_components)))
-                if legend_labels is None:
-                    legend_labels = [f'Cluster {i}' for i in range(n_components)]
-    
-                for i, color, ll in zip(range(n_components), cmap.colors, legend_labels):
-                    mask_pts = (labels == i)
-                    ax.scatter(X[mask_pts, 0], X[mask_pts, 1], c=[color], s=10, label=ll, alpha=0.5, marker='o')
-            elif mode == 'continuous':
-                if color_values is None:
-                    raise ValueError("In continuous mode, the parameter 'color_values' must be provided.")
-                if not isinstance(color_values, np.ndarray):
-                    color_values = color_values.detach().cpu().numpy() if hasattr(color_values, 'detach') else np.array(color_values)
-                scatter = ax.scatter(X[:, 0], X[:, 1], c=color_values, cmap=cmap_cont, s=2)
-                cbar = plt.gcf().colorbar(scatter, ax=ax)
-                cbar.set_label(cbar_label)
-    
-    # --- Plot ellipses and means ---
+    # 1) Convert data & labels to Torch on CPU
+    X = ensure_tensor_on_cpu(X, dtype=torch.float32)
+    if labels is not None:
+        labels = ensure_tensor_on_cpu(labels, dtype=torch.int64)
+    N = X.shape[0]
+
+    # 2) Possibly get predicted labels from GMM
+    pred_labels = None
     if gmm is not None:
-        if mode in ['cluster', 'ellipses']:
-            if alpha_from_weight:
-                weights_array = np.array([float(w.detach().cpu().item()) for w in gmm.weights_])
-                max_weight = weights_array.max()
-                std_to_plot = 2
-            if 'cmap' not in locals():
-                cmap = ListedColormap(plt.get_cmap('Dark2')(np.linspace(0, 1, gmm.n_components)))
-            for n, color in zip(range(gmm.n_components), cmap.colors):
-                mean = gmm.means_[n].detach().cpu().numpy()
-                if gmm.covariance_type in ['full', 'diag', 'spherical']:
-                    if gmm.covariance_type == 'full':
-                        cov = gmm.covariances_[n].detach().cpu().numpy()
-                    elif gmm.covariance_type == 'diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                elif gmm.covariance_type in ['tied_full', 'tied_diag', 'tied_spherical']:
-                    if gmm.covariance_type == 'tied_full':
-                        cov = gmm.covariances_.detach().cpu().numpy()
-                    elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_.detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_.detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                else:
-                    raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
-                
-                vals, vecs = np.linalg.eigh(cov)
-                order = vals.argsort()[::-1]
-                vals, vecs = vals[order], vecs[:, order]
-                angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-                
-                if alpha_from_weight:
-                    w = float(gmm.weights_[n].detach().cpu().item())
-                    alpha_val = (w / max_weight) * base_alpha
-                    width, height = 2 * std_to_plot * np.sqrt(vals)
-                    kwargs = {}
-                    if dashed_outer:
-                        kwargs['linestyle'] = '-'
-                    ell = Ellipse(
-                        xy=mean,
-                        width=width,
-                        height=height,
-                        angle=angle,
-                        facecolor=color,
-                        alpha=alpha_val,
-                        edgecolor=color,
-                        label=f"w={w:.2f}",
-                        **kwargs
-                    )
-                    ax.add_patch(ell)
-                else:
-                    if not isinstance(std_devs, (list, tuple)):
-                        std_devs = [std_devs]
-                    if len(std_devs) == 1:
-                        alphas = [base_alpha]
-                    elif len(std_devs) == 2:
-                        alphas = [base_alpha, base_alpha * 0.66]
-                    elif len(std_devs) == 3:
-                        alphas = [base_alpha, base_alpha * 0.66, base_alpha * 0.33]
-                    else:
-                        alphas = [base_alpha * (1 - i / len(std_devs)) for i in range(len(std_devs))]
-                    for std_dev, alpha_val in zip(std_devs, alphas):
-                        width, height = 2 * np.sqrt(vals) * std_dev
-                        ell = Ellipse(
-                            xy=mean,
-                            width=width,
-                            height=height,
-                            angle=angle,
-                            facecolor=color,
-                            alpha=alpha_val,
-                            edgecolor=None
-                        )
-                        ax.add_patch(ell)
-                ax.scatter(mean[0], mean[1], c='k', s=10, marker='.')
-        
-        elif mode == 'weights':
-            weights_array = np.array([float(w.detach().cpu().item()) for w in gmm.weights_])
-            max_weight = weights_array.max()
-            std_to_plot = 2
-            n_components = gmm.n_components
-            fill_color = "orange"
-            line_colors = plt.cm.OrRd(np.linspace(0.4, 0.9, n_components))
-            proxy_handles = []
-            proxy_labels = []
-            for n in range(n_components):
-                mean = gmm.means_[n].detach().cpu().numpy()
-                if gmm.covariance_type in ['full', 'diag', 'spherical']:
-                    if gmm.covariance_type == 'full':
-                        cov = gmm.covariances_[n].detach().cpu().numpy()
-                    elif gmm.covariance_type == 'diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                elif gmm.covariance_type in ['tied_full', 'tied_diag', 'tied_spherical']:
-                    if gmm.covariance_type == 'tied_full':
-                        cov = gmm.covariances_.detach().cpu().numpy()
-                    elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_.detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_.detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                else:
-                    raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
-                
-                vals, vecs = np.linalg.eigh(cov)
-                order = vals.argsort()[::-1]
-                vals, vecs = vals[order], vecs[:, order]
-                angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-                width, height = 2 * std_to_plot * np.sqrt(vals)
-                w = float(gmm.weights_[n].detach().cpu().item())
-                alpha_val = (w / max_weight) * base_alpha
+        pred_labels = gmm.predict(X).cpu()
+        n_components = gmm.n_components
+    else:
+        n_components = 1
 
-                ell_filled = Ellipse(
-                    xy=mean,
-                    width=width,
-                    height=height,
-                    angle=angle,
-                    facecolor=fill_color,
-                    alpha=alpha_val,
-                    edgecolor='none'
+    # 3) Handle "outliers" mode first
+    if mode == 'outliers':
+        if (gmm is None) or (labels is None):
+            raise ValueError("mode='outliers' requires both gmm=... and labels=...")
+
+        # If match_labels=True, align predicted to ground-truth
+        if match_labels:
+            final_labels = match_true_labels(labels, pred_labels)
+        else:
+            final_labels = pred_labels
+
+        # Plot correct vs incorrect
+        correct_mask = (final_labels == labels)
+        incorrect_mask = ~correct_mask
+
+        ax.scatter(
+            X[correct_mask, 0], 
+            X[correct_mask, 1],
+            c='green', s=20, marker='.', alpha=0.3,
+            label='Correct'
+        )
+        ax.scatter(
+            X[incorrect_mask, 0],
+            X[incorrect_mask, 1],
+            c='red', s=20, marker='.',
+            alpha=0.8, label='Incorrect'
+        )
+
+        # Also plot a ~95% ellipse for each GMM component
+        # => chi-square for 2 DOF at 95% is ~5.991
+        chi2_95 = 5.991
+        means_ = ensure_tensor_on_cpu(gmm.means_, dtype=torch.float32)
+        covs_  = ensure_tensor_on_cpu(gmm.covariances_, dtype=torch.float32)
+
+        for i in range(n_components):
+            mean_i = means_[i]
+            cov_i  = covs_[i]
+
+            vals, vecs = torch.linalg.eigh(cov_i)
+            idx = torch.argsort(vals, descending=True)
+            vals, vecs = vals[idx], vecs[:, idx]
+
+            angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
+            # width, height
+            w_ = 2.0 * (chi2_95 * vals).sqrt()
+            ellipse = Ellipse(
+                (mean_i[0].item(), mean_i[1].item()),
+                w_[0].item(), w_[1].item(),
+                angle=angle.item(),
+                facecolor='none',
+                edgecolor='black',
+                linewidth=1.5,
+                linestyle='--'
+            )
+            ax.add_patch(ellipse)
+            # Mark the component mean
+            ax.scatter(
+                mean_i[0].item(),
+                mean_i[1].item(),
+                c='black', marker='x', s=50
+            )
+
+        ax.set_title(title)
+        ax.legend(markerscale=1.5)
+        return ax
+
+    # 4) If not in outliers mode, we do the usual logic
+
+    # If user didn't provide a GMM, maybe they gave direct labels or nothing
+    if gmm is None:
+        # no gmm => use user-provided labels to figure out n_components
+        if labels is not None:
+            n_components = int(labels.max().item()) + 1
+        else:
+            n_components = 1
+
+    # Determine final_labels in normal cluster modes
+    if mode in ['cluster', 'ellipses','weights','means','covariances','dots','continuous']:
+        if pred_labels is not None:  
+            if labels is not None and match_labels:
+                final_labels = match_true_labels(labels, pred_labels)
+            else:
+                # default => use pred_labels as-is
+                final_labels = pred_labels
+        else:
+            final_labels = labels  # might be None if user just wants 'dots'
+
+    # 5) Plot data for the simpler modes
+    if mode == 'dots':
+        ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
+
+    elif mode == 'continuous':
+        if color_values is None:
+            raise ValueError("In 'continuous' mode, color_values must be provided.")
+        color_values = ensure_tensor_on_cpu(color_values, dtype=torch.float32)
+        sc = ax.scatter(X[:, 0], X[:, 1], c=color_values, cmap=cmap_cont, s=10)
+        cb = plt.colorbar(sc, ax=ax)
+        cb.set_label(cbar_label)
+
+    elif mode == 'cluster':
+        if final_labels is None:
+            # fallback => black points
+            ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
+        else:
+            if legend_labels is None:
+                legend_labels = [f"Cluster {i}" for i in range(n_components)]
+            color_list = make_colormap('Dark2', n_components)
+
+            for i in range(n_components):
+                mask = (final_labels == i)
+                ax.scatter(
+                    X[mask, 0], X[mask, 1],
+                    c=[color_list[i]],
+                    s=10, alpha=0.5,
+                    label=legend_labels[i]
                 )
-                ax.add_patch(ell_filled)
-                outline_color = line_colors[n]
-                ell_outline = Ellipse(
-                    xy=mean,
-                    width=width,
-                    height=height,
-                    angle=angle,
-                    facecolor='none',
-                    edgecolor=outline_color,
-                    linewidth=2.0,
-                )
-                ax.add_patch(ell_outline)
-                ax.scatter(mean[0], mean[1], c=outline_color, s=10, marker='.')
-                proxy = Ellipse((0, 0), 1, 1, alpha=1, facecolor='none', edgecolor=outline_color, linewidth=2.0)
-                proxy_handles.append(proxy)
-                proxy_labels.append(f"w={w:.2f}")
-            # Only call legend if there are handles.
             handles, _ = ax.get_legend_handles_labels()
             if handles:
-                ax.legend(proxy_handles, proxy_labels, loc='best', markerscale=1.5)
+                ax.legend(loc='best', markerscale=1.5)
+
+    else:
+        # 'ellipses', 'weights', 'means', 'covariances' => show black points
+        ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
+
+    # 6) Pull out GMM or user-supplied params for ellipse plotting
+    if gmm is not None:
+        m_weights     = ensure_tensor_on_cpu(gmm.weights_,     dtype=torch.float32)
+        m_means       = ensure_tensor_on_cpu(gmm.means_,       dtype=torch.float32)
+        m_covariances = ensure_tensor_on_cpu(gmm.covariances_, dtype=torch.float32)
+        cov_type      = gmm.covariance_type
+        comp_count    = gmm.n_components
+    elif (weights is not None) and (means is not None) and (covariances is not None):
+        m_weights     = ensure_tensor_on_cpu(weights,     dtype=torch.float32)
+        m_means       = ensure_tensor_on_cpu(means,       dtype=torch.float32)
+        m_covariances = ensure_tensor_on_cpu(covariances, dtype=torch.float32)
+        cov_type      = covariance_type
+        comp_count    = m_means.shape[0]
+    else:
+        m_weights = m_means = m_covariances = None
+        cov_type = None
+        comp_count = 0
+
+    def get_full_cov(i):
+        """Return the full 2D covariance for the i-th component."""
+        if cov_type == 'full':
+            return m_covariances[i]
+        elif cov_type == 'diag':
+            return torch.diag(m_covariances[i])
+        elif cov_type == 'spherical':
+            var_val = m_covariances[i]
+            d = m_means.shape[1]
+            return torch.eye(d) * var_val
+        elif cov_type == 'tied_full':
+            return m_covariances
+        elif cov_type == 'tied_diag':
+            return torch.diag(m_covariances)
+        elif cov_type == 'tied_spherical':
+            var_val = m_covariances
+            d = m_means.shape[1]
+            return torch.eye(d) * var_val
+        else:
+            raise ValueError(f"Unsupported covariance_type: {cov_type}")
+
+    # 7) If we have means/covs and user wants ellipse modes
+    if (m_means is not None) and (mode in ['ellipses','cluster','weights','means','covariances']):
         
+        # --------------------------------------------------------------------
+        # 'weights' => single ellipse each, alpha scaled by weight
+        # --------------------------------------------------------------------
+        if mode == 'weights':
+            wmax = m_weights.max()
+            line_colors = make_colormap('OrRd', comp_count)
+
+            for i in range(comp_count):
+                mean_i = m_means[i]
+                cov_i  = get_full_cov(i)
+                vals, vecs = torch.linalg.eigh(cov_i)
+                idx = torch.argsort(vals, descending=True)
+                vals, vecs = vals[idx], vecs[:, idx]
+
+                angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
+                width, height = 2.0 * 2.0 * vals.sqrt()
+                alpha_val = (m_weights[i] / wmax) * base_alpha
+
+                # Filled ellipse
+                efill = Ellipse(
+                    (mean_i[0].item(), mean_i[1].item()),
+                    width=width.item(), height=height.item(),
+                    angle=angle.item(),
+                    facecolor='orange',
+                    alpha=alpha_val.item(),
+                    edgecolor='none'
+                )
+                ax.add_patch(efill)
+
+                # Outline
+                edge_col = line_colors[i]
+                eoutline = Ellipse(
+                    (mean_i[0].item(), mean_i[1].item()),
+                    width=width.item(), height=height.item(),
+                    angle=angle.item(),
+                    facecolor='none',
+                    edgecolor=edge_col,
+                    linewidth=2.0
+                )
+                ax.add_patch(eoutline)
+
+                ax.scatter(mean_i[0].item(), mean_i[1].item(), c=[edge_col], s=20, marker='x')
+
+        # --------------------------------------------------------------------
+        # 'means' => highlight each mean with a ~2 stdev ellipse
+        # --------------------------------------------------------------------
         elif mode == 'means':
-            std_to_plot = 2
-            for n in range(gmm.n_components):
-                mean = gmm.means_[n].detach().cpu().numpy()
-                if gmm.covariance_type in ['full', 'diag', 'spherical']:
-                    if gmm.covariance_type == 'full':
-                        cov = gmm.covariances_[n].detach().cpu().numpy()
-                    elif gmm.covariance_type == 'diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                elif gmm.covariance_type in ['tied_full', 'tied_diag', 'tied_spherical']:
-                    if gmm.covariance_type == 'tied_full':
-                        cov = gmm.covariances_.detach().cpu().numpy()
-                    elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_.detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_.detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                else:
-                    raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
-                
-                vals, vecs = np.linalg.eigh(cov)
-                order = vals.argsort()[::-1]
-                vals, vecs = vals[order], vecs[:, order]
-                angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-                width, height = 2 * std_to_plot * np.sqrt(vals)
-                ell = Ellipse(
-                    xy=mean,
-                    width=width,
-                    height=height,
-                    angle=angle,
+            for i in range(comp_count):
+                mean_i = m_means[i]
+                cov_i  = get_full_cov(i)
+                vals, vecs = torch.linalg.eigh(cov_i)
+                idx = torch.argsort(vals, descending=True)
+                vals, vecs = vals[idx], vecs[:, idx]
+
+                angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
+                w_ = 2.0 * 2.0 * vals.sqrt()
+                width, height = w_[0], w_[1] if w_.size(0) > 1 else w_[0]
+
+                e = Ellipse(
+                    (mean_i[0].item(), mean_i[1].item()),
+                    width=width.item(), height=height.item(),
+                    angle=angle.item(),
                     facecolor='blue',
                     alpha=base_alpha,
                     edgecolor='blue'
                 )
-                ax.add_patch(ell)
-                if n == 0:
-                    ax.scatter(mean[0], mean[1], c='yellow', s=50, marker='.', label='Final Mean')
-                else:
-                    ax.scatter(mean[0], mean[1], c='yellow', s=50, marker='.')
-        
+                ax.add_patch(e)
+
+                ax.scatter(
+                    mean_i[0].item(), mean_i[1].item(),
+                    c='yellow', s=50,
+                    marker='o' if i == 0 else '.',
+                    label='Mean' if i == 0 else None
+                )
+
+        # --------------------------------------------------------------------
+        # 'covariances' => multiple ellipses per component based on std_devs
+        # --------------------------------------------------------------------
         elif mode == 'covariances':
-            # Use a single base color from the sequential colormap for all components.
-            base_color = plt.get_cmap(cmap_seq)(0.7)
-            if not isinstance(std_devs, (list, tuple)):
+            if isinstance(std_devs, (int, float)):
                 std_devs = [std_devs]
+            base_col = plt.get_cmap(cmap_seq)(0.7)
+            # build alpha ladder
             if len(std_devs) == 1:
-                alphas = [base_alpha]
+                alpha_list = [base_alpha]
             elif len(std_devs) == 2:
-                alphas = [base_alpha, base_alpha * 2/3]
+                alpha_list = [base_alpha, base_alpha * 0.66]
             elif len(std_devs) == 3:
-                alphas = [base_alpha, base_alpha * 2/3, base_alpha * 1/3]
+                alpha_list = [base_alpha, base_alpha * 0.66, base_alpha * 0.33]
             else:
-                alphas = [base_alpha * (1 - i / len(std_devs)) for i in range(len(std_devs))]
-                
-            for n in range(gmm.n_components):
-                mean = gmm.means_[n].detach().cpu().numpy()
-                if gmm.covariance_type in ['full', 'diag', 'spherical']:
-                    if gmm.covariance_type == 'full':
-                        cov = gmm.covariances_[n].detach().cpu().numpy()
-                    elif gmm.covariance_type == 'diag':
-                        diag_vals = gmm.covariances_[n].detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'spherical':
-                        var = gmm.covariances_[n].detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                elif gmm.covariance_type in ['tied_full', 'tied_diag', 'tied_spherical']:
-                    if gmm.covariance_type == 'tied_full':
-                        cov = gmm.covariances_.detach().cpu().numpy()
-                    elif gmm.covariance_type == 'tied_diag':
-                        diag_vals = gmm.covariances_.detach().cpu().numpy()
-                        cov = np.diag(diag_vals)
-                    elif gmm.covariance_type == 'tied_spherical':
-                        var = gmm.covariances_.detach().cpu().item()
-                        cov = np.eye(gmm.n_features) * var
-                else:
-                    raise ValueError(f"Unsupported covariance_type: {gmm.covariance_type}")
-                
-                vals, vecs = np.linalg.eigh(cov)
-                order = vals.argsort()[::-1]
-                vals, vecs = vals[order], vecs[:, order]
-                angle = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-                
-                # Draw ellipses from outer (largest std) first to inner.
-                for std_dev, alpha_val in zip(std_devs, alphas):
-                    width, height = 2 * std_dev * np.sqrt(vals)
-                    ell = Ellipse(
-                        xy=mean,
-                        width=width,
-                        height=height,
-                        angle=angle,
-                        facecolor=base_color,
-                        alpha=alpha_val,
-                        edgecolor=base_color
+                alpha_list = [base_alpha*(1 - j/len(std_devs)) for j in range(len(std_devs))]
+
+            for i in range(comp_count):
+                mean_i = m_means[i]
+                cov_i  = get_full_cov(i)
+                vals, vecs = torch.linalg.eigh(cov_i)
+                idx = torch.argsort(vals, descending=True)
+                vals, vecs = vals[idx], vecs[:, idx]
+
+                angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
+                for s, a_val in zip(std_devs, alpha_list):
+                    w_ = 2.0 * s * vals.sqrt()
+                    e = Ellipse(
+                        (mean_i[0].item(), mean_i[1].item()),
+                        w_[0].item(), w_[1].item(),
+                        angle=angle.item(),
+                        facecolor=base_col,
+                        alpha=a_val,
+                        edgecolor=base_col
                     )
-                    ax.add_patch(ell)
-                ax.scatter(mean[0], mean[1], c='k', s=10, marker='.')
-    
-    # --- Plot initial means if provided ---
-    if init_means is not None:
-        init_means_cpu = init_means.detach().cpu().numpy() if hasattr(init_means, 'detach') else np.array(init_means)
-        marker = 'x' if mode == 'means' else '+'
-        for i in range(init_means_cpu.shape[0]):
-            if i == 0:
-                ax.scatter(init_means_cpu[i, 0], init_means_cpu[i, 1],
-                           c='r', marker=marker, s=50, label='Initial Means')
+                    ax.add_patch(e)
+                ax.scatter(mean_i[0].item(), mean_i[1].item(), c='k', s=10, marker='.')
+
+        # --------------------------------------------------------------------
+        # 'ellipses' => single or multiple ellipses in cluster style
+        # --------------------------------------------------------------------
+        elif mode in ['ellipses','cluster']:
+            color_list = make_colormap('Dark2', comp_count)
+            if alpha_from_weight and (m_weights is not None):
+                wmax = m_weights.max()
+                for i in range(comp_count):
+                    mean_i = m_means[i]
+                    cov_i  = get_full_cov(i)
+                    vals, vecs = torch.linalg.eigh(cov_i)
+                    idx = torch.argsort(vals, descending=True)
+                    vals, vecs = vals[idx], vecs[:, idx]
+
+                    angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
+                    w_ = 2.0 * 2.0 * vals.sqrt()
+                    alpha_val = (m_weights[i] / wmax) * base_alpha
+
+                    e = Ellipse(
+                        (mean_i[0].item(), mean_i[1].item()),
+                        w_[0].item(), w_[1].item(),
+                        angle=angle.item(),
+                        facecolor=color_list[i],
+                        alpha=alpha_val.item(),
+                        edgecolor=color_list[i]
+                    )
+                    if dashed_outer:
+                        e.set_linestyle('--')
+                    ax.add_patch(e)
+                    ax.scatter(mean_i[0].item(), mean_i[1].item(), c='k', s=20, marker='.')
             else:
-                ax.scatter(init_means_cpu[i, 0], init_means_cpu[i, 1],
-                           c='r', marker=marker, s=50)
-    
-    if mode in ['cluster']:
-        handles, labels = ax.get_legend_handles_labels()
-        if handles:
-            ax.legend(loc='best', markerscale=1.5)
-    elif mode not in ['cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', 'covariances']:
-        raise ValueError("Mode must be one of 'cluster', 'continuous', 'ellipses', 'dots', 'weights', 'means', or 'covariances'.")
-    
+                # multiple ellipses per comp for given std_devs
+                if isinstance(std_devs, (int, float)):
+                    std_devs = [std_devs]
+
+                for i in range(comp_count):
+                    mean_i = m_means[i]
+                    cov_i  = get_full_cov(i)
+                    vals, vecs = torch.linalg.eigh(cov_i)
+                    idx = torch.argsort(vals, descending=True)
+                    vals, vecs = vals[idx], vecs[:, idx]
+
+                    angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
+
+                    # generate alpha ladder
+                    if len(std_devs) == 1:
+                        alpha_list = [base_alpha]
+                    elif len(std_devs) == 2:
+                        alpha_list = [base_alpha, base_alpha * 0.66]
+                    elif len(std_devs) == 3:
+                        alpha_list = [base_alpha, base_alpha * 0.66, base_alpha * 0.33]
+                    else:
+                        alpha_list = [base_alpha*(1 - j/len(std_devs)) for j in range(len(std_devs))]
+
+                    for s, a_val in zip(std_devs, alpha_list):
+                        w_ = 2.0 * s * vals.sqrt()
+                        e = Ellipse(
+                            (mean_i[0].item(), mean_i[1].item()),
+                            w_[0].item(), w_[1].item(),
+                            angle=angle.item(),
+                            facecolor=color_list[i],
+                            alpha=a_val,
+                            edgecolor=None
+                        )
+                        ax.add_patch(e)
+                    ax.scatter(mean_i[0].item(), mean_i[1].item(), c='k', s=20, marker='.')
+
+    # 8) Optionally plot initial means
+    if init_means is not None:
+        init_means = ensure_tensor_on_cpu(init_means, dtype=torch.float32)
+        mark = 'x' if mode == 'means' else '+'
+        for i in range(init_means.shape[0]):
+            lbl = 'Initial Means' if i == 0 else None
+            ax.scatter(
+                init_means[i,0].item(),
+                init_means[i,1].item(),
+                c='r', marker=mark, s=50, label=lbl
+            )
+
+    ax.set_title(title)
     return ax
