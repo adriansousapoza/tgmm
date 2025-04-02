@@ -115,7 +115,7 @@
 <span class="sd">    - **kmeans:**  </span>
 <span class="sd">      Runs the k-means algorithm starting from k-means++ initialization. At each iteration:</span>
 <span class="sd">      $$</span>
-<span class="sd">      c_j = \arg\min_i \|x_j - \mu_i\|^2, \quad \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,</span>
+<span class="sd">      c_j = \arg\min_i \|x_j - \mu_i\|^2, \quad \mu_i = \frac{1}{\|C_i\|} \sum_{x_j \in C_i} x_j,</span>
 <span class="sd">      $$</span>
 <span class="sd">      until convergence.</span>
 
@@ -251,10 +251,10 @@
 <span class="sd">        Starting from a k-means++ initialization, k-means iteratively refines the centers by:</span>
 <span class="sd">        </span>
 <span class="sd">        1. **Assignment:**  </span>
-<span class="sd">           $\displaystyle c_j = \arg\min_{i} \|x_j - \mu_i\|^2,$ for each data point $x_j$.</span>
+<span class="sd">           $c_j = \arg\min_{i} \|x_j - \mu_i\|^2,$ for each data point $x_j$.</span>
 <span class="sd">        </span>
 <span class="sd">        2. **Update:**  </span>
-<span class="sd">           $\displaystyle \mu_i = \frac{1}{|C_i|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.</span>
+<span class="sd">           $\mu_i = \frac{1}{\|C_i\|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.</span>
 <span class="sd">        </span>
 <span class="sd">        The algorithm stops when the centers move by less than the specified tolerance.</span>
 
