@@ -1,38 +1,33 @@
 name: Publish Python Package to PyPI
 
 on:
-  release:
-    types: [created]
-
-permissions:
-  id-token: write
-  contents: read
+  push:
+    tags:
+      - 'v*.*.*'
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      # Check out the repository
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
 
-      # Set up Python environment
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: '3.x'
 
-      # Upgrade pip and install build tools
-      - name: Install build tools
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip build
+          python -m pip install --upgrade pip
+          pip install setuptools wheel twine
 
-      # Build your package (this will create files in the dist/ folder)
       - name: Build package
-        run: python -m build
+        run: |
+          python setup.py sdist bdist_wheel
 
-      # Publish the package to PyPI using OIDC
-      - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.6.0
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish package
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          python -m twine upload --verbose dist/*
