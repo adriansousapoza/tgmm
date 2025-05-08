@@ -644,8 +644,6 @@ class GaussianMixture(nn.Module):
         if X.shape[1] != self.n_features:
             raise ValueError(f"X has {X.shape[1]} features, but n_features={self.n_features}.")
         
-        self._allocate_parameters()
-
         for init_idx in range(self.n_init):
             if warm_start and self.n_init > 1:
                 raise UserWarning("Leaving warm_start=True with n_init>1 will not re-initialize parameters for each run.")
@@ -1268,7 +1266,6 @@ class GaussianMixture(nn.Module):
             return eye * self.covariances_[indices].view(-1, 1, 1)
 
         elif self.covariance_type == 'tied_full':
-            # single shared => repeat
             return self.covariances_.unsqueeze(0).expand(n_samples, -1, -1)
 
         elif self.covariance_type == 'tied_diag':

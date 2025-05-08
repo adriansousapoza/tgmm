@@ -429,11 +429,12 @@ def plot_gmm(
                 )
                 ax.add_patch(e)
 
+                # Ensure consistent size for all yellow dots
                 ax.scatter(
                     mean_i[0].item(), mean_i[1].item(),
-                    c='yellow', s=50,
-                    marker='o' if i == 0 else '.',
-                    label='Mean' if i == 0 else None
+                    c='yellow', s=50,  # Set consistent size
+                    marker='o',
+                    label='Final Mean' if i == 0 else None
                 )
 
         # --------------------------------------------------------------------
