@@ -50,9 +50,13 @@
 <li class="toctree-l2 current"><a class="current reference internal" href="#">GaussianMixture</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#tgmm.gmm.GaussianMixture"><code class="docutils literal notranslate"><span class="pre">GaussianMixture</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.fit"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.load"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.load_state_dict"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.load_state_dict()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.predict"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.predict()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.predict_proba"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.predict_proba()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.sample"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.sample()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.save"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.save_state_dict"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.save_state_dict()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.score"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.score()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#tgmm.gmm.GaussianMixture.score_samples"><code class="docutils literal notranslate"><span class="pre">GaussianMixture.score_samples()</span></code></a></li>
 </ul>
@@ -152,6 +156,12 @@ Supported: ‘eye’, ‘random’, ‘empirical’. (default: ‘eye’)</p></l
 <li><p><strong>weights</strong> (<em>torch.Tensor</em>) – Mixture component weights of shape (n_components,).</p></li>
 <li><p><strong>means</strong> (<em>torch.Tensor</em>) – Mixture component means of shape (n_components, n_features).</p></li>
 <li><p><strong>covariances</strong> (<em>torch.Tensor</em>) – Mixture component covariances. Shape depends on <cite>covariance_type</cite>.</p></li>
+<li><p><strong>initial_weights</strong> (<em>torch.Tensor</em>) – Initial mixture component weights before EM optimization of shape (n_components,).
+These are the weights after initialization but before any EM iterations.</p></li>
+<li><p><strong>initial_means</strong> (<em>torch.Tensor</em>) – Initial mixture component means before EM optimization of shape (n_components, n_features).
+These are the means after initialization but before any EM iterations.</p></li>
+<li><p><strong>initial_covariances</strong> (<em>torch.Tensor</em>) – Initial mixture component covariances before EM optimization. Shape depends on <cite>covariance_type</cite>.
+These are the covariances after initialization but before any EM iterations.</p></li>
 <li><p><strong>fitted</strong> (<em>bool</em>) – Whether the model has been fitted. This attribute is important when using <cite>warm_start</cite>.</p></li>
 <li><p><strong>converged</strong> (<em>bool</em>) – Whether the EM algorithm has converged in the best run.</p></li>
 <li><p><strong>n_iter</strong> (<em>int</em>) – Number of EM iterations performed in the best run.</p></li>
@@ -177,6 +187,35 @@ settings. If None, uses <cite>self.warm_start</cite>. (default: None)</p></li>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>self</strong> (<em>GaussianMixture</em>) – The fitted model instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.gmm.GaussianMixture.load">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#tgmm.gmm.GaussianMixture" title="tgmm.gmm.GaussianMixture"><span class="pre">GaussianMixture</span></a></span></span><a class="reference internal" href="../_modules/tgmm/gmm.html#GaussianMixture.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.gmm.GaussianMixture.load" title="Link to this definition"></a></dt>
+<dd><p>Load a GMM model from a saved file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filepath</strong> (<em>str</em>) – Path to the saved model file.</p></li>
+<li><p><strong>device</strong> (<em>str</em><em>, </em><em>optional</em>) – Device to load the model on (‘cpu’ or ‘cuda’). If None, uses the
+device from the saved model or defaults to GPU if available.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>model</strong> (<em>GaussianMixture</em>) – The loaded GMM model.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.gmm.GaussianMixture.load_state_dict">
+<span class="sig-name descname"><span class="pre">load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/gmm.html#GaussianMixture.load_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.gmm.GaussianMixture.load_state_dict" title="Link to this definition"></a></dt>
+<dd><p>Load state from a state dictionary (similar to PyTorch’s load_state_dict()).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>state_dict</strong> (<em>dict</em>) – Dictionary containing model parameters and metadata.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -228,6 +267,30 @@ from all components according to their weights. (default: None)</p></li>
 <li><p><strong>indices</strong> (<em>torch.Tensor</em>) – The indices of the component each sample came from, shape (n_samples,).</p></li>
 </ul>
 </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.gmm.GaussianMixture.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/gmm.html#GaussianMixture.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.gmm.GaussianMixture.save" title="Link to this definition"></a></dt>
+<dd><p>Save the GMM model parameters and metadata to a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>filepath</strong> (<em>str</em>) – Path where to save the model. Should typically end with ‘.pth’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="tgmm.gmm.GaussianMixture.save_state_dict">
+<span class="sig-name descname"><span class="pre">save_state_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="../_modules/tgmm/gmm.html#GaussianMixture.save_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.gmm.GaussianMixture.save_state_dict" title="Link to this definition"></a></dt>
+<dd><p>Return the state dictionary of the model (similar to PyTorch’s state_dict()).</p>
+<p>This is useful for integration with other PyTorch workflows and for
+custom saving/loading logic.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>state_dict</strong> (<em>dict</em>) – Dictionary containing model parameters and metadata.</p>
 </dd>
 </dl>
 </dd></dl>

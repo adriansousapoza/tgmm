@@ -1,0 +1,1031 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TorchGMM Plotting Function Comprehensive Demo &mdash; TorchGMM 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=5c7ff671" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "displayMath": [["$$", "$$"], ["\\[", "\\]"]]}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TorchGMM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../source/modules.html">Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../source/tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TorchGMM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">TorchGMM Plotting Function Comprehensive Demo</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="TorchGMM-Plotting-Function-Comprehensive-Demo">
+<h1>TorchGMM Plotting Function Comprehensive Demo<a class="headerlink" href="#TorchGMM-Plotting-Function-Comprehensive-Demo" title="Link to this heading"></a></h1>
+<p>This notebook demonstrates all the features and parameters of the <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function in the TorchGMM library. We’ll go through each parameter systematically to show how they affect the visualization.</p>
+<section id="Overview-of-Parameters:">
+<h2>Overview of Parameters:<a class="headerlink" href="#Overview-of-Parameters:" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function provides extensive control over GMM visualization through several parameter categories:</p>
+<section id="📊-Core-Data-Parameters">
+<h3>📊 <strong>Core Data Parameters</strong><a class="headerlink" href="#📊-Core-Data-Parameters" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``X``</strong>: Input data points to plot (array-like, shape (n_samples, 2))</p></li>
+<li><p><strong>``gmm``</strong>: Fitted GMM object with predict(), means_, covariances_, etc. (optional)</p></li>
+</ul>
+</section>
+<section id="🎨-Data-Point-Styling">
+<h3>🎨 <strong>Data Point Styling</strong><a class="headerlink" href="#🎨-Data-Point-Styling" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``show_points``</strong> <em>(bool, default=True)</em>: Whether to display the data points</p></li>
+<li><p><strong>``point_size``</strong> <em>(float, default=5)</em>: Size of individual data points</p></li>
+<li><p><strong>``point_alpha``</strong> <em>(float, default=0.5)</em>: Transparency of points (0=invisible, 1=opaque)</p></li>
+<li><p><strong>``point_color``</strong> <em>(str/array, default=’auto’)</em>: Point coloring strategy:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">'auto'</span></code>: Smart coloring based on available cluster info</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'black'</span></code>: All points in black</p></li>
+<li><p>Colormap name: Use matplotlib colormap (e.g., ‘viridis’, ‘plasma’)</p></li>
+<li><p>Single color: Use one color for all points (e.g., ‘red’, ‘#FF0000’)</p></li>
+<li><p>Array-like: Custom colors/values for each point</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="🎯-Cluster-Visualization">
+<h3>🎯 <strong>Cluster Visualization</strong><a class="headerlink" href="#🎯-Cluster-Visualization" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``color_by_cluster``</strong> <em>(bool, default=False)</em>: Enable cluster-based point coloring</p></li>
+<li><p><strong>``true_labels``</strong> <em>(array-like, optional)</em>: Ground truth cluster labels for comparison</p></li>
+<li><p><strong>``match_labels_to_true``</strong> <em>(bool, default=False)</em>: Remap predicted labels to match true labels using Hungarian algorithm</p></li>
+<li><p><strong>``cluster_colors``</strong> <em>(str/list, default=’turbo’)</em>: Cluster color specification:</p>
+<ul>
+<li><p>Matplotlib colormap name (e.g., ‘turbo’, ‘viridis’)</p></li>
+<li><p>Single color for all clusters</p></li>
+<li><p>List of specific colors (e.g., [‘red’, ‘blue’, ‘green’])</p></li>
+</ul>
+</li>
+<li><p><strong>``show_incorrect_predictions``</strong> <em>(bool, default=False)</em>: Highlight correct (green) vs incorrect (red) predictions</p></li>
+</ul>
+</section>
+<section id="🌈-Continuous-Coloring">
+<h3>🌈 <strong>Continuous Coloring</strong><a class="headerlink" href="#🌈-Continuous-Coloring" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``log_probs``</strong> <em>(array-like, optional)</em>: Continuous values for color mapping (e.g., log-probabilities)</p></li>
+<li><p><strong>``colormap``</strong> <em>(str, default=’viridis’)</em>: Matplotlib colormap for continuous values</p></li>
+<li><p><strong>``colorbar_label``</strong> <em>(str, default=’Log Probability’)</em>: Label for the colorbar</p></li>
+</ul>
+</section>
+<section id="⭕-Component-Ellipses">
+<h3>⭕ <strong>Component Ellipses</strong><a class="headerlink" href="#⭕-Component-Ellipses" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``show_ellipses``</strong> <em>(bool, default=True)</em>: Display confidence ellipses for GMM components</p></li>
+<li><p><strong>``ellipse_std_devs``</strong> <em>(list, default=[1, 2, 3])</em>: Standard deviation levels for ellipse boundaries</p></li>
+<li><p><strong>``ellipse_alpha``</strong> <em>(float, default=0.5)</em>: Fill transparency of ellipses</p></li>
+<li><p><strong>``ellipse_colors``</strong> <em>(str/list, default=’auto’)</em>: Ellipse color specification (same options as cluster_colors)</p></li>
+<li><p><strong>``ellipse_fill``</strong> <em>(bool, default=True)</em>: Whether ellipses should be filled or outline-only</p></li>
+<li><p><strong>``ellipse_line_style``</strong> <em>(str, default=’dotted’)</em>: Line style (‘solid’, ‘dashed’, ‘dotted’)</p></li>
+<li><p><strong>``ellipse_line_width``</strong> <em>(float, default=2)</em>: Thickness of ellipse boundaries</p></li>
+<li><p><strong>``ellipse_line_color``</strong> <em>(str, default=’black’)</em>: Color of ellipse boundary lines</p></li>
+<li><p><strong>``ellipse_line_alpha``</strong> <em>(float, default=0.5)</em>: Transparency of ellipse boundaries</p></li>
+</ul>
+</section>
+<section id="📍-Component-Centers/Means">
+<h3>📍 <strong>Component Centers/Means</strong><a class="headerlink" href="#📍-Component-Centers/Means" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``show_means``</strong> <em>(bool, default=True)</em>: Display component center points</p></li>
+<li><p><strong>``mean_marker``</strong> <em>(str, default=’h’)</em>: Marker style for means (‘x’, ‘o’, ‘*’, ‘h’, etc.)</p></li>
+<li><p><strong>``mean_size``</strong> <em>(float, default=25)</em>: Size of mean markers</p></li>
+<li><p><strong>``mean_color``</strong> <em>(str, default=’black’)</em>: Color of mean markers</p></li>
+</ul>
+</section>
+<section id="🎯-Initial-Means-(if-available)">
+<h3>🎯 <strong>Initial Means</strong> (if available)<a class="headerlink" href="#🎯-Initial-Means-(if-available)" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``show_initial_means``</strong> <em>(bool, default=False)</em>: Show starting positions from initialization</p></li>
+<li><p><strong>``initial_mean_marker``</strong> <em>(str, default=’H’)</em>: Marker style for initial means</p></li>
+<li><p><strong>``initial_mean_size``</strong> <em>(float, default=25)</em>: Size of initial mean markers</p></li>
+<li><p><strong>``initial_mean_color``</strong> <em>(str, default=’red’)</em>: Color of initial mean markers</p></li>
+</ul>
+</section>
+<section id="⚖️-Weight-Based-Scaling">
+<h3>⚖️ <strong>Weight-Based Scaling</strong><a class="headerlink" href="#⚖️-Weight-Based-Scaling" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``scale_alpha_by_weight``</strong> <em>(bool, default=False)</em>: Scale ellipse transparency by component weight</p></li>
+<li><p><strong>``scale_size_by_weight``</strong> <em>(bool, default=False)</em>: Scale marker size by component weight</p></li>
+</ul>
+</section>
+<section id="🎨-Plot-Styling-&amp;-Layout">
+<h3>🎨 <strong>Plot Styling &amp; Layout</strong><a class="headerlink" href="#🎨-Plot-Styling-&-Layout" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>``ax``</strong> <em>(matplotlib.Axes, optional)</em>: Axes object to plot on (creates new if None)</p></li>
+<li><p><strong>``title``</strong> <em>(str, default=’GMM Visualization’)</em>: Plot title</p></li>
+<li><p><strong>``xlabel``</strong> <em>(str, default=’Feature 1’)</em>: X-axis label</p></li>
+<li><p><strong>``ylabel``</strong> <em>(str, default=’Feature 2’)</em>: Y-axis label</p></li>
+<li><p><strong>``legend``</strong> <em>(bool, default=True)</em>: Whether to show legend</p></li>
+<li><p><strong>``legend_labels``</strong> <em>(list, optional)</em>: Custom labels for legend entries</p></li>
+</ul>
+</section>
+</section>
+<section id="🔧-Common-Usage-Patterns:">
+<h2>🔧 <strong>Common Usage Patterns:</strong><a class="headerlink" href="#🔧-Common-Usage-Patterns:" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Basic Visualization</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm)</span></code> - Shows fitted GMM with default styling</p></li>
+<li><p><strong>True vs Predicted</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm,</span> <span class="pre">true_labels=labels,</span> <span class="pre">show_incorrect_predictions=True)</span></code></p></li>
+<li><p><strong>Custom Styling</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm,</span> <span class="pre">cluster_colors='Set2',</span> <span class="pre">ellipse_alpha=0.3)</span></code></p></li>
+<li><p><strong>Continuous Coloring</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm,</span> <span class="pre">log_probs=log_probs,</span> <span class="pre">colormap='plasma')</span></code></p></li>
+<li><p><strong>Publication Ready</strong>: `plot_gmm(X, gmm, point_size=8, mean_size=50, ellipse_line_width</p></li>
+</ol>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">tgmm</span>
+
+<span class="c1"># reload the module to reflect recent changes</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">tgmm</span><span class="p">)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">GMMInitializer</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span>
+
+<span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
+<span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">device</span> <span class="o">==</span> <span class="s1">&#39;cuda&#39;</span><span class="p">:</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;CUDA version:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">cuda</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Device:&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Using CPU&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+CUDA version: 12.4
+Device: NVIDIA GeForce RTX 4060 Laptop GPU
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">])]</span>
+<span class="n">covs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="mf">1.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>                    <span class="c1"># spherical covariance</span>
+    <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>                    <span class="c1"># spherical covariance, fewer points</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]]),</span>       <span class="c1"># diagonal covariance</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>    <span class="c1"># full covariance</span>
+<span class="p">]</span>
+
+<span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">cov</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">centers</span><span class="p">,</span> <span class="n">covs</span><span class="p">):</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">cov</span><span class="p">)</span> <span class="o">+</span> <span class="n">center</span>
+    <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">components</span><span class="p">)</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">i</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)])</span>
+<span class="n">legend_labels</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Component </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">n_samples</span><span class="p">))]</span>
+
+<span class="n">n_features</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">n_components</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+
+<span class="c1"># Convert to tensor (if needed for further processing)</span>
+<span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+<span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+<span class="n">n_components</span> <span class="o">=</span> <span class="mi">4</span>
+
+<span class="c1"># Initialize the GMM</span>
+<span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+    <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span>
+    <span class="n">tol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
+    <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">,</span>
+    <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+    <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
+    <span class="n">cov_init_method</span><span class="o">=</span><span class="s1">&#39;eye&#39;</span><span class="p">,</span>
+    <span class="n">weights_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">means_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">covariances_init</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_init</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">warm_start</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">verbose_interval</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+    <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cpu&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="c1"># Fit the GMM</span>
+<span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+
+<span class="c1"># Get predictions</span>
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+
+<span class="c1"># Compute per-sample log-likelihoods</span>
+<span class="n">log_probs</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+
+<span class="c1"># Get probabilities for each sample for each component</span>
+<span class="n">probs</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+<span class="n">probs</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+
+<span class="c1"># Generate new samples</span>
+<span class="n">n_samples_to_generate</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<span class="n">gmm_samples</span><span class="p">,</span> <span class="n">gmm_labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n_samples_to_generate</span><span class="p">)</span>
+<span class="n">gmm_samples</span> <span class="o">=</span> <span class="n">gmm_samples</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+<span class="n">gmm_labels</span> <span class="o">=</span> <span class="n">gmm_labels</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+<span class="c1"># Compute probabilities for each generated sample</span>
+<span class="n">generated_probs</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">gmm_samples</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">))</span>
+<span class="n">generated_probs</span> <span class="o">=</span> <span class="n">generated_probs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+
+    <span class="c1"># Data point styling</span>
+    <span class="n">show_points</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">point_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">point_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">point_color</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>  <span class="c1"># &#39;auto&#39;, &#39;black&#39;, array-like, or colormap name</span>
+
+    <span class="c1"># Cluster visualization</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">true_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">cluster_colors</span><span class="o">=</span><span class="s1">&#39;turbo&#39;</span><span class="p">,</span>  <span class="c1"># Can be colormap name, single color, or list of colors</span>
+    <span class="n">show_incorrect_predictions</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># replaces &#39;outliers&#39; mode</span>
+
+    <span class="c1"># Continuous coloring (replaces &#39;continuous&#39; mode)</span>
+    <span class="n">log_probs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
+    <span class="n">colorbar_label</span><span class="o">=</span><span class="s1">&#39;Log Probability&#39;</span><span class="p">,</span>
+
+    <span class="c1"># Component ellipses</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># List of standard deviations to show</span>
+    <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>  <span class="c1"># &#39;auto&#39; uses same as clusters</span>
+    <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;dotted&#39;</span><span class="p">,</span>
+    <span class="n">ellipse_line_width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">ellipse_line_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+    <span class="n">ellipse_line_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+
+    <span class="c1"># Component centers/means</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mean_marker</span><span class="o">=</span><span class="s1">&#39;h&#39;</span><span class="p">,</span>
+    <span class="n">mean_size</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+    <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+
+    <span class="c1"># Initial means (if provided)</span>
+    <span class="n">show_initial_means</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">initial_mean_marker</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span>
+    <span class="n">initial_mean_size</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+    <span class="n">initial_mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+
+    <span class="c1"># Weight visualization</span>
+    <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">scale_size_by_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+
+    <span class="c1"># Plot styling</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GMM Visualization&#39;</span><span class="p">,</span>
+    <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">,</span>
+    <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">,</span>
+    <span class="n">legend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">legend_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_3_0.png" src="../_images/notebooks_visualise_3_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Different Point Styling Options without True Labels&#39;</span><span class="p">)</span>
+
+<span class="c1"># Different point colors</span>
+<span class="n">point_color_options</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="s1">&#39;Auto (black by default)&#39;</span><span class="p">,</span> <span class="p">{}),</span>
+    <span class="p">(</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;Single color (red)&#39;</span><span class="p">,</span> <span class="p">{}),</span>
+<span class="p">]</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">color_option</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">extra_params</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">point_color_options</span><span class="p">):</span>
+    <span class="n">plot_gmm</span><span class="p">(</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">gmm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">point_color</span><span class="o">=</span><span class="n">color_option</span><span class="p">,</span>
+        <span class="n">point_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+        <span class="n">point_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">show_means</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">extra_params</span>
+    <span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_4_0.png" src="../_images/notebooks_visualise_4_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Cluster Visualization with True Labels&#39;</span><span class="p">)</span>
+
+<span class="n">cluster_options</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="s1">&#39;Cluster coloring (black)&#39;</span><span class="p">),</span>
+    <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;turbo&#39;</span><span class="p">,</span> <span class="s1">&#39;Cluster coloring (turbo)&#39;</span><span class="p">),</span>
+    <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="s1">&#39;Cluster coloring (viridis)&#39;</span><span class="p">),</span>
+    <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;orange&#39;</span><span class="p">],</span> <span class="s1">&#39;Custom cluster colors&#39;</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">color_by_cluster</span><span class="p">,</span> <span class="n">cluster_colors</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cluster_options</span><span class="p">):</span>
+    <span class="n">plot_gmm</span><span class="p">(</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">gmm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">color_by_cluster</span><span class="o">=</span><span class="n">color_by_cluster</span><span class="p">,</span>
+        <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+        <span class="n">cluster_colors</span><span class="o">=</span><span class="n">cluster_colors</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">show_means</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_5_0.png" src="../_images/notebooks_visualise_5_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;GMM Visualization with Different Ellipse Options&#39;</span><span class="p">)</span>
+
+<span class="c1"># Basic GMM with ellipses</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GMM with Ellipses (Default)&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Different ellipse standard deviations</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;2σ Ellipses Only&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;1σ, 2σ and 3σ Ellipses&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Multiple Ellipse Levels&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_6_0.png" src="../_images/notebooks_visualise_6_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+<span class="c1"># Different ellipse styling options</span>
+<span class="n">ellipse_styles</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;ellipse_fill&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;ellipse_alpha&#39;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Filled Ellipses&#39;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;ellipse_fill&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;ellipse_line_width&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Outline Only&#39;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;ellipse_line_style&#39;</span><span class="p">:</span> <span class="s1">&#39;dashed&#39;</span><span class="p">,</span> <span class="s1">&#39;ellipse_line_width&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Dashed Lines&#39;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;ellipse_line_color&#39;</span><span class="p">:</span> <span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;ellipse_line_alpha&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Red Borders&#39;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;ellipse_colors&#39;</span><span class="p">:</span> <span class="s1">&#39;Set3&#39;</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Different Ellipse Colors&#39;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;ellipse_alpha&#39;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span> <span class="s1">&#39;ellipse_line_width&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;ellipse_line_color&#39;</span><span class="p">:</span> <span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;High Contrast&#39;</span><span class="p">}</span>
+<span class="p">]</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">style_options</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ellipse_styles</span><span class="p">):</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">style_options</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;title&#39;</span><span class="p">)</span>
+    <span class="n">plot_gmm</span><span class="p">(</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+        <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">style_options</span>
+    <span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_7_0.png" src="../_images/notebooks_visualise_7_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Continuous Coloring with Log Probabilities&#39;</span><span class="p">)</span>
+
+<span class="c1"># Different continuous coloring options</span>
+<span class="n">colormaps</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="s1">&#39;plasma&#39;</span><span class="p">,</span> <span class="s1">&#39;coolwarm&#39;</span><span class="p">,</span> <span class="s1">&#39;RdYlBu&#39;</span><span class="p">]</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cmap</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">colormaps</span><span class="p">):</span>
+    <span class="n">plot_gmm</span><span class="p">(</span>
+        <span class="n">X</span><span class="p">,</span>
+        <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+        <span class="n">log_probs</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span>
+        <span class="n">colormap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
+        <span class="n">colorbar_label</span><span class="o">=</span><span class="s1">&#39;Log Probability&#39;</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Log Probabilities (</span><span class="si">{</span><span class="n">cmap</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">,</span>
+        <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_8_0.png" src="../_images/notebooks_visualise_8_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Component Means and Initial Means Visualization&#39;</span><span class="p">)</span>
+
+<span class="c1"># Different mean marker options</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mean_marker</span><span class="o">=</span><span class="s1">&#39;X&#39;</span><span class="p">,</span>
+    <span class="n">mean_size</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+    <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Large X Markers for Means&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mean_marker</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span>
+    <span class="n">mean_size</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span>
+    <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;White Star Markers&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Show initial means if available</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">show_initial_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">initial_mean_marker</span><span class="o">=</span><span class="s1">&#39;D&#39;</span><span class="p">,</span>
+    <span class="n">initial_mean_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">initial_mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Final (black) and Initial (red) Means&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Ellipses Only (No Mean Markers)&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_9_0.png" src="../_images/notebooks_visualise_9_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Weight-Based Scaling of Ellipses&#39;</span><span class="p">)</span>
+
+<span class="c1"># Regular visualization</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;No Weight Scaling&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Scale alpha by weight</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Alpha Scaled by Weight&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Scale size by weight</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">scale_size_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Mean Size Scaled by Weight&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+    <span class="n">mean_size</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># Print component weights for reference</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Component weights: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">weights_</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_10_0.png" src="../_images/notebooks_visualise_10_0.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Component weights: [0.06534623 0.330355   0.33683044 0.2674684 ]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Prediction Accuracy Comparison&#39;</span><span class="p">)</span>
+
+<span class="c1"># Show true labels</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;True Labels&#39;</span><span class="p">,</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Show predicted labels</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Predicted Labels&#39;</span><span class="p">,</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Show correct vs incorrect predictions</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+    <span class="n">show_incorrect_predictions</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Correct (Green) vs Incorrect (Red)&#39;</span><span class="p">,</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_11_0.png" src="../_images/notebooks_visualise_11_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axes</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Comprehensive GMM Visualization Examples&#39;</span><span class="p">)</span>
+
+<span class="c1"># Custom legend labels</span>
+<span class="n">custom_labels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Cluster A&#39;</span><span class="p">,</span> <span class="s1">&#39;Cluster B&#39;</span><span class="p">,</span> <span class="s1">&#39;Cluster C&#39;</span><span class="p">,</span> <span class="s1">&#39;Cluster D&#39;</span><span class="p">]</span>
+
+<span class="c1"># Full-featured visualization</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+
+    <span class="c1"># Data points</span>
+    <span class="n">show_points</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">point_size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">point_alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
+    <span class="n">point_color</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+
+    <span class="c1"># Clustering</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">cluster_colors</span><span class="o">=</span><span class="s1">&#39;Set2&#39;</span><span class="p">,</span>
+    <span class="n">legend_labels</span><span class="o">=</span><span class="n">custom_labels</span><span class="p">,</span>
+
+    <span class="c1"># Ellipses</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
+    <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;solid&#39;</span><span class="p">,</span>
+    <span class="n">ellipse_line_width</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
+    <span class="n">ellipse_line_color</span><span class="o">=</span><span class="s1">&#39;darkblue&#39;</span><span class="p">,</span>
+    <span class="n">ellipse_line_alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+
+    <span class="c1"># Means</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mean_marker</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span>
+    <span class="n">mean_size</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+    <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+
+    <span class="c1"># Initial means</span>
+    <span class="n">show_initial_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">initial_mean_marker</span><span class="o">=</span><span class="s1">&#39;D&#39;</span><span class="p">,</span>
+    <span class="n">initial_mean_size</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+    <span class="n">initial_mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+
+    <span class="c1"># Styling</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Complete GMM Visualization&#39;</span><span class="p">,</span>
+    <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Feature Dimension 1&#39;</span><span class="p">,</span>
+    <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Feature Dimension 2&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Minimal visualization</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">show_points</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">point_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">point_alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">point_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">legend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Minimal: Points Only&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Ellipses only</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">show_points</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+    <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
+    <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mean_marker</span><span class="o">=</span><span class="s1">&#39;X&#39;</span><span class="p">,</span>
+    <span class="n">mean_size</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Ellipses and Means Only&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># Continuous coloring with ellipses</span>
+<span class="n">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+    <span class="n">log_probs</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span>
+    <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;coolwarm&#39;</span><span class="p">,</span>
+    <span class="n">colorbar_label</span><span class="o">=</span><span class="s1">&#39;Log-Likelihood&#39;</span><span class="p">,</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+    <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">ellipse_line_width</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">ellipse_line_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Log Probabilities + Ellipses&#39;</span><span class="p">,</span>
+    <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_visualise_12_0.png" src="../_images/notebooks_visualise_12_0.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="Parameter-Summary-and-Usage-Tips">
+<h1>Parameter Summary and Usage Tips<a class="headerlink" href="#Parameter-Summary-and-Usage-Tips" title="Link to this heading"></a></h1>
+<section id="Key-Parameter-Categories:">
+<h2>Key Parameter Categories:<a class="headerlink" href="#Key-Parameter-Categories:" title="Link to this heading"></a></h2>
+<section id="1.-Data-Point-Styling">
+<h3>1. <strong>Data Point Styling</strong><a class="headerlink" href="#1.-Data-Point-Styling" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">show_points=True/False</span></code>: Toggle point visibility</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">point_size</span></code>: Size of data points (default: 5)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">point_alpha</span></code>: Transparency of points (0-1, default: 0.5)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">point_color</span></code>: ‘auto’, color name, colormap name, or custom array</p></li>
+</ul>
+</section>
+<section id="2.-Cluster-Visualization">
+<h3>2. <strong>Cluster Visualization</strong><a class="headerlink" href="#2.-Cluster-Visualization" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">color_by_cluster=True/False</span></code>: Enable cluster-based coloring</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">true_labels</span></code>: Ground truth labels for comparison</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cluster_colors</span></code>: Colormap name, single color, or color list</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">show_incorrect_predictions=True/False</span></code>: Highlight prediction errors</p></li>
+</ul>
+</section>
+<section id="3.-Continuous-Coloring">
+<h3>3. <strong>Continuous Coloring</strong><a class="headerlink" href="#3.-Continuous-Coloring" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">log_probs</span></code>: Array of continuous values (e.g., log-probabilities)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">colormap</span></code>: Matplotlib colormap for continuous data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">colorbar_label</span></code>: Label for the colorbar</p></li>
+</ul>
+</section>
+<section id="4.-Component-Ellipses">
+<h3>4. <strong>Component Ellipses</strong><a class="headerlink" href="#4.-Component-Ellipses" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">show_ellipses=True/False</span></code>: Toggle ellipse visibility</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_std_devs</span></code>: List of sigma levels (e.g., [1, 2, 3])</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_alpha</span></code>: Fill transparency</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_colors</span></code>: ‘auto’, colormap, or custom colors</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_fill=True/False</span></code>: Filled vs outline only</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_style</span></code>: ‘solid’, ‘dashed’, ‘dotted’</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_width</span></code>: Border thickness</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_color</span></code>: Border color</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_alpha</span></code>: Border transparency</p></li>
+</ul>
+</section>
+<section id="5.-Component-Centers">
+<h3>5. <strong>Component Centers</strong><a class="headerlink" href="#5.-Component-Centers" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">show_means=True/False</span></code>: Show component means</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mean_marker</span></code>: Marker style (‘x’, ‘o’, ‘*’, etc.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mean_size</span></code>: Marker size</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mean_color</span></code>: Marker color</p></li>
+</ul>
+</section>
+<section id="6.-Initial-Means-(if-available)">
+<h3>6. <strong>Initial Means</strong> (if available)<a class="headerlink" href="#6.-Initial-Means-(if-available)" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">show_initial_means=True/False</span></code>: Show starting positions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">initial_mean_marker</span></code>: Marker style</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">initial_mean_size</span></code>: Marker size</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">initial_mean_color</span></code>: Marker color</p></li>
+</ul>
+</section>
+<section id="7.-Weight-Based-Scaling">
+<h3>7. <strong>Weight-Based Scaling</strong><a class="headerlink" href="#7.-Weight-Based-Scaling" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scale_alpha_by_weight=True/False</span></code>: Scale transparency by component weight</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scale_size_by_weight=True/False</span></code>: Scale marker size by component weight</p></li>
+</ul>
+</section>
+</section>
+<section id="Usage-Tips:">
+<h2>Usage Tips:<a class="headerlink" href="#Usage-Tips:" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>For exploratory analysis</strong>: Start with default parameters and gradually add features</p></li>
+<li><p><strong>For publications</strong>: Use high contrast colors and clear markers</p></li>
+<li><p><strong>For presentations</strong>: Use larger point sizes and marker sizes</p></li>
+<li><p><strong>For detailed analysis</strong>: Show multiple sigma levels and use continuous coloring</p></li>
+<li><p><strong>For comparison</strong>: Use <code class="docutils literal notranslate"><span class="pre">show_incorrect_predictions=True</span></code> to validate model performance</p></li>
+</ol>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Adrián A. Sousa-Poza.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
