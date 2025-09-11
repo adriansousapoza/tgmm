@@ -57,6 +57,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#Inspecting-the-Learned-GMM-Parameters">Inspecting the Learned GMM Parameters</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#Visualization-of-Clustering-and-Generated-Samples">Visualization of Clustering and Generated Samples</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#Visualizing-Component-Probability-Distributions">Visualizing Component Probability Distributions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Sampling-from-Specific-Components">Sampling from Specific Components</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#Comparing-Different-Covariance-Types">Comparing Different Covariance Types</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#Comparing-Different-Initialization-Methods">Comparing Different Initialization Methods</a></li>
 </ul>
@@ -124,7 +125,7 @@
 </li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -133,6 +134,10 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">tgmm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">tgmm</span><span class="p">)</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">GMMInitializer</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span>
 
@@ -170,7 +175,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <li><p><strong>Component 4:</strong> Centered at <code class="docutils literal notranslate"><span class="pre">[2,</span> <span class="pre">2]</span></code> with full covariance.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -229,11 +234,10 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </ul>
 <p>Diagnostic information such as mean log-likelihood, convergence status, and number of iterations is printed to verify the model’s performance.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert to tensor (if needed for further processing)</span>
-<span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 <span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
 
 <span class="n">n_components</span> <span class="o">=</span> <span class="mi">4</span>
@@ -295,21 +299,20 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[InitRun 0] Iter 0, lower bound: -3.82055
-[InitRun 0] Converged at iteration 74, lower bound=-3.15907
-[InitRun 1] Iter 0, lower bound: -3.79736
-[InitRun 1] Converged at iteration 55, lower bound=-3.15908
-[InitRun 2] Iter 0, lower bound: -3.83079
-[InitRun 2] Iter 100, lower bound: -3.23099
-[InitRun 2] Converged at iteration 176, lower bound=-3.23034
-[InitRun 3] Iter 0, lower bound: -3.71217
-[InitRun 3] Converged at iteration 32, lower bound=-3.15908
-[InitRun 4] Iter 0, lower bound: -3.81120
-[InitRun 4] Converged at iteration 63, lower bound=-3.15907
+[InitRun 0] Iter 0, lower bound: -3.80824
+[InitRun 0] Converged at iteration 57, lower bound=-3.15907
+[InitRun 1] Iter 0, lower bound: -3.79128
+[InitRun 1] Converged at iteration 68, lower bound=-3.15907
+[InitRun 2] Iter 0, lower bound: -3.78701
+[InitRun 2] Converged at iteration 44, lower bound=-3.15908
+[InitRun 3] Iter 0, lower bound: -3.69054
+[InitRun 3] Converged at iteration 52, lower bound=-3.15908
+[InitRun 4] Iter 0, lower bound: -3.78787
+[InitRun 4] Converged at iteration 37, lower bound=-3.15908
 Mean per-sample log-likelihood:                         -3.159071683883667
 Mean per-sample log-likelihood (torch.mean(log_probs)): -3.159071683883667
 Lower bound:                                            -3.159071683883667
-Number of iterations:                                   74
+Number of iterations:                                   57
 Converged:                                              True
 </pre></div></div>
 </div>
@@ -324,7 +327,7 @@ Converged:                                              True
 <li><p><strong>Covariance:</strong> The covariance matrix (or vector/scalar for other types) representing the spread of the component.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># weights, means, covariances of each component</span>
@@ -349,43 +352,43 @@ Converged:                                              True
 
 Component 1:
 Weight:
-0.06473217159509659
+0.06472036987543106
 Mean:
-[ 2.0007403 -2.0190282]
+[ 2.0007477 -2.0192168]
 Covariance:
-[[ 0.20824564 -0.00038021]
- [-0.00038021  0.24332365]]
+[[ 0.2082454  -0.00037218]
+ [-0.00037218  0.24316412]]
 
 Component 2:
 Weight:
-0.330704927444458
+0.2681151032447815
 Mean:
-[-0.14604712 -0.01135268]
+[-0.01002161  1.9783136 ]
 Covariance:
-[[ 3.9646182  -0.02417026]
- [-0.02417026  0.2430873 ]]
+[[ 0.9496207  -0.03067006]
+ [-0.03067006  0.961837  ]]
 
 Component 3:
 Weight:
-0.2685912847518921
+0.335965096950531
 Mean:
-[-0.01005521  1.9754888 ]
+[2.0001853 2.0041707]
 Covariance:
-[[ 0.9500145  -0.03063332]
- [-0.03063332  0.9652317 ]]
+[[0.2875328 1.0945207]
+ [1.0945206 4.245465 ]]
 
 Component 4:
 Weight:
-0.3359716534614563
+0.3311994671821594
 Mean:
-[2.0001736 2.004122 ]
+[-0.14577305 -0.01082606]
 Covariance:
-[[0.28753313 1.0945222 ]
- [1.0945222  4.2454743 ]]
+[[ 3.9606147  -0.02421821]
+ [-0.02421821  0.24345624]]
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -423,7 +426,7 @@ Covariance:
 </li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Per-Sample Log-Likelihood&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;continuous&#39;</span><span class="p">,</span> <span class="n">color_values</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span> <span class="n">cmap_cont</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">cbar_label</span><span class="o">=</span><span class="s1">&#39;Log-Likelihood&#39;</span><span class="p">)</span>
@@ -447,26 +450,15 @@ Covariance:
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-/home/asp/Downloads/HeaDS/TorchGMM/tgmm/plotting.py:432: UserWarning: No GMM or parameters provided. Inferring number of components from &#39;labels&#39;. Cannot show ellipses.
-  warnings.warn(&#34;No GMM or parameters provided. Inferring number of components from &#39;labels&#39;. Cannot show ellipses.&#34;)
-/home/asp/Downloads/HeaDS/TorchGMM/tgmm/plotting.py:501: UserWarning: Mode &#39;cluster&#39; selected, but no GMM predictions available. Coloring by provided &#39;labels&#39;.
-  warnings.warn(&#34;Mode &#39;cluster&#39; selected, but no GMM predictions available. Coloring by provided &#39;labels&#39;.&#34;)
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_gmm_9_2.png" src="../_images/notebooks_gmm_9_2.png" />
+<img alt="../_images/notebooks_gmm_9_1.png" src="../_images/notebooks_gmm_9_1.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_gmm_9_3.png" src="../_images/notebooks_gmm_9_3.png" />
+<img alt="../_images/notebooks_gmm_9_2.png" src="../_images/notebooks_gmm_9_2.png" />
 </div>
 </div>
 </section>
@@ -488,7 +480,7 @@ Covariance:
 </ul>
 <p>These plots provide insight into how the GMM assigns probabilities to each data point and how well each component is represented in both the original and generated data.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -530,6 +522,207 @@ Covariance:
 <div class="output_area docutils container">
 <img alt="../_images/notebooks_gmm_11_1.png" src="../_images/notebooks_gmm_11_1.png" />
 </div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="Sampling-from-Specific-Components">
+<h2>Sampling from Specific Components<a class="headerlink" href="#Sampling-from-Specific-Components" title="Link to this heading"></a></h2>
+<p>This section demonstrates the new functionality for sampling from specific GMM components. The <code class="docutils literal notranslate"><span class="pre">sample</span></code> method now accepts a <code class="docutils literal notranslate"><span class="pre">component</span></code> parameter:</p>
+<ul class="simple">
+<li><p><strong>``component=None`` (default):</strong> Samples from all components according to their mixture weights</p></li>
+<li><p><strong>``component=k``:</strong> Samples only from component k (where k ∈ {0, 1, …, n_components-1})</p></li>
+</ul>
+<p>This allows us to generate samples that are guaranteed to come from a specific component, which is useful for:</p>
+<ul class="simple">
+<li><p>Understanding the individual component distributions</p></li>
+<li><p>Generating synthetic data with known ground truth labels</p></li>
+<li><p>Analyzing the learned parameters of each component separately</p></li>
+</ul>
+<p>Below, we demonstrate sampling from each component individually and compare with mixed sampling.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Generate samples from each component individually</span>
+<span class="n">n_samples_per_component</span> <span class="o">=</span> <span class="mi">500</span>
+
+<span class="c1"># Sample from each component separately</span>
+<span class="n">component_samples</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">component_labels</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">):</span>
+    <span class="n">samples</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n_samples_per_component</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+    <span class="n">component_samples</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">component_labels</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Component </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">: Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples, all from component </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Unique labels in output: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Component weight: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">weights_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+
+<span class="c1"># Sample from all components (mixed sampling) for comparison</span>
+<span class="n">mixed_samples</span><span class="p">,</span> <span class="n">mixed_labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n_samples_per_component</span> <span class="o">*</span> <span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="n">mixed_samples</span> <span class="o">=</span> <span class="n">mixed_samples</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+<span class="n">mixed_labels</span> <span class="o">=</span> <span class="n">mixed_labels</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mixed sampling: Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mixed_samples</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples from all components&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Label distribution: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">mixed_labels</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Expected distribution based on weights: </span><span class="si">{</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">weights_</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">mixed_samples</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Visualize samples from each component</span>
+<span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">axs</span> <span class="o">=</span> <span class="n">axs</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+<span class="c1"># Plot individual component samples</span>
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">):</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+    <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">component_samples</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+             <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Samples from Component </span><span class="si">{</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1"> Only&#39;</span><span class="p">,</span>
+             <span class="n">labels</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">component_samples</span><span class="p">[</span><span class="n">k</span><span class="p">]),</span> <span class="n">k</span><span class="p">),</span>  <span class="c1"># All samples have the same label</span>
+             <span class="n">legend_labels</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Component </span><span class="si">{</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">])</span>
+
+<span class="c1"># Plot mixed sampling</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">mixed_samples</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Mixed Sampling (All Components)&#39;</span><span class="p">,</span>
+         <span class="n">labels</span><span class="o">=</span><span class="n">mixed_labels</span><span class="p">,</span>
+         <span class="n">legend_labels</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;Component </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">)])</span>
+
+<span class="c1"># Plot original data for comparison</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span>
+         <span class="n">labels</span><span class="o">=</span><span class="n">y_pred</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>  <span class="c1"># Use the GMM predicted labels instead</span>
+         <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Component-Specific vs Mixed Sampling&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.96</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># Statistical analysis of component-specific samples</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== Statistical Analysis of Component-Specific Samples ===</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span><span class="p">):</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">component_samples</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+    <span class="c1"># Compute sample statistics</span>
+    <span class="n">sample_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">sample_cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+
+    <span class="c1"># Get model parameters</span>
+    <span class="n">model_mean</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">means_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">model_cov</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Component </span><span class="si">{</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Model Mean:     </span><span class="si">{</span><span class="n">model_mean</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Sample Mean:    </span><span class="si">{</span><span class="n">sample_mean</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Mean Difference: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">model_mean</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">sample_mean</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Model Covariance:&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">model_cov</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">row</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Sample Covariance:&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">sample_cov</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">row</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Covariance Frobenius Norm Difference: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">model_cov</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">sample_cov</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;fro&#39;</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">50</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Component 0: Generated 500 samples, all from component 0
+  Unique labels in output: [0]
+  Component weight: 0.065
+
+Component 1: Generated 500 samples, all from component 1
+  Unique labels in output: [1]
+  Component weight: 0.268
+
+Component 2: Generated 500 samples, all from component 2
+  Unique labels in output: [2]
+  Component weight: 0.336
+
+Component 3: Generated 500 samples, all from component 3
+  Unique labels in output: [3]
+  Component weight: 0.331
+
+Mixed sampling: Generated 2000 samples from all components
+  Label distribution: [132 513 656 699]
+  Expected distribution based on weights: [129 536 671 662]
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_gmm_13_1.png" src="../_images/notebooks_gmm_13_1.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+=== Statistical Analysis of Component-Specific Samples ===
+
+Component 1:
+  Model Mean:     [ 2.0007477 -2.0192168]
+  Sample Mean:    [ 1.9964501 -2.0265486]
+  Mean Difference: 0.0085
+
+  Model Covariance:
+    [ 0.2082454  -0.00037218]
+    [-0.00037218  0.24316412]
+  Sample Covariance:
+    [0.20598143 0.01204244]
+    [0.01204244 0.26932183]
+  Covariance Frobenius Norm Difference: 0.0316
+--------------------------------------------------
+Component 2:
+  Model Mean:     [-0.01002161  1.9783136 ]
+  Sample Mean:    [0.02753773 1.949455  ]
+  Mean Difference: 0.0474
+
+  Model Covariance:
+    [ 0.9496207  -0.03067006]
+    [-0.03067006  0.961837  ]
+  Sample Covariance:
+    [0.92883351 0.04000865]
+    [0.04000865 1.01364396]
+  Covariance Frobenius Norm Difference: 0.1145
+--------------------------------------------------
+Component 3:
+  Model Mean:     [2.0001853 2.0041707]
+  Sample Mean:    [1.968875  1.9068031]
+  Mean Difference: 0.1023
+
+  Model Covariance:
+    [0.2875328 1.0945207]
+    [1.0945206 4.245465 ]
+  Sample Covariance:
+    [0.27550357 1.05304251]
+    [1.05304251 4.10150659]
+  Covariance Frobenius Norm Difference: 0.1559
+--------------------------------------------------
+Component 4:
+  Model Mean:     [-0.14577305 -0.01082606]
+  Sample Mean:    [-0.2260008  -0.01200301]
+  Mean Difference: 0.0802
+
+  Model Covariance:
+    [ 3.9606147  -0.02421821]
+    [-0.02421821  0.24345624]
+  Sample Covariance:
+    [ 3.96503832 -0.06181684]
+    [-0.06181684  0.24273377]
+  Covariance Frobenius Norm Difference: 0.0534
+--------------------------------------------------
+</pre></div></div>
 </div>
 </section>
 <hr class="docutils" />
@@ -636,7 +829,7 @@ Covariance:
 <li><p>Visualize the clustering results with our custom <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function in a grid of subplots.</p></li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;tied_spherical&#39;</span><span class="p">,</span> <span class="s1">&#39;spherical&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_diag&#39;</span><span class="p">,</span> <span class="s1">&#39;diag&#39;</span><span class="p">,</span> <span class="s1">&#39;tied_full&#39;</span><span class="p">,</span> <span class="s1">&#39;full&#39;</span><span class="p">]</span>
@@ -656,7 +849,8 @@ Covariance:
         <span class="n">covariance_type</span><span class="o">=</span><span class="n">cov_type</span><span class="p">,</span>
         <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">,</span>
         <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
-        <span class="n">device</span><span class="o">=</span><span class="n">device</span>
+        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+        <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
     <span class="n">labels_pred</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
@@ -672,7 +866,7 @@ Covariance:
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_gmm_13_0.png" src="../_images/notebooks_gmm_13_0.png" />
+<img alt="../_images/notebooks_gmm_15_0.png" src="../_images/notebooks_gmm_15_0.png" />
 </div>
 </div>
 </section>
@@ -765,7 +959,7 @@ Recompute each center as the mean of its assigned points:</p>
 <li><p>Predict cluster labels and visualize the clustering results with our <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function, which also overlays the initial means (marked in red).</p></li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cov_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;full&#39;</span><span class="p">]</span>
@@ -834,7 +1028,7 @@ Recompute each center as the mean of its assigned points:</p>
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_gmm_15_0.png" src="../_images/notebooks_gmm_15_0.png" />
+<img alt="../_images/notebooks_gmm_17_0.png" src="../_images/notebooks_gmm_17_0.png" />
 </div>
 </div>
 </section>

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>&lt;no title&gt; &mdash; TorchGMM 0.1.0 documentation</title>
+  <title>New Color Specification Features &mdash; TorchGMM 0.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -65,7 +65,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">&lt;no title&gt;</li>
+      <li class="breadcrumb-item active">New Color Specification Features</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -75,7 +75,7 @@
            <div itemprop="articleBody">
              
   <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -85,7 +85,7 @@
 
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">GMMInitializer</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">GMMInitializer</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span><span class="p">,</span> <span class="n">plot_clusters</span><span class="p">,</span> <span class="n">plot_likelihood_landscape</span>
 
 <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
 <span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
@@ -111,7 +111,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -141,7 +141,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Convert to tensor (if needed for further processing)</span>
@@ -195,7 +195,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
@@ -203,7 +203,12 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Gaussian Mixture Model&quot;</span><span class="p">)</span>
 
-<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Mean Log-Likelihood: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;cluster&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+         <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Mean Log-Likelihood: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+         <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+         <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+         <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -218,7 +223,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
@@ -226,7 +231,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Per-Sample Log-Likelihood&quot;</span><span class="p">)</span>
 
-<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Mean Log-Likelihood: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;continuous&#39;</span><span class="p">,</span> <span class="n">color_values</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span> <span class="n">cmap_cont</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">cbar_label</span><span class="o">=</span><span class="s1">&#39;Log-Likelihood&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+<span class="c1"># Using new API - no more confusing &#39;mode&#39; parameter!</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span>
+         <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Mean Log-Likelihood: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+         <span class="n">color_values</span><span class="o">=</span><span class="n">log_probs</span><span class="p">,</span>        <span class="c1"># Direct parameter for continuous coloring</span>
+         <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>            <span class="c1"># Control colormap explicitly</span>
+         <span class="n">colorbar_label</span><span class="o">=</span><span class="s1">&#39;Log-Likelihood&#39;</span><span class="p">,</span>  <span class="c1"># Control colorbar label</span>
+         <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>           <span class="c1"># Don&#39;t show ellipses for this view</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -241,7 +253,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">weight</span> <span class="o">=</span> <span class="mf">1e-4</span>
@@ -263,12 +275,15 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
     <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;random&#39;</span>
 <span class="p">)</span>
 <span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+
+<span class="c1"># Using new API - clear control over weight visualization</span>
 <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_weight_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
-            <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">weight</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;weights&#39;</span><span class="p">)</span>
+         <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">weight</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+         <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>    <span class="c1"># Scale transparency by weight</span>
+         <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>            <span class="c1"># Base transparency level</span>
+         <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span>      <span class="c1"># Dashed ellipse lines</span>
+         <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>         <span class="c1"># Single ellipse at 2 std devs</span>
+         <span class="n">point_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">)</span>          <span class="c1"># Black data points</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -283,7 +298,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">precision</span> <span class="o">=</span> <span class="mf">1e3</span>
@@ -308,22 +323,24 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">gmm_mean_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
 <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Mean Prior (precision=</span><span class="si">{</span><span class="n">precision</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_mean_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
-<span class="c1"># Plot using mode &#39;means&#39; with a base alpha of 0.5</span>
-<span class="n">plot_gmm</span><span class="p">(</span>
-    <span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span>
-    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_mean_prior</span><span class="p">,</span>
-    <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
-    <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
-    <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;means&#39;</span><span class="p">,</span>
-    <span class="n">init_means</span><span class="o">=</span><span class="n">init_means</span>
-<span class="p">)</span>
-<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+<span class="c1"># Using new API - clear control over mean and initial mean visualization</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_mean_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+         <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+         <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>            <span class="c1"># Semi-transparent ellipses</span>
+         <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span>      <span class="c1"># Dashed ellipse lines</span>
+         <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>         <span class="c1"># Single ellipse at 2 std devs</span>
+         <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>              <span class="c1"># Show final means</span>
+         <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;yellow&#39;</span><span class="p">,</span>          <span class="c1"># Yellow final means</span>
+         <span class="n">mean_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>                 <span class="c1"># Larger mean markers</span>
+         <span class="n">initial_means</span><span class="o">=</span><span class="n">init_means</span><span class="p">,</span>     <span class="c1"># Pass initial means</span>
+         <span class="n">show_initial_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>      <span class="c1"># Show initial means</span>
+         <span class="n">initial_mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>     <span class="c1"># Red initial means</span>
+         <span class="n">point_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">)</span>          <span class="c1"># Black data points</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-<br/></pre></div>
+</pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -334,7 +351,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># shape (2, 2)</span>
@@ -348,7 +365,6 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">)</span>
 <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
 <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Covariance Priors: Varying Strength&quot;</span><span class="p">)</span>
-
 
 <span class="n">cov_prior</span> <span class="o">=</span> <span class="n">data_covariance</span> <span class="o">*</span> <span class="n">prior_strength</span>
 
@@ -371,20 +387,19 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
 <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;DOF=</span><span class="si">{</span><span class="n">degrees_of_freedom_prior</span><span class="si">}</span><span class="s2">, Strength=</span><span class="si">{</span><span class="n">prior_strength</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_cov_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
-<span class="c1"># Use mode &#39;covariances&#39; with the sequential colormap (default: Greens) and std_devs [1,2,3]</span>
-<span class="n">plot_gmm</span><span class="p">(</span>
-    <span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span>
-    <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cov_prior</span><span class="p">,</span>
-    <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
-    <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
-    <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;covariances&#39;</span><span class="p">,</span>
-    <span class="n">cmap_seq</span><span class="o">=</span><span class="s1">&#39;Greens&#39;</span><span class="p">,</span>
-    <span class="n">std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
-<span class="p">)</span>
+
+<span class="c1"># Using new API - clear control over multiple ellipse levels</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cov_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+         <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
+         <span class="n">point_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>          <span class="c1"># Black data points</span>
+         <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>           <span class="c1"># Show ellipses</span>
+         <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>   <span class="c1"># Multiple confidence levels</span>
+         <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;Greens&#39;</span><span class="p">,</span>      <span class="c1"># Green color scheme</span>
+         <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">)</span>            <span class="c1"># Semi-transparent ellipses</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.98</span><span class="p">])</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-<br/></pre></div>
+</pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -394,6 +409,134 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <img alt="../_images/notebooks_plotting_7_0.png" src="../_images/notebooks_plotting_7_0.png" />
 </div>
 </div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Demonstrate the new convenience functions and cleaner API</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;New Plotting API - Clean Parameter Control&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+
+<span class="c1"># 1. Simple cluster visualization with convenience function</span>
+<span class="n">plot_clusters</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+              <span class="n">title</span><span class="o">=</span><span class="s2">&quot;plot_clusters() - Simple&quot;</span><span class="p">)</span>
+
+<span class="c1"># 2. Likelihood landscape with convenience function</span>
+<span class="n">plot_likelihood_landscape</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span>
+                         <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Likelihood Landscape&quot;</span><span class="p">)</span>
+
+<span class="c1"># 3. Custom ellipse styling - multiple std devs with custom colors</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+         <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Custom Ellipse Styling&quot;</span><span class="p">,</span>
+         <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+         <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># Multiple confidence levels</span>
+         <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>           <span class="c1"># Different colormap</span>
+         <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>               <span class="c1"># Just outlines</span>
+         <span class="n">ellipse_line_width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+         <span class="n">point_alpha</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
+         <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+         <span class="n">mean_size</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
+
+<span class="c1"># 4. Weight-scaled visualization</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span>
+         <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Weight-Scaled Visualization&quot;</span><span class="p">,</span>
+         <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+         <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>             <span class="c1"># Single ellipse</span>
+         <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>       <span class="c1"># Scale by component weights</span>
+         <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>                <span class="c1"># Base alpha</span>
+         <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+         <span class="n">scale_size_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>        <span class="c1"># Scale mean marker size by weight</span>
+         <span class="n">mean_size</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>                    <span class="c1"># Base mean size</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_plotting_8_0.png" src="../_images/notebooks_plotting_8_0.png" />
+</div>
+</div>
+<section id="New-Color-Specification-Features">
+<h1>New Color Specification Features<a class="headerlink" href="#New-Color-Specification-Features" title="Link to this heading"></a></h1>
+<p>The plotting functionality now supports flexible color specification for both cluster colors and ellipse colors:</p>
+<ol class="arabic simple">
+<li><p><strong>Single color for all clusters</strong>: Use a single color name, hex code, or RGB tuple</p></li>
+<li><p><strong>Specific color list</strong>: Provide a list of colors for each cluster</p></li>
+<li><p><strong>Colormap names</strong>: Use matplotlib colormap names (existing functionality)</p></li>
+</ol>
+<p>Let’s demonstrate these new features:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Reload the module to get the latest changes</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tgmm.plotting</span>
+<span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">tgmm</span><span class="o">.</span><span class="n">plotting</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_gmm</span>
+
+<span class="c1"># Demonstrate different color specification options</span>
+<span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span>
+<span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="p">,</span> <span class="n">base_width</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">base_height</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Color Specification Examples&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+
+<span class="c1"># Example 1: Single color for all clusters</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+         <span class="n">cluster_colors</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>  <span class="c1"># Single color</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;All clusters: Red&#39;</span><span class="p">,</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+
+<span class="c1"># Example 2: Specific colors for each cluster</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+         <span class="n">cluster_colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;orange&#39;</span><span class="p">,</span> <span class="s1">&#39;purple&#39;</span><span class="p">],</span>  <span class="c1"># List of colors</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Custom color list&#39;</span><span class="p">,</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+<span class="c1"># Example 3: RGB tuple for single color</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+         <span class="n">cluster_colors</span><span class="o">=</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">),</span>  <span class="c1"># RGB tuple</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;RGB tuple: (0.2, 0.8, 0.2)&#39;</span><span class="p">,</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+
+<span class="c1"># Example 4: Colormap with custom ellipse colors</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+         <span class="n">cluster_colors</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>  <span class="c1"># Colormap</span>
+         <span class="n">ellipse_colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;yellow&#39;</span><span class="p">],</span>  <span class="c1"># Custom ellipse colors</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Viridis + Custom ellipses&#39;</span><span class="p">,</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+
+<span class="c1"># Example 5: Single color with auto ellipses</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+         <span class="n">cluster_colors</span><span class="o">=</span><span class="s1">&#39;darkblue&#39;</span><span class="p">,</span>  <span class="c1"># Single color</span>
+         <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>  <span class="c1"># Auto matches cluster colors</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Dark blue with auto ellipses&#39;</span><span class="p">,</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+<span class="c1"># Example 6: Hex colors</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span>
+         <span class="n">cluster_colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;#FF5733&#39;</span><span class="p">,</span> <span class="s1">&#39;#33C4FF&#39;</span><span class="p">,</span> <span class="s1">&#39;#33FF57&#39;</span><span class="p">,</span> <span class="s1">&#39;#FF33C4&#39;</span><span class="p">],</span>  <span class="c1"># Hex colors</span>
+         <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Hex color codes&#39;</span><span class="p">,</span>
+         <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_plotting_10_0.png" src="../_images/notebooks_plotting_10_0.png" />
+</div>
+</div>
+</section>
 
 
            </div>

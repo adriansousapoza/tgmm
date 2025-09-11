@@ -79,7 +79,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.gmm_init</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span>
 
-<span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-20</span>  <span class="c1"># Small constant for numerical stability</span>
+
 
 <div class="viewcode-block" id="GaussianMixture">
 <a class="viewcode-back" href="../../source/gaussian_mixture.html#tgmm.gmm.GaussianMixture">[docs]</a>
@@ -90,6 +90,7 @@
 <span class="sd">    This GMM supports:</span>
 <span class="sd">    </span>
 <span class="sd">    - The Expectation-Maximization (EM) algorithm.</span>
+<span class="sd">    - The Classification EM (CEM) algorithm as an alternative to standard EM.</span>
 <span class="sd">    - Multiple initializations (n_init).</span>
 <span class="sd">    - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical).</span>
 <span class="sd">    - Maximum Likelihood Estimation (MLE) and Maximum a Posteriori (MAP) estimation (i.e. with Priors).</span>
@@ -153,6 +154,9 @@
 <span class="sd">    cov_init_method : str, optional</span>
 <span class="sd">        Method for initializing covariances if `covariances_init` is None.</span>
 <span class="sd">        Supported: &#39;eye&#39;, &#39;random&#39;, &#39;empirical&#39;. (default: &#39;eye&#39;)</span>
+<span class="sd">    cem : bool, optional</span>
+<span class="sd">        If True, use the Classification EM algorithm instead of standard EM.</span>
+<span class="sd">        (default: False)</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
@@ -196,6 +200,7 @@
         <span class="n">mean_precision_prior</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">covariance_prior</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">degrees_of_freedom_prior</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cem</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
@@ -223,6 +228,7 @@
         <span class="c1"># Additional features</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_init</span> <span class="o">=</span> <span class="n">n_init</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cov_init_method</span> <span class="o">=</span> <span class="n">cov_init_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cem</span> <span class="o">=</span> <span class="n">cem</span>  <span class="c1"># Flag to use Classification EM</span>
 
         <span class="c1"># Device</span>
         <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -375,7 +381,7 @@
                     <span class="sa">f</span><span class="s2">&quot;weights_init must be shape (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="si">}</span><span class="s2">,), got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">weights_init</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
                 <span class="p">)</span>
             <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights_init</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">EPS</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-20</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Initial weights must sum to &gt; 0.&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">/</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -758,13 +764,15 @@
         
         <span class="c1"># warning if we didn&#39;t converge</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">converged_</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;EM algorithm did not converge. Try increasing max_iter or lowering tol.&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span></div>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;EM algorithm did not converge. Try increasing max_iter or lowering tol.&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
 
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_fit_single_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">max_iter</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">tol</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">run_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Perform one run of the EM algorithm (E-step + M-step).</span>
+<span class="sd">        Perform one run of the EM algorithm (E-step + M-step) or CEM algorithm </span>
+<span class="sd">        (E-step + C-step + M-step).</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -785,17 +793,27 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;X has </span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> features, but n_features=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_features</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 
         <span class="n">prev_lower_bound</span> <span class="o">=</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Initial E-step</span>
         <span class="n">resp</span><span class="p">,</span> <span class="n">log_prob_norm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_e_step</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lower_bound_</span> <span class="o">=</span> <span class="n">log_prob_norm</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        
         <span class="k">for</span> <span class="n">n_iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+            <span class="c1"># If using CEM, add a C-step between E-step and M-step</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cem</span><span class="p">:</span>
+                <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_c_step</span><span class="p">(</span><span class="n">resp</span><span class="p">)</span>
+                
+            <span class="c1"># M-step</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_m_step</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">resp</span><span class="p">)</span>
 
-            <span class="n">rel_change</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lower_bound_</span> <span class="o">-</span> <span class="n">prev_lower_bound</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">prev_lower_bound</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">)</span>
+            <span class="c1"># Check for convergence</span>
+            <span class="n">rel_change</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lower_bound_</span> <span class="o">-</span> <span class="n">prev_lower_bound</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">prev_lower_bound</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-20</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">rel_change</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">converged_</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span>
                     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[InitRun </span><span class="si">{</span><span class="n">run_idx</span><span class="si">}</span><span class="s2">] Converged at iteration </span><span class="si">{</span><span class="n">n_iter</span><span class="si">}</span><span class="s2">, lower bound=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="k">break</span>
+                
             <span class="n">prev_lower_bound</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lower_bound_</span>
             <span class="n">resp</span><span class="p">,</span> <span class="n">log_prob_norm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_e_step</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">lower_bound_</span> <span class="o">=</span> <span class="n">log_prob_norm</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
@@ -805,11 +823,38 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">converged_</span><span class="p">:</span>
             <span class="n">resp</span><span class="p">,</span> <span class="n">log_prob_norm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_e_step</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+            <span class="c1"># If CEM, do a final C-step</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cem</span><span class="p">:</span>
+                <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_c_step</span><span class="p">(</span><span class="n">resp</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">lower_bound_</span> <span class="o">=</span> <span class="n">log_prob_norm</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;EM algorithm did not converge. Try increasing max_iter or lowering tol.&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">n_iter_</span> <span class="o">=</span> <span class="n">n_iter</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_c_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resp</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        C-step (Classification): Assign each point to a single component.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        resp : torch.Tensor</span>
+<span class="sd">            Responsibilities from E-step, shape (n_samples, n_components)</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        hard_resp : torch.Tensor</span>
+<span class="sd">            Hard assignments (one-hot), shape (n_samples, n_components)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get component with maximum responsibility for each sample</span>
+        <span class="n">max_resp_indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">resp</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        
+        <span class="c1"># Create one-hot encoding for hard assignments</span>
+        <span class="n">n_samples</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">hard_resp</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">resp</span><span class="p">)</span>
+        <span class="n">hard_resp</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_samples</span><span class="p">),</span> <span class="n">max_resp_indices</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        
+        <span class="k">return</span> <span class="n">hard_resp</span>
 
     <span class="c1"># ---------------------------</span>
     <span class="c1"># E-step</span>
@@ -833,7 +878,7 @@
 <span class="sd">            Log-sum-exp of the weighted probabilities for each sample,</span>
 <span class="sd">            shape (n_samples,).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">log_weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="n">log_weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">+</span> <span class="mf">1e-20</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariance_type</span> <span class="o">==</span> <span class="s1">&#39;full&#39;</span><span class="p">:</span>
             <span class="n">log_prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_estimate_log_gaussian_full</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
@@ -888,9 +933,9 @@
 <span class="sd">        Compute log-probabilities under a diagonal covariance model for each</span>
 <span class="sd">        sample-component pair.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">precisions</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="n">precisions</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="mf">1e-20</span><span class="p">)</span>
         <span class="n">diff</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">log_det</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">log_det</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="mf">1e-20</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">mahal</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">precisions</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span>
@@ -906,9 +951,9 @@
 <span class="sd">        sample-component pair.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">diff</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">precisions</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="n">precisions</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="mf">1e-20</span><span class="p">)</span>
         <span class="n">mahal</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">precisions</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">log_det</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="n">EPS</span><span class="p">)</span>
+        <span class="n">log_det</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="mf">1e-20</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">))</span>
@@ -946,7 +991,7 @@
 <span class="sd">        sample-component pair.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">diff</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">cov_vector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="n">cov_vector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="mf">1e-20</span>
         <span class="n">log_det</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">cov_vector</span><span class="p">))</span>
         <span class="n">precisions</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">cov_vector</span>
         <span class="n">mahal</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">precisions</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
@@ -964,7 +1009,7 @@
 <span class="sd">        sample-component pair.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">diff</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covariances_</span> <span class="o">+</span> <span class="mf">1e-20</span>
         <span class="n">prec</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">var</span>
         <span class="n">mahal</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">diff</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">prec</span>
         <span class="n">log_det</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_features</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
@@ -989,10 +1034,10 @@
 <span class="sd">            Input data of shape (n_samples, n_features).</span>
 <span class="sd">        resp : torch.Tensor</span>
 <span class="sd">            Current responsibilities for each sample w.r.t. each component</span>
-<span class="sd">            (from E-step).</span>
+<span class="sd">            (from E-step or C-step).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n_samples</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">nk</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">EPS</span>
+        <span class="n">nk</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-20</span>
 
         <span class="c1"># Update weights (MAP or MLE)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_weight_prior</span><span class="p">:</span>
@@ -1001,7 +1046,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="p">(</span><span class="n">nk</span> <span class="o">+</span> <span class="n">alpha</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_samples</span> <span class="o">+</span> <span class="n">total_alpha</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="n">nk</span> <span class="o">/</span> <span class="n">n_samples</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span><span class="o">.</span><span class="n">clamp_</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">EPS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span><span class="o">.</span><span class="n">clamp_</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-20</span><span class="p">)</span>
 
         <span class="c1"># Update means (MAP or MLE)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_mean_prior</span><span class="p">:</span>
@@ -1304,7 +1349,7 @@
 
 <div class="viewcode-block" id="GaussianMixture.sample">
 <a class="viewcode-back" href="../../source/gaussian_mixture.html#tgmm.gmm.GaussianMixture.sample">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">component</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate new samples from the fitted GMM.</span>
 
@@ -1312,6 +1357,9 @@
 <span class="sd">        ----------</span>
 <span class="sd">        n_samples : int</span>
 <span class="sd">            Number of samples to generate.</span>
+<span class="sd">        component : int, optional</span>
+<span class="sd">            If specified, samples only from this component. If None, samples </span>
+<span class="sd">            from all components according to their weights. (default: None)</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1323,8 +1371,17 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitted_</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Call fit() before sample().&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Choose components</span>
-        <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">multinomial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights_</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">replacement</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">component</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Validate component index</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">component</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;component must be between 0 and </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_components</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">component</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Sample only from the specified component</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n_samples</span><span class="p">,),</span> <span class="n">component</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Choose components according to mixture weights</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">multinomial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weights_</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">replacement</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        
         <span class="n">means</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">means_</span><span class="p">[</span><span class="n">indices</span><span class="p">]</span>
 
         <span class="c1"># Construct covariance</span>
