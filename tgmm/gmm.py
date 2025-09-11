@@ -90,6 +90,15 @@ class GaussianMixture(nn.Module):
         Mixture component means of shape (n_components, n_features).
     covariances_ : torch.Tensor
         Mixture component covariances. Shape depends on `covariance_type`.
+    initial_weights_ : torch.Tensor
+        Initial mixture component weights before EM optimization of shape (n_components,).
+        These are the weights after initialization but before any EM iterations.
+    initial_means_ : torch.Tensor
+        Initial mixture component means before EM optimization of shape (n_components, n_features).
+        These are the means after initialization but before any EM iterations.
+    initial_covariances_ : torch.Tensor
+        Initial mixture component covariances before EM optimization. Shape depends on `covariance_type`.
+        These are the covariances after initialization but before any EM iterations.
     fitted_ : bool
         Whether the model has been fitted. This attribute is important when using `warm_start`.
     converged_ : bool
@@ -178,6 +187,9 @@ class GaussianMixture(nn.Module):
         self.weights_ = None
         self.means_ = None
         self.covariances_ = None
+        self.initial_weights_ = None
+        self.initial_means_ = None
+        self.initial_covariances_ = None
         self.fitted_ = False
         self.converged_ = False
         self.n_iter_ = 0
@@ -316,6 +328,9 @@ class GaussianMixture(nn.Module):
                 device=self.device
             )
 
+        # Store the initial weights for later access
+        self.initial_weights_ = self.weights_.clone().detach()
+
         # ----------------------
         # 2) Allocate means
         # ----------------------
@@ -340,6 +355,9 @@ class GaussianMixture(nn.Module):
                 # call the helper for data-based init
                 self._init_means_from_gmminitializer(X)
 
+        # Store the initial means for later access
+        self.initial_means_ = self.means_.clone().detach()
+
         # ----------------------
         # 3) Allocate covariances
         # ----------------------
@@ -348,6 +366,9 @@ class GaussianMixture(nn.Module):
             self.covariances_ = self.covariances_init.to(self.device).float()
         else:
             self._init_default_covariances()
+
+        # Store the initial covariances for later access
+        self.initial_covariances_ = self.covariances_.clone().detach()
 
         # Mark that we've allocated
         self.fitted_ = False
@@ -1197,7 +1218,9 @@ class GaussianMixture(nn.Module):
             Cluster labels for each sample, shape (n_samples,).
         """
         if not self.fitted_:
-            raise ValueError("Call fit() before predict().")
+            warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
+        elif not self.converged_:
+            warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
         resp, _ = self._e_step(X.to(self.device))
         return torch.argmax(resp, dim=1)
 
@@ -1217,7 +1240,9 @@ class GaussianMixture(nn.Module):
             Responsibilities, shape (n_samples, n_components).
         """
         if not self.fitted_:
-            raise ValueError("Call fit() before predict_proba().")
+            warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
+        elif not self.converged_:
+            warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
         resp, _ = self._e_step(X.to(self.device))
         return resp
 
@@ -1236,7 +1261,9 @@ class GaussianMixture(nn.Module):
             Log-likelihood for each sample, shape (n_samples,).
         """
         if not self.fitted_:
-            raise ValueError("Call fit() before score_samples().")
+            warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
+        elif not self.converged_:
+            warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
         _, log_prob_norm = self._e_step(X.to(self.device))
         return log_prob_norm
 
@@ -1276,7 +1303,9 @@ class GaussianMixture(nn.Module):
             The indices of the component each sample came from, shape (n_samples,).
         """
         if not self.fitted_:
-            raise ValueError("Call fit() before sample().")
+            warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
+        elif not self.converged_:
+            warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
 
         if component is not None:
             # Validate component index
@@ -1335,3 +1364,234 @@ class GaussianMixture(nn.Module):
 
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
+
+    def save(self, filepath: str):
+        r"""
+        Save the GMM model parameters and metadata to a file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path where to save the model. Should typically end with '.pth'.
+        """
+        state_dict = {
+            # Model parameters
+            'weights_': self.weights_,
+            'means_': self.means_,
+            'covariances_': self.covariances_,
+            
+            # Initial parameters (for reproducibility)
+            'initial_weights_': self.initial_weights_,
+            'initial_means_': self.initial_means_,
+            'initial_covariances_': self.initial_covariances_,
+            
+            # Model configuration
+            'n_components': self.n_components,
+            'n_features': self.n_features,
+            'covariance_type': self.covariance_type,
+            'tol': self.tol,
+            'reg_covar': self.reg_covar,
+            'max_iter': self.max_iter,
+            'init_params': self.init_params,
+            'cov_init_method': self.cov_init_method,
+            'n_init': self.n_init,
+            'random_state': self.random_state,
+            'warm_start': self.warm_start,
+            'verbose': self.verbose,
+            'verbose_interval': self.verbose_interval,
+            'cem': self.cem,
+            
+            # Training state
+            'fitted_': self.fitted_,
+            'converged_': self.converged_,
+            'n_iter_': self.n_iter_,
+            'lower_bound_': self.lower_bound_,
+            
+            # Prior settings
+            'use_weight_prior': self.use_weight_prior,
+            'use_mean_prior': self.use_mean_prior,
+            'use_covariance_prior': self.use_covariance_prior,
+            'weight_concentration_prior': self.weight_concentration_prior,
+            'mean_prior': self.mean_prior,
+            'mean_precision_prior': self.mean_precision_prior,
+            'covariance_prior': self.covariance_prior,
+            'degrees_of_freedom_prior': self.degrees_of_freedom_prior,
+        }
+        
+        torch.save(state_dict, filepath)
+
+    @classmethod
+    def load(cls, filepath: str, device: str = None) -> "GaussianMixture":
+        r"""
+        Load a GMM model from a saved file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the saved model file.
+        device : str, optional
+            Device to load the model on ('cpu' or 'cuda'). If None, uses the
+            device from the saved model or defaults to GPU if available.
+
+        Returns
+        -------
+        model : GaussianMixture
+            The loaded GMM model.
+        """
+        # Load the state dictionary
+        if device is None:
+            state_dict = torch.load(filepath, weights_only=False)
+        else:
+            state_dict = torch.load(filepath, map_location=device, weights_only=False)
+        
+        # Create a new instance with the saved configuration
+        model = cls(
+            n_components=state_dict['n_components'],
+            n_features=state_dict['n_features'],
+            covariance_type=state_dict['covariance_type'],
+            tol=state_dict['tol'],
+            reg_covar=state_dict['reg_covar'],
+            max_iter=state_dict['max_iter'],
+            init_params=state_dict['init_params'],
+            cov_init_method=state_dict['cov_init_method'],
+            n_init=state_dict['n_init'],
+            random_state=state_dict['random_state'],
+            warm_start=state_dict['warm_start'],
+            verbose=state_dict['verbose'],
+            verbose_interval=state_dict['verbose_interval'],
+            device=device,
+            weight_concentration_prior=state_dict['weight_concentration_prior'],
+            mean_prior=state_dict['mean_prior'],
+            mean_precision_prior=state_dict['mean_precision_prior'],
+            covariance_prior=state_dict['covariance_prior'],
+            degrees_of_freedom_prior=state_dict['degrees_of_freedom_prior'],
+            cem=state_dict['cem'],
+        )
+        
+        # Load the trained parameters and state
+        model.weights_ = state_dict['weights_']
+        model.means_ = state_dict['means_']
+        model.covariances_ = state_dict['covariances_']
+        model.initial_weights_ = state_dict['initial_weights_']
+        model.initial_means_ = state_dict['initial_means_']
+        model.initial_covariances_ = state_dict['initial_covariances_']
+        model.fitted_ = state_dict['fitted_']
+        model.converged_ = state_dict['converged_']
+        model.n_iter_ = state_dict['n_iter_']
+        model.lower_bound_ = state_dict['lower_bound_']
+        
+        # Set prior flags
+        model.use_weight_prior = state_dict['use_weight_prior']
+        model.use_mean_prior = state_dict['use_mean_prior']
+        model.use_covariance_prior = state_dict['use_covariance_prior']
+        
+        return model
+
+    def save_state_dict(self) -> dict:
+        r"""
+        Return the state dictionary of the model (similar to PyTorch's state_dict()).
+        
+        This is useful for integration with other PyTorch workflows and for
+        custom saving/loading logic.
+
+        Returns
+        -------
+        state_dict : dict
+            Dictionary containing model parameters and metadata.
+        """
+        return {
+            # Model parameters
+            'weights_': self.weights_,
+            'means_': self.means_,
+            'covariances_': self.covariances_,
+            
+            # Initial parameters
+            'initial_weights_': self.initial_weights_,
+            'initial_means_': self.initial_means_,
+            'initial_covariances_': self.initial_covariances_,
+            
+            # Model configuration
+            'n_components': self.n_components,
+            'n_features': self.n_features,
+            'covariance_type': self.covariance_type,
+            'tol': self.tol,
+            'reg_covar': self.reg_covar,
+            'max_iter': self.max_iter,
+            'init_params': self.init_params,
+            'cov_init_method': self.cov_init_method,
+            'n_init': self.n_init,
+            'random_state': self.random_state,
+            'warm_start': self.warm_start,
+            'verbose': self.verbose,
+            'verbose_interval': self.verbose_interval,
+            'cem': self.cem,
+            
+            # Training state
+            'fitted_': self.fitted_,
+            'converged_': self.converged_,
+            'n_iter_': self.n_iter_,
+            'lower_bound_': self.lower_bound_,
+            
+            # Prior settings
+            'use_weight_prior': self.use_weight_prior,
+            'use_mean_prior': self.use_mean_prior,
+            'use_covariance_prior': self.use_covariance_prior,
+            'weight_concentration_prior': self.weight_concentration_prior,
+            'mean_prior': self.mean_prior,
+            'mean_precision_prior': self.mean_precision_prior,
+            'covariance_prior': self.covariance_prior,
+            'degrees_of_freedom_prior': self.degrees_of_freedom_prior,
+        }
+
+    def load_state_dict(self, state_dict: dict):
+        r"""
+        Load state from a state dictionary (similar to PyTorch's load_state_dict()).
+
+        Parameters
+        ----------
+        state_dict : dict
+            Dictionary containing model parameters and metadata.
+        """
+        # Load configuration (only if not already set)
+        if hasattr(self, 'n_components') and self.n_components != state_dict['n_components']:
+            warnings.warn(f"n_components mismatch: current={self.n_components}, loaded={state_dict['n_components']}")
+        
+        # Update configuration
+        self.n_components = state_dict['n_components']
+        self.n_features = state_dict['n_features']
+        self.covariance_type = state_dict['covariance_type']
+        self.tol = state_dict['tol']
+        self.reg_covar = state_dict['reg_covar']
+        self.max_iter = state_dict['max_iter']
+        self.init_params = state_dict['init_params']
+        self.cov_init_method = state_dict['cov_init_method']
+        self.n_init = state_dict['n_init']
+        self.random_state = state_dict['random_state']
+        self.warm_start = state_dict['warm_start']
+        self.verbose = state_dict['verbose']
+        self.verbose_interval = state_dict['verbose_interval']
+        self.cem = state_dict['cem']
+        
+        # Load parameters
+        self.weights_ = state_dict['weights_']
+        self.means_ = state_dict['means_']
+        self.covariances_ = state_dict['covariances_']
+        self.initial_weights_ = state_dict['initial_weights_']
+        self.initial_means_ = state_dict['initial_means_']
+        self.initial_covariances_ = state_dict['initial_covariances_']
+        
+        # Load training state
+        self.fitted_ = state_dict['fitted_']
+        self.converged_ = state_dict['converged_']
+        self.n_iter_ = state_dict['n_iter_']
+        self.lower_bound_ = state_dict['lower_bound_']
+        
+        # Load prior settings
+        self.use_weight_prior = state_dict['use_weight_prior']
+        self.use_mean_prior = state_dict['use_mean_prior']
+        self.use_covariance_prior = state_dict['use_covariance_prior']
+        self.weight_concentration_prior = state_dict['weight_concentration_prior']
+        self.mean_prior = state_dict['mean_prior']
+        self.mean_precision_prior = state_dict['mean_precision_prior']
+        self.covariance_prior = state_dict['covariance_prior']
+        self.degrees_of_freedom_prior = state_dict['degrees_of_freedom_prior']
