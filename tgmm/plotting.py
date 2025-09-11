@@ -1,8 +1,16 @@
+"""
+Improved plotting module for Gaussian Mixture Models.
+
+This module provides clean, intuitive plotting functions for GMM visualization
+with clear parameter control instead of confusing 'modes'.
+"""
+
 import torch
 import math
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 from matplotlib.patches import Ellipse
+from scipy.optimize import linear_sum_assignment
+import numpy as np
 
 # --- Matplotlib defaults ---
 plt.rcParams.update({
@@ -36,14 +44,12 @@ plt.rcParams.update({
 ##############################################################################
 
 def dynamic_figsize(rows, cols, base_width=8, base_height=6):
+    """Calculate figure size based on subplot grid."""
     return (cols * base_width, rows * base_height)
 
+
 def ensure_tensor_on_cpu(tensor_or_array, dtype=None):
-    """
-    Convert the input to a CPU torch.Tensor of a specified dtype (if given).
-    - If already a torch.Tensor, just .cpu() it.
-    - If it's a NumPy array (or list/scalar), convert via torch.tensor(...).
-    """
+    """Convert input to CPU torch.Tensor with optional dtype conversion."""
     if isinstance(tensor_or_array, torch.Tensor):
         out = tensor_or_array.cpu()
     else:
@@ -52,76 +58,91 @@ def ensure_tensor_on_cpu(tensor_or_array, dtype=None):
         out = out.to(dtype)
     return out
 
-def make_colormap(name, n_colors=8):
-    """
-    Create a list of RGBA color tuples from a matplotlib colormap.
-    We'll do a simple linear stepping.
-    """
-    cmap = plt.get_cmap(name)
-    if n_colors == 1:
-        # Just pick the middle color if there's only 1 cluster
-        return [cmap(0.5)]
-    step = 1.0 / (n_colors - 1)
-    return [cmap(i * step) for i in range(n_colors)]
 
-def torch_unique_with_counts(x):
+def create_colormap(colors, n_colors=8):
     """
-    PyTorch equivalent of np.unique(x, return_counts=True).
-    Returns (unique_vals, counts).
-    """
-    uniques, counts = x.unique(return_counts=True)
-    return uniques, counts
-
-
-##############################################################################
-# Single Label-Matching Function (by size)
-##############################################################################
-
-from scipy.optimize import linear_sum_assignment
-
-def match_true_labels(labels_ref, labels_pred):
-    """
-    Remap `labels_pred` onto `labels_ref` using linear assignment (Hungarian algorithm)
-    on the contingency matrix between true and predicted labels.
+    Create a list of color tuples from various color specifications.
     
     Parameters
     ----------
-    labels_ref : torch.Tensor
+    colors : str, list, or single color
+        Color specification. Can be:
+        - A matplotlib colormap name (e.g., 'Dark2', 'viridis')
+        - A single color (e.g., 'red', '#FF0000', (1, 0, 0))
+        - A list of colors (e.g., ['red', 'blue', 'green'])
+    n_colors : int, default=8
+        Number of colors to generate (only used with colormap names)
+        
+    Returns
+    -------
+    list
+        List of color tuples/values
+    """
+    # If colors is a list, return it directly (assuming it contains valid colors)
+    if isinstance(colors, (list, tuple)) and not isinstance(colors, str):
+        # Check if it's an RGB/RGBA tuple (single color) vs a list of colors
+        if len(colors) in [3, 4] and all(isinstance(x, (int, float, np.floating)) for x in colors):
+            # It's a single RGB/RGBA color, replicate it
+            return [colors] * n_colors
+        else:
+            # It's a list of colors
+            return list(colors)
+    
+    # If colors is a string, check if it's a colormap name
+    if isinstance(colors, str):
+        # Try to get it as a colormap first
+        try:
+            cmap = plt.get_cmap(colors)
+            # If successful, generate colors from the colormap
+            if n_colors == 1:
+                return [cmap(0.5)]
+            step = 1.0 / (n_colors - 1)
+            return [cmap(i * step) for i in range(n_colors)]
+        except ValueError:
+            # Not a colormap name, treat as a single color name
+            return [colors] * n_colors
+    
+    # Fallback: return as-is
+    return [colors] * n_colors
+
+
+def match_predicted_to_true_labels(true_labels, pred_labels):
+    """
+    Remap predicted labels to match true labels using Hungarian algorithm.
+    
+    Parameters
+    ----------
+    true_labels : torch.Tensor
         Ground-truth labels as a 1D tensor.
-    labels_pred : torch.Tensor
+    pred_labels : torch.Tensor
         Predicted cluster labels as a 1D tensor.
     
     Returns
     -------
     torch.Tensor
-        A new tensor where each predicted label is remapped to the corresponding true label.
+        Remapped predicted labels that best match the true labels.
     """
-    # Flatten the tensors
-    labels_ref = labels_ref.view(-1)
-    labels_pred = labels_pred.view(-1)
+    true_labels = true_labels.view(-1)
+    pred_labels = pred_labels.view(-1)
 
-    # Get unique labels from true and predicted labels
-    unique_true = torch.unique(labels_ref)
-    unique_pred = torch.unique(labels_pred)
+    unique_true = torch.unique(true_labels)
+    unique_pred = torch.unique(pred_labels)
 
-    # Build the contingency matrix (rows: true labels, cols: predicted labels)
+    # Build contingency matrix
     contingency = torch.zeros((len(unique_true), len(unique_pred)), dtype=torch.int64)
     for i, t in enumerate(unique_true):
         for j, p in enumerate(unique_pred):
-            contingency[i, j] = torch.sum((labels_ref == t) & (labels_pred == p))
+            contingency[i, j] = torch.sum((true_labels == t) & (pred_labels == p))
     
-    # Convert contingency matrix to numpy array for the Hungarian algorithm
-    contingency_np = contingency.numpy()
+    # Solve assignment problem
+    row_ind, col_ind = linear_sum_assignment(-contingency.numpy())
+    
+    # Create mapping
+    mapping = {int(unique_pred[j].item()): int(unique_true[i].item()) 
+               for i, j in zip(row_ind, col_ind)}
 
-    # Solve the linear assignment problem on the negative contingency (to maximize matching)
-    row_ind, col_ind = linear_sum_assignment(-contingency_np)
-
-    # Create mapping: predicted label (from unique_pred) -> true label (from unique_true)
-    mapping = { int(unique_pred[j].item()): int(unique_true[i].item()) 
-                for i, j in zip(row_ind, col_ind) }
-
-    # Remap each entry in labels_pred using the mapping; if a label is not mapped, leave it unchanged
-    remapped = labels_pred.clone()
+    # Apply mapping
+    remapped = pred_labels.clone()
     for idx in range(remapped.size(0)):
         old_label = int(remapped[idx])
         remapped[idx] = mapping.get(old_label, old_label)
@@ -129,430 +150,414 @@ def match_true_labels(labels_ref, labels_pred):
     return remapped
 
 
+def get_covariance_matrix(gmm, component_idx, covariance_type=None):
+    """Extract full 2D covariance matrix for a specific component."""
+    if gmm is not None:
+        covariances = ensure_tensor_on_cpu(gmm.covariances_, dtype=torch.float32)
+        cov_type = gmm.covariance_type
+    else:
+        raise ValueError("GMM object is required")
+        
+    if cov_type == 'full':
+        return covariances[component_idx]
+    elif cov_type == 'diag':
+        return torch.diag(covariances[component_idx])
+    elif cov_type == 'spherical':
+        var_val = covariances[component_idx]
+        return torch.eye(2) * var_val
+    elif cov_type == 'tied_full':
+        return covariances
+    elif cov_type == 'tied_diag':
+        return torch.diag(covariances)
+    elif cov_type == 'tied_spherical':
+        var_val = covariances
+        return torch.eye(2) * var_val
+    else:
+        raise ValueError(f"Unsupported covariance_type: {cov_type}")
+
 
 ##############################################################################
-# Main Plot Function
+# Main plotting function
 ##############################################################################
 
 def plot_gmm(
-    X,                # torch.Tensor or NumPy array (N x 2)
+    X,
     gmm=None,
-    labels=None,      # "True" labels, or user-provided
-    match_labels=False,
+    # Data point styling
+    show_points=True,
+    point_size=10,
+    point_alpha=0.6,
+    point_color='auto',  # 'auto', 'black', array-like, or 'cluster'
+    
+    # Cluster visualization
+    color_by_cluster=True,
+    true_labels=None,
+    match_labels_to_true=False,
+    cluster_colors='Dark2',  # Can be colormap name, single color, or list of colors
+    show_incorrect_predictions=False,  # replaces 'outliers' mode
+    
+    # Continuous coloring (replaces 'continuous' mode)
+    color_values=None,
+    colormap='viridis',
+    colorbar_label='Value',
+    
+    # Component ellipses
+    show_ellipses=True,
+    ellipse_std_devs=[1, 2],  # List of standard deviations to show
+    ellipse_alpha=0.3,
+    ellipse_colors='auto',  # 'auto' uses same as clusters
+    ellipse_fill=True,
+    ellipse_line_style='-',
+    ellipse_line_width=1.5,
+    
+    # Component centers/means
+    show_means=True,
+    mean_marker='x',
+    mean_size=50,
+    mean_color='black',
+    
+    # Initial means (if provided)
+    initial_means=None,
+    show_initial_means=False,
+    initial_mean_marker='+',
+    initial_mean_size=30,
+    initial_mean_color='red',
+    
+    # Weight visualization
+    scale_alpha_by_weight=False,
+    scale_size_by_weight=False,
+    
+    # Plot styling
     ax=None,
-    mode='cluster',   # can be 'cluster', 'outliers', etc.
-    title='GMM Results',
-    weights=None,     # user-provided mixture weights (if gmm=None)
-    means=None,       # user-provided means
-    covariances=None, # user-provided covariances
-    covariance_type='full',
-    init_means=None,  
-    cmap_cont='viridis',
-    cmap_seq='Greens',
-    std_devs=(1, 2, 3),
-    base_alpha=0.8,
-    alpha_from_weight=False,
-    dashed_outer=False,
+    title='GMM Visualization',
     xlabel='Feature 1',
     ylabel='Feature 2',
+    legend=True,
     legend_labels=None,
-    color_values=None,
-    cbar_label='Color',
 ):
     """
-    Plots data in 2D using either:
-      - 'cluster' or 'outliers' (colored by cluster correctness),
-      - 'continuous' (color_values),
-      - 'dots' (plain),
-      - 'ellipses', 'weights', 'means', 'covariances' (show component ellipses).
-
-    If mode='outliers', we must have both `gmm` and `labels` (the "true" labels).
-    Then we do GMM.predict(X), optionally match them to the true labels if
-    match_labels=True, and highlight correct vs incorrect.
-
-    GMM is expected to have:
-      - gmm.predict(X) => torch.LongTensor (cluster IDs)
-      - gmm.weights_, gmm.means_, gmm.covariances_, gmm.covariance_type
-      - gmm.n_components
+    Plot Gaussian Mixture Model results with fine-grained control.
+    
+    Parameters
+    ----------
+    X : array-like, shape (n_samples, 2)
+        The input data points to plot.
+    gmm : fitted GMM object, optional
+        A fitted Gaussian Mixture Model with predict(), means_, covariances_, etc.
+    
+    Data Points
+    -----------
+    show_points : bool, default=True
+        Whether to show the data points.
+    point_size : float, default=10
+        Size of data points.
+    point_alpha : float, default=0.6
+        Transparency of data points.
+    point_color : str or array-like, default='auto'
+        Color specification for points. Options:
+        - 'auto': Use cluster colors if color_by_cluster=True, else black
+        - 'black': All points black
+        - 'cluster': Color by predicted cluster (requires gmm)
+        - array-like: Custom colors/values for each point
+    
+    Clustering
+    ----------
+    color_by_cluster : bool, default=True
+        Whether to color points by their cluster assignment.
+    true_labels : array-like, optional
+        True cluster labels for comparison.
+    match_labels_to_true : bool, default=False
+        Whether to remap predicted labels to match true labels.
+    cluster_colors : str, list, or single color, default='Dark2'
+        Color specification for clusters. Options:
+        - Matplotlib colormap name (e.g., 'Dark2', 'viridis')
+        - Single color for all clusters (e.g., 'red', '#FF0000', (1, 0, 0))
+        - List of specific colors (e.g., ['green', 'blue', 'red', 'yellow'])
+    show_incorrect_predictions : bool, default=False
+        Highlight incorrectly classified points (requires true_labels).
+    
+    Continuous Coloring
+    -------------------
+    color_values : array-like, optional
+        Values to use for continuous coloring (e.g., log-likelihoods).
+    colormap : str, default='viridis'
+        Matplotlib colormap for continuous values.
+    colorbar_label : str, default='Value'
+        Label for the colorbar.
+    
+    Component Ellipses
+    ------------------
+    show_ellipses : bool, default=True
+        Whether to show confidence ellipses for components.
+    ellipse_std_devs : list, default=[1, 2]
+        Standard deviations for ellipse boundaries.
+    ellipse_alpha : float, default=0.3
+        Transparency of ellipses.
+    ellipse_colors : str, list, single color, or 'auto', default='auto'
+        Colors for ellipses. Options:
+        - 'auto': Use same colors as clusters
+        - Matplotlib colormap name (e.g., 'Dark2', 'viridis')  
+        - Single color for all ellipses (e.g., 'red', '#FF0000')
+        - List of specific colors (e.g., ['green', 'blue', 'red'])
+    ellipse_fill : bool, default=True
+        Whether ellipses should be filled.
+    ellipse_line_style : str, default='-'
+        Line style for ellipse boundaries.
+    ellipse_line_width : float, default=1.5
+        Line width for ellipse boundaries.
+    
+    Component Centers
+    -----------------
+    show_means : bool, default=True
+        Whether to show component means.
+    mean_marker : str, default='x'
+        Marker style for component means.
+    mean_size : float, default=50
+        Size of mean markers.
+    mean_color : str, default='black'
+        Color of mean markers.
+    
+    Initial Means
+    -------------
+    initial_means : array-like, optional
+        Initial means to display (e.g., from initialization).
+    show_initial_means : bool, default=False
+        Whether to show initial means.
+    initial_mean_marker : str, default='+'
+        Marker style for initial means.
+    initial_mean_size : float, default=30
+        Size of initial mean markers.
+    initial_mean_color : str, default='red'
+        Color of initial mean markers.
+    
+    Weight Visualization
+    --------------------
+    scale_alpha_by_weight : bool, default=False
+        Scale ellipse transparency by component weight.
+    scale_size_by_weight : bool, default=False
+        Scale point/marker size by component weight.
+    
+    Styling
+    -------
+    ax : matplotlib.Axes, optional
+        Axes to plot on. If None, uses current axes.
+    title : str, default='GMM Visualization'
+        Plot title.
+    xlabel : str, default='Feature 1'
+        X-axis label.
+    ylabel : str, default='Feature 2'
+        Y-axis label.
+    legend : bool, default=True
+        Whether to show legend.
+    legend_labels : list, optional
+        Custom labels for legend entries.
+    
+    Returns
+    -------
+    ax : matplotlib.Axes
+        The axes object with the plot.
     """
     if ax is None:
         ax = plt.gca()
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-
-    # 1) Convert data & labels to Torch on CPU
+    # Convert inputs to tensors
     X = ensure_tensor_on_cpu(X, dtype=torch.float32)
-    if labels is not None:
-        labels = ensure_tensor_on_cpu(labels, dtype=torch.int64)
-    N = X.shape[0]
-
-    # 2) Possibly get predicted labels from GMM
-    pred_labels = None
+    n_samples, n_features = X.shape
+    
+    if n_features != 2:
+        raise ValueError("This plotting function only supports 2D data")
+    
+    # Get GMM predictions if available
+    predicted_labels = None
+    n_components = 1
+    
     if gmm is not None:
-        pred_labels = gmm.predict(X).cpu()
+        predicted_labels = gmm.predict(X).cpu()
         n_components = gmm.n_components
-    else:
-        n_components = 1
-
-    # 3) Handle "outliers" mode first
-    if mode == 'outliers':
-        if (gmm is None) or (labels is None):
-            raise ValueError("mode='outliers' requires both gmm=... and labels=...")
-
-        # If match_labels=True, align predicted to ground-truth
-        if match_labels:
-            final_labels = match_true_labels(labels, pred_labels)
+        gmm_means = ensure_tensor_on_cpu(gmm.means_, dtype=torch.float32)
+        gmm_weights = ensure_tensor_on_cpu(gmm.weights_, dtype=torch.float32)
+    
+    # Determine final labels for coloring
+    final_labels = None
+    if color_by_cluster and predicted_labels is not None:
+        if true_labels is not None and match_labels_to_true:
+            true_labels = ensure_tensor_on_cpu(true_labels, dtype=torch.int64)
+            final_labels = match_predicted_to_true_labels(true_labels, predicted_labels)
         else:
-            final_labels = pred_labels
-
-        # Plot correct vs incorrect
-        correct_mask = (final_labels == labels)
-        incorrect_mask = ~correct_mask
-
-        ax.scatter(
-            X[correct_mask, 0], 
-            X[correct_mask, 1],
-            c='green', s=20, marker='.', alpha=0.3,
-            label='Correct'
-        )
-        ax.scatter(
-            X[incorrect_mask, 0],
-            X[incorrect_mask, 1],
-            c='red', s=20, marker='.',
-            alpha=0.8, label='Incorrect'
-        )
-
-        # Also plot a ~95% ellipse for each GMM component
-        # => chi-square for 2 DOF at 95% is ~5.991
-        chi2_95 = 5.991
-        means_ = ensure_tensor_on_cpu(gmm.means_, dtype=torch.float32)
-        covs_  = ensure_tensor_on_cpu(gmm.covariances_, dtype=torch.float32)
-
+            final_labels = predicted_labels
+    elif color_by_cluster and true_labels is not None:
+        final_labels = ensure_tensor_on_cpu(true_labels, dtype=torch.int64)
+        n_components = int(final_labels.max().item()) + 1
+    
+    # Set up colors
+    if final_labels is not None:
+        cluster_color_list = create_colormap(cluster_colors, n_components)
+    
+    # Plot data points
+    if show_points:
+        if color_values is not None:
+            # Continuous coloring
+            color_values = ensure_tensor_on_cpu(color_values, dtype=torch.float32)
+            sc = ax.scatter(X[:, 0], X[:, 1], c=color_values, cmap=colormap, 
+                          s=point_size, alpha=point_alpha)
+            if legend:
+                cb = plt.colorbar(sc, ax=ax)
+                cb.set_label(colorbar_label)
+                
+        elif show_incorrect_predictions and true_labels is not None and predicted_labels is not None:
+            # Highlight correct vs incorrect predictions
+            true_labels = ensure_tensor_on_cpu(true_labels, dtype=torch.int64)
+            if match_labels_to_true:
+                compare_labels = match_predicted_to_true_labels(true_labels, predicted_labels)
+            else:
+                compare_labels = predicted_labels
+                
+            correct_mask = (compare_labels == true_labels)
+            incorrect_mask = ~correct_mask
+            
+            ax.scatter(X[correct_mask, 0], X[correct_mask, 1], 
+                      c='green', s=point_size, alpha=point_alpha, 
+                      label='Correct', marker='.')
+            ax.scatter(X[incorrect_mask, 0], X[incorrect_mask, 1], 
+                      c='red', s=point_size, alpha=point_alpha, 
+                      label='Incorrect', marker='.')
+                      
+        elif point_color == 'cluster' and final_labels is not None:
+            # Color by cluster
+            for i in range(n_components):
+                mask = (final_labels == i)
+                if mask.any():
+                    label = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {i}"
+                    # Use 'color' keyword for single colors to avoid matplotlib warnings
+                    ax.scatter(X[mask, 0], X[mask, 1], 
+                             color=cluster_color_list[i], s=point_size, 
+                             alpha=point_alpha, label=label)
+                             
+        elif point_color == 'auto':
+            if color_by_cluster and final_labels is not None:
+                # Auto color by cluster
+                for i in range(n_components):
+                    mask = (final_labels == i)
+                    if mask.any():
+                        label = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {i}"
+                        # Use 'color' keyword for single colors to avoid matplotlib warnings
+                        ax.scatter(X[mask, 0], X[mask, 1], 
+                                 color=cluster_color_list[i], s=point_size, 
+                                 alpha=point_alpha, label=label)
+            else:
+                # Auto color = black
+                ax.scatter(X[:, 0], X[:, 1], c='black', s=point_size, alpha=point_alpha)
+        else:
+            # Explicit color (black, or custom array)
+            ax.scatter(X[:, 0], X[:, 1], c=point_color, s=point_size, alpha=point_alpha)
+    
+    # Plot component ellipses
+    if show_ellipses and gmm is not None:
+        ellipse_color_list = cluster_color_list if ellipse_colors == 'auto' else create_colormap(ellipse_colors, n_components)
+        
         for i in range(n_components):
-            mean_i = means_[i]
-            cov_i  = covs_[i]
-
+            mean_i = gmm_means[i]
+            cov_i = get_covariance_matrix(gmm, i)
+            
+            # Calculate ellipse parameters
             vals, vecs = torch.linalg.eigh(cov_i)
             idx = torch.argsort(vals, descending=True)
             vals, vecs = vals[idx], vecs[:, idx]
-
+            
             angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
-            # width, height
-            w_ = 2.0 * (chi2_95 * vals).sqrt()
-            ellipse = Ellipse(
-                (mean_i[0].item(), mean_i[1].item()),
-                w_[0].item(), w_[1].item(),
-                angle=angle.item(),
-                facecolor='none',
-                edgecolor='black',
-                linewidth=1.5,
-                linestyle='--'
-            )
-            ax.add_patch(ellipse)
-            # Mark the component mean
-            ax.scatter(
-                mean_i[0].item(),
-                mean_i[1].item(),
-                c='black', marker='x', s=50
-            )
-
-        ax.set_title(title)
-        ax.legend(markerscale=1.5)
-        return ax
-
-    # 4) If not in outliers mode, we do the usual logic
-
-    # If user didn't provide a GMM, maybe they gave direct labels or nothing
-    if gmm is None:
-        # no gmm => use user-provided labels to figure out n_components
-        if labels is not None:
-            n_components = int(labels.max().item()) + 1
-        else:
-            n_components = 1
-
-    # Determine final_labels in normal cluster modes
-    if mode in ['cluster', 'ellipses','weights','means','covariances','dots','continuous']:
-        if pred_labels is not None:  
-            if labels is not None and match_labels:
-                final_labels = match_true_labels(labels, pred_labels)
-            else:
-                # default => use pred_labels as-is
-                final_labels = pred_labels
-        else:
-            final_labels = labels  # might be None if user just wants 'dots'
-
-    # 5) Plot data for the simpler modes
-    if mode == 'dots':
-        ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
-
-    elif mode == 'continuous':
-        if color_values is None:
-            raise ValueError("In 'continuous' mode, color_values must be provided.")
-        color_values = ensure_tensor_on_cpu(color_values, dtype=torch.float32)
-        sc = ax.scatter(X[:, 0], X[:, 1], c=color_values, cmap=cmap_cont, s=10)
-        cb = plt.colorbar(sc, ax=ax)
-        cb.set_label(cbar_label)
-
-    elif mode == 'cluster':
-        if final_labels is None:
-            # fallback => black points
-            ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
-        else:
-            if legend_labels is None:
-                legend_labels = [f"Cluster {i}" for i in range(n_components)]
-            color_list = make_colormap('Dark2', n_components)
-
-            for i in range(n_components):
-                mask = (final_labels == i)
-                ax.scatter(
-                    X[mask, 0], X[mask, 1],
-                    c=[color_list[i]],
-                    s=10, alpha=0.5,
-                    label=legend_labels[i]
-                )
-            handles, _ = ax.get_legend_handles_labels()
-            if handles:
-                ax.legend(loc='best', markerscale=1.5)
-
-    else:
-        # 'ellipses', 'weights', 'means', 'covariances' => show black points
-        ax.scatter(X[:, 0], X[:, 1], c='k', s=10, marker='.')
-
-    # 6) Pull out GMM or user-supplied params for ellipse plotting
-    if gmm is not None:
-        m_weights     = ensure_tensor_on_cpu(gmm.weights_,     dtype=torch.float32)
-        m_means       = ensure_tensor_on_cpu(gmm.means_,       dtype=torch.float32)
-        m_covariances = ensure_tensor_on_cpu(gmm.covariances_, dtype=torch.float32)
-        cov_type      = gmm.covariance_type
-        comp_count    = gmm.n_components
-    elif (weights is not None) and (means is not None) and (covariances is not None):
-        m_weights     = ensure_tensor_on_cpu(weights,     dtype=torch.float32)
-        m_means       = ensure_tensor_on_cpu(means,       dtype=torch.float32)
-        m_covariances = ensure_tensor_on_cpu(covariances, dtype=torch.float32)
-        cov_type      = covariance_type
-        comp_count    = m_means.shape[0]
-    else:
-        m_weights = m_means = m_covariances = None
-        cov_type = None
-        comp_count = 0
-
-    def get_full_cov(i):
-        """Return the full 2D covariance for the i-th component."""
-        if cov_type == 'full':
-            return m_covariances[i]
-        elif cov_type == 'diag':
-            return torch.diag(m_covariances[i])
-        elif cov_type == 'spherical':
-            var_val = m_covariances[i]
-            d = m_means.shape[1]
-            return torch.eye(d) * var_val
-        elif cov_type == 'tied_full':
-            return m_covariances
-        elif cov_type == 'tied_diag':
-            return torch.diag(m_covariances)
-        elif cov_type == 'tied_spherical':
-            var_val = m_covariances
-            d = m_means.shape[1]
-            return torch.eye(d) * var_val
-        else:
-            raise ValueError(f"Unsupported covariance_type: {cov_type}")
-
-    # 7) If we have means/covs and user wants ellipse modes
-    if (m_means is not None) and (mode in ['ellipses','cluster','weights','means','covariances']):
-        
-        # --------------------------------------------------------------------
-        # 'weights' => single ellipse each, alpha scaled by weight
-        # --------------------------------------------------------------------
-        if mode == 'weights':
-            wmax = m_weights.max()
-            line_colors = make_colormap('OrRd', comp_count)
-
-            for i in range(comp_count):
-                mean_i = m_means[i]
-                cov_i  = get_full_cov(i)
-                vals, vecs = torch.linalg.eigh(cov_i)
-                idx = torch.argsort(vals, descending=True)
-                vals, vecs = vals[idx], vecs[:, idx]
-
-                angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
-                width, height = 2.0 * 2.0 * vals.sqrt()
-                alpha_val = (m_weights[i] / wmax) * base_alpha
-
-                # Filled ellipse
-                efill = Ellipse(
+            
+            # Create ellipses for each standard deviation
+            alpha_step = ellipse_alpha / len(ellipse_std_devs) if len(ellipse_std_devs) > 1 else ellipse_alpha
+            
+            for j, std_dev in enumerate(ellipse_std_devs):
+                width = 2.0 * std_dev * torch.sqrt(vals[0])
+                height = 2.0 * std_dev * torch.sqrt(vals[1])
+                
+                # Adjust alpha for multiple ellipses
+                current_alpha = ellipse_alpha * (1 - j * 0.3 / len(ellipse_std_devs))
+                if scale_alpha_by_weight:
+                    current_alpha *= (gmm_weights[i] / gmm_weights.max()).item()
+                
+                ellipse = Ellipse(
                     (mean_i[0].item(), mean_i[1].item()),
-                    width=width.item(), height=height.item(),
+                    width.item(), height.item(),
                     angle=angle.item(),
-                    facecolor='orange',
-                    alpha=alpha_val.item(),
-                    edgecolor='none'
+                    facecolor=ellipse_color_list[i] if ellipse_fill else 'none',
+                    edgecolor=ellipse_color_list[i],
+                    alpha=current_alpha,
+                    linewidth=ellipse_line_width,
+                    linestyle=ellipse_line_style
                 )
-                ax.add_patch(efill)
-
-                # Outline
-                edge_col = line_colors[i]
-                eoutline = Ellipse(
-                    (mean_i[0].item(), mean_i[1].item()),
-                    width=width.item(), height=height.item(),
-                    angle=angle.item(),
-                    facecolor='none',
-                    edgecolor=edge_col,
-                    linewidth=2.0
-                )
-                ax.add_patch(eoutline)
-
-                ax.scatter(mean_i[0].item(), mean_i[1].item(), c=[edge_col], s=20, marker='x')
-
-        # --------------------------------------------------------------------
-        # 'means' => highlight each mean with a ~2 stdev ellipse
-        # --------------------------------------------------------------------
-        elif mode == 'means':
-            for i in range(comp_count):
-                mean_i = m_means[i]
-                cov_i  = get_full_cov(i)
-                vals, vecs = torch.linalg.eigh(cov_i)
-                idx = torch.argsort(vals, descending=True)
-                vals, vecs = vals[idx], vecs[:, idx]
-
-                angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
-                w_ = 2.0 * 2.0 * vals.sqrt()
-                width, height = w_[0], w_[1] if w_.size(0) > 1 else w_[0]
-
-                e = Ellipse(
-                    (mean_i[0].item(), mean_i[1].item()),
-                    width=width.item(), height=height.item(),
-                    angle=angle.item(),
-                    facecolor='blue',
-                    alpha=base_alpha,
-                    edgecolor='blue'
-                )
-                ax.add_patch(e)
-
-                # Ensure consistent size for all yellow dots
-                ax.scatter(
-                    mean_i[0].item(), mean_i[1].item(),
-                    c='yellow', s=50,  # Set consistent size
-                    marker='o',
-                    label='Final Mean' if i == 0 else None
-                )
-
-        # --------------------------------------------------------------------
-        # 'covariances' => multiple ellipses per component based on std_devs
-        # --------------------------------------------------------------------
-        elif mode == 'covariances':
-            if isinstance(std_devs, (int, float)):
-                std_devs = [std_devs]
-            base_col = plt.get_cmap(cmap_seq)(0.7)
-            # build alpha ladder
-            if len(std_devs) == 1:
-                alpha_list = [base_alpha]
-            elif len(std_devs) == 2:
-                alpha_list = [base_alpha, base_alpha * 0.66]
-            elif len(std_devs) == 3:
-                alpha_list = [base_alpha, base_alpha * 0.66, base_alpha * 0.33]
-            else:
-                alpha_list = [base_alpha*(1 - j/len(std_devs)) for j in range(len(std_devs))]
-
-            for i in range(comp_count):
-                mean_i = m_means[i]
-                cov_i  = get_full_cov(i)
-                vals, vecs = torch.linalg.eigh(cov_i)
-                idx = torch.argsort(vals, descending=True)
-                vals, vecs = vals[idx], vecs[:, idx]
-
-                angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
-                for s, a_val in zip(std_devs, alpha_list):
-                    w_ = 2.0 * s * vals.sqrt()
-                    e = Ellipse(
-                        (mean_i[0].item(), mean_i[1].item()),
-                        w_[0].item(), w_[1].item(),
-                        angle=angle.item(),
-                        facecolor=base_col,
-                        alpha=a_val,
-                        edgecolor=base_col
-                    )
-                    ax.add_patch(e)
-                ax.scatter(mean_i[0].item(), mean_i[1].item(), c='k', s=10, marker='.')
-
-        # --------------------------------------------------------------------
-        # 'ellipses' => single or multiple ellipses in cluster style
-        # --------------------------------------------------------------------
-        elif mode in ['ellipses','cluster']:
-            color_list = make_colormap('Dark2', comp_count)
-            if alpha_from_weight and (m_weights is not None):
-                wmax = m_weights.max()
-                for i in range(comp_count):
-                    mean_i = m_means[i]
-                    cov_i  = get_full_cov(i)
-                    vals, vecs = torch.linalg.eigh(cov_i)
-                    idx = torch.argsort(vals, descending=True)
-                    vals, vecs = vals[idx], vecs[:, idx]
-
-                    angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
-                    w_ = 2.0 * 2.0 * vals.sqrt()
-                    alpha_val = (m_weights[i] / wmax) * base_alpha
-
-                    e = Ellipse(
-                        (mean_i[0].item(), mean_i[1].item()),
-                        w_[0].item(), w_[1].item(),
-                        angle=angle.item(),
-                        facecolor=color_list[i],
-                        alpha=alpha_val.item(),
-                        edgecolor=color_list[i]
-                    )
-                    if dashed_outer:
-                        e.set_linestyle('--')
-                    ax.add_patch(e)
-                    ax.scatter(mean_i[0].item(), mean_i[1].item(), c='k', s=20, marker='.')
-            else:
-                # multiple ellipses per comp for given std_devs
-                if isinstance(std_devs, (int, float)):
-                    std_devs = [std_devs]
-
-                for i in range(comp_count):
-                    mean_i = m_means[i]
-                    cov_i  = get_full_cov(i)
-                    vals, vecs = torch.linalg.eigh(cov_i)
-                    idx = torch.argsort(vals, descending=True)
-                    vals, vecs = vals[idx], vecs[:, idx]
-
-                    angle = (180.0 / math.pi) * torch.atan2(vecs[1, 0], vecs[0, 0])
-
-                    # generate alpha ladder
-                    if len(std_devs) == 1:
-                        alpha_list = [base_alpha]
-                    elif len(std_devs) == 2:
-                        alpha_list = [base_alpha, base_alpha * 0.66]
-                    elif len(std_devs) == 3:
-                        alpha_list = [base_alpha, base_alpha * 0.66, base_alpha * 0.33]
-                    else:
-                        alpha_list = [base_alpha*(1 - j/len(std_devs)) for j in range(len(std_devs))]
-
-                    for s, a_val in zip(std_devs, alpha_list):
-                        w_ = 2.0 * s * vals.sqrt()
-                        e = Ellipse(
-                            (mean_i[0].item(), mean_i[1].item()),
-                            w_[0].item(), w_[1].item(),
-                            angle=angle.item(),
-                            facecolor=color_list[i],
-                            alpha=a_val,
-                            edgecolor=None
-                        )
-                        ax.add_patch(e)
-                    ax.scatter(mean_i[0].item(), mean_i[1].item(), c='k', s=20, marker='.')
-
-    # 8) Optionally plot initial means
-    if init_means is not None:
-        init_means = ensure_tensor_on_cpu(init_means, dtype=torch.float32)
-        mark = 'x' if mode == 'means' else '+'
-        for i in range(init_means.shape[0]):
-            lbl = 'Initial Means' if i == 0 else None
-            ax.scatter(
-                init_means[i,0].item(),
-                init_means[i,1].item(),
-                c='r', marker=mark, s=50, label=lbl
-            )
-
+                ax.add_patch(ellipse)
+    
+    # Plot component means
+    if show_means and gmm is not None:
+        for i in range(n_components):
+            mean_i = gmm_means[i]
+            size = mean_size
+            if scale_size_by_weight:
+                size *= (gmm_weights[i] / gmm_weights.max()).item()
+                
+            ax.scatter(mean_i[0].item(), mean_i[1].item(), 
+                      c=mean_color, marker=mean_marker, s=size,
+                      label='Component Mean' if i == 0 and legend else None)
+    
+    # Plot initial means
+    if show_initial_means and initial_means is not None:
+        initial_means = ensure_tensor_on_cpu(initial_means, dtype=torch.float32)
+        for i in range(initial_means.shape[0]):
+            ax.scatter(initial_means[i, 0].item(), initial_means[i, 1].item(),
+                      c=initial_mean_color, marker=initial_mean_marker, 
+                      s=initial_mean_size,
+                      label='Initial Mean' if i == 0 and legend else None)
+    
+    # Finalize plot
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     ax.set_title(title)
+    
+    if legend:
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            ax.legend(loc='best')
+    
     return ax
+
+
+##############################################################################
+# Convenience functions for common use cases
+##############################################################################
+
+def plot_clusters(X, gmm=None, labels=None, **kwargs):
+    """Quick function to plot data colored by clusters."""
+    return plot_gmm(X, gmm=gmm, true_labels=labels, color_by_cluster=True, 
+                   show_ellipses=True, **kwargs)
+
+
+def plot_likelihood_landscape(X, gmm, **kwargs):
+    """Plot data colored by log-likelihood values."""
+    # Convert X to tensor and move to the same device as the GMM
+    X_tensor = ensure_tensor_on_cpu(X, dtype=torch.float32)
+    if hasattr(gmm, 'device'):
+        X_tensor = X_tensor.to(gmm.device)
+    log_probs = gmm.score_samples(X_tensor)
+    # Ensure log_probs are on CPU for plotting
+    if hasattr(log_probs, 'cpu'):
+        log_probs = log_probs.cpu()
+    return plot_gmm(X, gmm=gmm, color_values=log_probs, 
+                   colorbar_label='Log-Likelihood', show_points=True,
+                   show_ellipses=False, **kwargs)
+
+
+def plot_prediction_errors(X, gmm, true_labels, **kwargs):
+    """Highlight prediction errors."""
+    return plot_gmm(X, gmm=gmm, true_labels=true_labels, 
+                   show_incorrect_predictions=True, 
+                   match_labels_to_true=True, **kwargs)
+
+
+def plot_component_ellipses(X, gmm, std_devs=[1, 2, 3], **kwargs):
+    """Focus on showing component ellipses with multiple confidence levels."""
+    return plot_gmm(X, gmm=gmm, show_points=True, point_color='black',
+                   show_ellipses=True, ellipse_std_devs=std_devs,
+                   color_by_cluster=False, **kwargs)

@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 import warnings
 from .gmm_init import GMMInitializer
 
-EPS = 1e-20  # Small constant for numerical stability
+
 
 class GaussianMixture(nn.Module):
     r"""
@@ -14,6 +14,7 @@ class GaussianMixture(nn.Module):
     This GMM supports:
     
     - The Expectation-Maximization (EM) algorithm.
+    - The Classification EM (CEM) algorithm as an alternative to standard EM.
     - Multiple initializations (n_init).
     - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical).
     - Maximum Likelihood Estimation (MLE) and Maximum a Posteriori (MAP) estimation (i.e. with Priors).
@@ -77,6 +78,9 @@ class GaussianMixture(nn.Module):
     cov_init_method : str, optional
         Method for initializing covariances if `covariances_init` is None.
         Supported: 'eye', 'random', 'empirical'. (default: 'eye')
+    cem : bool, optional
+        If True, use the Classification EM algorithm instead of standard EM.
+        (default: False)
 
     Attributes
     ----------
@@ -120,6 +124,7 @@ class GaussianMixture(nn.Module):
         mean_precision_prior: float = None,
         covariance_prior: torch.Tensor = None,
         degrees_of_freedom_prior: float = None,
+        cem: bool = False,
     ):
         super().__init__()
 
@@ -147,6 +152,7 @@ class GaussianMixture(nn.Module):
         # Additional features
         self.n_init = n_init
         self.cov_init_method = cov_init_method
+        self.cem = cem  # Flag to use Classification EM
 
         # Device
         if device is not None:
@@ -299,7 +305,7 @@ class GaussianMixture(nn.Module):
                     f"weights_init must be shape ({self.n_components},), got {self.weights_init.shape}."
                 )
             weights = self.weights_init.to(self.device).float()
-            if torch.sum(weights) < EPS:
+            if torch.sum(weights) < 1e-20:
                 raise ValueError("Initial weights must sum to > 0.")
             self.weights_ = weights / torch.sum(weights)
         else:
@@ -682,10 +688,12 @@ class GaussianMixture(nn.Module):
         if not self.converged_:
             warnings.warn("EM algorithm did not converge. Try increasing max_iter or lowering tol.", UserWarning)
 
+        return self
 
     def _fit_single_run(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
         r"""
-        Perform one run of the EM algorithm (E-step + M-step).
+        Perform one run of the EM algorithm (E-step + M-step) or CEM algorithm 
+        (E-step + C-step + M-step).
 
         Parameters
         ----------
@@ -706,17 +714,27 @@ class GaussianMixture(nn.Module):
             raise ValueError(f"X has {X.shape[1]} features, but n_features={self.n_features}.")
 
         prev_lower_bound = -float("inf")
+        
+        # Initial E-step
         resp, log_prob_norm = self._e_step(X)
         self.lower_bound_ = log_prob_norm.mean().item()
+        
         for n_iter in range(max_iter):
+            # If using CEM, add a C-step between E-step and M-step
+            if self.cem:
+                resp = self._c_step(resp)
+                
+            # M-step
             self._m_step(X, resp)
 
-            rel_change = abs(self.lower_bound_ - prev_lower_bound) / (abs(prev_lower_bound) + EPS)
+            # Check for convergence
+            rel_change = abs(self.lower_bound_ - prev_lower_bound) / (abs(prev_lower_bound) + 1e-20)
             if rel_change < tol:
                 self.converged_ = True
                 if self.verbose:
                     print(f"[InitRun {run_idx}] Converged at iteration {n_iter}, lower bound={self.lower_bound_:.5f}")
                 break
+                
             prev_lower_bound = self.lower_bound_
             resp, log_prob_norm = self._e_step(X)
             self.lower_bound_ = log_prob_norm.mean().item()
@@ -726,11 +744,38 @@ class GaussianMixture(nn.Module):
 
         if self.converged_:
             resp, log_prob_norm = self._e_step(X)
+            # If CEM, do a final C-step
+            if self.cem:
+                resp = self._c_step(resp)
             self.lower_bound_ = log_prob_norm.mean().item()
         else:
             warnings.warn("EM algorithm did not converge. Try increasing max_iter or lowering tol.", UserWarning)
 
         self.n_iter_ = n_iter
+    
+    def _c_step(self, resp: torch.Tensor) -> torch.Tensor:
+        r"""
+        C-step (Classification): Assign each point to a single component.
+        
+        Parameters
+        ----------
+        resp : torch.Tensor
+            Responsibilities from E-step, shape (n_samples, n_components)
+            
+        Returns
+        -------
+        hard_resp : torch.Tensor
+            Hard assignments (one-hot), shape (n_samples, n_components)
+        """
+        # Get component with maximum responsibility for each sample
+        max_resp_indices = torch.argmax(resp, dim=1)
+        
+        # Create one-hot encoding for hard assignments
+        n_samples = resp.size(0)
+        hard_resp = torch.zeros_like(resp)
+        hard_resp[torch.arange(n_samples), max_resp_indices] = 1.0
+        
+        return hard_resp
 
     # ---------------------------
     # E-step
@@ -754,7 +799,7 @@ class GaussianMixture(nn.Module):
             Log-sum-exp of the weighted probabilities for each sample,
             shape (n_samples,).
         """
-        log_weights = torch.log(self.weights_ + EPS)
+        log_weights = torch.log(self.weights_ + 1e-20)
 
         if self.covariance_type == 'full':
             log_prob = self._estimate_log_gaussian_full(X)
@@ -809,9 +854,9 @@ class GaussianMixture(nn.Module):
         Compute log-probabilities under a diagonal covariance model for each
         sample-component pair.
         """
-        precisions = 1.0 / (self.covariances_ + EPS)
+        precisions = 1.0 / (self.covariances_ + 1e-20)
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        log_det = torch.sum(torch.log(self.covariances_ + EPS), dim=1)
+        log_det = torch.sum(torch.log(self.covariances_ + 1e-20), dim=1)
         mahal = torch.sum(diff.pow(2) * precisions.unsqueeze(0), dim=2)
 
         return -0.5 * (
@@ -827,9 +872,9 @@ class GaussianMixture(nn.Module):
         sample-component pair.
         """
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        precisions = 1.0 / (self.covariances_ + EPS)
+        precisions = 1.0 / (self.covariances_ + 1e-20)
         mahal = torch.sum(diff.pow(2), dim=2) * precisions.unsqueeze(0)
-        log_det = self.n_features * torch.log(self.covariances_ + EPS)
+        log_det = self.n_features * torch.log(self.covariances_ + 1e-20)
 
         return -0.5 * (
             self.n_features * torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
@@ -867,7 +912,7 @@ class GaussianMixture(nn.Module):
         sample-component pair.
         """
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        cov_vector = self.covariances_ + EPS
+        cov_vector = self.covariances_ + 1e-20
         log_det = torch.sum(torch.log(cov_vector))
         precisions = 1.0 / cov_vector
         mahal = torch.sum(diff.pow(2) * precisions, dim=2)
@@ -885,7 +930,7 @@ class GaussianMixture(nn.Module):
         sample-component pair.
         """
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        var = self.covariances_ + EPS
+        var = self.covariances_ + 1e-20
         prec = 1.0 / var
         mahal = torch.sum(diff.pow(2), dim=2) * prec
         log_det = self.n_features * torch.log(var)
@@ -910,10 +955,10 @@ class GaussianMixture(nn.Module):
             Input data of shape (n_samples, n_features).
         resp : torch.Tensor
             Current responsibilities for each sample w.r.t. each component
-            (from E-step).
+            (from E-step or C-step).
         """
         n_samples = X.size(0)
-        nk = resp.sum(dim=0) + EPS
+        nk = resp.sum(dim=0) + 1e-20
 
         # Update weights (MAP or MLE)
         if self.use_weight_prior:
@@ -922,7 +967,7 @@ class GaussianMixture(nn.Module):
             self.weights_ = (nk + alpha - 1.0) / (n_samples + total_alpha - self.n_components)
         else:
             self.weights_ = nk / n_samples
-        self.weights_.clamp_(min=EPS)
+        self.weights_.clamp_(min=1e-20)
 
         # Update means (MAP or MLE)
         if self.use_mean_prior:
@@ -1211,7 +1256,7 @@ class GaussianMixture(nn.Module):
         """
         return self.score_samples(X).mean().item()
 
-    def sample(self, n_samples: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
+    def sample(self, n_samples: int = 1, component: int = None) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
         Generate new samples from the fitted GMM.
 
@@ -1219,6 +1264,9 @@ class GaussianMixture(nn.Module):
         ----------
         n_samples : int
             Number of samples to generate.
+        component : int, optional
+            If specified, samples only from this component. If None, samples 
+            from all components according to their weights. (default: None)
 
         Returns
         -------
@@ -1230,8 +1278,17 @@ class GaussianMixture(nn.Module):
         if not self.fitted_:
             raise ValueError("Call fit() before sample().")
 
-        # Choose components
-        indices = torch.multinomial(self.weights_, n_samples, replacement=True)
+        if component is not None:
+            # Validate component index
+            if not (0 <= component < self.n_components):
+                raise ValueError(f"component must be between 0 and {self.n_components - 1}, got {component}")
+            
+            # Sample only from the specified component
+            indices = torch.full((n_samples,), component, dtype=torch.long, device=self.device)
+        else:
+            # Choose components according to mixture weights
+            indices = torch.multinomial(self.weights_, n_samples, replacement=True)
+        
         means = self.means_[indices]
 
         # Construct covariance
