@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Metrics &mdash; TorchGMM 0.1.0 documentation</title>
+  <title>Clustering Metrics: Comprehensive Evaluation of Gaussian Mixture Models &mdash; TorchGMM 0.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -52,7 +52,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../source/modules.html">Modules</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../source/tutorials.html">Tutorials</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="gmm.html">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Metrics</a><ul>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Clustering Metrics: Comprehensive Evaluation of Gaussian Mixture Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#Synthetic-Data-Generation">Synthetic Data Generation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#Unsupervised-Clustering-Metrics-Definitions">Unsupervised Clustering Metrics Definitions</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#Silhouette-Score">Silhouette Score</a></li>
@@ -61,6 +61,30 @@
 <li class="toctree-l4"><a class="reference internal" href="#Dunn-Index">Dunn Index</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Bayesian-Information-Criterion-(BIC)">Bayesian Information Criterion (BIC)</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Akaike-Information-Criterion-(AIC)">Akaike Information Criterion (AIC)</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#Supervised-Clustering-Metrics-Definitions">Supervised Clustering Metrics Definitions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Rand-Index-(RI)">Rand Index (RI)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Adjusted-Rand-Index-(ARI)">Adjusted Rand Index (ARI)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Mutual-Information-(MI)">Mutual Information (MI)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Normalized-Mutual-Information-(NMI)">Normalized Mutual Information (NMI)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Adjusted-Mutual-Information-(AMI)">Adjusted Mutual Information (AMI)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Fowlkes-Mallows-Index-(FMI)">Fowlkes-Mallows Index (FMI)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Homogeneity-and-Completeness">Homogeneity and Completeness</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V-Measure">V-Measure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Purity">Purity</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#Model-Comparison:-TorchGMM-vs-Scikit-learn">Model Comparison: TorchGMM vs Scikit-learn</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Metrics-Comparison-Table">Metrics Comparison Table</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#Confusion-Matrix-and-Classification-Report">Confusion Matrix and Classification Report</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Understanding-the-Confusion-Matrix">Understanding the Confusion Matrix</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#KL-Divergence-Analysis">KL Divergence Analysis</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Kullback-Leibler-Divergence-Between-GMMs">Kullback-Leibler Divergence Between GMMs</a></li>
 </ul>
 </li>
 </ul>
@@ -85,7 +109,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../source/tutorials.html">Tutorials</a></li>
-      <li class="breadcrumb-item active">Metrics</li>
+      <li class="breadcrumb-item active">Clustering Metrics: Comprehensive Evaluation of Gaussian Mixture Models</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -94,10 +118,18 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="Metrics">
-<h1>Metrics<a class="headerlink" href="#Metrics" title="Link to this heading"></a></h1>
+  <section id="Clustering-Metrics:-Comprehensive-Evaluation-of-Gaussian-Mixture-Models">
+<h1>Clustering Metrics: Comprehensive Evaluation of Gaussian Mixture Models<a class="headerlink" href="#Clustering-Metrics:-Comprehensive-Evaluation-of-Gaussian-Mixture-Models" title="Link to this heading"></a></h1>
+<p>This notebook provides a comprehensive evaluation of clustering performance using both <strong>unsupervised</strong> and <strong>supervised</strong> metrics. We demonstrate how to:</p>
+<ol class="arabic simple">
+<li><p><strong>Apply unsupervised metrics</strong> to determine the optimal number of components</p></li>
+<li><p><strong>Compare supervised metrics</strong> with scikit-learn implementations</p></li>
+<li><p><strong>Visualize clustering results</strong> with confusion matrices and classification reports</p></li>
+<li><p><strong>Analyze KL divergence</strong> between different GMM models</p></li>
+</ol>
+<p>The notebook covers both theoretical foundations (with mathematical definitions) and practical implementations of clustering evaluation metrics.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -110,7 +142,7 @@
 
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">ClusteringMetrics</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span><span class="p">,</span> <span class="n">match_true_labels</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">ClusteringMetrics</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span><span class="p">,</span> <span class="n">match_predicted_to_true_labels</span>
 
 <span class="n">device</span> <span class="o">=</span> <span class="s1">&#39;cuda&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">&#39;cpu&#39;</span>
 <span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
@@ -135,7 +167,6 @@ CUDA version: 12.4
 Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
-<hr class="docutils" />
 <section id="Synthetic-Data-Generation">
 <h2>Synthetic Data Generation<a class="headerlink" href="#Synthetic-Data-Generation" title="Link to this heading"></a></h2>
 <p>The synthetic dataset is generated by combining four Gaussian components:</p>
@@ -146,7 +177,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <li><p><strong>Component 4:</strong> Centered at <code class="docutils literal notranslate"><span class="pre">[2,</span> <span class="pre">2]</span></code> with full covariance.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -176,7 +207,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">n_features</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 <span class="n">n_components</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
 
-<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -189,7 +220,6 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 </section>
-<hr class="docutils" />
 <section id="Unsupervised-Clustering-Metrics-Definitions">
 <h2>Unsupervised Clustering Metrics Definitions<a class="headerlink" href="#Unsupervised-Clustering-Metrics-Definitions" title="Link to this heading"></a></h2>
 <p>Below are the definitions of the unsupervised clustering metrics used in this thesis.</p>
@@ -262,7 +292,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <p>As with BIC, lower AIC values suggest a model that achieves a good trade-off between complexity and fit quality.</p>
 <p><strong>Note:</strong> In practice, the ideal number of clusters is typically determined by seeking a maximum in the Silhouette Score, Calinski-Harabasz Score, and Dunn Index, while simultaneously looking for minima in the Davies-Bouldin Index, AIC, and BIC.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">components_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
@@ -384,7 +414,8 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-Evaluating range:   0%|          | 0/9 [00:00&lt;?, ?it/s]Evaluating range: 100%|██████████| 9/9 [00:01&lt;00:00,  4.59it/s]
+Evaluating range: 100%|██████████| 9/9 [00:00&lt;00:00, 12.44it/s]
+
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
@@ -408,8 +439,97 @@ BIC Best (lowest): 4
 AIC Best (lowest): 4
 </pre></div></div>
 </div>
+</section>
+</section>
+<section id="Supervised-Clustering-Metrics-Definitions">
+<h2>Supervised Clustering Metrics Definitions<a class="headerlink" href="#Supervised-Clustering-Metrics-Definitions" title="Link to this heading"></a></h2>
+<p>When ground truth labels are available, we can evaluate clustering performance using supervised metrics that measure the agreement between predicted and true cluster assignments.</p>
+<section id="Rand-Index-(RI)">
+<h3>Rand Index (RI)<a class="headerlink" href="#Rand-Index-(RI)" title="Link to this heading"></a></h3>
+<p>The <strong>Rand Index</strong> measures the similarity between two clusterings by considering all pairs of samples and counting pairs that are assigned to the same or different clusters in both clusterings.</p>
+<div class="math notranslate nohighlight">
+\[\text{RI} = \frac{TP + TN}{TP + TN + FP + FN}\]</div>
+<p>where:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(TP\)</span> (True Positives): pairs that are in the same cluster in both clusterings</p></li>
+<li><p><span class="math notranslate nohighlight">\(TN\)</span> (True Negatives): pairs that are in different clusters in both clusterings</p></li>
+<li><p><span class="math notranslate nohighlight">\(FP\)</span> (False Positives): pairs that are in the same cluster in predicted but different clusters in true</p></li>
+<li><p><span class="math notranslate nohighlight">\(FN\)</span> (False Negatives): pairs that are in different clusters in predicted but same cluster in true</p></li>
+</ul>
+<p>The Rand Index ranges from 0 to 1, where 1 indicates perfect agreement.</p>
+</section>
+<section id="Adjusted-Rand-Index-(ARI)">
+<h3>Adjusted Rand Index (ARI)<a class="headerlink" href="#Adjusted-Rand-Index-(ARI)" title="Link to this heading"></a></h3>
+<p>The <strong>Adjusted Rand Index</strong> corrects the Rand Index for chance by subtracting the expected value and normalizing by the maximum possible value:</p>
+<div class="math notranslate nohighlight">
+\[\text{ARI} = \frac{\text{RI} - \mathbb{E}[\text{RI}]}{\max(\text{RI}) - \mathbb{E}[\text{RI}]}\]</div>
+<p>More explicitly, using the contingency table approach:</p>
+<div class="math notranslate nohighlight">
+\[\text{ARI} = \frac{\sum_{ij} \binom{n_{ij}}{2} - \left[\sum_i \binom{a_i}{2} \sum_j \binom{b_j}{2}\right] / \binom{n}{2}}{\frac{1}{2}\left[\sum_i \binom{a_i}{2} + \sum_j \binom{b_j}{2}\right] - \left[\sum_i \binom{a_i}{2} \sum_j \binom{b_j}{2}\right] / \binom{n}{2}}\]</div>
+<p>where <span class="math notranslate nohighlight">\(n_{ij}\)</span> is the number of samples in cluster <span class="math notranslate nohighlight">\(i\)</span> of the true clustering and cluster <span class="math notranslate nohighlight">\(j\)</span> of the predicted clustering. ARI ranges from -1 to 1, with 1 indicating perfect agreement and 0 indicating random labeling.</p>
+</section>
+<section id="Mutual-Information-(MI)">
+<h3>Mutual Information (MI)<a class="headerlink" href="#Mutual-Information-(MI)" title="Link to this heading"></a></h3>
+<p><strong>Mutual Information</strong> measures the amount of information obtained about one clustering by observing the other:</p>
+<div class="math notranslate nohighlight">
+\[\text{MI}(U,V) = \sum_{i=1}^{|U|} \sum_{j=1}^{|V|} P(i,j) \log\frac{P(i,j)}{P(i)P(j)}\]</div>
+<p>where:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(U\)</span> and <span class="math notranslate nohighlight">\(V\)</span> are the true and predicted clusterings</p></li>
+<li><p><span class="math notranslate nohighlight">\(P(i,j) = \frac{|U_i \cap V_j|}{N}\)</span> is the probability that a point belongs to clusters <span class="math notranslate nohighlight">\(U_i\)</span> and <span class="math notranslate nohighlight">\(V_j\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(P(i) = \frac{|U_i|}{N}\)</span> and <span class="math notranslate nohighlight">\(P(j) = \frac{|V_j|}{N}\)</span> are marginal probabilities</p></li>
+</ul>
+</section>
+<section id="Normalized-Mutual-Information-(NMI)">
+<h3>Normalized Mutual Information (NMI)<a class="headerlink" href="#Normalized-Mutual-Information-(NMI)" title="Link to this heading"></a></h3>
+<p><strong>Normalized Mutual Information</strong> scales MI to the range [0,1] by normalizing with the entropy of the clusterings:</p>
+<div class="math notranslate nohighlight">
+\[\text{NMI}(U,V) = \frac{2 \times \text{MI}(U,V)}{H(U) + H(V)}\]</div>
+<p>where <span class="math notranslate nohighlight">\(H(U) = -\sum_{i=1}^{|U|} P(i) \log P(i)\)</span> is the entropy of clustering <span class="math notranslate nohighlight">\(U\)</span>.</p>
+</section>
+<section id="Adjusted-Mutual-Information-(AMI)">
+<h3>Adjusted Mutual Information (AMI)<a class="headerlink" href="#Adjusted-Mutual-Information-(AMI)" title="Link to this heading"></a></h3>
+<p><strong>Adjusted Mutual Information</strong> corrects MI for chance, similar to how ARI corrects RI:</p>
+<div class="math notranslate nohighlight">
+\[\text{AMI}(U,V) = \frac{\text{MI}(U,V) - \mathbb{E}[\text{MI}(U,V)]}{\max(H(U), H(V)) - \mathbb{E}[\text{MI}(U,V)]}\]</div>
+</section>
+<section id="Fowlkes-Mallows-Index-(FMI)">
+<h3>Fowlkes-Mallows Index (FMI)<a class="headerlink" href="#Fowlkes-Mallows-Index-(FMI)" title="Link to this heading"></a></h3>
+<p>The <strong>Fowlkes-Mallows Index</strong> is the geometric mean of pairwise precision and recall:</p>
+<div class="math notranslate nohighlight">
+\[\text{FMI} = \sqrt{\frac{TP}{TP + FP} \times \frac{TP}{TP + FN}} = \sqrt{\text{Precision} \times \text{Recall}}\]</div>
+<p>where TP, FP, and FN are defined as in the Rand Index but for pairwise comparisons.</p>
+</section>
+<section id="Homogeneity-and-Completeness">
+<h3>Homogeneity and Completeness<a class="headerlink" href="#Homogeneity-and-Completeness" title="Link to this heading"></a></h3>
+<p><strong>Homogeneity</strong> measures whether each cluster contains only members of a single class:</p>
+<div class="math notranslate nohighlight">
+\[h = 1 - \frac{H(C|K)}{H(C)}\]</div>
+<p><strong>Completeness</strong> measures whether all members of a given class are assigned to the same cluster:</p>
+<div class="math notranslate nohighlight">
+\[c = 1 - \frac{H(K|C)}{H(K)}\]</div>
+<p>where <span class="math notranslate nohighlight">\(H(C|K)\)</span> is the conditional entropy of the true classes given the cluster assignments.</p>
+</section>
+<section id="V-Measure">
+<h3>V-Measure<a class="headerlink" href="#V-Measure" title="Link to this heading"></a></h3>
+<p>The <strong>V-Measure</strong> is the harmonic mean of homogeneity and completeness:</p>
+<div class="math notranslate nohighlight">
+\[\text{V} = \frac{2 \times h \times c}{h + c}\]</div>
+</section>
+<section id="Purity">
+<h3>Purity<a class="headerlink" href="#Purity" title="Link to this heading"></a></h3>
+<p><strong>Purity</strong> measures the extent to which clusters contain a single class:</p>
+<div class="math notranslate nohighlight">
+\[\text{Purity} = \frac{1}{N} \sum_{k=1}^{K} \max_j |C_k \cap T_j|\]</div>
+<p>where <span class="math notranslate nohighlight">\(C_k\)</span> is the set of samples in cluster <span class="math notranslate nohighlight">\(k\)</span> and <span class="math notranslate nohighlight">\(T_j\)</span> is the set of samples in true class <span class="math notranslate nohighlight">\(j\)</span>.</p>
+<p><strong>Interpretation Guidelines:</strong></p>
+<ul class="simple">
+<li><p><strong>Higher is better</strong>: RI, ARI, MI, NMI, AMI, FMI, Homogeneity, Completeness, V-Measure, Purity</p></li>
+<li><p><strong>Range [0,1]</strong>: Most metrics except ARI which can be negative</p></li>
+<li><p><strong>Perfect clustering</strong>: All metrics = 1 (except ARI where perfect = 1, random ≈ 0)</p></li>
+</ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Scikit-learn for comparison</span>
@@ -526,24 +646,49 @@ AIC Best (lowest): 4
         <span class="s2">&quot;Relative Difference (%)&quot;</span><span class="p">:</span> <span class="n">rel_diff</span>
     <span class="p">})</span>
 
-<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">dynamic_figsize</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X_np</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">match_labels</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;outliers&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GMM Predictions&#39;</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X_np</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GMM Predictions&#39;</span><span class="p">,</span> <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_incorrect_predictions</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">point_size</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-
-<span class="n">df_metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
-<span class="n">df_metrics</span>
-<br/></pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_6_0.png" src="../_images/notebooks_metrics_6_0.png" />
+</pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_metrics_7_0.png" src="../_images/notebooks_metrics_7_0.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="Model-Comparison:-TorchGMM-vs-Scikit-learn">
+<h2>Model Comparison: TorchGMM vs Scikit-learn<a class="headerlink" href="#Model-Comparison:-TorchGMM-vs-Scikit-learn" title="Link to this heading"></a></h2>
+<p>This section compares the clustering metrics computed by our TorchGMM implementation with scikit-learn’s implementations to validate correctness and highlight any differences in computation methods.</p>
+<section id="Metrics-Comparison-Table">
+<h3>Metrics Comparison Table<a class="headerlink" href="#Metrics-Comparison-Table" title="Link to this heading"></a></h3>
+<p>The table below shows side-by-side comparisons of metrics computed using both implementations. Small differences may occur due to:</p>
+<ul class="simple">
+<li><p>Different numerical precision</p></li>
+<li><p>Slightly different algorithmic implementations</p></li>
+<li><p>Different handling of edge cases (e.g., single-point clusters)</p></li>
+</ul>
+<p><strong>Key observations:</strong></p>
+<ul class="simple">
+<li><p><strong>Information-theoretic metrics</strong> (MI, NMI, AMI) should be very close</p></li>
+<li><p><strong>Pairwise metrics</strong> (RI, ARI, FMI) should match exactly for identical cluster assignments</p></li>
+<li><p><strong>Geometric metrics</strong> (Silhouette, Davies-Bouldin, Calinski-Harabasz) may show small differences due to distance computation methods</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+<span class="n">df_metrics</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -705,17 +850,32 @@ AIC Best (lowest): 4
 </table>
 </div></div>
 </div>
+</section>
+</section>
+<section id="Confusion-Matrix-and-Classification-Report">
+<h2>Confusion Matrix and Classification Report<a class="headerlink" href="#Confusion-Matrix-and-Classification-Report" title="Link to this heading"></a></h2>
+<section id="Understanding-the-Confusion-Matrix">
+<h3>Understanding the Confusion Matrix<a class="headerlink" href="#Understanding-the-Confusion-Matrix" title="Link to this heading"></a></h3>
+<p>The confusion matrix provides a detailed breakdown of correct and incorrect predictions for each class. Before computing the matrix, we use <strong>label matching</strong> to align predicted cluster labels with true class labels, as clustering algorithms may assign arbitrary label numbers.</p>
+<p><strong>Key metrics derived from the confusion matrix:</strong></p>
+<ul class="simple">
+<li><p><strong>Precision</strong>: <span class="math notranslate nohighlight">\(\frac{TP}{TP + FP}\)</span> - What fraction of predicted positives are actually positive?</p></li>
+<li><p><strong>Recall</strong>: <span class="math notranslate nohighlight">\(\frac{TP}{TP + FN}\)</span> - What fraction of actual positives are correctly predicted?</p></li>
+<li><p><strong>F1-Score</strong>: <span class="math notranslate nohighlight">\(\frac{2 \times \text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}\)</span> - Harmonic mean of precision and recall</p></li>
+<li><p><strong>Support</strong>: Number of true instances for each class</p></li>
+</ul>
+<p>The heatmap below shows the confusion matrix as percentages, normalized by the true class sizes.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get matched predictions</span>
-<span class="n">matched_pred</span> <span class="o">=</span> <span class="n">match_true_labels</span><span class="p">(</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">)</span>
+<span class="n">matched_pred</span> <span class="o">=</span> <span class="n">match_predicted_to_true_labels</span><span class="p">(</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">labels_pred</span><span class="p">)</span>
 
 <span class="c1"># Compute confusion matrix using ClusteringMetrics.confusion_matrix</span>
 <span class="n">cm</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">(</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
+    <span class="n">y_tensor</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
+    <span class="n">matched_pred</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># Convert the confusion matrix to percentages (normalize per true label)</span>
@@ -723,7 +883,7 @@ AIC Best (lowest): 4
 <span class="n">cm_percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">cm_np</span><span class="o">.</span><span class="n">T</span> <span class="o">/</span> <span class="n">cm_np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="mi">100</span>
 
 <span class="c1"># Plot heatmap of the percent confusion matrix</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
 <span class="n">sns</span><span class="o">.</span><span class="n">heatmap</span><span class="p">(</span><span class="n">cm_percent</span><span class="p">,</span> <span class="n">annot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;.1f&quot;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;Blues&quot;</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Confusion Matrix (%)&quot;</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Predicted Label&quot;</span><span class="p">)</span>
@@ -732,8 +892,8 @@ AIC Best (lowest): 4
 
 <span class="c1"># Generate classification report</span>
 <span class="n">report</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">classification_report</span><span class="p">(</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_tensor</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
-    <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">matched_pred</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
+    <span class="n">y_tensor</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
+    <span class="n">matched_pred</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span>
 <span class="p">)</span>
 
 <span class="c1"># Convert classification report to a DataFrame for display</span>
@@ -745,34 +905,12 @@ AIC Best (lowest): 4
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-/tmp/ipykernel_19713/2970968731.py:6: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-  torch.tensor(y_tensor, dtype=torch.long),
-/tmp/ipykernel_19713/2970968731.py:7: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-  torch.tensor(matched_pred, dtype=torch.long)
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_7_1.png" src="../_images/notebooks_metrics_7_1.png" />
+<img alt="../_images/notebooks_metrics_11_0.png" src="../_images/notebooks_metrics_11_0.png" />
 </div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-/tmp/ipykernel_19713/2970968731.py:24: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-  torch.tensor(y_tensor, dtype=torch.long),
-/tmp/ipykernel_19713/2970968731.py:25: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-  torch.tensor(matched_pred, dtype=torch.long)
-</pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -843,8 +981,29 @@ AIC Best (lowest): 4
 </table>
 </div></div>
 </div>
+</section>
+</section>
+<section id="KL-Divergence-Analysis">
+<h2>KL Divergence Analysis<a class="headerlink" href="#KL-Divergence-Analysis" title="Link to this heading"></a></h2>
+<section id="Kullback-Leibler-Divergence-Between-GMMs">
+<h3>Kullback-Leibler Divergence Between GMMs<a class="headerlink" href="#Kullback-Leibler-Divergence-Between-GMMs" title="Link to this heading"></a></h3>
+<p>The <strong>KL divergence</strong> <span class="math notranslate nohighlight">\(D_{KL}(P \parallel Q)\)</span> measures how one probability distribution <span class="math notranslate nohighlight">\(P\)</span> diverges from a reference distribution <span class="math notranslate nohighlight">\(Q\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[D_{KL}(P \parallel Q) = \int p(x) \log \frac{p(x)}{q(x)} dx\]</div>
+<p>For Gaussian Mixture Models, we approximate this using Monte Carlo sampling:</p>
+<div class="math notranslate nohighlight">
+\[D_{KL}(P \parallel Q) \approx \frac{1}{N} \sum_{i=1}^{N} \left[ \log p(x_i) - \log q(x_i) \right]\]</div>
+<p>where <span class="math notranslate nohighlight">\(x_i \sim P\)</span> are samples drawn from the first GMM.</p>
+<p><strong>Interpretation:</strong></p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(D_{KL}(P \parallel Q) = 0\)</span> when <span class="math notranslate nohighlight">\(P = Q\)</span> (identical distributions)</p></li>
+<li><p><span class="math notranslate nohighlight">\(D_{KL}(P \parallel Q) &gt; 0\)</span> always (non-negative)</p></li>
+<li><p><strong>Asymmetric</strong>: <span class="math notranslate nohighlight">\(D_{KL}(P \parallel Q) \neq D_{KL}(Q \parallel P)\)</span> in general</p></li>
+<li><p><strong>Lower values</strong> indicate more similar distributions</p></li>
+</ul>
+<p>The plot below shows how KL divergence changes as we vary the number of components in the test GMM while keeping the reference GMM fixed at the true number of components.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">RUN_KL_DIVERGENCE</span> <span class="o">=</span> <span class="kc">True</span>
@@ -875,7 +1034,7 @@ AIC Best (lowest): 4
 
         <span class="n">kl_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">kl_divergence_gmm</span><span class="p">(</span><span class="n">gmm_true</span><span class="p">,</span> <span class="n">gmm_test</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
 
-    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">test_range</span><span class="p">,</span> <span class="n">kl_vals</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;KL Divergence: True GMM vs. Various n_components&quot;</span><span class="p">)</span>
@@ -899,14 +1058,15 @@ Computing KL(p||q) for different numbers of components...
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 14/14 [00:01&lt;00:00, 10.05it/s]
+100%|██████████| 14/14 [00:01&lt;00:00, 12.63it/s]
+
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_metrics_8_2.png" src="../_images/notebooks_metrics_8_2.png" />
+<img alt="../_images/notebooks_metrics_13_2.png" src="../_images/notebooks_metrics_13_2.png" />
 </div>
 </div>
 </section>

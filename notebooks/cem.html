@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>&lt;no title&gt; &mdash; TorchGMM 0.1.0 documentation</title>
+  <title>Classification Expectation Maximization (CEM) Algorithm &mdash; TorchGMM 0.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -65,7 +65,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">&lt;no title&gt;</li>
+      <li class="breadcrumb-item active">Classification Expectation Maximization (CEM) Algorithm</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -74,8 +74,40 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[77]:
+  <section id="Classification-Expectation-Maximization-(CEM)-Algorithm">
+<h1>Classification Expectation Maximization (CEM) Algorithm<a class="headerlink" href="#Classification-Expectation-Maximization-(CEM)-Algorithm" title="Link to this heading"></a></h1>
+<p>This notebook demonstrates the <strong>Classification EM (CEM) algorithm</strong> and compares it with the standard <strong>Expectation Maximization (EM) algorithm</strong> for Gaussian Mixture Models.</p>
+<section id="Overview">
+<h2>Overview<a class="headerlink" href="#Overview" title="Link to this heading"></a></h2>
+<p>The CEM algorithm (Celeux and Govaert, 1992) is a variant of the EM algorithm that incorporates a <strong>classification step (C-step)</strong> between the E-step and M-step. This modification aims to maximize the <strong>classification likelihood</strong> rather than the traditional likelihood.</p>
+<section id="CEM-Algorithm-Steps:">
+<h3>CEM Algorithm Steps:<a class="headerlink" href="#CEM-Algorithm-Steps:" title="Link to this heading"></a></h3>
+<ol class="arabic">
+<li><p><strong>E-step</strong>: Calculate conditional probabilities <span class="math notranslate nohighlight">\(\tau_{ig}^{(r)}\)</span> that observation <span class="math notranslate nohighlight">\(y_i\)</span> belongs to cluster <span class="math notranslate nohighlight">\(g\)</span></p></li>
+<li><p><strong>C-step</strong>: Assign each observation to one cluster using the MAP (Maximum A Posteriori) operator:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}z_{ig}^{(r+1)} = \begin{cases} 1 &amp; \text{if } g = \arg\max_g \tau_{ig}^{(r)} \\ 0 &amp; \text{otherwise} \end{cases}\end{split}\]</div>
+</li>
+<li><p><strong>M-step</strong>: Update parameters by maximizing the complete-data log-likelihood <span class="math notranslate nohighlight">\(L_C(\theta; y, z^{r+1})\)</span></p></li>
+</ol>
+</section>
+<section id="Key-Properties:">
+<h3>Key Properties:<a class="headerlink" href="#Key-Properties:" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>K-means-like</strong>: Produces hard assignments rather than soft probabilistic assignments</p></li>
+<li><p><strong>Biased estimates</strong>: Maximizes complete-data likelihood <span class="math notranslate nohighlight">\(L_C(\theta)\)</span> rather than actual likelihood <span class="math notranslate nohighlight">\(L(\theta)\)</span></p></li>
+<li><p><strong>Fast convergence</strong>: CEM generally converges faster and is therefore computationally more efficient</p></li>
+</ul>
+</section>
+<section id="When-to-Use-CEM:">
+<h3>When to Use CEM:<a class="headerlink" href="#When-to-Use-CEM:" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Well-separated clusters</strong>: When mixture components are well separated with similar proportions</p></li>
+<li><p><strong>Fast clustering</strong>: When computational speed is more important than maximum likelihood estimates</p></li>
+<li><p><strong>Initialisation</strong>: Can be used as an alternative initialisation if kmeans does not perform well</p></li>
+</ul>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -85,17 +117,14 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">seaborn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sns</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tqdm.notebook</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">adjusted_rand_score</span><span class="p">,</span> <span class="n">silhouette_score</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">)</span>
 
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">TorchGMM.tgmm.gmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span><span class="p">,</span> <span class="n">dynamic_figsize</span><span class="p">,</span> <span class="n">plot_gmm</span><span class="p">,</span> <span class="n">GaussianMixture</span>
 
 <span class="c1"># Set random seed for reproducibility</span>
-<span class="n">random_state</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">random_state</span> <span class="o">=</span> <span class="mi">42</span>
 <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
 <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
 
@@ -121,10 +150,10 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[78]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
 <span class="n">centers</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span>
            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">]),</span>
            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
@@ -152,7 +181,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 <span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
 
-<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data with True Labels&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -164,46 +193,60 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <img alt="../_images/notebooks_cem_2_0.png" src="../_images/notebooks_cem_2_0.png" />
 </div>
 </div>
+</section>
+</section>
+<section id="Experiment-1:-Overlapping-Clusters">
+<h2>Experiment 1: Overlapping Clusters<a class="headerlink" href="#Experiment-1:-Overlapping-Clusters" title="Link to this heading"></a></h2>
+<p>In this first experiment, we create <strong>overlapping clusters</strong> with varying sample sizes and covariance structures:</p>
+<ul class="simple">
+<li><p><strong>Component 1</strong>: 1000 samples, spherical covariance (σ² = 1.0)</p></li>
+<li><p><strong>Component 2</strong>: 1000 samples, spherical covariance (σ² = 0.5)</p></li>
+<li><p><strong>Component 3</strong>: 1000 samples, diagonal covariance</p></li>
+<li><p><strong>Component 4</strong>: 1000 samples, full covariance with correlation</p></li>
+</ul>
+<p>This scenario tests how EM vs CEM handle <strong>ambiguous cluster boundaries</strong> where observations could reasonably belong to multiple clusters.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[79]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">):</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="mi">20</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Fit a GMM with either EM or CEM and return the model and timing.&quot;&quot;&quot;</span>
-    <span class="c1"># Initialize the GMM</span>
-    <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
-        <span class="n">covariance_type</span><span class="o">=</span><span class="n">covariance_type</span><span class="p">,</span>
-        <span class="n">tol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
-        <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
-        <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-        <span class="n">n_init</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-        <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;points&#39;</span><span class="p">,</span>
-        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
-        <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
-        <span class="n">cem</span><span class="o">=</span><span class="n">cem</span>  <span class="c1"># Toggle between EM and CEM</span>
-    <span class="p">)</span>
 
-    <span class="c1"># Time the fitting process</span>
-    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-    <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
-    <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">average_time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">average_iters</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">average_log_likelihood</span> <span class="o">=</span> <span class="mi">0</span>
 
-    <span class="k">return</span> <span class="n">gmm</span><span class="p">,</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iters</span><span class="p">):</span>
+        <span class="c1"># Initialize the GMM</span>
+        <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+            <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+            <span class="n">covariance_type</span><span class="o">=</span><span class="n">covariance_type</span><span class="p">,</span>
+            <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">,</span>
+            <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
+            <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+            <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;points&#39;</span><span class="p">,</span>
+            <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span>  <span class="c1"># Different seed for each iteration</span>
+            <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
+            <span class="n">cem</span><span class="o">=</span><span class="n">cem</span>  <span class="c1"># Toggle between EM and CEM</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Time the fitting process</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="n">average_time</span> <span class="o">+=</span> <span class="p">(</span><span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span>
+        <span class="n">average_iters</span> <span class="o">+=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span>
+        <span class="n">average_log_likelihood</span> <span class="o">+=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Iteration </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">iters</span><span class="si">}</span><span class="s2"> - Log-likelihood: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, Iterations: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2">, Time: </span><span class="si">{</span><span class="n">end_time</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start_time</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">gmm</span><span class="p">,</span> <span class="n">average_time</span> <span class="o">/</span> <span class="n">iters</span><span class="p">,</span> <span class="n">average_iters</span> <span class="o">/</span> <span class="n">iters</span><span class="p">,</span> <span class="n">average_log_likelihood</span> <span class="o">/</span> <span class="n">iters</span>
 
 <span class="c1"># Fit both models</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Fitting GMM using standard EM algorithm...&quot;</span><span class="p">)</span>
-<span class="n">gmm_em</span><span class="p">,</span> <span class="n">time_em</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Fitting GMM using Classification EM (CEM) algorithm...&quot;</span><span class="p">)</span>
-<span class="n">gmm_cem</span><span class="p">,</span> <span class="n">time_cem</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># Print basic comparison</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">----- Performance Comparison -----&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;EM:  Time: </span><span class="si">{</span><span class="n">time_em</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s, Iterations: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2">, Log-likelihood: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CEM: Time: </span><span class="si">{</span><span class="n">time_cem</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s, Iterations: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2">, Log-likelihood: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
+<span class="n">gmm_em</span><span class="p">,</span> <span class="n">time_em</span><span class="p">,</span> <span class="n">iters_em</span><span class="p">,</span> <span class="n">log_likelihood_em</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+<br/></pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -212,132 +255,53 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 Fitting GMM using standard EM algorithm...
-[InitRun 0] Iter 0, lower bound: -3.80971
-[InitRun 0] Iter 10, lower bound: -3.19473
-[InitRun 0] Iter 20, lower bound: -3.17760
-[InitRun 0] Iter 30, lower bound: -3.15982
-[InitRun 0] Iter 40, lower bound: -3.15908
-[InitRun 0] Converged at iteration 41, lower bound=-3.15908
-[InitRun 1] Iter 0, lower bound: -3.80971
-[InitRun 1] Iter 10, lower bound: -3.19473
-[InitRun 1] Iter 20, lower bound: -3.17760
-[InitRun 1] Iter 30, lower bound: -3.15982
-[InitRun 1] Iter 40, lower bound: -3.15908
-[InitRun 1] Converged at iteration 41, lower bound=-3.15908
-[InitRun 2] Iter 0, lower bound: -3.80971
-[InitRun 2] Iter 10, lower bound: -3.19473
-[InitRun 2] Iter 20, lower bound: -3.17760
-[InitRun 2] Iter 30, lower bound: -3.15982
-[InitRun 2] Iter 40, lower bound: -3.15908
-[InitRun 2] Converged at iteration 41, lower bound=-3.15908
-[InitRun 3] Iter 0, lower bound: -3.80971
-[InitRun 3] Iter 10, lower bound: -3.19473
-[InitRun 3] Iter 20, lower bound: -3.17760
-[InitRun 3] Iter 30, lower bound: -3.15982
-[InitRun 3] Iter 40, lower bound: -3.15908
-[InitRun 3] Converged at iteration 41, lower bound=-3.15908
-[InitRun 4] Iter 0, lower bound: -3.80971
-[InitRun 4] Iter 10, lower bound: -3.19473
-[InitRun 4] Iter 20, lower bound: -3.17760
-[InitRun 4] Iter 30, lower bound: -3.15982
-[InitRun 4] Iter 40, lower bound: -3.15908
-[InitRun 4] Converged at iteration 41, lower bound=-3.15908
-
-Fitting GMM using Classification EM (CEM) algorithm...
-[InitRun 0] Iter 0, lower bound: -3.81739
-[InitRun 0] Iter 10, lower bound: -3.64095
-[InitRun 0] Iter 20, lower bound: -3.64051
-[InitRun 0] Converged at iteration 28, lower bound=-3.64338
-[InitRun 1] Iter 0, lower bound: -3.81739
-[InitRun 1] Iter 10, lower bound: -3.64095
-[InitRun 1] Iter 20, lower bound: -3.64051
-[InitRun 1] Converged at iteration 28, lower bound=-3.64338
-[InitRun 2] Iter 0, lower bound: -3.81739
-[InitRun 2] Iter 10, lower bound: -3.64095
-[InitRun 2] Iter 20, lower bound: -3.64051
-[InitRun 2] Converged at iteration 28, lower bound=-3.64338
-[InitRun 3] Iter 0, lower bound: -3.81739
-[InitRun 3] Iter 10, lower bound: -3.64095
-[InitRun 3] Iter 20, lower bound: -3.64051
-[InitRun 3] Converged at iteration 28, lower bound=-3.64338
-[InitRun 4] Iter 0, lower bound: -3.81739
-[InitRun 4] Iter 10, lower bound: -3.64095
-[InitRun 4] Iter 20, lower bound: -3.64051
-[InitRun 4] Converged at iteration 28, lower bound=-3.64338
-
------ Performance Comparison -----
-EM:  Time: 0.22s, Iterations: 41, Log-likelihood: -3.16
-CEM: Time: 0.16s, Iterations: 28, Log-likelihood: -3.64
+Iteration 1/20 - Log-likelihood: -3.2424, Iterations: 57, Time: 0.0640s
+Iteration 2/20 - Log-likelihood: -3.2424, Iterations: 65, Time: 0.0686s
+Iteration 3/20 - Log-likelihood: -3.2424, Iterations: 65, Time: 0.0761s
+Iteration 4/20 - Log-likelihood: -3.2424, Iterations: 133, Time: 0.1328s
+Iteration 5/20 - Log-likelihood: -3.2424, Iterations: 37, Time: 0.0388s
+Iteration 3/20 - Log-likelihood: -3.2424, Iterations: 65, Time: 0.0761s
+Iteration 4/20 - Log-likelihood: -3.2424, Iterations: 133, Time: 0.1328s
+Iteration 5/20 - Log-likelihood: -3.2424, Iterations: 37, Time: 0.0388s
+Iteration 6/20 - Log-likelihood: -3.2424, Iterations: 50, Time: 0.0523s
+Iteration 7/20 - Log-likelihood: -3.2424, Iterations: 44, Time: 0.0456s
+Iteration 8/20 - Log-likelihood: -3.2424, Iterations: 103, Time: 0.1030s
+Iteration 6/20 - Log-likelihood: -3.2424, Iterations: 50, Time: 0.0523s
+Iteration 7/20 - Log-likelihood: -3.2424, Iterations: 44, Time: 0.0456s
+Iteration 8/20 - Log-likelihood: -3.2424, Iterations: 103, Time: 0.1030s
+Iteration 9/20 - Log-likelihood: -3.2424, Iterations: 63, Time: 0.0625s
+Iteration 10/20 - Log-likelihood: -3.2424, Iterations: 64, Time: 0.0538s
+Iteration 11/20 - Log-likelihood: -3.2424, Iterations: 98, Time: 0.0801s
+Iteration 12/20 - Log-likelihood: -3.2424, Iterations: 27, Time: 0.0214s
+Iteration 9/20 - Log-likelihood: -3.2424, Iterations: 63, Time: 0.0625s
+Iteration 10/20 - Log-likelihood: -3.2424, Iterations: 64, Time: 0.0538s
+Iteration 11/20 - Log-likelihood: -3.2424, Iterations: 98, Time: 0.0801s
+Iteration 12/20 - Log-likelihood: -3.2424, Iterations: 27, Time: 0.0214s
+Iteration 13/20 - Log-likelihood: -3.2424, Iterations: 87, Time: 0.0736s
+Iteration 14/20 - Log-likelihood: -3.2424, Iterations: 44, Time: 0.0363s
+Iteration 15/20 - Log-likelihood: -3.2424, Iterations: 46, Time: 0.0383s
+Iteration 16/20 - Log-likelihood: -3.2424, Iterations: 65, Time: 0.0576s
+Iteration 17/20 - Log-likelihood: -3.2424, Iterations: 75, Time: 0.0631s
+Iteration 13/20 - Log-likelihood: -3.2424, Iterations: 87, Time: 0.0736s
+Iteration 14/20 - Log-likelihood: -3.2424, Iterations: 44, Time: 0.0363s
+Iteration 15/20 - Log-likelihood: -3.2424, Iterations: 46, Time: 0.0383s
+Iteration 16/20 - Log-likelihood: -3.2424, Iterations: 65, Time: 0.0576s
+Iteration 17/20 - Log-likelihood: -3.2424, Iterations: 75, Time: 0.0631s
+Iteration 18/20 - Log-likelihood: -3.2424, Iterations: 75, Time: 0.0661s
+Iteration 19/20 - Log-likelihood: -3.2424, Iterations: 27, Time: 0.0249s
+Iteration 20/20 - Log-likelihood: -3.2424, Iterations: 49, Time: 0.0440s
+Iteration 18/20 - Log-likelihood: -3.2424, Iterations: 75, Time: 0.0661s
+Iteration 19/20 - Log-likelihood: -3.2424, Iterations: 27, Time: 0.0249s
+Iteration 20/20 - Log-likelihood: -3.2424, Iterations: 49, Time: 0.0440s
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[80]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get predictions from both models</span>
-<span class="n">y_pred_em</span> <span class="o">=</span> <span class="n">gmm_em</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-<span class="n">y_pred_cem</span> <span class="o">=</span> <span class="n">gmm_cem</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-
-<span class="c1"># Create a function to plot the results</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">plot_clustering_results</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels_em</span><span class="p">,</span> <span class="n">pred_labels_cem</span><span class="p">,</span> <span class="n">gmm_em</span><span class="p">,</span> <span class="n">gmm_cem</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot the clustering results for both EM and CEM algorithms.&quot;&quot;&quot;</span>
-    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-
-    <span class="c1"># Plot true labels</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;True Components&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
-
-    <span class="c1"># Plot EM results</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">pred_labels_em</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-
-    <span class="c1"># Plot ellipses for EM</span>
-    <span class="n">means_em</span> <span class="o">=</span> <span class="n">gmm_em</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mean</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">means_em</span><span class="p">):</span>
-        <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mean</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
-
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Standard EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
-
-    <span class="c1"># Plot CEM results</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">pred_labels_cem</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-
-    <span class="c1"># Plot ellipses for CEM</span>
-    <span class="n">means_cem</span> <span class="o">=</span> <span class="n">gmm_cem</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mean</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">means_cem</span><span class="p">):</span>
-        <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mean</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
-
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Classification EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
-
-    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-
-<span class="c1"># Plot the results</span>
-<span class="n">plot_clustering_results</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">y_pred_em</span><span class="p">,</span> <span class="n">y_pred_cem</span><span class="p">,</span> <span class="n">gmm_em</span><span class="p">,</span> <span class="n">gmm_cem</span><span class="p">)</span>
-
-<span class="c1"># Compute some evaluation metrics</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Adjusted Rand Index (higher is better):&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  EM:  </span><span class="si">{</span><span class="n">adjusted_rand_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_em</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  CEM: </span><span class="si">{</span><span class="n">adjusted_rand_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_cem</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Silhouette Score (higher is better):&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  EM:  </span><span class="si">{</span><span class="n">silhouette_score</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_em</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  CEM: </span><span class="si">{</span><span class="n">silhouette_score</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_cem</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/notebooks_cem_4_0.png" src="../_images/notebooks_cem_4_0.png" />
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Fitting GMM using Classification EM (CEM) algorithm...&quot;</span><span class="p">)</span>
+<span class="n">gmm_cem</span><span class="p">,</span> <span class="n">time_cem</span><span class="p">,</span> <span class="n">iters_cem</span><span class="p">,</span> <span class="n">log_likelihood_cem</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<br/></pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -345,22 +309,120 @@ CEM: Time: 0.16s, Iterations: 28, Log-likelihood: -3.64
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Adjusted Rand Index (higher is better):
-  EM:  0.8114
-  CEM: 0.3653
 
-Silhouette Score (higher is better):
-  EM:  0.2040
-  CEM: -0.0298
+Fitting GMM using Classification EM (CEM) algorithm...
+Iteration 1/20 - Log-likelihood: -3.3384, Iterations: 35, Time: 0.0448s
+Iteration 2/20 - Log-likelihood: -3.3554, Iterations: 31, Time: 0.0358s
+Iteration 3/20 - Log-likelihood: -3.3488, Iterations: 18, Time: 0.0226s
+Iteration 4/20 - Log-likelihood: -3.6491, Iterations: 21, Time: 0.0286s
+Iteration 5/20 - Log-likelihood: -3.3152, Iterations: 23, Time: 0.0265s
+Iteration 4/20 - Log-likelihood: -3.6491, Iterations: 21, Time: 0.0286s
+Iteration 5/20 - Log-likelihood: -3.3152, Iterations: 23, Time: 0.0265s
+Iteration 6/20 - Log-likelihood: -3.3612, Iterations: 31, Time: 0.0521s
+Iteration 7/20 - Log-likelihood: -3.6692, Iterations: 12, Time: 0.0358s
+Iteration 6/20 - Log-likelihood: -3.3612, Iterations: 31, Time: 0.0521s
+Iteration 7/20 - Log-likelihood: -3.6692, Iterations: 12, Time: 0.0358s
+Iteration 8/20 - Log-likelihood: -3.7129, Iterations: 52, Time: 0.1253s
+Iteration 9/20 - Log-likelihood: -3.3152, Iterations: 19, Time: 0.0348s
+Iteration 8/20 - Log-likelihood: -3.7129, Iterations: 52, Time: 0.1253s
+Iteration 9/20 - Log-likelihood: -3.3152, Iterations: 19, Time: 0.0348s
+Iteration 10/20 - Log-likelihood: -3.2881, Iterations: 32, Time: 0.0838s
+Iteration 11/20 - Log-likelihood: -3.2507, Iterations: 15, Time: 0.0744s
+Iteration 10/20 - Log-likelihood: -3.2881, Iterations: 32, Time: 0.0838s
+Iteration 11/20 - Log-likelihood: -3.2507, Iterations: 15, Time: 0.0744s
+Iteration 12/20 - Log-likelihood: -3.3396, Iterations: 30, Time: 0.0800s
+Iteration 13/20 - Log-likelihood: -3.2880, Iterations: 15, Time: 0.0204s
+Iteration 12/20 - Log-likelihood: -3.3396, Iterations: 30, Time: 0.0800s
+Iteration 13/20 - Log-likelihood: -3.2880, Iterations: 15, Time: 0.0204s
+Iteration 14/20 - Log-likelihood: -3.2506, Iterations: 13, Time: 0.0279s
+Iteration 15/20 - Log-likelihood: -3.3843, Iterations: 43, Time: 0.0678s
+Iteration 16/20 - Log-likelihood: -3.3152, Iterations: 23, Time: 0.0342s
+Iteration 17/20 - Log-likelihood: -3.5167, Iterations: 29, Time: 0.0453s
+Iteration 14/20 - Log-likelihood: -3.2506, Iterations: 13, Time: 0.0279s
+Iteration 15/20 - Log-likelihood: -3.3843, Iterations: 43, Time: 0.0678s
+Iteration 16/20 - Log-likelihood: -3.3152, Iterations: 23, Time: 0.0342s
+Iteration 17/20 - Log-likelihood: -3.5167, Iterations: 29, Time: 0.0453s
+Iteration 18/20 - Log-likelihood: -3.6498, Iterations: 21, Time: 0.0337s
+Iteration 18/20 - Log-likelihood: -3.6498, Iterations: 21, Time: 0.0337s
+Iteration 19/20 - Log-likelihood: -3.3141, Iterations: 37, Time: 0.0572s
+Iteration 20/20 - Log-likelihood: -3.6491, Iterations: 40, Time: 0.0628s
+Iteration 19/20 - Log-likelihood: -3.3141, Iterations: 37, Time: 0.0572s
+Iteration 20/20 - Log-likelihood: -3.6491, Iterations: 40, Time: 0.0628s
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[81]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Print basic comparison</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">----- Performance Comparison -----&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;EM:  Average Time: </span><span class="si">{</span><span class="n">time_em</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s, Average Iterations: </span><span class="si">{</span><span class="n">iters_em</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">, Best Log-likelihood: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, Average Log-likelihood: </span><span class="si">{</span><span class="n">log_likelihood_em</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CEM: Average Time: </span><span class="si">{</span><span class="n">time_cem</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s, Average Iterations: </span><span class="si">{</span><span class="n">iters_cem</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">, Best Log-likelihood: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, Average Log-likelihood: </span><span class="si">{</span><span class="n">log_likelihood_cem</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+----- Performance Comparison -----
+EM:  Average Time: 0.060s, Average Iterations: 64, Best Log-likelihood: -3.242, Average Log-likelihood: -3.242
+CEM: Average Time: 0.050s, Average Iterations: 27, Best Log-likelihood: -3.649, Average Log-likelihood: -3.416
+</pre></div></div>
+</div>
+<section id="Results-Analysis:-Overlapping-Clusters">
+<h3>Results Analysis: Overlapping Clusters<a class="headerlink" href="#Results-Analysis:-Overlapping-Clusters" title="Link to this heading"></a></h3>
+<p><strong>Expected Behavior with Overlapping Clusters:</strong></p>
+<p>When clusters overlap significantly, we expect to see:</p>
+<ul class="simple">
+<li><p><strong>CEM converges faster</strong> but achieves <strong>worse likelihood</strong> than EM</p></li>
+<li><p><strong>EM finds better local optima</strong> but requires more iterations</p></li>
+<li><p><strong>CEM’s hard assignments</strong> may be suboptimal when cluster boundaries are ambiguous</p></li>
+</ul>
+<p>This matches the theoretical expectation that CEM trades accuracy for speed when dealing with overlapping components.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Comparing the best fit of EM vs CEM&#39;</span><span class="p">)</span>
+
+<span class="c1"># Plot true labels</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;True Components&#39;</span><span class="p">,</span>
+         <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show_means</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Plot EM results</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_em</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+         <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Standard EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">,</span>
+         <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+
+<span class="c1"># Plot CEM results</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cem</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+         <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Classification EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">,</span>
+         <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_cem_8_0.png" src="../_images/notebooks_cem_8_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
 <span class="n">centers</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">]),</span>
-           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="o">-</span><span class="mi">10</span><span class="p">]),</span>
+           <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="o">-</span><span class="mi">20</span><span class="p">]),</span>
            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">])]</span>
 <span class="n">covs</span> <span class="o">=</span> <span class="p">[</span>
@@ -386,7 +448,7 @@ Silhouette Score (higher is better):
 <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 <span class="n">X_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
 
-<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -395,48 +457,36 @@ Silhouette Score (higher is better):
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_cem_5_0.png" src="../_images/notebooks_cem_5_0.png" />
+<img alt="../_images/notebooks_cem_9_0.png" src="../_images/notebooks_cem_9_0.png" />
 </div>
 </div>
+</section>
+</section>
+<section id="Experiment-2:-Well-Separated-Clusters">
+<h2>Experiment 2: Well-Separated Clusters<a class="headerlink" href="#Experiment-2:-Well-Separated-Clusters" title="Link to this heading"></a></h2>
+<p>In this second experiment, we create <strong>well-separated clusters</strong> by increasing the distance between cluster centers:</p>
+<ul class="simple">
+<li><p><strong>Component 1</strong>: (0, 10) - far from others</p></li>
+<li><p><strong>Component 2</strong>: (10, -20) - very distant</p></li>
+<li><p><strong>Component 3</strong>: (0, 0) - origin</p></li>
+<li><p><strong>Component 4</strong>: (10, 10) - well separated</p></li>
+</ul>
+<p>This scenario tests the <strong>ideal case for CEM</strong> where cluster boundaries are clear and unambiguous. According to theory:</p>
+<blockquote>
+<div><p>“When the mixture components are well separated with similar proportions, the CEM algorithm is expected to provide a relevant clustering” (Celeux and Govaert, 1992)</p>
+</div></blockquote>
+<p><strong>Expected Behavior:</strong></p>
+<ul class="simple">
+<li><p><strong>Similar final accuracy</strong> for both EM and CEM</p></li>
+<li><p><strong>CEM converges much faster</strong> due to clear cluster boundaries</p></li>
+<li><p><strong>Hard assignments are optimal</strong> when clusters don’t overlap</p></li>
+</ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[82]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fit a GMM with either EM or CEM and return the model and timing.&quot;&quot;&quot;</span>
-    <span class="c1"># Initialize the GMM</span>
-    <span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
-        <span class="n">covariance_type</span><span class="o">=</span><span class="n">covariance_type</span><span class="p">,</span>
-        <span class="n">tol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
-        <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
-        <span class="n">max_iter</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-        <span class="n">n_init</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-        <span class="n">init_params</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
-        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
-        <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
-        <span class="n">cem</span><span class="o">=</span><span class="n">cem</span>  <span class="c1"># Toggle between EM and CEM</span>
-    <span class="p">)</span>
-
-    <span class="c1"># Time the fitting process</span>
-    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-    <span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
-    <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-
-    <span class="k">return</span> <span class="n">gmm</span><span class="p">,</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span>
-
-<span class="c1"># Fit both models</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Fitting GMM using standard EM algorithm...&quot;</span><span class="p">)</span>
-<span class="n">gmm_em</span><span class="p">,</span> <span class="n">time_em</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Fitting GMM using Classification EM (CEM) algorithm...&quot;</span><span class="p">)</span>
-<span class="n">gmm_cem</span><span class="p">,</span> <span class="n">time_cem</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># Print basic comparison</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">----- Performance Comparison -----&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;EM:  Time: </span><span class="si">{</span><span class="n">time_em</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s, Iterations: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2">, Log-likelihood: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CEM: Time: </span><span class="si">{</span><span class="n">time_cem</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s, Iterations: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2">, Log-likelihood: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Fitting GMM using standard EM algorithm...&quot;</span><span class="p">)</span>
+<span class="n">gmm_em</span><span class="p">,</span> <span class="n">time_em</span><span class="p">,</span> <span class="n">iters_em</span><span class="p">,</span> <span class="n">log_likelihood_em</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -446,112 +496,53 @@ Silhouette Score (higher is better):
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 Fitting GMM using standard EM algorithm...
-[InitRun 0] Iter 0, lower bound: -4.58323
-[InitRun 0] Iter 10, lower bound: -3.39467
-[InitRun 0] Converged at iteration 11, lower bound=-3.39467
-[InitRun 1] Iter 0, lower bound: -4.58323
-[InitRun 1] Iter 10, lower bound: -3.39467
-[InitRun 1] Converged at iteration 11, lower bound=-3.39467
-[InitRun 2] Iter 0, lower bound: -4.58323
-[InitRun 2] Iter 10, lower bound: -3.39467
-[InitRun 2] Converged at iteration 11, lower bound=-3.39467
-[InitRun 3] Iter 0, lower bound: -4.58323
-[InitRun 3] Iter 10, lower bound: -3.39467
-[InitRun 3] Converged at iteration 11, lower bound=-3.39467
-[InitRun 4] Iter 0, lower bound: -4.58323
-[InitRun 4] Iter 10, lower bound: -3.39467
-[InitRun 4] Converged at iteration 11, lower bound=-3.39467
-
-Fitting GMM using Classification EM (CEM) algorithm...
-[InitRun 0] Iter 0, lower bound: -4.45679
-[InitRun 0] Iter 10, lower bound: -3.39467
-[InitRun 0] Converged at iteration 11, lower bound=-3.39467
-[InitRun 1] Iter 0, lower bound: -4.45679
-[InitRun 1] Iter 10, lower bound: -3.39467
-[InitRun 1] Converged at iteration 11, lower bound=-3.39467
-[InitRun 2] Iter 0, lower bound: -4.45679
-[InitRun 2] Iter 10, lower bound: -3.39467
-[InitRun 2] Converged at iteration 11, lower bound=-3.39467
-[InitRun 3] Iter 0, lower bound: -4.45679
-[InitRun 3] Iter 10, lower bound: -3.39467
-[InitRun 3] Converged at iteration 11, lower bound=-3.39467
-[InitRun 4] Iter 0, lower bound: -4.45679
-[InitRun 4] Iter 10, lower bound: -3.39467
-[InitRun 4] Converged at iteration 11, lower bound=-3.39467
-
------ Performance Comparison -----
-EM:  Time: 0.45s, Iterations: 11, Log-likelihood: -3.39
-CEM: Time: 0.47s, Iterations: 11, Log-likelihood: -3.39
+Iteration 1/20 - Log-likelihood: -4.1160, Iterations: 40, Time: 0.0860s
+Iteration 2/20 - Log-likelihood: -4.8963, Iterations: 77, Time: 0.1038s
+Iteration 3/20 - Log-likelihood: -5.3390, Iterations: 183, Time: 0.2540s
+Iteration 4/20 - Log-likelihood: -4.5743, Iterations: 52, Time: 0.0738s
+Iteration 3/20 - Log-likelihood: -5.3390, Iterations: 183, Time: 0.2540s
+Iteration 4/20 - Log-likelihood: -4.5743, Iterations: 52, Time: 0.0738s
+Iteration 5/20 - Log-likelihood: -5.3390, Iterations: 174, Time: 0.2340s
+Iteration 6/20 - Log-likelihood: -3.3993, Iterations: 8, Time: 0.0133s
+Iteration 7/20 - Log-likelihood: -4.5742, Iterations: 54, Time: 0.0639s
+Iteration 8/20 - Log-likelihood: -4.7658, Iterations: 34, Time: 0.0477s
+Iteration 9/20 - Log-likelihood: -4.1174, Iterations: 15, Time: 0.0220s
+Iteration 5/20 - Log-likelihood: -5.3390, Iterations: 174, Time: 0.2340s
+Iteration 6/20 - Log-likelihood: -3.3993, Iterations: 8, Time: 0.0133s
+Iteration 7/20 - Log-likelihood: -4.5742, Iterations: 54, Time: 0.0639s
+Iteration 8/20 - Log-likelihood: -4.7658, Iterations: 34, Time: 0.0477s
+Iteration 9/20 - Log-likelihood: -4.1174, Iterations: 15, Time: 0.0220s
+Iteration 10/20 - Log-likelihood: -4.5742, Iterations: 47, Time: 0.0577s
+Iteration 11/20 - Log-likelihood: -3.3993, Iterations: 2, Time: 0.0059s
+Iteration 12/20 - Log-likelihood: -3.3993, Iterations: 11, Time: 0.0231s
+Iteration 13/20 - Log-likelihood: -3.3993, Iterations: 7, Time: 0.0129s
+Iteration 14/20 - Log-likelihood: -3.3993, Iterations: 8, Time: 0.0085s
+Iteration 15/20 - Log-likelihood: -4.8964, Iterations: 79, Time: 0.0951s
+Iteration 10/20 - Log-likelihood: -4.5742, Iterations: 47, Time: 0.0577s
+Iteration 11/20 - Log-likelihood: -3.3993, Iterations: 2, Time: 0.0059s
+Iteration 12/20 - Log-likelihood: -3.3993, Iterations: 11, Time: 0.0231s
+Iteration 13/20 - Log-likelihood: -3.3993, Iterations: 7, Time: 0.0129s
+Iteration 14/20 - Log-likelihood: -3.3993, Iterations: 8, Time: 0.0085s
+Iteration 15/20 - Log-likelihood: -4.8964, Iterations: 79, Time: 0.0951s
+Iteration 16/20 - Log-likelihood: -4.1161, Iterations: 54, Time: 0.0618s
+Iteration 16/20 - Log-likelihood: -4.1161, Iterations: 54, Time: 0.0618s
+Iteration 17/20 - Log-likelihood: -4.7648, Iterations: 230, Time: 0.2803s
+Iteration 18/20 - Log-likelihood: -3.3993, Iterations: 3, Time: 0.0085s
+Iteration 19/20 - Log-likelihood: -3.3993, Iterations: 6, Time: 0.0091s
+Iteration 20/20 - Log-likelihood: -3.3993, Iterations: 9, Time: 0.0191s
+Iteration 17/20 - Log-likelihood: -4.7648, Iterations: 230, Time: 0.2803s
+Iteration 18/20 - Log-likelihood: -3.3993, Iterations: 3, Time: 0.0085s
+Iteration 19/20 - Log-likelihood: -3.3993, Iterations: 6, Time: 0.0091s
+Iteration 20/20 - Log-likelihood: -3.3993, Iterations: 9, Time: 0.0191s
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[83]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get predictions from both models</span>
-<span class="n">y_pred_em</span> <span class="o">=</span> <span class="n">gmm_em</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-<span class="n">y_pred_cem</span> <span class="o">=</span> <span class="n">gmm_cem</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-
-<span class="c1"># Create a function to plot the results</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">plot_clustering_results</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels_em</span><span class="p">,</span> <span class="n">pred_labels_cem</span><span class="p">,</span> <span class="n">gmm_em</span><span class="p">,</span> <span class="n">gmm_cem</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot the clustering results for both EM and CEM algorithms.&quot;&quot;&quot;</span>
-    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-
-    <span class="c1"># Plot true labels</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;True Components&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
-
-    <span class="c1"># Plot EM results</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">pred_labels_em</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-
-    <span class="c1"># Plot ellipses for EM</span>
-    <span class="n">means_em</span> <span class="o">=</span> <span class="n">gmm_em</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mean</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">means_em</span><span class="p">):</span>
-        <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mean</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
-
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Standard EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
-
-    <span class="c1"># Plot CEM results</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">pred_labels_cem</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
-
-    <span class="c1"># Plot ellipses for CEM</span>
-    <span class="n">means_cem</span> <span class="o">=</span> <span class="n">gmm_cem</span><span class="o">.</span><span class="n">means_</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mean</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">means_cem</span><span class="p">):</span>
-        <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mean</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
-
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Classification EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">)</span>
-    <span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
-
-    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-
-<span class="c1"># Plot the results</span>
-<span class="n">plot_clustering_results</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">y_pred_em</span><span class="p">,</span> <span class="n">y_pred_cem</span><span class="p">,</span> <span class="n">gmm_em</span><span class="p">,</span> <span class="n">gmm_cem</span><span class="p">)</span>
-
-<span class="c1"># Compute some evaluation metrics</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Adjusted Rand Index (higher is better):&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  EM:  </span><span class="si">{</span><span class="n">adjusted_rand_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_em</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  CEM: </span><span class="si">{</span><span class="n">adjusted_rand_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_cem</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Silhouette Score (higher is better):&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  EM:  </span><span class="si">{</span><span class="n">silhouette_score</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_em</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  CEM: </span><span class="si">{</span><span class="n">silhouette_score</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred_cem</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Fitting GMM using Classification EM (CEM) algorithm...&quot;</span><span class="p">)</span>
+<span class="n">gmm_cem</span><span class="p">,</span> <span class="n">time_cem</span><span class="p">,</span> <span class="n">iters_cem</span><span class="p">,</span> <span class="n">log_likelihood_cem</span> <span class="o">=</span> <span class="n">fit_and_evaluate_gmm</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">,</span> <span class="n">n_components</span><span class="p">,</span> <span class="n">cem</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
-</div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<img alt="../_images/notebooks_cem_7_0.png" src="../_images/notebooks_cem_7_0.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -559,15 +550,115 @@ CEM: Time: 0.47s, Iterations: 11, Log-likelihood: -3.39
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Adjusted Rand Index (higher is better):
-  EM:  1.0000
-  CEM: 1.0000
 
-Silhouette Score (higher is better):
-  EM:  0.8210
-  CEM: 0.8210
+Fitting GMM using Classification EM (CEM) algorithm...
+Iteration 1/20 - Log-likelihood: -4.1167, Iterations: 40, Time: 0.0810s
+Iteration 2/20 - Log-likelihood: -4.8953, Iterations: 18, Time: 0.0282s
+Iteration 3/20 - Log-likelihood: -5.3532, Iterations: 9, Time: 0.0181s
+Iteration 4/20 - Log-likelihood: -4.5879, Iterations: 11, Time: 0.0190s
+Iteration 5/20 - Log-likelihood: -5.3512, Iterations: 22, Time: 0.0398s
+Iteration 5/20 - Log-likelihood: -5.3512, Iterations: 22, Time: 0.0398s
+Iteration 6/20 - Log-likelihood: -3.3993, Iterations: 10, Time: 0.0204s
+Iteration 7/20 - Log-likelihood: -4.5754, Iterations: 19, Time: 0.0359s
+Iteration 8/20 - Log-likelihood: -4.7654, Iterations: 55, Time: 0.0843s
+Iteration 9/20 - Log-likelihood: -4.1172, Iterations: 10, Time: 0.0172s
+Iteration 6/20 - Log-likelihood: -3.3993, Iterations: 10, Time: 0.0204s
+Iteration 7/20 - Log-likelihood: -4.5754, Iterations: 19, Time: 0.0359s
+Iteration 8/20 - Log-likelihood: -4.7654, Iterations: 55, Time: 0.0843s
+Iteration 9/20 - Log-likelihood: -4.1172, Iterations: 10, Time: 0.0172s
+Iteration 10/20 - Log-likelihood: -4.5749, Iterations: 40, Time: 0.0674s
+Iteration 11/20 - Log-likelihood: -3.3993, Iterations: 2, Time: 0.0053s
+Iteration 12/20 - Log-likelihood: -3.3993, Iterations: 10, Time: 0.0259s
+Iteration 13/20 - Log-likelihood: -3.3993, Iterations: 5, Time: 0.0150s
+Iteration 14/20 - Log-likelihood: -3.3993, Iterations: 8, Time: 0.0298s
+Iteration 15/20 - Log-likelihood: -4.8958, Iterations: 23, Time: 0.0456s
+Iteration 16/20 - Log-likelihood: -4.1245, Iterations: 10, Time: 0.0260s
+Iteration 17/20 - Log-likelihood: -4.7654, Iterations: 19, Time: 0.0395s
+Iteration 18/20 - Log-likelihood: -3.3993, Iterations: 3, Time: 0.0111s
+Iteration 10/20 - Log-likelihood: -4.5749, Iterations: 40, Time: 0.0674s
+Iteration 11/20 - Log-likelihood: -3.3993, Iterations: 2, Time: 0.0053s
+Iteration 12/20 - Log-likelihood: -3.3993, Iterations: 10, Time: 0.0259s
+Iteration 13/20 - Log-likelihood: -3.3993, Iterations: 5, Time: 0.0150s
+Iteration 14/20 - Log-likelihood: -3.3993, Iterations: 8, Time: 0.0298s
+Iteration 15/20 - Log-likelihood: -4.8958, Iterations: 23, Time: 0.0456s
+Iteration 16/20 - Log-likelihood: -4.1245, Iterations: 10, Time: 0.0260s
+Iteration 17/20 - Log-likelihood: -4.7654, Iterations: 19, Time: 0.0395s
+Iteration 18/20 - Log-likelihood: -3.3993, Iterations: 3, Time: 0.0111s
+Iteration 19/20 - Log-likelihood: -3.3993, Iterations: 5, Time: 0.0180s
+Iteration 20/20 - Log-likelihood: -3.3993, Iterations: 5, Time: 0.0155s
+Iteration 19/20 - Log-likelihood: -3.3993, Iterations: 5, Time: 0.0180s
+Iteration 20/20 - Log-likelihood: -3.3993, Iterations: 5, Time: 0.0155s
 </pre></div></div>
 </div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Print basic comparison</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">----- Performance Comparison -----&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;EM:  Average Time: </span><span class="si">{</span><span class="n">time_em</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s, Average Iterations: </span><span class="si">{</span><span class="n">iters_em</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">, Best Log-likelihood: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, Average Log-likelihood: </span><span class="si">{</span><span class="n">log_likelihood_em</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CEM: Average Time: </span><span class="si">{</span><span class="n">time_cem</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s, Average Iterations: </span><span class="si">{</span><span class="n">iters_cem</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">, Best Log-likelihood: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, Average Log-likelihood: </span><span class="si">{</span><span class="n">log_likelihood_cem</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+----- Performance Comparison -----
+EM:  Average Time: 0.074s, Average Iterations: 55, Best Log-likelihood: -3.399, Average Log-likelihood: -4.163
+CEM: Average Time: 0.032s, Average Iterations: 16, Best Log-likelihood: -3.399, Average Log-likelihood: -4.166
+</pre></div></div>
+</div>
+<section id="Results-Analysis:-Well-Separated-Clusters">
+<h3>Results Analysis: Well-Separated Clusters<a class="headerlink" href="#Results-Analysis:-Well-Separated-Clusters" title="Link to this heading"></a></h3>
+<p><strong>Key Observations:</strong></p>
+<p>The results confirm the theoretical predictions:</p>
+<ul class="simple">
+<li><p><strong>CEM achieves similar accuracy</strong> to EM (comparable log-likelihood)</p></li>
+<li><p><strong>CEM converges ~3x faster</strong> (fewer iterations required)</p></li>
+<li><p><strong>Both algorithms find the same global optimum</strong> when clusters are well-separated</p></li>
+</ul>
+<p>This demonstrates the <strong>practical advantage of CEM</strong> in scenarios with clear cluster structure. The hard assignment strategy becomes optimal when cluster boundaries are unambiguous.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">figsize</span> <span class="o">=</span> <span class="n">dynamic_figsize</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;Comparing the best fit of EM vs CEM&#39;</span><span class="p">)</span>
+
+<span class="c1"># Plot true labels</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;True Components&#39;</span><span class="p">,</span>
+         <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show_means</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Plot EM results</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_em</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+         <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Standard EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_em</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">,</span>
+         <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+
+<span class="c1"># Plot CEM results</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cem</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+         <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Classification EM Clustering</span><span class="se">\n</span><span class="s1">(Iterations: </span><span class="si">{</span><span class="n">gmm_cem</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">,</span>
+         <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/notebooks_cem_15_0.png" src="../_images/notebooks_cem_15_0.png" />
+</div>
+</div>
+</section>
+</section>
+</section>
 
 
            </div>

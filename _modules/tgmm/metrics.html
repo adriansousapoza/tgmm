@@ -109,41 +109,6 @@
 <span class="sd">        print(&quot;ARI =&quot;, ari)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ClusteringMetrics.kl_divergence_gmm">
-<a class="viewcode-back" href="../../source/clustering_metrics.html#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm">[docs]</a>
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">kl_divergence_gmm</span><span class="p">(</span><span class="n">gmm_p</span><span class="p">,</span> <span class="n">gmm_q</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Approximate the KL divergence $D_{KL}(p \Vert q)$ between two</span>
-<span class="sd">        Gaussian Mixture Models using Monte Carlo sampling from ``gmm_p``.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        gmm_p : GaussianMixture</span>
-<span class="sd">            The first GMM (interpreted as distribution p).</span>
-<span class="sd">        gmm_q : GaussianMixture</span>
-<span class="sd">            The second GMM (interpreted as distribution q).</span>
-<span class="sd">        n_samples : int, optional</span>
-<span class="sd">            Number of samples to draw from gmm_p for the Monte Carlo approximation</span>
-<span class="sd">            (default: 10000).</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        float</span>
-<span class="sd">            Approximated KL divergence $ \mathrm{E}_{x \sim p}[\log p(x) - \log q(x)]$.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">device</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">device</span>
-        <span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>  <span class="c1"># (n_samples, n_features)</span>
-        <span class="n">samples</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-
-        <span class="c1"># Log-likelihood of samples under both GMMs</span>
-        <span class="n">log_p</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
-        <span class="n">log_q</span> <span class="o">=</span> <span class="n">gmm_q</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
-
-        <span class="n">kl_divergence</span> <span class="o">=</span> <span class="p">(</span><span class="n">log_p</span> <span class="o">-</span> <span class="n">log_q</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">kl_divergence</span></div>
-
-
 <div class="viewcode-block" id="ClusteringMetrics.bic_score">
 <a class="viewcode-back" href="../../source/clustering_metrics.html#tgmm.metrics.ClusteringMetrics.bic_score">[docs]</a>
     <span class="nd">@staticmethod</span>
@@ -952,6 +917,41 @@
 
         <span class="n">auc</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">tpr</span><span class="p">,</span> <span class="n">fpr</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">auc</span><span class="o">.</span><span class="n">item</span><span class="p">()</span></div>
+
+    
+<div class="viewcode-block" id="ClusteringMetrics.kl_divergence_gmm">
+<a class="viewcode-back" href="../../source/clustering_metrics.html#tgmm.metrics.ClusteringMetrics.kl_divergence_gmm">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">kl_divergence_gmm</span><span class="p">(</span><span class="n">gmm_p</span><span class="p">,</span> <span class="n">gmm_q</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Approximate the KL divergence $D_{KL}(p \Vert q)$ between two</span>
+<span class="sd">        Gaussian Mixture Models using Monte Carlo sampling from ``gmm_p``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        gmm_p : GaussianMixture</span>
+<span class="sd">            The first GMM (interpreted as distribution p).</span>
+<span class="sd">        gmm_q : GaussianMixture</span>
+<span class="sd">            The second GMM (interpreted as distribution q).</span>
+<span class="sd">        n_samples : int, optional</span>
+<span class="sd">            Number of samples to draw from gmm_p for the Monte Carlo approximation</span>
+<span class="sd">            (default: 10000).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        float</span>
+<span class="sd">            Approximated KL divergence $ \mathrm{E}_{x \sim p}[\log p(x) - \log q(x)]$.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">device</span>
+        <span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>  <span class="c1"># (n_samples, n_features)</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">samples</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="c1"># Log-likelihood of samples under both GMMs</span>
+        <span class="n">log_p</span> <span class="o">=</span> <span class="n">gmm_p</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+        <span class="n">log_q</span> <span class="o">=</span> <span class="n">gmm_q</span><span class="o">.</span><span class="n">score_samples</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+
+        <span class="n">kl_divergence</span> <span class="o">=</span> <span class="p">(</span><span class="n">log_p</span> <span class="o">-</span> <span class="n">log_q</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">kl_divergence</span></div>
 
 
 <div class="viewcode-block" id="ClusteringMetrics.evaluate_clustering">

@@ -130,8 +130,14 @@ If None, weights are set uniformly. (default: None)</p></li>
 If None, means are randomized according to <cite>init_params</cite>. (default: None)</p></li>
 <li><p><strong>covariances_init</strong> (<em>torch.Tensor</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – User-provided initial covariances. Shape depends on <cite>covariance_type</cite>. (default: None)</p></li>
 <li><p><strong>n_init</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of random initializations to try. The best run (highest log-likelihood)
-is kept. (default: 1)</p></li>
-<li><p><strong>random_state</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Random seed for reproducibility. If None, uses PyTorch’s internal seed. (default: None)</p></li>
+is kept. When n_init &gt; 1, each initialization uses a different but deterministic
+random state derived from <cite>random_state</cite> to ensure both reproducibility and
+diversity. Specifically, initialization i uses random_state + i as its seed.
+(default: 1)</p></li>
+<li><p><strong>random_state</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Random seed for reproducibility. If None, uses PyTorch’s internal seed.
+When n_init &gt; 1, this serves as the base seed, with each initialization
+using random_state + initialization_index to ensure different but
+reproducible initializations. (default: None)</p></li>
 <li><p><strong>warm_start</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, reuse the solution of the previous call to <cite>fit</cite> as initialization.
 (default: False)</p></li>
 <li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, print progress during EM iterations. (default: False)</p></li>
@@ -166,6 +172,9 @@ These are the covariances after initialization but before any EM iterations.</p>
 <li><p><strong>converged</strong> (<em>bool</em>) – Whether the EM algorithm has converged in the best run.</p></li>
 <li><p><strong>n_iter</strong> (<em>int</em>) – Number of EM iterations performed in the best run.</p></li>
 <li><p><strong>lower_bound</strong> (<em>float</em>) – Log-likelihood lower bound on the fitted data for the best run.</p></li>
+<li><p><strong>best_random_state</strong> (<em>int</em><em> or </em><em>None</em>) – The random state that produced the best result when n_init &gt; 1.
+This is useful for reproducing the specific best initialization.
+Only available after fitting when random_state is not None and n_init &gt; 1.</p></li>
 </ul>
 </dd>
 </dl>
