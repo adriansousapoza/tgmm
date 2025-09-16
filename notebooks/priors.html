@@ -126,7 +126,7 @@
 </ul>
 <p>Let’s begin by setting up our environment and generating some synthetic data.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -175,7 +175,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <li><p><strong>Component 4:</strong> Centered at <code class="docutils literal notranslate"><span class="pre">[2,</span> <span class="pre">2]</span></code> with full covariance.</p></li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -205,7 +205,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <span class="n">n_components</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
 
 
-<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
+<span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">true_labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Original Data&#39;</span><span class="p">,</span> <span class="n">legend_labels</span><span class="o">=</span><span class="n">legend_labels</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -282,7 +282,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </ul>
 <p>The plots below visualize how different <span class="math notranslate nohighlight">\(\alpha\)</span> values affect the Dirichlet density over a ternary plot.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -368,7 +368,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </ul>
 <p>Each subplot shows the fitted GMM components (ellipses and means) along with the log-likelihood (LL) achieved.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">weigths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1e-4</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">])</span>
@@ -393,10 +393,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
     <span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
     <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_weight_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
              <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">weight</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-             <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-             <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;weights&#39;</span><span class="p">)</span>
+             <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+             <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">,</span>
+             <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+             <span class="n">scale_size_by_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+             <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;yellow&#39;</span><span class="p">,</span>
+             <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+             <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+             <span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -416,7 +420,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <h2>Unbalanced Weight Priors: Dominant Component Effect<a class="headerlink" href="#Unbalanced-Weight-Priors:-Dominant-Component-Effect" title="Link to this heading"></a></h2>
 <p>In this example, we apply unbalanced weight priors by assigning one component a significantly higher concentration parameter than the others. As expected, the dominant component tends to capture a larger share of the data, which is reflected in both the clustering results and the overall model log-likelihood.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: One dominant prior and three nearly zero priors.</span>
@@ -446,9 +450,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
     <span class="c1"># Plot only ellipses and means, with alpha based on component weights.</span>
     <span class="n">plot_gmm</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X</span><span class="p">,</span> <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_weight_prior</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
              <span class="n">title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;alpha=</span><span class="si">{</span><span class="n">weight</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">LL=</span><span class="si">{</span><span class="n">gmm_weight_prior</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-             <span class="n">alpha_from_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;weights&#39;</span><span class="p">)</span>
+             <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+             <span class="n">scale_size_by_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+             <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;yellow&#39;</span><span class="p">,</span>
+             <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+             <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">,</span>
+             <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+             <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span>
+             <span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.98</span><span class="p">])</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
@@ -498,7 +507,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </li>
 </ul>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Visualize the mean prior distributions as 1D Gaussians</span>
@@ -557,11 +566,11 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define a list of precision values to compare</span>
-<span class="n">precision_values</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1e3</span><span class="p">,</span> <span class="mf">1e5</span><span class="p">]</span>
+<span class="n">precision_values</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1e2</span><span class="p">,</span> <span class="mf">1e3</span><span class="p">]</span>
 
 <span class="c1"># Create the initial means using K-means on the CPU</span>
 <span class="n">init_means_kmeans</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kmeans</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">k</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>
@@ -581,7 +590,8 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
         <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span>
         <span class="n">mean_prior</span><span class="o">=</span><span class="n">mean_prior</span><span class="p">,</span>
         <span class="n">mean_precision_prior</span><span class="o">=</span><span class="n">precision</span><span class="p">,</span>
-        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="n">means_init</span><span class="o">=</span><span class="n">mean_prior</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">gmm_mean_prior</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tensor</span><span class="p">)</span>
 
@@ -592,10 +602,16 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
         <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_mean_prior</span><span class="p">,</span>
         <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
         <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
-        <span class="n">base_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-        <span class="n">dashed_outer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;means&#39;</span><span class="p">,</span>
-        <span class="n">init_means</span><span class="o">=</span><span class="n">mean_prior</span>
+        <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">,</span>
+        <span class="n">show_initial_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span>
+        <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;yellow&#39;</span><span class="p">,</span>
+        <span class="n">mean_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+        <span class="n">initial_mean_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+        <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">scale_size_by_weight</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
@@ -695,7 +711,7 @@ values.</div>
 </li>
 </ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
@@ -821,7 +837,7 @@ one-dimensional counterpart, the <strong>inverse Gamma</strong>) is commonly use
 <p>For covariance matrices, this is important because the empirical covariance can vary widely—especially in high-dimensional settings. The long tail ensures that the prior does not overly constrain large values, thus preserving flexibility. In 2D, for example, the determinant of the covariance matrix (which is proportional to the area of the corresponding ellipse) can be thought of as capturing the “size” of the uncertainty. A heavy right tail in the inverse Wishart better accommodates the
 possibility of large uncertainty, similar in spirit (though not strictly proportional) to how the surface area of a circle increases with its radius.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initial covariance matrix</span>
@@ -914,7 +930,7 @@ possibility of large uncertainty, similar in spirit (though not strictly proport
 <h3>1. Varying Prior Strength<a class="headerlink" href="#1.-Varying-Prior-Strength" title="Link to this heading"></a></h3>
 <p>Here, the DOF is fixed and the covariance prior strength is varied.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[56]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># shape (2, 2)</span>
@@ -957,9 +973,8 @@ possibility of large uncertainty, similar in spirit (though not strictly proport
         <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cov_prior</span><span class="p">,</span>
         <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
         <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
-        <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;covariances&#39;</span><span class="p">,</span>
-        <span class="n">cmap_seq</span><span class="o">=</span><span class="s1">&#39;Greens&#39;</span><span class="p">,</span>
-        <span class="n">std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">,</span>
+        <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
     <span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.98</span><span class="p">])</span>
@@ -980,7 +995,7 @@ possibility of large uncertainty, similar in spirit (though not strictly proport
 <p>Here, the covariance prior strength is fixed and we vary the DOF.</p>
 <p>Note: For 2D, DOF must be greater than 1.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[58]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">data_covariance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">X_tensor</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">rowvar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># shape (2, 2)</span>
@@ -1022,9 +1037,8 @@ possibility of large uncertainty, similar in spirit (though not strictly proport
         <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cov_prior</span><span class="p">,</span>
         <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
         <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
-        <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;covariances&#39;</span><span class="p">,</span>
-        <span class="n">cmap_seq</span><span class="o">=</span><span class="s1">&#39;Reds&#39;</span><span class="p">,</span>
-        <span class="n">std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+        <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
     <span class="p">)</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">rect</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">0.98</span><span class="p">])</span>
@@ -1044,7 +1058,7 @@ possibility of large uncertainty, similar in spirit (though not strictly proport
 <h3>3. Varying Degrees of Freedom (DOF)<a class="headerlink" href="#3.-Varying-Degrees-of-Freedom-(DOF)" title="Link to this heading"></a></h3>
 <p>Here, both the covariance prior strength and the DOF are varied.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[60]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Compute data covariance from the tensor data.</span>
@@ -1093,9 +1107,8 @@ possibility of large uncertainty, similar in spirit (though not strictly proport
             <span class="n">gmm</span><span class="o">=</span><span class="n">gmm_cov_prior</span><span class="p">,</span>
             <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
             <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
-            <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;covariances&#39;</span><span class="p">,</span>
-            <span class="n">cmap_seq</span><span class="o">=</span><span class="s1">&#39;Blues&#39;</span><span class="p">,</span>
-            <span class="n">std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+            <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;orange&#39;</span><span class="p">,</span>
+            <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
         <span class="p">)</span>
         <span class="c1"># Add legend (if any labels are present; otherwise this will issue a warning)</span>
 
@@ -1109,15 +1122,6 @@ possibility of large uncertainty, similar in spirit (though not strictly proport
 </div>
 <div class="output_area docutils container">
 <img alt="../_images/notebooks_priors_23_0.png" src="../_images/notebooks_priors_23_0.png" />
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># create .py file with the same name</span>
-<span class="c1">#!jupyter nbconvert --to script notebooks/priors.ipynb</span>
-</pre></div>
 </div>
 </div>
 </section>
