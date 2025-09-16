@@ -26,7 +26,7 @@
 ## Installation
 
 ```bash
-git clone https://github.com/YourUser/TorchGMM.git
+git clone https://github.com/adriansousapoza/TorchGMM.git
 cd TorchGMM
 pip install -r requirements.txt
 ```
