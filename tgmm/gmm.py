@@ -50,9 +50,15 @@ class GaussianMixture(nn.Module):
         User-provided initial covariances. Shape depends on `covariance_type`. (default: None)
     n_init : int, optional
         Number of random initializations to try. The best run (highest log-likelihood)
-        is kept. (default: 1)
+        is kept. When n_init > 1, each initialization uses a different but deterministic
+        random state derived from `random_state` to ensure both reproducibility and
+        diversity. Specifically, initialization i uses random_state + i as its seed.
+        (default: 1)
     random_state : int or None, optional
-        Random seed for reproducibility. If None, uses PyTorch's internal seed. (default: None)
+        Random seed for reproducibility. If None, uses PyTorch's internal seed. 
+        When n_init > 1, this serves as the base seed, with each initialization
+        using random_state + initialization_index to ensure different but 
+        reproducible initializations. (default: None)
     warm_start : bool, optional
         If True, reuse the solution of the previous call to `fit` as initialization.
         (default: False)
@@ -107,6 +113,10 @@ class GaussianMixture(nn.Module):
         Number of EM iterations performed in the best run.
     lower_bound_ : float
         Log-likelihood lower bound on the fitted data for the best run.
+    best_random_state_ : int or None
+        The random state that produced the best result when n_init > 1.
+        This is useful for reproducing the specific best initialization.
+        Only available after fitting when random_state is not None and n_init > 1.
     """
 
     def __init__(
@@ -194,6 +204,7 @@ class GaussianMixture(nn.Module):
         self.converged_ = False
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
+        self.best_random_state_ = None
 
     def _init_priors(
         self,
@@ -294,16 +305,24 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
-    def _allocate_parameters(self, X: Optional[torch.Tensor] = None):
+    def _allocate_parameters(self, X: Optional[torch.Tensor] = None, set_random_state: bool = True):
         r"""
         Allocate and initialize model parameters (weights, means, covariances).
+
+        Parameters
+        ----------
+        X : torch.Tensor, optional
+            Input data for data-based initialization methods.
+        set_random_state : bool, default=True
+            Whether to set the random state. Set to False when random state
+            is already set externally (e.g., for multiple initializations).
 
         If X is provided, we can do data-based initialization of means
         using self.init_params (kmeans, kpp, etc.). Otherwise, we fall back
         to random or user-provided means_init.
         """
-        # Seed control
-        if self.random_state is not None:
+        # Seed control - only if requested
+        if set_random_state and self.random_state is not None:
             torch.manual_seed(self.random_state)
             if torch.cuda.is_available():
                 torch.cuda.manual_seed_all(self.random_state)
@@ -659,9 +678,20 @@ class GaussianMixture(nn.Module):
 
         best_lower_bound = -float("inf")
         best_params = None
+        best_random_state = None  # Track which random state gave the best result
 
         if random_state is not None:
             self.random_state = random_state
+
+        # Issue warning about random state usage with multiple initializations
+        if self.random_state is not None and self.n_init > 1:
+            warnings.warn(
+                f"With n_init={self.n_init} and random_state={self.random_state}, "
+                f"the random states used will be [{self.random_state}, "
+                f"{self.random_state + 1}, ..., {self.random_state + self.n_init - 1}]. "
+                f"The best initialization's random state will be reported after fitting.",
+                UserWarning
+            )
 
         X = X.to(self.device)
         if self.n_features is None:
@@ -675,10 +705,18 @@ class GaussianMixture(nn.Module):
             if warm_start and self.n_init > 1:
                 raise UserWarning("Leaving warm_start=True with n_init>1 will not re-initialize parameters for each run.")
 
+            # Set different random state for each initialization to ensure diversity
+            # while maintaining reproducibility
+            if self.random_state is not None:
+                current_random_state = self.random_state + init_idx
+                torch.manual_seed(current_random_state)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(current_random_state)
+
             # 1) Allocate parameters (including data-based means if needed)
             #    do this if not warm-starting or if it's the first run or if multiple inits
             if not warm_start or not self.fitted_ or init_idx > 0:
-                self._allocate_parameters(X)
+                self._allocate_parameters(X, set_random_state=False)  # Don't set random state again
 
             # 2) Run one EM
             self._fit_single_run(X, max_iter, tol, run_idx=init_idx)
@@ -690,6 +728,7 @@ class GaussianMixture(nn.Module):
             # 3) Track best solution
             if self.lower_bound_ > best_lower_bound:
                 best_lower_bound = self.lower_bound_
+                best_random_state = self.random_state + init_idx if self.random_state is not None else None
                 best_params = (
                     self.weights_.clone(),
                     self.means_.clone(),
@@ -704,6 +743,17 @@ class GaussianMixture(nn.Module):
         # Save best result
         if best_params is not None:
             self.weights_, self.means_, self.covariances_, self.converged_, self.n_iter_, self.lower_bound_ = best_params
+            self.best_random_state_ = best_random_state
+        
+        # Report which random state produced the best result
+        if best_random_state is not None and self.n_init > 1:
+            warnings.warn(
+                f"Best initialization used random_state={best_random_state}. "
+                f"To reproduce only this specific result, use random_state={best_random_state} with n_init=1. "
+                f"Note: This random_state may differ from your base random_state ({self.random_state}) "
+                f"and could affect reproducibility in subsequent code.",
+                UserWarning
+            )
         
         # warning if we didn't converge
         if not self.converged_:
@@ -753,7 +803,7 @@ class GaussianMixture(nn.Module):
             if rel_change < tol:
                 self.converged_ = True
                 if self.verbose:
-                    print(f"[InitRun {run_idx}] Converged at iteration {n_iter}, lower bound={self.lower_bound_:.5f}")
+                    print(f"[InitRun {run_idx+1}], Iter: {n_iter}, lower bound={self.lower_bound_:.5f}, Converged: {self.converged_}")
                 break
                 
             prev_lower_bound = self.lower_bound_
@@ -761,7 +811,7 @@ class GaussianMixture(nn.Module):
             self.lower_bound_ = log_prob_norm.mean().item()
 
             if self.verbose and (n_iter % self.verbose_interval == 0):
-                print(f"[InitRun {run_idx}] Iter {n_iter}, lower bound: {self.lower_bound_:.5f}")
+                print(f"[InitRun {run_idx+1}], Iter: {n_iter}, lower bound={self.lower_bound_:.5f}, Converged: {self.converged_}")
 
         if self.converged_:
             resp, log_prob_norm = self._e_step(X)

@@ -34,38 +34,6 @@ class ClusteringMetrics:
     """
 
     @staticmethod
-    def kl_divergence_gmm(gmm_p, gmm_q, n_samples: int = 10000) -> float:
-        r"""
-        Approximate the KL divergence $D_{KL}(p \Vert q)$ between two
-        Gaussian Mixture Models using Monte Carlo sampling from ``gmm_p``.
-
-        Parameters
-        ----------
-        gmm_p : GaussianMixture
-            The first GMM (interpreted as distribution p).
-        gmm_q : GaussianMixture
-            The second GMM (interpreted as distribution q).
-        n_samples : int, optional
-            Number of samples to draw from gmm_p for the Monte Carlo approximation
-            (default: 10000).
-
-        Returns
-        -------
-        float
-            Approximated KL divergence $ \mathrm{E}_{x \sim p}[\log p(x) - \log q(x)]$.
-        """
-        device = gmm_p.device
-        samples, _ = gmm_p.sample(n_samples)  # (n_samples, n_features)
-        samples = samples.to(device)
-
-        # Log-likelihood of samples under both GMMs
-        log_p = gmm_p.score_samples(samples)
-        log_q = gmm_q.score_samples(samples)
-
-        kl_divergence = (log_p - log_q).mean().item()
-        return kl_divergence
-
-    @staticmethod
     def bic_score(
         lower_bound_: float,
         X: torch.Tensor,
@@ -817,6 +785,38 @@ class ClusteringMetrics:
 
         auc = torch.trapz(tpr, fpr)
         return auc.item()
+    
+    @staticmethod
+    def kl_divergence_gmm(gmm_p, gmm_q, n_samples: int = 10000) -> float:
+        r"""
+        Approximate the KL divergence $D_{KL}(p \Vert q)$ between two
+        Gaussian Mixture Models using Monte Carlo sampling from ``gmm_p``.
+
+        Parameters
+        ----------
+        gmm_p : GaussianMixture
+            The first GMM (interpreted as distribution p).
+        gmm_q : GaussianMixture
+            The second GMM (interpreted as distribution q).
+        n_samples : int, optional
+            Number of samples to draw from gmm_p for the Monte Carlo approximation
+            (default: 10000).
+
+        Returns
+        -------
+        float
+            Approximated KL divergence $ \mathrm{E}_{x \sim p}[\log p(x) - \log q(x)]$.
+        """
+        device = gmm_p.device
+        samples, _ = gmm_p.sample(n_samples)  # (n_samples, n_features)
+        samples = samples.to(device)
+
+        # Log-likelihood of samples under both GMMs
+        log_p = gmm_p.score_samples(samples)
+        log_q = gmm_q.score_samples(samples)
+
+        kl_divergence = (log_p - log_q).mean().item()
+        return kl_divergence
 
     @staticmethod
     def evaluate_clustering(

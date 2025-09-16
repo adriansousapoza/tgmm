@@ -15,8 +15,8 @@ import numpy as np
 
 # --- Matplotlib defaults ---
 plt.rcParams.update({
-    "figure.figsize": (8, 6),
-    "figure.dpi": 400,
+    "figure.figsize": (7, 4.5),
+    "figure.dpi": 300,
     "figure.titlesize": 20,
     "axes.grid": True,
     "grid.alpha": 0.3,
