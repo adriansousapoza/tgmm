@@ -11,3 +11,4 @@ Modules
    gaussian_mixture
    gmm_initializer
    clustering_metrics
+   plotting

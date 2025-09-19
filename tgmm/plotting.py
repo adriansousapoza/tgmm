@@ -109,7 +109,7 @@ def plot_gmm(
     X : array-like, shape (n_samples, 2)
         The input data points to plot.
     gmm : fitted GMM object, optional
-        A fitted Gaussian Mixture Model with predict(), means_, covariances_, etc.
+        A fitted Gaussian Mixture Model with predict(), means\\_, covariances\\_, etc.
     
     Data Points
     -----------
@@ -196,7 +196,7 @@ def plot_gmm(
     Initial Means
     -------------
     show_initial_means : bool, default=False
-        Whether to show initial means. If True, will automatically use gmm.initial_means_ 
+        Whether to show initial means. If True, will automatically use gmm.initial\\_means\\_ 
         if available from the fitted GMM model.
     initial_mean_marker : str, default='H'
         Marker style for initial means.

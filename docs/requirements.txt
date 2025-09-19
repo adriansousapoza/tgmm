@@ -1,10 +1,12 @@
-torch>=1.10.0
-numpy
-matplotlib
+torch>=2.5.1
+numpy>=1.23.0
+matplotlib>=3.10.1
 tqdm
 seaborn
 pandas
 scikit-learn
-sphinx>=8.0
+scipy
+sphinx>=8.2.3
 sphinx_rtd_theme
 nbsphinx
+pygments>=2.19.1

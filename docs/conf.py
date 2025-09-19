@@ -9,7 +9,7 @@ lexers['ipython3'] = PythonLexer()
 project = 'TorchGMM'
 copyright = '2025, Adrián A. Sousa-Poza'
 author = 'Adrián A. Sousa-Poza'
-release = '0.1.0'
+release = '0.1.7'
 
 extensions = [
     'sphinx.ext.autodoc',

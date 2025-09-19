@@ -27,7 +27,12 @@ class GaussianMixture(nn.Module):
         Number of mixture components (default: 1).
     covariance_type : str, optional
         Type of covariance parameters to use. Must be one of:
-        'full', 'diag', 'spherical', 'tied_full', 'tied_diag', 'tied_spherical'.
+        'full', 'diag', 'spherical', 'isotropic', 'tied_full', 'tied_diag', 'tied_spherical'.
+        
+        Note: 
+            - 'isotropic' is an alias for 'spherical'
+            - 'full' is an alias for 'tied_full'.
+        
         (default: 'full')
     tol : float, optional
         Convergence threshold for EM (relative improvement in log-likelihood).
@@ -154,6 +159,9 @@ class GaussianMixture(nn.Module):
         # Allow "tied" as alias for "tied_full"
         if covariance_type == "tied":
             covariance_type = "tied_full"
+        # Allow "isotropic" as alias for "spherical"
+        if covariance_type == "isotropic":
+            covariance_type = "spherical"
         self.covariance_type = covariance_type
 
         self.tol = tol
@@ -171,7 +179,7 @@ class GaussianMixture(nn.Module):
         # Additional features
         self.n_init = n_init
         self.cov_init_method = cov_init_method
-        self.cem = cem  # Flag to use Classification EM
+        self.cem = cem
 
         # Device
         if device is not None:
