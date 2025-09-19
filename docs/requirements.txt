@@ -6,7 +6,7 @@ seaborn
 pandas
 scikit-learn
 scipy
-sphinx>=8.2.3
+sphinx>=7.1.0,<8.2.0
 sphinx_rtd_theme
 nbsphinx
 pygments>=2.19.1
