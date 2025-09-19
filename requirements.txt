@@ -1,6 +1,20 @@
-matplotlib>=3.10.1
-numpy>=1.23.0
-Pygments>=2.19.1
-setuptools==75.8.0
-sphinx>=7.1.0,<8.2.0
+# Core dependencies (required for basic package functionality)
 torch>=2.5.1
+numpy>=1.23.0
+matplotlib>=3.10.1
+
+# Documentation dependencies
+sphinx>=7.1.0,<8.2.0
+sphinx_rtd_theme
+nbsphinx
+pygments>=2.19.1
+
+# Example/notebook dependencies (optional, for running examples)
+tqdm
+seaborn
+pandas
+scikit-learn
+scipy
+
+# Development dependencies
+setuptools==75.8.0
