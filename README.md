@@ -1,4 +1,4 @@
-# TorchGMM: A Gaussian Mixture Model Implementation with PyTorch
+# tgmm: A Gaussian Mixture Model Implementation with PyTorch
 
 ![TorchGMM logo](docs/_static/logo-no-background.png)
 
