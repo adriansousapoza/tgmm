@@ -2,5 +2,5 @@ matplotlib==3.10.1
 numpy==2.2.3
 Pygments==2.19.1
 setuptools==75.8.0
-Sphinx==8.2.3
+sphinx>=8.1.0
 torch==2.5.1
