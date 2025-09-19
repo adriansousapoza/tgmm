@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tutorials &mdash; TorchGMM 0.1.0 documentation</title>
+  <title>Tutorials &mdash; TorchGMM 0.1.7 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=5c7ff671" />
@@ -14,7 +14,7 @@
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/documentation_options.js?v=ca7ad2ea"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -24,7 +24,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Gaussian Mixture Model (GMM) Usage, Analysis and Visualization" href="../notebooks/gmm.html" />
-    <link rel="prev" title="ClusteringMetrics" href="clustering_metrics.html" /> 
+    <link rel="prev" title="Plotting" href="plotting.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -53,6 +53,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../notebooks/gmm.html">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../notebooks/metrics.html">Clustering Metrics: Comprehensive Evaluation of Gaussian Mixture Models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../notebooks/priors.html">Priors in Gaussian Mixture Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html">TorchGMM Plotting Function Comprehensive Demo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/cem.html">Classification Expectation Maximization (CEM) Algorithm</a></li>
 </ul>
 </li>
 </ul>
@@ -119,6 +121,26 @@
 <li class="toctree-l2"><a class="reference internal" href="../notebooks/priors.html#Covariance-Priors-in-GMM">Covariance Priors in GMM</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/visualise.html">TorchGMM Plotting Function Comprehensive Demo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Overview-of-Parameters:">Overview of Parameters:</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Default-Parameters">Default Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Simple-Data-Points-Without-GMM">Simple Data Points Without GMM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Cluster-Coloring-with-True-Labels">Cluster Coloring with True Labels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Confidence-Ellipses">Confidence Ellipses</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Ellipse-Styling-Options">Ellipse Styling Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Log-Probability-Visualization">Log Probability Visualization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Mean-Markers-and-Initial-Means">Mean Markers and Initial Means</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Component-Weight-Visualization">Component Weight Visualization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Prediction-Accuracy-Assessment">Prediction Accuracy Assessment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/visualise.html#Overview-of-Different-Visualization-Combinations">Overview of Different Visualization Combinations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/cem.html">Classification Expectation Maximization (CEM) Algorithm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/cem.html#Overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/cem.html#Experiment-1:-Overlapping-Clusters">Experiment 1: Overlapping Clusters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks/cem.html#Experiment-2:-Well-Separated-Clusters">Experiment 2: Well-Separated Clusters</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </section>
@@ -127,7 +149,7 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="clustering_metrics.html" class="btn btn-neutral float-left" title="ClusteringMetrics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="plotting.html" class="btn btn-neutral float-left" title="Plotting" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="../notebooks/gmm.html" class="btn btn-neutral float-right" title="Gaussian Mixture Model (GMM) Usage, Analysis and Visualization" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

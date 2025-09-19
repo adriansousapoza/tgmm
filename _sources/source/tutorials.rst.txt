@@ -13,3 +13,5 @@ Here are step-by-step guides on using TorchGMM.
    ../notebooks/gmm.ipynb
    ../notebooks/metrics.ipynb
    ../notebooks/priors.ipynb
+   ../notebooks/visualise.ipynb
+   ../notebooks/cem.ipynb

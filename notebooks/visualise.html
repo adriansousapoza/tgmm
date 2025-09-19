@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TorchGMM Plotting Function Comprehensive Demo &mdash; TorchGMM 0.1.0 documentation</title>
+  <title>TorchGMM Plotting Function Comprehensive Demo &mdash; TorchGMM 0.1.7 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
@@ -15,7 +15,7 @@
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../_static/documentation_options.js?v=ca7ad2ea"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -23,7 +23,9 @@
       <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" /> 
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Classification Expectation Maximization (CEM) Algorithm" href="cem.html" />
+    <link rel="prev" title="Priors in Gaussian Mixture Models" href="priors.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -46,9 +48,29 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../source/modules.html">Modules</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../source/tutorials.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../source/tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="gmm.html">Gaussian Mixture Model (GMM) Usage, Analysis and Visualization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="metrics.html">Clustering Metrics: Comprehensive Evaluation of Gaussian Mixture Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="priors.html">Priors in Gaussian Mixture Models</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">TorchGMM Plotting Function Comprehensive Demo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Overview-of-Parameters:">Overview of Parameters:</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Default-Parameters">Default Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Simple-Data-Points-Without-GMM">Simple Data Points Without GMM</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Cluster-Coloring-with-True-Labels">Cluster Coloring with True Labels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Confidence-Ellipses">Confidence Ellipses</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Ellipse-Styling-Options">Ellipse Styling Options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Log-Probability-Visualization">Log Probability Visualization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Mean-Markers-and-Initial-Means">Mean Markers and Initial Means</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Component-Weight-Visualization">Component Weight Visualization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Prediction-Accuracy-Assessment">Prediction Accuracy Assessment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Overview-of-Different-Visualization-Combinations">Overview of Different Visualization Combinations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cem.html">Classification Expectation Maximization (CEM) Algorithm</a></li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -65,6 +87,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../source/tutorials.html">Tutorials</a></li>
       <li class="breadcrumb-item active">TorchGMM Plotting Function Comprehensive Demo</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -80,15 +103,12 @@
 <section id="Overview-of-Parameters:">
 <h2>Overview of Parameters:<a class="headerlink" href="#Overview-of-Parameters:" title="Link to this heading"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">plot_gmm</span></code> function provides extensive control over GMM visualization through several parameter categories:</p>
-<section id="📊-Core-Data-Parameters">
-<h3>📊 <strong>Core Data Parameters</strong><a class="headerlink" href="#📊-Core-Data-Parameters" title="Link to this heading"></a></h3>
+<p><strong>Core Data Parameters</strong></p>
 <ul class="simple">
 <li><p><strong>``X``</strong>: Input data points to plot (array-like, shape (n_samples, 2))</p></li>
 <li><p><strong>``gmm``</strong>: Fitted GMM object with predict(), means_, covariances_, etc. (optional)</p></li>
 </ul>
-</section>
-<section id="🎨-Data-Point-Styling">
-<h3>🎨 <strong>Data Point Styling</strong><a class="headerlink" href="#🎨-Data-Point-Styling" title="Link to this heading"></a></h3>
+<p><strong>Data Point Styling</strong></p>
 <ul class="simple">
 <li><p><strong>``show_points``</strong> <em>(bool, default=True)</em>: Whether to display the data points</p></li>
 <li><p><strong>``point_size``</strong> <em>(float, default=5)</em>: Size of individual data points</p></li>
@@ -103,9 +123,7 @@
 </ul>
 </li>
 </ul>
-</section>
-<section id="🎯-Cluster-Visualization">
-<h3>🎯 <strong>Cluster Visualization</strong><a class="headerlink" href="#🎯-Cluster-Visualization" title="Link to this heading"></a></h3>
+<p><strong>Cluster Visualization</strong></p>
 <ul class="simple">
 <li><p><strong>``color_by_cluster``</strong> <em>(bool, default=False)</em>: Enable cluster-based point coloring</p></li>
 <li><p><strong>``true_labels``</strong> <em>(array-like, optional)</em>: Ground truth cluster labels for comparison</p></li>
@@ -119,17 +137,13 @@
 </li>
 <li><p><strong>``show_incorrect_predictions``</strong> <em>(bool, default=False)</em>: Highlight correct (green) vs incorrect (red) predictions</p></li>
 </ul>
-</section>
-<section id="🌈-Continuous-Coloring">
-<h3>🌈 <strong>Continuous Coloring</strong><a class="headerlink" href="#🌈-Continuous-Coloring" title="Link to this heading"></a></h3>
+<p><strong>Continuous Coloring</strong></p>
 <ul class="simple">
 <li><p><strong>``log_probs``</strong> <em>(array-like, optional)</em>: Continuous values for color mapping (e.g., log-probabilities)</p></li>
 <li><p><strong>``colormap``</strong> <em>(str, default=’viridis’)</em>: Matplotlib colormap for continuous values</p></li>
 <li><p><strong>``colorbar_label``</strong> <em>(str, default=’Log Probability’)</em>: Label for the colorbar</p></li>
 </ul>
-</section>
-<section id="⭕-Component-Ellipses">
-<h3>⭕ <strong>Component Ellipses</strong><a class="headerlink" href="#⭕-Component-Ellipses" title="Link to this heading"></a></h3>
+<p><strong>Component Ellipses</strong></p>
 <ul class="simple">
 <li><p><strong>``show_ellipses``</strong> <em>(bool, default=True)</em>: Display confidence ellipses for GMM components</p></li>
 <li><p><strong>``ellipse_std_devs``</strong> <em>(list, default=[1, 2, 3])</em>: Standard deviation levels for ellipse boundaries</p></li>
@@ -141,34 +155,26 @@
 <li><p><strong>``ellipse_line_color``</strong> <em>(str, default=’black’)</em>: Color of ellipse boundary lines</p></li>
 <li><p><strong>``ellipse_line_alpha``</strong> <em>(float, default=0.5)</em>: Transparency of ellipse boundaries</p></li>
 </ul>
-</section>
-<section id="📍-Component-Centers/Means">
-<h3>📍 <strong>Component Centers/Means</strong><a class="headerlink" href="#📍-Component-Centers/Means" title="Link to this heading"></a></h3>
+<p><strong>Component Centers/Means</strong></p>
 <ul class="simple">
 <li><p><strong>``show_means``</strong> <em>(bool, default=True)</em>: Display component center points</p></li>
 <li><p><strong>``mean_marker``</strong> <em>(str, default=’h’)</em>: Marker style for means (‘x’, ‘o’, ‘*’, ‘h’, etc.)</p></li>
 <li><p><strong>``mean_size``</strong> <em>(float, default=25)</em>: Size of mean markers</p></li>
 <li><p><strong>``mean_color``</strong> <em>(str, default=’black’)</em>: Color of mean markers</p></li>
 </ul>
-</section>
-<section id="🎯-Initial-Means-(if-available)">
-<h3>🎯 <strong>Initial Means</strong> (if available)<a class="headerlink" href="#🎯-Initial-Means-(if-available)" title="Link to this heading"></a></h3>
+<p><strong>Initial Means</strong> (if available)</p>
 <ul class="simple">
 <li><p><strong>``show_initial_means``</strong> <em>(bool, default=False)</em>: Show starting positions from initialization</p></li>
 <li><p><strong>``initial_mean_marker``</strong> <em>(str, default=’H’)</em>: Marker style for initial means</p></li>
 <li><p><strong>``initial_mean_size``</strong> <em>(float, default=25)</em>: Size of initial mean markers</p></li>
 <li><p><strong>``initial_mean_color``</strong> <em>(str, default=’red’)</em>: Color of initial mean markers</p></li>
 </ul>
-</section>
-<section id="⚖️-Weight-Based-Scaling">
-<h3>⚖️ <strong>Weight-Based Scaling</strong><a class="headerlink" href="#⚖️-Weight-Based-Scaling" title="Link to this heading"></a></h3>
+<p><strong>Weight-Based Scaling</strong></p>
 <ul class="simple">
 <li><p><strong>``scale_alpha_by_weight``</strong> <em>(bool, default=False)</em>: Scale ellipse transparency by component weight</p></li>
 <li><p><strong>``scale_size_by_weight``</strong> <em>(bool, default=False)</em>: Scale marker size by component weight</p></li>
 </ul>
-</section>
-<section id="🎨-Plot-Styling-&amp;-Layout">
-<h3>🎨 <strong>Plot Styling &amp; Layout</strong><a class="headerlink" href="#🎨-Plot-Styling-&-Layout" title="Link to this heading"></a></h3>
+<p><strong>Plot Styling &amp; Layout</strong></p>
 <ul class="simple">
 <li><p><strong>``ax``</strong> <em>(matplotlib.Axes, optional)</em>: Axes object to plot on (creates new if None)</p></li>
 <li><p><strong>``title``</strong> <em>(str, default=’GMM Visualization’)</em>: Plot title</p></li>
@@ -177,19 +183,8 @@
 <li><p><strong>``legend``</strong> <em>(bool, default=True)</em>: Whether to show legend</p></li>
 <li><p><strong>``legend_labels``</strong> <em>(list, optional)</em>: Custom labels for legend entries</p></li>
 </ul>
-</section>
-</section>
-<section id="🔧-Common-Usage-Patterns:">
-<h2>🔧 <strong>Common Usage Patterns:</strong><a class="headerlink" href="#🔧-Common-Usage-Patterns:" title="Link to this heading"></a></h2>
-<ol class="arabic simple">
-<li><p><strong>Basic Visualization</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm)</span></code> - Shows fitted GMM with default styling</p></li>
-<li><p><strong>True vs Predicted</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm,</span> <span class="pre">true_labels=labels,</span> <span class="pre">show_incorrect_predictions=True)</span></code></p></li>
-<li><p><strong>Custom Styling</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm,</span> <span class="pre">cluster_colors='Set2',</span> <span class="pre">ellipse_alpha=0.3)</span></code></p></li>
-<li><p><strong>Continuous Coloring</strong>: <code class="docutils literal notranslate"><span class="pre">plot_gmm(X,</span> <span class="pre">gmm,</span> <span class="pre">log_probs=log_probs,</span> <span class="pre">colormap='plasma')</span></code></p></li>
-<li><p><strong>Publication Ready</strong>: `plot_gmm(X, gmm, point_size=8, mean_size=50, ellipse_line_width</p></li>
-</ol>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -221,7 +216,7 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
+<div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
@@ -230,8 +225,17 @@ CUDA version: 12.4
 Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div></div>
 </div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/home/asp/miniforge3/lib/python3.12/site-packages/torch/cuda/__init__.py:654: UserWarning: Can&#39;t initialize NVML
+  warnings.warn(&#34;Can&#39;t initialize NVML&#34;)
+</pre></div></div>
+</div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_samples</span> <span class="o">=</span> <span class="p">[</span><span class="mi">800</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
@@ -308,8 +312,11 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 </pre></div>
 </div>
 </div>
+</section>
+<section id="Default-Parameters">
+<h2>Default Parameters<a class="headerlink" href="#Default-Parameters" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span>
@@ -383,11 +390,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_3_0.png" src="../_images/notebooks_visualise_3_0.png" />
+<img alt="../_images/notebooks_visualise_4_0.png" src="../_images/notebooks_visualise_4_0.png" />
 </div>
 </div>
+</section>
+<section id="Simple-Data-Points-Without-GMM">
+<h2>Simple Data Points Without GMM<a class="headerlink" href="#Simple-Data-Points-Without-GMM" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span>
@@ -425,11 +435,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_4_0.png" src="../_images/notebooks_visualise_4_0.png" />
+<img alt="../_images/notebooks_visualise_6_0.png" src="../_images/notebooks_visualise_6_0.png" />
 </div>
 </div>
+</section>
+<section id="Cluster-Coloring-with-True-Labels">
+<h2>Cluster Coloring with True Labels<a class="headerlink" href="#Cluster-Coloring-with-True-Labels" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -467,11 +480,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_5_0.png" src="../_images/notebooks_visualise_5_0.png" />
+<img alt="../_images/notebooks_visualise_8_0.png" src="../_images/notebooks_visualise_8_0.png" />
 </div>
 </div>
+</section>
+<section id="Confidence-Ellipses">
+<h2>Confidence Ellipses<a class="headerlink" href="#Confidence-Ellipses" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -526,11 +542,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_6_0.png" src="../_images/notebooks_visualise_6_0.png" />
+<img alt="../_images/notebooks_visualise_10_0.png" src="../_images/notebooks_visualise_10_0.png" />
 </div>
 </div>
+</section>
+<section id="Ellipse-Styling-Options">
+<h2>Ellipse Styling Options<a class="headerlink" href="#Ellipse-Styling-Options" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span>
@@ -569,11 +588,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_7_0.png" src="../_images/notebooks_visualise_7_0.png" />
+<img alt="../_images/notebooks_visualise_12_0.png" src="../_images/notebooks_visualise_12_0.png" />
 </div>
 </div>
+</section>
+<section id="Log-Probability-Visualization">
+<h2>Log Probability Visualization<a class="headerlink" href="#Log-Probability-Visualization" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -606,11 +628,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_8_0.png" src="../_images/notebooks_visualise_8_0.png" />
+<img alt="../_images/notebooks_visualise_14_0.png" src="../_images/notebooks_visualise_14_0.png" />
 </div>
 </div>
+</section>
+<section id="Mean-Markers-and-Initial-Means">
+<h2>Mean Markers and Initial Means<a class="headerlink" href="#Mean-Markers-and-Initial-Means" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -678,11 +703,14 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_9_0.png" src="../_images/notebooks_visualise_9_0.png" />
+<img alt="../_images/notebooks_visualise_16_0.png" src="../_images/notebooks_visualise_16_0.png" />
 </div>
 </div>
+</section>
+<section id="Component-Weight-Visualization">
+<h2>Component Weight Visualization<a class="headerlink" href="#Component-Weight-Visualization" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span>
@@ -733,7 +761,7 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_10_0.png" src="../_images/notebooks_visualise_10_0.png" />
+<img alt="../_images/notebooks_visualise_18_0.png" src="../_images/notebooks_visualise_18_0.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -744,8 +772,11 @@ Device: NVIDIA GeForce RTX 4060 Laptop GPU
 Component weights: [0.06534623 0.330355   0.33683044 0.2674684 ]
 </pre></div></div>
 </div>
+</section>
+<section id="Prediction-Accuracy-Assessment">
+<h2>Prediction Accuracy Assessment<a class="headerlink" href="#Prediction-Accuracy-Assessment" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span>
@@ -796,11 +827,14 @@ Component weights: [0.06534623 0.330355   0.33683044 0.2674684 ]
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_11_0.png" src="../_images/notebooks_visualise_11_0.png" />
+<img alt="../_images/notebooks_visualise_20_0.png" src="../_images/notebooks_visualise_20_0.png" />
 </div>
 </div>
+</section>
+<section id="Overview-of-Different-Visualization-Combinations">
+<h2>Overview of Different Visualization Combinations<a class="headerlink" href="#Overview-of-Different-Visualization-Combinations" title="Link to this heading"></a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nrows</span><span class="p">,</span> <span class="n">ncols</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span>
@@ -913,97 +947,19 @@ Component weights: [0.06534623 0.330355   0.33683044 0.2674684 ]
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/notebooks_visualise_12_0.png" src="../_images/notebooks_visualise_12_0.png" />
+<img alt="../_images/notebooks_visualise_22_0.png" src="../_images/notebooks_visualise_22_0.png" />
 </div>
 </div>
-</section>
-</section>
-<section id="Parameter-Summary-and-Usage-Tips">
-<h1>Parameter Summary and Usage Tips<a class="headerlink" href="#Parameter-Summary-and-Usage-Tips" title="Link to this heading"></a></h1>
-<section id="Key-Parameter-Categories:">
-<h2>Key Parameter Categories:<a class="headerlink" href="#Key-Parameter-Categories:" title="Link to this heading"></a></h2>
-<section id="1.-Data-Point-Styling">
-<h3>1. <strong>Data Point Styling</strong><a class="headerlink" href="#1.-Data-Point-Styling" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">show_points=True/False</span></code>: Toggle point visibility</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">point_size</span></code>: Size of data points (default: 5)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">point_alpha</span></code>: Transparency of points (0-1, default: 0.5)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">point_color</span></code>: ‘auto’, color name, colormap name, or custom array</p></li>
-</ul>
-</section>
-<section id="2.-Cluster-Visualization">
-<h3>2. <strong>Cluster Visualization</strong><a class="headerlink" href="#2.-Cluster-Visualization" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">color_by_cluster=True/False</span></code>: Enable cluster-based coloring</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">true_labels</span></code>: Ground truth labels for comparison</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cluster_colors</span></code>: Colormap name, single color, or color list</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">show_incorrect_predictions=True/False</span></code>: Highlight prediction errors</p></li>
-</ul>
-</section>
-<section id="3.-Continuous-Coloring">
-<h3>3. <strong>Continuous Coloring</strong><a class="headerlink" href="#3.-Continuous-Coloring" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">log_probs</span></code>: Array of continuous values (e.g., log-probabilities)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">colormap</span></code>: Matplotlib colormap for continuous data</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">colorbar_label</span></code>: Label for the colorbar</p></li>
-</ul>
-</section>
-<section id="4.-Component-Ellipses">
-<h3>4. <strong>Component Ellipses</strong><a class="headerlink" href="#4.-Component-Ellipses" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">show_ellipses=True/False</span></code>: Toggle ellipse visibility</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_std_devs</span></code>: List of sigma levels (e.g., [1, 2, 3])</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_alpha</span></code>: Fill transparency</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_colors</span></code>: ‘auto’, colormap, or custom colors</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_fill=True/False</span></code>: Filled vs outline only</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_style</span></code>: ‘solid’, ‘dashed’, ‘dotted’</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_width</span></code>: Border thickness</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_color</span></code>: Border color</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">ellipse_line_alpha</span></code>: Border transparency</p></li>
-</ul>
-</section>
-<section id="5.-Component-Centers">
-<h3>5. <strong>Component Centers</strong><a class="headerlink" href="#5.-Component-Centers" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">show_means=True/False</span></code>: Show component means</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">mean_marker</span></code>: Marker style (‘x’, ‘o’, ‘*’, etc.)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">mean_size</span></code>: Marker size</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">mean_color</span></code>: Marker color</p></li>
-</ul>
-</section>
-<section id="6.-Initial-Means-(if-available)">
-<h3>6. <strong>Initial Means</strong> (if available)<a class="headerlink" href="#6.-Initial-Means-(if-available)" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">show_initial_means=True/False</span></code>: Show starting positions</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">initial_mean_marker</span></code>: Marker style</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">initial_mean_size</span></code>: Marker size</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">initial_mean_color</span></code>: Marker color</p></li>
-</ul>
-</section>
-<section id="7.-Weight-Based-Scaling">
-<h3>7. <strong>Weight-Based Scaling</strong><a class="headerlink" href="#7.-Weight-Based-Scaling" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">scale_alpha_by_weight=True/False</span></code>: Scale transparency by component weight</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">scale_size_by_weight=True/False</span></code>: Scale marker size by component weight</p></li>
-</ul>
-</section>
-</section>
-<section id="Usage-Tips:">
-<h2>Usage Tips:<a class="headerlink" href="#Usage-Tips:" title="Link to this heading"></a></h2>
-<ol class="arabic simple">
-<li><p><strong>For exploratory analysis</strong>: Start with default parameters and gradually add features</p></li>
-<li><p><strong>For publications</strong>: Use high contrast colors and clear markers</p></li>
-<li><p><strong>For presentations</strong>: Use larger point sizes and marker sizes</p></li>
-<li><p><strong>For detailed analysis</strong>: Show multiple sigma levels and use continuous coloring</p></li>
-<li><p><strong>For comparison</strong>: Use <code class="docutils literal notranslate"><span class="pre">show_incorrect_predictions=True</span></code> to validate model performance</p></li>
-</ol>
 </section>
 </section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="priors.html" class="btn btn-neutral float-left" title="Priors in Gaussian Mixture Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cem.html" class="btn btn-neutral float-right" title="Classification Expectation Maximization (CEM) Algorithm" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 

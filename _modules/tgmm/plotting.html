@@ -1,0 +1,744 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tgmm.plotting &mdash; TorchGMM 0.1.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=5c7ff671" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=ca7ad2ea"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            TorchGMM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/modules.html">Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">TorchGMM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">tgmm.plotting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for tgmm.plotting</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Improved plotting module for Gaussian Mixture Models.</span>
+
+<span class="sd">This module provides clean, intuitive plotting functions for GMM visualization</span>
+<span class="sd">with clear parameter control instead of confusing &#39;modes&#39;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.patches</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ellipse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matplotlib.colors</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_rgba</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">linear_sum_assignment</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="c1"># --- Matplotlib defaults ---</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+    <span class="s2">&quot;figure.figsize&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mf">4.5</span><span class="p">),</span>
+    <span class="s2">&quot;figure.dpi&quot;</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span>
+    <span class="s2">&quot;figure.titlesize&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="s2">&quot;axes.grid&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s2">&quot;grid.alpha&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span>
+    <span class="s2">&quot;axes.facecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;#ffffff&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;axes.edgecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;#000000&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;axes.labelsize&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s2">&quot;axes.titlesize&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+    <span class="s2">&quot;xtick.labelsize&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s2">&quot;ytick.labelsize&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s2">&quot;legend.fontsize&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s2">&quot;lines.linewidth&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;lines.markersize&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="s2">&quot;font.family&quot;</span><span class="p">:</span> <span class="s2">&quot;DejaVu Sans&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;savefig.dpi&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span>
+    <span class="s2">&quot;savefig.format&quot;</span><span class="p">:</span> <span class="s2">&quot;pdf&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;savefig.bbox&quot;</span><span class="p">:</span> <span class="s2">&quot;tight&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;legend.frameon&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="s2">&quot;legend.framealpha&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;legend.edgecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;black&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;legend.facecolor&quot;</span><span class="p">:</span> <span class="s2">&quot;gainsboro&quot;</span><span class="p">,</span>
+<span class="p">})</span>
+
+
+<span class="c1">##############################################################################</span>
+<span class="c1"># Main plotting function</span>
+<span class="c1">##############################################################################</span>
+
+<div class="viewcode-block" id="plot_gmm">
+<a class="viewcode-back" href="../../source/plotting.html#tgmm.plotting.plot_gmm">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_gmm</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">gmm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+
+    <span class="c1"># Data point styling</span>
+    <span class="n">show_points</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">point_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">point_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">point_color</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>  <span class="c1"># &#39;auto&#39;, &#39;black&#39;, array-like, or colormap name</span>
+    
+    <span class="c1"># Cluster visualization</span>
+    <span class="n">color_by_cluster</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">true_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">match_labels_to_true</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">cluster_colors</span><span class="o">=</span><span class="s1">&#39;turbo&#39;</span><span class="p">,</span>  <span class="c1"># Can be colormap name, single color, or list of colors</span>
+    <span class="n">show_incorrect_predictions</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># replaces &#39;outliers&#39; mode</span>
+    
+    <span class="c1"># Continuous coloring (replaces &#39;continuous&#39; mode)</span>
+    <span class="n">log_probs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
+    <span class="n">colorbar_label</span><span class="o">=</span><span class="s1">&#39;Log Probability&#39;</span><span class="p">,</span>
+    
+    <span class="c1"># Component ellipses</span>
+    <span class="n">show_ellipses</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_std_devs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># List of standard deviations to show</span>
+    <span class="n">ellipse_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">ellipse_colors</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>  <span class="c1"># &#39;auto&#39; uses same as clusters</span>
+    <span class="n">ellipse_fill</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ellipse_line_style</span><span class="o">=</span><span class="s1">&#39;dotted&#39;</span><span class="p">,</span>
+    <span class="n">ellipse_line_width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">ellipse_line_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+    <span class="n">ellipse_line_alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    
+    <span class="c1"># Component centers/means</span>
+    <span class="n">show_means</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">mean_marker</span><span class="o">=</span><span class="s1">&#39;h&#39;</span><span class="p">,</span>
+    <span class="n">mean_size</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+    <span class="n">mean_color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span>
+    
+    <span class="c1"># Initial means (if provided)</span>
+    <span class="n">show_initial_means</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">initial_mean_marker</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span>
+    <span class="n">initial_mean_size</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+    <span class="n">initial_mean_color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span>
+    
+    <span class="c1"># Weight visualization</span>
+    <span class="n">scale_alpha_by_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">scale_size_by_weight</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    
+    <span class="c1"># Plot styling</span>
+    <span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GMM Visualization&#39;</span><span class="p">,</span>
+    <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Feature 1&#39;</span><span class="p">,</span>
+    <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Feature 2&#39;</span><span class="p">,</span>
+    <span class="n">legend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">legend_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot Gaussian Mixture Model results with fine-grained control.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    X : array-like, shape (n_samples, 2)</span>
+<span class="sd">        The input data points to plot.</span>
+<span class="sd">    gmm : fitted GMM object, optional</span>
+<span class="sd">        A fitted Gaussian Mixture Model with predict(), means\\_, covariances\\_, etc.</span>
+<span class="sd">    </span>
+<span class="sd">    Data Points</span>
+<span class="sd">    -----------</span>
+<span class="sd">    show_points : bool, default=True</span>
+<span class="sd">        Whether to show the data points.</span>
+<span class="sd">    point_size : float, default=10</span>
+<span class="sd">        Size of data points.</span>
+<span class="sd">    point_alpha : float, default=0.6</span>
+<span class="sd">        Transparency of data points.</span>
+<span class="sd">    point_color : str or array-like, default=&#39;auto&#39;</span>
+<span class="sd">        Color specification for points. Options:</span>
+<span class="sd">        - &#39;auto&#39;: Use cluster colors if color_by_cluster=True or true_labels is provided, else black</span>
+<span class="sd">        - &#39;black&#39;: All points black</span>
+<span class="sd">        - colormap name: Use specified colormap to color points (e.g., &#39;viridis&#39;, &#39;plasma&#39;)</span>
+<span class="sd">        - single color: Use single color for all points (e.g., &#39;red&#39;, &#39;#FF0000&#39;)</span>
+<span class="sd">        - array-like: Custom colors/values for each point</span>
+<span class="sd">    </span>
+<span class="sd">    Clustering</span>
+<span class="sd">    ----------</span>
+<span class="sd">    color_by_cluster : bool, default=True</span>
+<span class="sd">        Whether to color points by their cluster assignment.</span>
+<span class="sd">    true_labels : array-like, optional</span>
+<span class="sd">        Ground truth cluster labels for the data points X. These should be the </span>
+<span class="sd">        correct/actual cluster assignments for each data point, not predictions.</span>
+<span class="sd">        Used for visualization comparison and accuracy assessment.</span>
+<span class="sd">    match_labels_to_true : bool, default=False</span>
+<span class="sd">        Whether to remap predicted labels to match true labels using Hungarian algorithm.</span>
+<span class="sd">        This helps align predicted cluster IDs with true cluster IDs for better visualization.</span>
+<span class="sd">    cluster_colors : str, list, or single color, default=&#39;turbo&#39;</span>
+<span class="sd">        Color specification for clusters. Options:</span>
+<span class="sd">        - Matplotlib colormap name (e.g., &#39;turbo&#39;, &#39;viridis&#39;)</span>
+<span class="sd">        - Single color for all clusters (e.g., &#39;red&#39;, &#39;#FF0000&#39;, (1, 0, 0))</span>
+<span class="sd">        - List of specific colors (e.g., [&#39;green&#39;, &#39;blue&#39;, &#39;red&#39;, &#39;yellow&#39;])</span>
+<span class="sd">    show_incorrect_predictions : bool, default=False</span>
+<span class="sd">        Highlight incorrectly classified points in red and correctly classified in green.</span>
+<span class="sd">        Requires both true_labels and a fitted GMM model to compare predictions.</span>
+<span class="sd">    </span>
+<span class="sd">    Continuous Coloring</span>
+<span class="sd">    -------------------</span>
+<span class="sd">    log_probs : array-like, optional</span>
+<span class="sd">        Log-probability values (or other continuous values) to use for continuous </span>
+<span class="sd">        coloring of data points. Commonly used for log-likelihoods from GMM.</span>
+<span class="sd">    colormap : str, default=&#39;viridis&#39;</span>
+<span class="sd">        Matplotlib colormap for continuous values.</span>
+<span class="sd">    colorbar_label : str, default=&#39;Log Probability&#39;</span>
+<span class="sd">        Label for the colorbar.</span>
+<span class="sd">    </span>
+<span class="sd">    Component Ellipses</span>
+<span class="sd">    ------------------</span>
+<span class="sd">    show_ellipses : bool, default=True</span>
+<span class="sd">        Whether to show confidence ellipses for components.</span>
+<span class="sd">    ellipse_std_devs : list, default=[1, 2]</span>
+<span class="sd">        Standard deviations for ellipse boundaries.</span>
+<span class="sd">    ellipse_alpha : float, default=0.3</span>
+<span class="sd">        Transparency of ellipses.</span>
+<span class="sd">    ellipse_colors : str, list, single color, or &#39;auto&#39;, default=&#39;auto&#39;</span>
+<span class="sd">        Colors for ellipses. Options:</span>
+<span class="sd">        - &#39;auto&#39;: Use same colors as clusters</span>
+<span class="sd">        - Matplotlib colormap name (e.g., &#39;turbo&#39;, &#39;viridis&#39;)  </span>
+<span class="sd">        - Single color for all ellipses (e.g., &#39;red&#39;, &#39;#FF0000&#39;)</span>
+<span class="sd">        - List of specific colors (e.g., [&#39;green&#39;, &#39;blue&#39;, &#39;red&#39;])</span>
+<span class="sd">    ellipse_fill : bool, default=True</span>
+<span class="sd">        Whether ellipses should be filled.</span>
+<span class="sd">    ellipse_line_style : str, default=&#39;dotted&#39;</span>
+<span class="sd">        Line style for ellipse boundaries.</span>
+<span class="sd">    ellipse_line_width : float, default=2</span>
+<span class="sd">        Line width for ellipse boundaries.</span>
+<span class="sd">    ellipse_line_color : str, default=&#39;black&#39;</span>
+<span class="sd">        Color for ellipse boundary lines.</span>
+<span class="sd">    ellipse_line_alpha : float, default=0.5</span>
+<span class="sd">        Transparency for ellipse boundary lines (0=transparent, 1=opaque).</span>
+<span class="sd">    </span>
+<span class="sd">    Component Centers</span>
+<span class="sd">    -----------------</span>
+<span class="sd">    show_means : bool, default=True</span>
+<span class="sd">        Whether to show component means.</span>
+<span class="sd">    mean_marker : str, default=&#39;h&#39;</span>
+<span class="sd">        Marker style for component means.</span>
+<span class="sd">    mean_size : float, default=25</span>
+<span class="sd">        Size of mean markers.</span>
+<span class="sd">    mean_color : str, default=&#39;black&#39;</span>
+<span class="sd">        Color of mean markers.</span>
+<span class="sd">    </span>
+<span class="sd">    Initial Means</span>
+<span class="sd">    -------------</span>
+<span class="sd">    show_initial_means : bool, default=False</span>
+<span class="sd">        Whether to show initial means. If True, will automatically use gmm.initial\\_means\\_ </span>
+<span class="sd">        if available from the fitted GMM model.</span>
+<span class="sd">    initial_mean_marker : str, default=&#39;H&#39;</span>
+<span class="sd">        Marker style for initial means.</span>
+<span class="sd">    initial_mean_size : float, default=25</span>
+<span class="sd">        Size of initial mean markers.</span>
+<span class="sd">    initial_mean_color : str, default=&#39;red&#39;</span>
+<span class="sd">        Color of initial mean markers.</span>
+<span class="sd">    </span>
+<span class="sd">    Weight Visualization</span>
+<span class="sd">    --------------------</span>
+<span class="sd">    scale_alpha_by_weight : bool, default=False</span>
+<span class="sd">        Scale ellipse transparency by component weight.</span>
+<span class="sd">    scale_size_by_weight : bool, default=False</span>
+<span class="sd">        Scale point/marker size by component weight.</span>
+<span class="sd">    </span>
+<span class="sd">    Styling</span>
+<span class="sd">    -------</span>
+<span class="sd">    ax : matplotlib.Axes, optional</span>
+<span class="sd">        Axes to plot on. If None, uses current axes.</span>
+<span class="sd">    title : str, default=&#39;GMM Visualization&#39;</span>
+<span class="sd">        Plot title.</span>
+<span class="sd">    xlabel : str, default=&#39;Feature 1&#39;</span>
+<span class="sd">        X-axis label.</span>
+<span class="sd">    ylabel : str, default=&#39;Feature 2&#39;</span>
+<span class="sd">        Y-axis label.</span>
+<span class="sd">    legend : bool, default=True</span>
+<span class="sd">        Whether to show legend.</span>
+<span class="sd">    legend_labels : list, optional</span>
+<span class="sd">        Custom labels for legend entries.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ax : matplotlib.Axes</span>
+<span class="sd">        The axes object with the plot.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+
+    <span class="c1"># Convert inputs to tensors</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+    
+    <span class="k">if</span> <span class="n">n_features</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;This plotting function only supports 2D data&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Get GMM predictions if available</span>
+    <span class="n">predicted_labels</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">n_components</span> <span class="o">=</span> <span class="mi">1</span>
+    
+    <span class="k">if</span> <span class="n">gmm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">predicted_labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+        <span class="n">n_components</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">n_components</span>
+        <span class="n">gmm_means</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">means_</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">gmm_weights</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">weights_</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    
+    <span class="c1"># Determine final labels for coloring</span>
+    <span class="n">final_labels</span> <span class="o">=</span> <span class="kc">None</span>
+    
+    <span class="c1"># Auto-enable cluster coloring if true_labels are provided</span>
+    <span class="n">should_color_by_cluster</span> <span class="o">=</span> <span class="n">color_by_cluster</span> <span class="ow">or</span> <span class="p">(</span><span class="n">true_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">should_color_by_cluster</span> <span class="ow">and</span> <span class="n">predicted_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">true_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">match_labels_to_true</span><span class="p">:</span>
+            <span class="n">true_labels_tensor</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">final_labels</span> <span class="o">=</span> <span class="n">match_predicted_to_true_labels</span><span class="p">(</span><span class="n">true_labels_tensor</span><span class="p">,</span> <span class="n">predicted_labels</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">final_labels</span> <span class="o">=</span> <span class="n">predicted_labels</span>
+    <span class="k">elif</span> <span class="n">should_color_by_cluster</span> <span class="ow">and</span> <span class="n">true_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">true_labels_tensor</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">final_labels</span> <span class="o">=</span> <span class="n">true_labels_tensor</span>
+        <span class="c1"># Get the actual number of unique clusters instead of assuming consecutive labels</span>
+        <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">final_labels</span><span class="p">)</span>
+        <span class="n">n_components</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">)</span>
+    
+    <span class="c1"># Set up colors</span>
+    <span class="n">cluster_color_list</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">final_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cluster_color_list</span> <span class="o">=</span> <span class="n">create_colormap</span><span class="p">(</span><span class="n">cluster_colors</span><span class="p">,</span> <span class="n">n_components</span><span class="p">)</span>
+    
+    <span class="c1"># Plot data points</span>
+    <span class="k">if</span> <span class="n">show_points</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">log_probs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Continuous coloring</span>
+            <span class="n">log_probs_tensor</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">log_probs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">sc</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">log_probs_tensor</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">colormap</span><span class="p">,</span> 
+                          <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">legend</span><span class="p">:</span>
+                <span class="n">cb</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+                <span class="n">cb</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="n">colorbar_label</span><span class="p">)</span>
+                
+        <span class="k">elif</span> <span class="n">show_incorrect_predictions</span> <span class="ow">and</span> <span class="n">true_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">predicted_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Highlight correct vs incorrect predictions</span>
+            <span class="n">true_labels_tensor</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">match_labels_to_true</span><span class="p">:</span>
+                <span class="n">compare_labels</span> <span class="o">=</span> <span class="n">match_predicted_to_true_labels</span><span class="p">(</span><span class="n">true_labels_tensor</span><span class="p">,</span> <span class="n">predicted_labels</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">compare_labels</span> <span class="o">=</span> <span class="n">predicted_labels</span>
+                
+            <span class="n">correct_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">compare_labels</span> <span class="o">==</span> <span class="n">true_labels_tensor</span><span class="p">)</span>
+            <span class="n">incorrect_mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">correct_mask</span>
+            
+            <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">correct_mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">correct_mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> 
+                      <span class="n">c</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">,</span> 
+                      <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Correct&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">incorrect_mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">incorrect_mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> 
+                      <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">,</span> 
+                      <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Incorrect&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+                      
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">point_color</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">point_color</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">should_color_by_cluster</span> <span class="ow">and</span> <span class="n">final_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Auto color by cluster</span>
+                <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">final_labels</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">label_val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">):</span>
+                    <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">final_labels</span> <span class="o">==</span> <span class="n">label_val</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                        <span class="n">label_text</span> <span class="o">=</span> <span class="n">legend_labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">legend_labels</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">legend_labels</span><span class="p">)</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;Cluster </span><span class="si">{</span><span class="n">label_val</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+                        <span class="c1"># Use &#39;color&#39; keyword for single colors to avoid matplotlib warnings</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> 
+                                 <span class="n">color</span><span class="o">=</span><span class="n">cluster_color_list</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> 
+                                 <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label_text</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Auto color = black</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+                
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">point_color</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="c1"># Check if it&#39;s a colormap name</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">point_color</span><span class="p">)</span>
+                
+                <span class="c1"># If no cluster labels available, use continuous coloring, otherwise discrete</span>
+                <span class="k">if</span> <span class="n">final_labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">point_indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_samples</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">point_indices</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span> 
+                             <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Use discrete colors from the colormap for each cluster</span>
+                    <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">final_labels</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+                    <span class="n">n_unique</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">)</span>
+                    
+                    <span class="c1"># Create colormap indices that are well-distributed</span>
+                    <span class="k">if</span> <span class="n">n_unique</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">color_indices</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">]</span>  <span class="c1"># Use middle of colormap for single cluster</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">color_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_unique</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_unique</span><span class="p">)]</span>
+                    
+                    <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmap</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">color_indices</span><span class="p">]</span>
+                    
+                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">label_val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">):</span>
+                        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">final_labels</span> <span class="o">==</span> <span class="n">label_val</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                            <span class="n">label_text</span> <span class="o">=</span> <span class="n">legend_labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">legend_labels</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">legend_labels</span><span class="p">)</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;Cluster </span><span class="si">{</span><span class="n">label_val</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+                            <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> 
+                                     <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> 
+                                     <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label_text</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># Not a colormap name, treat as a single color</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">point_color</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># Not a colormap name, treat as a single color</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">point_color</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Handle lists/arrays and other color specifications</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">point_color</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">point_color</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n_samples</span><span class="p">:</span>
+                <span class="c1"># If it&#39;s a list but doesn&#39;t match sample size, treat as single color or colormap</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">point_color</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># Single color in a list</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">point_color</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">final_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># Use as cluster colors if we have clusters</span>
+                    <span class="n">unique_labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">final_labels</span><span class="p">)</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">label_val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_labels</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">point_color</span><span class="p">):</span>  <span class="c1"># Only use available colors</span>
+                            <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">final_labels</span> <span class="o">==</span> <span class="n">label_val</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                                <span class="n">label_text</span> <span class="o">=</span> <span class="n">legend_labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">legend_labels</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">legend_labels</span><span class="p">)</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;Cluster </span><span class="si">{</span><span class="n">label_val</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+                                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> 
+                                         <span class="n">color</span><span class="o">=</span><span class="n">point_color</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> 
+                                         <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label_text</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># No cluster info, use first color from the list</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">point_color</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Explicit color array that matches sample size, or other valid matplotlib color spec</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">X</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">X</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">point_color</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">point_size</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">point_alpha</span><span class="p">)</span>
+    
+    <span class="c1"># Plot component ellipses and determine ellipse colors</span>
+    <span class="n">ellipse_color_list</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">show_ellipses</span> <span class="ow">and</span> <span class="n">gmm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Determine ellipse colors</span>
+        <span class="k">if</span> <span class="n">ellipse_colors</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span> <span class="ow">and</span> <span class="n">cluster_color_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ellipse_color_list</span> <span class="o">=</span> <span class="n">cluster_color_list</span>
+        <span class="k">elif</span> <span class="n">ellipse_colors</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
+            <span class="c1"># Fallback to default colormap when auto is requested but no cluster colors available</span>
+            <span class="n">ellipse_color_list</span> <span class="o">=</span> <span class="n">create_colormap</span><span class="p">(</span><span class="n">cluster_colors</span><span class="p">,</span> <span class="n">n_components</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ellipse_color_list</span> <span class="o">=</span> <span class="n">create_colormap</span><span class="p">(</span><span class="n">ellipse_colors</span><span class="p">,</span> <span class="n">n_components</span><span class="p">)</span>
+        
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_components</span><span class="p">):</span>
+            <span class="n">mean_i</span> <span class="o">=</span> <span class="n">gmm_means</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">cov_i</span> <span class="o">=</span> <span class="n">get_covariance_matrix</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+            
+            <span class="c1"># Calculate ellipse parameters</span>
+            <span class="n">vals</span><span class="p">,</span> <span class="n">vecs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">cov_i</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span> <span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">vals</span><span class="p">,</span> <span class="n">vecs</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">vecs</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">]</span>
+            
+            <span class="n">angle</span> <span class="o">=</span> <span class="p">(</span><span class="mf">180.0</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">atan2</span><span class="p">(</span><span class="n">vecs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">vecs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+            
+            <span class="c1"># Create ellipses for each standard deviation</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">std_dev</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ellipse_std_devs</span><span class="p">):</span>
+                <span class="n">width</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">std_dev</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">height</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">std_dev</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                
+                <span class="c1"># Adjust alpha for multiple ellipses (fade inner ellipses)</span>
+                <span class="n">current_alpha</span> <span class="o">=</span> <span class="n">ellipse_alpha</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">j</span> <span class="o">*</span> <span class="mf">0.3</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">ellipse_std_devs</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">scale_alpha_by_weight</span><span class="p">:</span>
+                    <span class="n">current_alpha</span> <span class="o">*=</span> <span class="p">(</span><span class="n">gmm_weights</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="n">gmm_weights</span><span class="o">.</span><span class="n">max</span><span class="p">())</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+                
+                <span class="c1"># Create face color with proper alpha</span>
+                <span class="k">if</span> <span class="n">ellipse_fill</span><span class="p">:</span>
+                    <span class="n">face_color_with_alpha</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">to_rgba</span><span class="p">(</span><span class="n">ellipse_color_list</span><span class="p">[</span><span class="n">i</span><span class="p">])[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">current_alpha</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">face_color_with_alpha</span> <span class="o">=</span> <span class="s1">&#39;none&#39;</span>
+                
+                <span class="c1"># Create edge color with proper alpha</span>
+                <span class="n">edge_color_with_alpha</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">to_rgba</span><span class="p">(</span><span class="n">ellipse_line_color</span><span class="p">)[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">ellipse_line_alpha</span><span class="p">)</span>
+                
+                <span class="n">ellipse</span> <span class="o">=</span> <span class="n">Ellipse</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">mean_i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">mean_i</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()),</span>
+                    <span class="n">width</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">height</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
+                    <span class="n">angle</span><span class="o">=</span><span class="n">angle</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
+                    <span class="n">facecolor</span><span class="o">=</span><span class="n">face_color_with_alpha</span><span class="p">,</span>
+                    <span class="n">edgecolor</span><span class="o">=</span><span class="n">edge_color_with_alpha</span><span class="p">,</span>
+                    <span class="n">linewidth</span><span class="o">=</span><span class="n">ellipse_line_width</span><span class="p">,</span>
+                    <span class="n">linestyle</span><span class="o">=</span><span class="n">ellipse_line_style</span><span class="p">,</span>
+                    <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Component </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">legend</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">ellipse</span><span class="p">)</span>
+        
+        <span class="c1"># Add legend entry for ellipse boundaries (only once)</span>
+        <span class="k">if</span> <span class="n">legend</span><span class="p">:</span>
+            <span class="c1"># Create sigma labels (1σ, 2σ, 3σ, etc.)</span>
+            <span class="n">sigma_labels</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">std</span><span class="si">}</span><span class="s2">σ&quot;</span> <span class="k">for</span> <span class="n">std</span> <span class="ow">in</span> <span class="n">ellipse_std_devs</span><span class="p">]</span>
+            <span class="n">sigma_text</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sigma_labels</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;]&quot;</span>
+            
+            <span class="c1"># Create a dummy line for legend only</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([],</span> <span class="p">[],</span> <span class="n">c</span><span class="o">=</span><span class="n">ellipse_line_color</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="n">ellipse_line_style</span><span class="p">,</span> 
+                      <span class="n">linewidth</span><span class="o">=</span><span class="n">ellipse_line_width</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">ellipse_line_alpha</span><span class="p">,</span>
+                      <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">sigma_text</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Plot component means</span>
+    <span class="k">if</span> <span class="n">show_means</span> <span class="ow">and</span> <span class="n">gmm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_components</span><span class="p">):</span>
+            <span class="n">mean_i</span> <span class="o">=</span> <span class="n">gmm_means</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="n">mean_size</span>
+            <span class="k">if</span> <span class="n">scale_size_by_weight</span><span class="p">:</span>
+                <span class="n">size</span> <span class="o">*=</span> <span class="p">(</span><span class="n">gmm_weights</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="n">gmm_weights</span><span class="o">.</span><span class="n">max</span><span class="p">())</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+                
+            <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean_i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">mean_i</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> 
+                      <span class="n">c</span><span class="o">=</span><span class="n">mean_color</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">mean_marker</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">size</span><span class="p">,</span>
+                      <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Component Mean&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">legend</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    
+    <span class="c1"># Plot initial means</span>
+    <span class="k">if</span> <span class="n">show_initial_means</span><span class="p">:</span>
+        <span class="c1"># Use gmm.initial_means_ if available</span>
+        <span class="k">if</span> <span class="n">gmm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="s1">&#39;initial_means_&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">gmm</span><span class="o">.</span><span class="n">initial_means_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">means_to_plot</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">initial_means_</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">means_to_plot</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">means_to_plot</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">means_to_plot</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span>
+                          <span class="n">c</span><span class="o">=</span><span class="n">initial_mean_color</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">initial_mean_marker</span><span class="p">,</span> 
+                          <span class="n">s</span><span class="o">=</span><span class="n">initial_mean_size</span><span class="p">,</span>
+                          <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Initial Mean&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">legend</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    
+    <span class="c1"># Finalize plot</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">legend</span><span class="p">:</span>
+        <span class="n">handles</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_legend_handles_labels</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">handles</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;best&#39;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">ax</span></div>
+
+
+
+
+
+<span class="c1">##############################################################################</span>
+<span class="c1"># Helper functions</span>
+<span class="c1">##############################################################################</span>
+
+<div class="viewcode-block" id="dynamic_figsize">
+<a class="viewcode-back" href="../../source/plotting.html#tgmm.plotting.dynamic_figsize">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">dynamic_figsize</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">base_width</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">base_height</span><span class="o">=</span><span class="mi">6</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate figure size based on subplot grid.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">cols</span> <span class="o">*</span> <span class="n">base_width</span><span class="p">,</span> <span class="n">rows</span> <span class="o">*</span> <span class="n">base_height</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ensure_tensor_on_cpu">
+<a class="viewcode-back" href="../../source/plotting.html#tgmm.plotting.ensure_tensor_on_cpu">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">tensor_or_array</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert input to CPU torch.Tensor with optional dtype conversion.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tensor_or_array</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">tensor_or_array</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">tensor_or_array</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cpu&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="create_colormap">
+<a class="viewcode-back" href="../../source/plotting.html#tgmm.plotting.create_colormap">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_colormap</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">n_colors</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a list of color tuples from various color specifications.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    colors : str, list, or single color</span>
+<span class="sd">        Color specification. Can be:</span>
+<span class="sd">        - A matplotlib colormap name (e.g., &#39;turbo&#39;, &#39;viridis&#39;)</span>
+<span class="sd">        - A single color (e.g., &#39;red&#39;, &#39;#FF0000&#39;, (1, 0, 0))</span>
+<span class="sd">        - A list of colors (e.g., [&#39;red&#39;, &#39;blue&#39;, &#39;green&#39;])</span>
+<span class="sd">    n_colors : int, default=8</span>
+<span class="sd">        Number of colors to generate (only used with colormap names)</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list</span>
+<span class="sd">        List of color tuples/values</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># If colors is a list, return it directly (assuming it contains valid colors)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># Check if it&#39;s an RGB/RGBA tuple (single color) vs a list of colors</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">colors</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">colors</span><span class="p">):</span>
+            <span class="c1"># It&#39;s a single RGB/RGBA color, replicate it</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">colors</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_colors</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># It&#39;s a list of colors</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">colors</span><span class="p">)</span>
+    
+    <span class="c1"># If colors is a string, check if it&#39;s a colormap name</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># Try to get it as a colormap first</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">colors</span><span class="p">)</span>
+            <span class="c1"># If successful, generate colors from the colormap</span>
+            <span class="k">if</span> <span class="n">n_colors</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[</span><span class="n">cmap</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)]</span>
+            <span class="n">step</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_colors</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">cmap</span><span class="p">(</span><span class="n">i</span> <span class="o">*</span> <span class="n">step</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_colors</span><span class="p">)]</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="c1"># Not a colormap name, treat as a single color name</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">colors</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_colors</span>
+    
+    <span class="c1"># Fallback: return as-is</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">colors</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_colors</span></div>
+
+
+
+<div class="viewcode-block" id="match_predicted_to_true_labels">
+<a class="viewcode-back" href="../../source/plotting.html#tgmm.plotting.match_predicted_to_true_labels">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">match_predicted_to_true_labels</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remap predicted labels to match true labels using Hungarian algorithm.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    true_labels : torch.Tensor</span>
+<span class="sd">        Ground-truth labels as a 1D tensor.</span>
+<span class="sd">    pred_labels : torch.Tensor</span>
+<span class="sd">        Predicted cluster labels as a 1D tensor.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    torch.Tensor</span>
+<span class="sd">        Remapped predicted labels that best match the true labels.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">true_labels</span> <span class="o">=</span> <span class="n">true_labels</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">pred_labels</span> <span class="o">=</span> <span class="n">pred_labels</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">unique_true</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">true_labels</span><span class="p">)</span>
+    <span class="n">unique_pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">pred_labels</span><span class="p">)</span>
+
+    <span class="c1"># Build contingency matrix</span>
+    <span class="n">contingency</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_true</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_pred</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_true</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">unique_pred</span><span class="p">):</span>
+            <span class="n">contingency</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">true_labels</span> <span class="o">==</span> <span class="n">t</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pred_labels</span> <span class="o">==</span> <span class="n">p</span><span class="p">))</span>
+    
+    <span class="c1"># Solve assignment problem</span>
+    <span class="n">row_ind</span><span class="p">,</span> <span class="n">col_ind</span> <span class="o">=</span> <span class="n">linear_sum_assignment</span><span class="p">(</span><span class="o">-</span><span class="n">contingency</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+    
+    <span class="c1"># Create mapping</span>
+    <span class="n">mapping</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">unique_pred</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()):</span> <span class="nb">int</span><span class="p">(</span><span class="n">unique_true</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">())</span> 
+               <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">row_ind</span><span class="p">,</span> <span class="n">col_ind</span><span class="p">)}</span>
+
+    <span class="c1"># Apply mapping</span>
+    <span class="n">remapped</span> <span class="o">=</span> <span class="n">pred_labels</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">remapped</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)):</span>
+        <span class="n">old_label</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">remapped</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+        <span class="n">remapped</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">old_label</span><span class="p">,</span> <span class="n">old_label</span><span class="p">)</span>
+        
+    <span class="k">return</span> <span class="n">remapped</span></div>
+
+
+
+<div class="viewcode-block" id="get_covariance_matrix">
+<a class="viewcode-back" href="../../source/plotting.html#tgmm.plotting.get_covariance_matrix">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_covariance_matrix</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">component_idx</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract full 2D covariance matrix for a specific component.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">gmm</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;GMM object is required&quot;</span><span class="p">)</span>
+        
+    <span class="n">covariances</span> <span class="o">=</span> <span class="n">ensure_tensor_on_cpu</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">covariances_</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">cov_type</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span>
+        
+    <span class="k">if</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">&#39;full&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">&#39;diag&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">&#39;spherical&#39;</span><span class="p">:</span>
+        <span class="n">var_val</span> <span class="o">=</span> <span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">var_val</span>
+    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">&#39;tied_full&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">covariances</span>
+    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">&#39;tied_diag&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">covariances</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">&#39;tied_spherical&#39;</span><span class="p">:</span>
+        <span class="n">var_val</span> <span class="o">=</span> <span class="n">covariances</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">var_val</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported covariance_type: </span><span class="si">{</span><span class="n">cov_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Adrián A. Sousa-Poza.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

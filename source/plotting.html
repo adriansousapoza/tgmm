@@ -1,0 +1,272 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plotting &mdash; TorchGMM 0.1.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=5c7ff671" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=ca7ad2ea"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorials" href="tutorials.html" />
+    <link rel="prev" title="ClusteringMetrics" href="clustering_metrics.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            TorchGMM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="gaussian_mixture.html">GaussianMixture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gmm_initializer.html">GMMInitializer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clustering_metrics.html">ClusteringMetrics</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Plotting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tgmm.plotting.create_colormap"><code class="docutils literal notranslate"><span class="pre">create_colormap()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tgmm.plotting.dynamic_figsize"><code class="docutils literal notranslate"><span class="pre">dynamic_figsize()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tgmm.plotting.ensure_tensor_on_cpu"><code class="docutils literal notranslate"><span class="pre">ensure_tensor_on_cpu()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tgmm.plotting.get_covariance_matrix"><code class="docutils literal notranslate"><span class="pre">get_covariance_matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tgmm.plotting.match_predicted_to_true_labels"><code class="docutils literal notranslate"><span class="pre">match_predicted_to_true_labels()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tgmm.plotting.plot_gmm"><code class="docutils literal notranslate"><span class="pre">plot_gmm()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TorchGMM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">Modules</a></li>
+      <li class="breadcrumb-item active">Plotting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="plotting">
+<span id="id1"></span><h1>Plotting<a class="headerlink" href="#plotting" title="Link to this heading"></a></h1>
+<p id="module-tgmm.plotting">Improved plotting module for Gaussian Mixture Models.</p>
+<p>This module provides clean, intuitive plotting functions for GMM visualization
+with clear parameter control instead of confusing ‘modes’.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="tgmm.plotting.create_colormap">
+<span class="sig-prename descclassname"><span class="pre">tgmm.plotting.</span></span><span class="sig-name descname"><span class="pre">create_colormap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">colors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/plotting.html#create_colormap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.plotting.create_colormap" title="Link to this definition"></a></dt>
+<dd><p>Create a list of color tuples from various color specifications.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>colors</strong> (<em>str</em><em>, </em><em>list</em><em>, or </em><em>single color</em>) – Color specification. Can be:
+- A matplotlib colormap name (e.g., ‘turbo’, ‘viridis’)
+- A single color (e.g., ‘red’, ‘#FF0000’, (1, 0, 0))
+- A list of colors (e.g., [‘red’, ‘blue’, ‘green’])</p></li>
+<li><p><strong>n_colors</strong> (<em>int</em><em>, </em><em>default=8</em>) – Number of colors to generate (only used with colormap names)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>list</em> – List of color tuples/values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="tgmm.plotting.dynamic_figsize">
+<span class="sig-prename descclassname"><span class="pre">tgmm.plotting.</span></span><span class="sig-name descname"><span class="pre">dynamic_figsize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rows</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/plotting.html#dynamic_figsize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.plotting.dynamic_figsize" title="Link to this definition"></a></dt>
+<dd><p>Calculate figure size based on subplot grid.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="tgmm.plotting.ensure_tensor_on_cpu">
+<span class="sig-prename descclassname"><span class="pre">tgmm.plotting.</span></span><span class="sig-name descname"><span class="pre">ensure_tensor_on_cpu</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tensor_or_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/plotting.html#ensure_tensor_on_cpu"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.plotting.ensure_tensor_on_cpu" title="Link to this definition"></a></dt>
+<dd><p>Convert input to CPU torch.Tensor with optional dtype conversion.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="tgmm.plotting.get_covariance_matrix">
+<span class="sig-prename descclassname"><span class="pre">tgmm.plotting.</span></span><span class="sig-name descname"><span class="pre">get_covariance_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gmm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">component_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/plotting.html#get_covariance_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.plotting.get_covariance_matrix" title="Link to this definition"></a></dt>
+<dd><p>Extract full 2D covariance matrix for a specific component.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="tgmm.plotting.match_predicted_to_true_labels">
+<span class="sig-prename descclassname"><span class="pre">tgmm.plotting.</span></span><span class="sig-name descname"><span class="pre">match_predicted_to_true_labels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">true_labels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_labels</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/plotting.html#match_predicted_to_true_labels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.plotting.match_predicted_to_true_labels" title="Link to this definition"></a></dt>
+<dd><p>Remap predicted labels to match true labels using Hungarian algorithm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>true_labels</strong> (<em>torch.Tensor</em>) – Ground-truth labels as a 1D tensor.</p></li>
+<li><p><strong>pred_labels</strong> (<em>torch.Tensor</em>) – Predicted cluster labels as a 1D tensor.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>torch.Tensor</em> – Remapped predicted labels that best match the true labels.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="tgmm.plotting.plot_gmm">
+<span class="sig-prename descclassname"><span class="pre">tgmm.plotting.</span></span><span class="sig-name descname"><span class="pre">plot_gmm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gmm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">point_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_by_cluster</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">true_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">match_labels_to_true</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'turbo'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_incorrect_predictions</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_probs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'viridis'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colorbar_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Log</span> <span class="pre">Probability'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_ellipses</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_std_devs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_fill</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_line_style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dotted'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_line_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_line_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipse_line_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_means</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_marker</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'h'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mean_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_initial_means</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_mean_marker</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'H'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_mean_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_mean_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'red'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_alpha_by_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_size_by_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'GMM</span> <span class="pre">Visualization'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xlabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Feature</span> <span class="pre">1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ylabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Feature</span> <span class="pre">2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">legend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">legend_labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/tgmm/plotting.html#plot_gmm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#tgmm.plotting.plot_gmm" title="Link to this definition"></a></dt>
+<dd><p>Plot Gaussian Mixture Model results with fine-grained control.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>array-like</em><em>, </em><em>shape</em><em> (</em><em>n_samples</em><em>, </em><em>2</em><em>)</em>) – The input data points to plot.</p></li>
+<li><p><strong>gmm</strong> (<em>fitted GMM object</em><em>, </em><em>optional</em>) – A fitted Gaussian Mixture Model with predict(), means_, covariances_, etc.</p></li>
+<li><p><strong>Points</strong> (<em>Data</em>)</p></li>
+<li><p><strong>-----------</strong></p></li>
+<li><p><strong>show_points</strong> (<em>bool</em><em>, </em><em>default=True</em>) – Whether to show the data points.</p></li>
+<li><p><strong>point_size</strong> (<em>float</em><em>, </em><em>default=10</em>) – Size of data points.</p></li>
+<li><p><strong>point_alpha</strong> (<em>float</em><em>, </em><em>default=0.6</em>) – Transparency of data points.</p></li>
+<li><p><strong>point_color</strong> (<em>str</em><em> or </em><em>array-like</em><em>, </em><em>default='auto'</em>) – Color specification for points. Options:
+- ‘auto’: Use cluster colors if color_by_cluster=True or true_labels is provided, else black
+- ‘black’: All points black
+- colormap name: Use specified colormap to color points (e.g., ‘viridis’, ‘plasma’)
+- single color: Use single color for all points (e.g., ‘red’, ‘#FF0000’)
+- array-like: Custom colors/values for each point</p></li>
+<li><p><strong>Clustering</strong></p></li>
+<li><p><strong>----------</strong></p></li>
+<li><p><strong>color_by_cluster</strong> (<em>bool</em><em>, </em><em>default=True</em>) – Whether to color points by their cluster assignment.</p></li>
+<li><p><strong>true_labels</strong> (<em>array-like</em><em>, </em><em>optional</em>) – Ground truth cluster labels for the data points X. These should be the
+correct/actual cluster assignments for each data point, not predictions.
+Used for visualization comparison and accuracy assessment.</p></li>
+<li><p><strong>match_labels_to_true</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Whether to remap predicted labels to match true labels using Hungarian algorithm.
+This helps align predicted cluster IDs with true cluster IDs for better visualization.</p></li>
+<li><p><strong>cluster_colors</strong> (<em>str</em><em>, </em><em>list</em><em>, or </em><em>single color</em><em>, </em><em>default='turbo'</em>) – Color specification for clusters. Options:
+- Matplotlib colormap name (e.g., ‘turbo’, ‘viridis’)
+- Single color for all clusters (e.g., ‘red’, ‘#FF0000’, (1, 0, 0))
+- List of specific colors (e.g., [‘green’, ‘blue’, ‘red’, ‘yellow’])</p></li>
+<li><p><strong>show_incorrect_predictions</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Highlight incorrectly classified points in red and correctly classified in green.
+Requires both true_labels and a fitted GMM model to compare predictions.</p></li>
+<li><p><strong>Coloring</strong> (<em>Continuous</em>)</p></li>
+<li><p><strong>-------------------</strong></p></li>
+<li><p><strong>log_probs</strong> (<em>array-like</em><em>, </em><em>optional</em>) – Log-probability values (or other continuous values) to use for continuous
+coloring of data points. Commonly used for log-likelihoods from GMM.</p></li>
+<li><p><strong>colormap</strong> (<em>str</em><em>, </em><em>default='viridis'</em>) – Matplotlib colormap for continuous values.</p></li>
+<li><p><strong>colorbar_label</strong> (<em>str</em><em>, </em><em>default='Log Probability'</em>) – Label for the colorbar.</p></li>
+<li><p><strong>Ellipses</strong> (<em>Component</em>)</p></li>
+<li><p><strong>------------------</strong></p></li>
+<li><p><strong>show_ellipses</strong> (<em>bool</em><em>, </em><em>default=True</em>) – Whether to show confidence ellipses for components.</p></li>
+<li><p><strong>ellipse_std_devs</strong> (<em>list</em><em>, </em><em>default=</em><em>[</em><em>1</em><em>, </em><em>2</em><em>]</em>) – Standard deviations for ellipse boundaries.</p></li>
+<li><p><strong>ellipse_alpha</strong> (<em>float</em><em>, </em><em>default=0.3</em>) – Transparency of ellipses.</p></li>
+<li><p><strong>ellipse_colors</strong> (<em>str</em><em>, </em><em>list</em><em>, </em><em>single color</em><em>, or </em><em>'auto'</em><em>, </em><em>default='auto'</em>) – Colors for ellipses. Options:
+- ‘auto’: Use same colors as clusters
+- Matplotlib colormap name (e.g., ‘turbo’, ‘viridis’)
+- Single color for all ellipses (e.g., ‘red’, ‘#FF0000’)
+- List of specific colors (e.g., [‘green’, ‘blue’, ‘red’])</p></li>
+<li><p><strong>ellipse_fill</strong> (<em>bool</em><em>, </em><em>default=True</em>) – Whether ellipses should be filled.</p></li>
+<li><p><strong>ellipse_line_style</strong> (<em>str</em><em>, </em><em>default='dotted'</em>) – Line style for ellipse boundaries.</p></li>
+<li><p><strong>ellipse_line_width</strong> (<em>float</em><em>, </em><em>default=2</em>) – Line width for ellipse boundaries.</p></li>
+<li><p><strong>ellipse_line_color</strong> (<em>str</em><em>, </em><em>default='black'</em>) – Color for ellipse boundary lines.</p></li>
+<li><p><strong>ellipse_line_alpha</strong> (<em>float</em><em>, </em><em>default=0.5</em>) – Transparency for ellipse boundary lines (0=transparent, 1=opaque).</p></li>
+<li><p><strong>Centers</strong> (<em>Component</em>)</p></li>
+<li><p><strong>-----------------</strong></p></li>
+<li><p><strong>show_means</strong> (<em>bool</em><em>, </em><em>default=True</em>) – Whether to show component means.</p></li>
+<li><p><strong>mean_marker</strong> (<em>str</em><em>, </em><em>default='h'</em>) – Marker style for component means.</p></li>
+<li><p><strong>mean_size</strong> (<em>float</em><em>, </em><em>default=25</em>) – Size of mean markers.</p></li>
+<li><p><strong>mean_color</strong> (<em>str</em><em>, </em><em>default='black'</em>) – Color of mean markers.</p></li>
+<li><p><strong>Means</strong> (<em>Initial</em>)</p></li>
+<li><p><strong>-------------</strong></p></li>
+<li><p><strong>show_initial_means</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Whether to show initial means. If True, will automatically use gmm.initial_means_
+if available from the fitted GMM model.</p></li>
+<li><p><strong>initial_mean_marker</strong> (<em>str</em><em>, </em><em>default='H'</em>) – Marker style for initial means.</p></li>
+<li><p><strong>initial_mean_size</strong> (<em>float</em><em>, </em><em>default=25</em>) – Size of initial mean markers.</p></li>
+<li><p><strong>initial_mean_color</strong> (<em>str</em><em>, </em><em>default='red'</em>) – Color of initial mean markers.</p></li>
+<li><p><strong>Visualization</strong> (<em>Weight</em>)</p></li>
+<li><p><strong>--------------------</strong></p></li>
+<li><p><strong>scale_alpha_by_weight</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Scale ellipse transparency by component weight.</p></li>
+<li><p><strong>scale_size_by_weight</strong> (<em>bool</em><em>, </em><em>default=False</em>) – Scale point/marker size by component weight.</p></li>
+<li><p><strong>Styling</strong></p></li>
+<li><p><strong>-------</strong></p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.Axes</em><em>, </em><em>optional</em>) – Axes to plot on. If None, uses current axes.</p></li>
+<li><p><strong>title</strong> (<em>str</em><em>, </em><em>default='GMM Visualization'</em>) – Plot title.</p></li>
+<li><p><strong>xlabel</strong> (<em>str</em><em>, </em><em>default='Feature 1'</em>) – X-axis label.</p></li>
+<li><p><strong>ylabel</strong> (<em>str</em><em>, </em><em>default='Feature 2'</em>) – Y-axis label.</p></li>
+<li><p><strong>legend</strong> (<em>bool</em><em>, </em><em>default=True</em>) – Whether to show legend.</p></li>
+<li><p><strong>legend_labels</strong> (<em>list</em><em>, </em><em>optional</em>) – Custom labels for legend entries.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ax</strong> (<em>matplotlib.Axes</em>) – The axes object with the plot.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="clustering_metrics.html" class="btn btn-neutral float-left" title="ClusteringMetrics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorials.html" class="btn btn-neutral float-right" title="Tutorials" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Adrián A. Sousa-Poza.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
