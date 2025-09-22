@@ -5,10 +5,10 @@
    :scale: 75%
 
 =================================
-TorchGMM Documentation
+tgmm Documentation
 =================================
 
-Welcome to the **TorchGMM** documentation! Here you will find:
+Welcome to the **tgmm** documentation! Here you will find:
 
 - An overview of the :ref:`modules`.
 - Step-by-step guides in the :ref:`tutorials`.
