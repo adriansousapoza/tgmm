@@ -14,6 +14,7 @@ pygments>=2.10.0
 # Optional dependencies for notebook execution
 matplotlib>=3.5.0
 scipy>=1.7.0
+mpltern>=1.0.0
 
 # Minimal dependencies for importing the package
 setuptools
