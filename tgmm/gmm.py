@@ -3,7 +3,15 @@ from torch import nn
 from torch.distributions import MultivariateNormal
 from typing import Optional, Tuple
 import warnings
+import math
 from .gmm_init import GMMInitializer
+
+# Try to import scipy for confidence interval calculations
+try:
+    from scipy.stats import chi2
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
 
 
 
@@ -1574,7 +1582,10 @@ class GaussianMixture(nn.Module):
         """
         return self.score_samples(X).mean().item()
 
-    def sample(self, n_samples: int = 1, component: int = None, std_radius: float = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def sample(self, n_samples: int = 1, component: int = None, std_radius: float = None, 
+               std_range: Tuple[float, float] = None, confidence: float = None, 
+               center_point: torch.Tensor = None, center_radius: float = None,
+               max_attempts_per_sample: int = 1000) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
         Generate new samples from the fitted GMM.
 
@@ -1589,7 +1600,34 @@ class GaussianMixture(nn.Module):
             If specified, only return samples within this many standard deviations
             from the component mean (measured using Mahalanobis distance). Uses
             rejection sampling to ensure all returned samples are within the radius.
-            If None, samples from the entire Gaussian distribution. (default: None)
+            If None, samples from the entire Gaussian distribution. Cannot be used
+            together with std_range or confidence. (default: None)
+        std_range : tuple of float, optional
+            If specified, only return samples whose Mahalanobis distance from the
+            component mean falls within this range (min_std, max_std). For example,
+            std_range=(1.0, 2.0) returns samples between 1 and 2 standard deviations,
+            and std_range=(3.0, float('inf')) returns samples further than 3 standard
+            deviations. Uses rejection sampling. Cannot be used together with std_radius
+            or confidence. (default: None)
+        confidence : float, optional
+            If specified, only return samples within the confidence ellipse (e.g., 
+            confidence=0.95 for 95% confidence interval). This is converted to the
+            appropriate standard deviation radius using the chi-squared distribution.
+            For example, confidence=0.95 corresponds to approximately 1.96σ for 2D data.
+            Cannot be used together with std_radius or std_range. (default: None)
+        center_point : torch.Tensor, optional
+            If specified, only return samples within center_radius distance from this point.
+            Should be a tensor of shape (n_features,). Uses Euclidean distance.
+            Must be used together with center_radius. Cannot be used together with
+            std_radius, std_range, or confidence. (default: None)
+        center_radius : float, optional
+            If specified, only return samples within this Euclidean distance from center_point.
+            Must be used together with center_point. (default: None)
+        max_attempts_per_sample : int, optional
+            Maximum number of attempts to generate a valid sample that satisfies the
+            distance constraints (std_radius, std_range, confidence, or center constraints) 
+            before giving up. Higher values increase the chance of satisfying restrictive 
+            constraints but may slow down sampling. (default: 1000)
 
         Returns
         -------
@@ -1603,6 +1641,38 @@ class GaussianMixture(nn.Module):
         elif not self.converged_:
             warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
 
+        # Validate parameter combinations
+        constraint_params = [std_radius, std_range, confidence, (center_point, center_radius)]
+        non_none_params = [p for p in constraint_params if p is not None and (not isinstance(p, tuple) or all(x is not None for x in p))]
+        if len(non_none_params) > 1:
+            raise ValueError("Cannot specify more than one of: std_radius, std_range, confidence, or center constraints. Use only one.")
+        
+        if std_range is not None:
+            if len(std_range) != 2:
+                raise ValueError("std_range must be a tuple of exactly 2 values (min_std, max_std)")
+            min_std, max_std = std_range
+            if min_std < 0:
+                raise ValueError("std_range minimum must be non-negative")
+            if max_std <= min_std:
+                raise ValueError("std_range maximum must be greater than minimum")
+        
+        if confidence is not None:
+            if not (0 < confidence < 1):
+                raise ValueError(f"confidence must be between 0 and 1, got {confidence}")
+            # Convert confidence to std_radius for internal use
+            std_radius = self._confidence_to_std_radius(confidence)
+
+        # Validate center point constraints
+        if (center_point is None) != (center_radius is None):
+            raise ValueError("center_point and center_radius must be specified together")
+        
+        if center_point is not None:
+            center_point = center_point.to(self.device)
+            if center_point.dim() != 1 or center_point.size(0) != self.n_features:
+                raise ValueError(f"center_point must be a 1D tensor with {self.n_features} features, got shape {center_point.shape}")
+            if center_radius <= 0:
+                raise ValueError(f"center_radius must be positive, got {center_radius}")
+
         if component is not None:
             # Validate component index
             if not (0 <= component < self.n_components):
@@ -1614,20 +1684,32 @@ class GaussianMixture(nn.Module):
             # Choose components according to mixture weights
             indices = torch.multinomial(self.weights_, n_samples, replacement=True)
         
-        if std_radius is None:
-            # Standard sampling without radius constraint
+        if std_radius is None and std_range is None and center_point is None:
+            # Standard sampling without distance constraints
             means = self.means_[indices]
             covariances = self._build_covariances_for_sampling(indices, n_samples)
             samples = MultivariateNormal(means, covariance_matrix=covariances).sample()
             return samples, indices
         else:
-            # Rejection sampling to ensure samples are within std_radius
-            if std_radius <= 0:
-                raise ValueError("std_radius must be positive")
+            # Rejection sampling for distance constraints
+            if std_radius is not None:
+                if std_radius <= 0:
+                    raise ValueError("std_radius must be positive")
+                distance_check = lambda sample, comp_idx: self._compute_mahalanobis_distance(sample.unsqueeze(0), torch.tensor([comp_idx], device=self.device)).item() <= std_radius
+                constraint_desc = f"within {std_radius} standard deviations"
+            elif std_range is not None:
+                min_std, max_std = std_range
+                distance_check = lambda sample, comp_idx: min_std <= self._compute_mahalanobis_distance(sample.unsqueeze(0), torch.tensor([comp_idx], device=self.device)).item() <= max_std
+                if max_std == float('inf'):
+                    constraint_desc = f"further than {min_std} standard deviations"
+                else:
+                    constraint_desc = f"between {min_std} and {max_std} standard deviations"
+            else:  # center_point is not None
+                distance_check = lambda sample, comp_idx: torch.norm(sample - center_point).item() <= center_radius
+                constraint_desc = f"within {center_radius} units from center point"
             
             valid_samples = []
             valid_indices = []
-            max_attempts_per_sample = 1000  # Prevent infinite loops
             
             for i in range(n_samples):
                 comp_idx = indices[i].item()
@@ -1639,10 +1721,8 @@ class GaussianMixture(nn.Module):
                     cov = self._build_covariances_for_sampling(torch.tensor([comp_idx], device=self.device), 1)
                     sample = MultivariateNormal(mean, covariance_matrix=cov).sample()
                     
-                    # Check if sample is within radius
-                    distance = self._compute_mahalanobis_distance(sample, torch.tensor([comp_idx], device=self.device))
-                    
-                    if distance.item() <= std_radius:
+                    # Check if sample satisfies distance constraint
+                    if distance_check(sample.squeeze(0), comp_idx):
                         valid_samples.append(sample.squeeze(0))
                         valid_indices.append(comp_idx)
                         break
@@ -1650,12 +1730,9 @@ class GaussianMixture(nn.Module):
                     attempts += 1
                 
                 if attempts >= max_attempts_per_sample:
-                    warnings.warn(f"Could not generate sample {i+1} within {std_radius} standard deviations "
-                                f"after {max_attempts_per_sample} attempts. This may indicate the radius is too small.",
-                                UserWarning)
-                    # Fallback: use the last generated sample even if outside radius
-                    valid_samples.append(sample.squeeze(0))
-                    valid_indices.append(comp_idx)
+                    raise RuntimeError(f"Could not generate sample {i+1} {constraint_desc} "
+                                     f"after {max_attempts_per_sample} attempts. This indicates the constraint is too restrictive. "
+                                     f"Try increasing max_attempts_per_sample or relaxing the constraint.")
             
             samples = torch.stack(valid_samples)
             indices = torch.tensor(valid_indices, dtype=torch.long, device=self.device)
@@ -1700,6 +1777,56 @@ class GaussianMixture(nn.Module):
 
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
+
+    def _confidence_to_std_radius(self, confidence: float) -> float:
+        r"""
+        Convert a confidence level (e.g., 0.95) to the corresponding standard deviation radius.
+        
+        For a d-dimensional multivariate Gaussian, the squared Mahalanobis distance follows
+        a chi-squared distribution with d degrees of freedom. This method finds the radius
+        that contains the specified percentage of the probability mass.
+        
+        Parameters
+        ----------
+        confidence : float
+            Confidence level between 0 and 1 (e.g., 0.95 for 95% confidence).
+            
+        Returns
+        -------
+        std_radius : float
+            The standard deviation radius corresponding to the confidence level.
+        """
+        if not (0 < confidence < 1):
+            raise ValueError(f"confidence must be between 0 and 1, got {confidence}")
+        
+        if not HAS_SCIPY:
+            # Fallback using approximate conversions for common cases
+            # These are approximations for 2D case, but reasonable for most uses
+            approx_mapping = {
+                0.68: 1.00,   # ~68% ≈ 1σ
+                0.90: 1.64,   # ~90% ≈ 1.64σ  
+                0.95: 1.96,   # ~95% ≈ 1.96σ
+                0.99: 2.58,   # ~99% ≈ 2.58σ
+                0.997: 3.00,  # ~99.7% ≈ 3σ
+            }
+            
+            # Find closest match
+            closest_conf = min(approx_mapping.keys(), key=lambda x: abs(x - confidence))
+            if abs(closest_conf - confidence) > 0.05:
+                warnings.warn(
+                    f"scipy not available for exact confidence calculation. "
+                    f"Using approximation for {closest_conf:.1%} instead of {confidence:.1%}. "
+                    f"Install scipy for exact calculations.",
+                    UserWarning
+                )
+            return approx_mapping[closest_conf]
+        
+        else:
+            # Exact calculation using chi-squared distribution
+            # For d dimensions, the squared Mahalanobis distance ~ χ²(d)
+            # We want P(χ²(d) ≤ r²) = confidence, so r = √(χ²⁻¹(confidence, d))
+            chi2_quantile = chi2.ppf(confidence, df=self.n_features)
+            return math.sqrt(chi2_quantile)
 
     def _compute_mahalanobis_distance(self, samples: torch.Tensor, component_indices: torch.Tensor) -> torch.Tensor:
         r"""
