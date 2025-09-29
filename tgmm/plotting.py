@@ -104,10 +104,12 @@ def plot_gmm(
     """
     Plot Gaussian Mixture Model results with fine-grained control.
     
+    Supports 2D data visualization with comprehensive styling options.
+    
     Parameters
     ----------
     X : array-like, shape (n_samples, 2)
-        The input data points to plot.
+        The input data points to plot. Must be 2D data.
     gmm : fitted GMM object, optional
         A fitted Gaussian Mixture Model with predict(), means\\_, covariances\\_, etc.
     
@@ -239,18 +241,25 @@ def plot_gmm(
     X = ensure_tensor_on_cpu(X, dtype=torch.float32)
     n_samples, n_features = X.shape
     
+    # Ensure data is 2D for plotting
     if n_features != 2:
-        raise ValueError("This plotting function only supports 2D data")
+        raise ValueError(f"Data has {n_features} features but plotting requires 2D data. "
+                        "Please reduce dimensionality to 2D before plotting.")
     
     # Get GMM predictions if available
     predicted_labels = None
     n_components = 1
+    gmm_means_2d = None
+    gmm_weights = None
     
     if gmm is not None:
+        # Use 2D data for predictions
         predicted_labels = gmm.predict(X).cpu()
         n_components = gmm.n_components
-        gmm_means = ensure_tensor_on_cpu(gmm.means_, dtype=torch.float32)
         gmm_weights = ensure_tensor_on_cpu(gmm.weights_, dtype=torch.float32)
+        
+        # Get GMM means (should already be 2D)
+        gmm_means_2d = ensure_tensor_on_cpu(gmm.means_, dtype=torch.float32)
     
     # Determine final labels for coloring
     final_labels = None
@@ -312,7 +321,7 @@ def plot_gmm(
                 for i, label_val in enumerate(unique_labels):
                     mask = (final_labels == label_val)
                     if mask.any():
-                        label_text = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {label_val.item()}"
+                        label_text = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {label_val.item()+1}"
                         # Use 'color' keyword for single colors to avoid matplotlib warnings
                         ax.scatter(X[mask, 0], X[mask, 1], 
                                  color=cluster_color_list[i], s=point_size, 
@@ -347,7 +356,7 @@ def plot_gmm(
                     for i, label_val in enumerate(unique_labels):
                         mask = (final_labels == label_val)
                         if mask.any():
-                            label_text = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {label_val.item()}"
+                            label_text = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {label_val.item()+1}"
                             ax.scatter(X[mask, 0], X[mask, 1], 
                                      color=colors[i], s=point_size, 
                                      alpha=point_alpha, label=label_text)
@@ -371,7 +380,7 @@ def plot_gmm(
                         if i < len(point_color):  # Only use available colors
                             mask = (final_labels == label_val)
                             if mask.any():
-                                label_text = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {label_val.item()}"
+                                label_text = legend_labels[i] if legend_labels and i < len(legend_labels) else f"Cluster {label_val.item()+1}"
                                 ax.scatter(X[mask, 0], X[mask, 1], 
                                          color=point_color[i], s=point_size, 
                                          alpha=point_alpha, label=label_text)
@@ -395,7 +404,7 @@ def plot_gmm(
             ellipse_color_list = create_colormap(ellipse_colors, n_components)
         
         for i in range(n_components):
-            mean_i = gmm_means[i]
+            mean_i = gmm_means_2d[i]
             cov_i = get_covariance_matrix(gmm, i)
             
             # Calculate ellipse parameters
@@ -450,7 +459,7 @@ def plot_gmm(
     # Plot component means
     if show_means and gmm is not None:
         for i in range(n_components):
-            mean_i = gmm_means[i]
+            mean_i = gmm_means_2d[i]
             size = mean_size
             if scale_size_by_weight:
                 size *= (gmm_weights[i] / gmm_weights.max()).item()
@@ -597,26 +606,29 @@ def match_predicted_to_true_labels(true_labels, pred_labels):
 
 
 def get_covariance_matrix(gmm, component_idx):
-    """Extract full 2D covariance matrix for a specific component."""
+    """Extract full covariance matrix for a specific component."""
     if gmm is None:
         raise ValueError("GMM object is required")
         
     covariances = ensure_tensor_on_cpu(gmm.covariances_, dtype=torch.float32)
     cov_type = gmm.covariance_type
         
+    # Get the covariance matrix
     if cov_type == 'full':
-        return covariances[component_idx]
+        cov_matrix = covariances[component_idx]
     elif cov_type == 'diag':
-        return torch.diag(covariances[component_idx])
+        cov_matrix = torch.diag(covariances[component_idx])
     elif cov_type == 'spherical':
         var_val = covariances[component_idx]
-        return torch.eye(2) * var_val
+        cov_matrix = torch.eye(covariances.shape[-1] if len(covariances.shape) > 0 else 2) * var_val
     elif cov_type == 'tied_full':
-        return covariances
+        cov_matrix = covariances
     elif cov_type == 'tied_diag':
-        return torch.diag(covariances)
+        cov_matrix = torch.diag(covariances)
     elif cov_type == 'tied_spherical':
         var_val = covariances
-        return torch.eye(2) * var_val
+        cov_matrix = torch.eye(covariances.shape[-1] if hasattr(covariances, 'shape') else 2) * var_val
     else:
         raise ValueError(f"Unsupported covariance_type: {cov_type}")
+    
+    return cov_matrix

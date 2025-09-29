@@ -1583,7 +1583,8 @@ class GaussianMixture(nn.Module):
         return self.score_samples(X).mean().item()
 
     def sample(self, n_samples: int = 1, component: int = None, std_radius: float = None, 
-               std_range: Tuple[float, float] = None, confidence: float = None, 
+               std_range: Tuple[float, float] = None, confidence: float = None,
+               confidence_range: Tuple[float, float] = None,
                center_point: torch.Tensor = None, center_radius: float = None,
                max_attempts_per_sample: int = 1000) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
@@ -1614,7 +1615,14 @@ class GaussianMixture(nn.Module):
             confidence=0.95 for 95% confidence interval). This is converted to the
             appropriate standard deviation radius using the chi-squared distribution.
             For example, confidence=0.95 corresponds to approximately 1.96σ for 2D data.
-            Cannot be used together with std_radius or std_range. (default: None)
+            Cannot be used together with std_radius, std_range, or confidence_range. (default: None)
+        confidence_range : tuple of float, optional
+            If specified, only return samples whose confidence level falls within this
+            range (min_confidence, max_confidence). For example, confidence_range=(0.68, 0.95)
+            returns samples between the 68% and 95% confidence ellipses. This is converted
+            to the corresponding std_range using the chi-squared distribution, then uses
+            rejection sampling. Cannot be used together with std_radius, std_range, or
+            confidence. (default: None)
         center_point : torch.Tensor, optional
             If specified, only return samples within center_radius distance from this point.
             Should be a tensor of shape (n_features,). Uses Euclidean distance.
@@ -1625,9 +1633,9 @@ class GaussianMixture(nn.Module):
             Must be used together with center_point. (default: None)
         max_attempts_per_sample : int, optional
             Maximum number of attempts to generate a valid sample that satisfies the
-            distance constraints (std_radius, std_range, confidence, or center constraints) 
-            before giving up. Higher values increase the chance of satisfying restrictive 
-            constraints but may slow down sampling. (default: 1000)
+            distance constraints (std_radius, std_range, confidence, confidence_range, or 
+            center constraints) before giving up. Higher values increase the chance of 
+            satisfying restrictive constraints but may slow down sampling. (default: 1000)
 
         Returns
         -------
@@ -1642,10 +1650,10 @@ class GaussianMixture(nn.Module):
             warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
 
         # Validate parameter combinations
-        constraint_params = [std_radius, std_range, confidence, (center_point, center_radius)]
+        constraint_params = [std_radius, std_range, confidence, confidence_range, (center_point, center_radius)]
         non_none_params = [p for p in constraint_params if p is not None and (not isinstance(p, tuple) or all(x is not None for x in p))]
         if len(non_none_params) > 1:
-            raise ValueError("Cannot specify more than one of: std_radius, std_range, confidence, or center constraints. Use only one.")
+            raise ValueError("Cannot specify more than one of: std_radius, std_range, confidence, confidence_range, or center constraints. Use only one.")
         
         if std_range is not None:
             if len(std_range) != 2:
@@ -1661,6 +1669,20 @@ class GaussianMixture(nn.Module):
                 raise ValueError(f"confidence must be between 0 and 1, got {confidence}")
             # Convert confidence to std_radius for internal use
             std_radius = self._confidence_to_std_radius(confidence)
+        
+        if confidence_range is not None:
+            if len(confidence_range) != 2:
+                raise ValueError("confidence_range must be a tuple of exactly 2 values (min_confidence, max_confidence)")
+            min_conf, max_conf = confidence_range
+            if not (0 <= min_conf < 1) or not (0 < max_conf <= 1):
+                raise ValueError(f"confidence_range values must be in range [0, 1), got ({min_conf}, {max_conf})")
+            if max_conf <= min_conf:
+                raise ValueError("confidence_range maximum must be greater than minimum")
+            # Convert confidence_range to std_range for internal use
+            # Handle special case where min_conf = 0.0 (corresponds to std_radius = 0)
+            min_std = 0.0 if min_conf == 0.0 else self._confidence_to_std_radius(min_conf)
+            max_std = self._confidence_to_std_radius(max_conf)
+            std_range = (min_std, max_std)
 
         # Validate center point constraints
         if (center_point is None) != (center_radius is None):
