@@ -1,24 +1,19 @@
 # tgmm: Gaussian Mixture Models in PyTorch
 
-<div align="center">
+<div align="center" markdown="1">
 
 <img src="assets/gmm-logo.png" alt="TorchGMM Logo" width="300"/>
-
-[![PyPI version](https://badge.fury.io/py/tgmm.svg)](https://badge.fury.io/py/tgmm)
-[![Documentation Status](https://readthedocs.org/projects/tgmm/badge/?version=latest)](https://tgmm.readthedocs.io/en/latest/?badge=latest)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-1.0+-orange.svg)](https://pytorch.org/)
 
 </div>
 
 **tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) in PyTorch, featuring:
 
-- ✨ **EM & MAP Estimation** - Maximum Likelihood and Bayesian approaches
-- 🎯 **Multiple Covariance Types** - Full, diagonal, spherical, and tied variants
-- 🚀 **GPU Acceleration** - Seamless CPU/CUDA support via PyTorch
-- 📊 **Comprehensive Metrics** - Supervised and unsupervised clustering evaluation
-- 🎨 **Rich Visualization** - Beautiful plotting utilities for GMM analysis
-- 🔧 **Flexible Initialization** - K-means, K-means++, random, and custom methods
+- **EM & MAP Estimation** - Maximum Likelihood and Bayesian approaches
+- **Multiple Covariance Types** - Full, diagonal, spherical, and tied variants
+- **GPU Acceleration** - Seamless CPU/CUDA support via PyTorch
+- **Comprehensive Metrics** - Supervised and unsupervised clustering evaluation
+- **Rich Visualization** - Beautiful plotting utilities for GMM analysis
+- **Flexible Initialization** - K-means, K-means++, random, and custom methods
 
 ## Quick Start
 
