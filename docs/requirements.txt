@@ -1,15 +1,16 @@
 # Documentation build requirements for Read the Docs
-# Keep this minimal - only what's needed to build docs
+# MkDocs Material theme with plugins
 
 # Core dependencies
 torch>=2.0.0
 numpy>=1.20.0
 
-# Sphinx and documentation
-sphinx>=4.0.0
-sphinx_rtd_theme>=1.0.0
-nbsphinx>=0.8.0
-pygments>=2.10.0
+# MkDocs and Material theme
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+mkdocstrings[python]>=0.24.0
+mkdocs-jupyter>=0.24.0
+pymdown-extensions>=10.0
 
 # Optional dependencies for notebook execution
 matplotlib>=3.5.0

@@ -1,20 +1,20 @@
-# Core dependencies (required for basic package functionality)
+# Core dependencies (required for basic GMM functionality)
 torch>=2.5.1
 numpy>=1.23.0
-matplotlib>=3.10.1
 
-# Documentation dependencies
-sphinx>=7.1.0,<8.2.0
-sphinx_rtd_theme
-nbsphinx
-pygments>=2.19.1
+# Optional dependencies (needed for full functionality)
+matplotlib>=3.10.1  # Required for plotting module
+scipy>=1.10.1       # Required for metrics and some initialization methods
+scikit-learn>=1.2.2 # Required comparison with sklearn GMM
 
 # Example/notebook dependencies (optional, for running examples)
+seaborn>=0.12.2
 tqdm
-seaborn
 pandas
-scikit-learn
-scipy
 
-# Development dependencies
-setuptools==75.8.0
+# Documentation dependencies
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+mkdocstrings[python]>=0.24.0
+mkdocs-jupyter>=0.24.0
+pymdown-extensions>=10.0

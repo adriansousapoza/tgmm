@@ -1,0 +1,149 @@
+site_name: tgmm Documentation
+site_description: A Gaussian Mixture Model implementation in PyTorch with EM/MAP estimation
+site_author: Adrián A. Sousa-Poza
+site_url: https://tgmm.readthedocs.io
+
+repo_name: adriansousapoza/TorchGMM
+repo_url: https://github.com/adriansousapoza/TorchGMM
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 Adrián A. Sousa-Poza
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/gmm-logo.png
+  favicon: assets/gmm-logo.png
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/adriansousapoza/TorchGMM
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/tgmm/
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      lang: en
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            group_by_category: true
+            show_category_heading: true
+            show_if_no_docstring: false
+            inherited_members: false
+            filters:
+              - "!^_"
+  - mkdocs-jupyter:
+      include_source: true
+      execute: false
+      allow_errors: false
+      kernel_name: python3
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - User Guide:
+      - Gaussian Mixture Model: user-guide/gaussian-mixture.md
+      - GMM Initializer: user-guide/gmm-initializer.md
+      - Clustering Metrics: user-guide/clustering-metrics.md
+      - Plotting & Visualization: user-guide/plotting.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Basic GMM: notebooks/gmm.ipynb
+      - Metrics & Evaluation: notebooks/metrics.ipynb
+      - Using Priors (MAP): notebooks/priors.ipynb
+      - CEM Algorithm: notebooks/cem.ipynb
+      - Visualization: notebooks/visualise.ipynb
+      - PCA Plotting Demo: notebooks/pca_plotting.ipynb
+      - NIW Priors Comparison: notebooks/niw_priors_comparison.ipynb
+      - Sampling: notebooks/sampling.ipynb
+  - API Reference:
+      - tgmm.GaussianMixture: api/gaussian-mixture.md
+      - tgmm.GMMInitializer: api/gmm-initializer.md
+      - tgmm.ClusteringMetrics: api/clustering-metrics.md
+      - tgmm.plotting: api/plotting.md
+  - Migration Guide: migration-guide.md
+  - Contributing: contributing.md

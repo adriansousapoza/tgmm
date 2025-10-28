@@ -56,7 +56,7 @@ def read_docs_requirements():
                 docs_deps.append(line)
         
         return docs_deps
-    return ["Sphinx>=7.1.0,<8.2.0", "Pygments>=2.19.1"]
+    return []
 
 def read_examples_requirements():
     """Read example/notebook requirements from requirements.txt."""
@@ -85,8 +85,8 @@ def read_examples_requirements():
 
 setup(
     name="tgmm",
-    version="0.1.7",
-    author="Your Name",
+    version="0.2.0",
+    author="Adrián A. Sousa-Poza",
     author_email="adrian.sousapoza@gmail.com",
     description="A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch",
     long_description=open('README.md').read(),

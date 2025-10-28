@@ -5,13 +5,7 @@ from typing import Optional, Tuple
 import warnings
 import math
 from .gmm_init import GMMInitializer
-
-# Try to import scipy for confidence interval calculations
-try:
-    from scipy.stats import chi2
-    HAS_SCIPY = True
-except ImportError:
-    HAS_SCIPY = False
+from scipy.stats import chi2
 
 
 
@@ -20,86 +14,83 @@ class GaussianMixture(nn.Module):
     A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch.
 
     This GMM supports:
-    
-    - The Expectation-Maximization (EM) algorithm.
-    - The Classification EM (CEM) algorithm as an alternative to standard EM.
-    - Multiple initializations (n_init).
-    - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical).
-    - Maximum Likelihood Estimation (MLE) and Maximum a Posteriori (MAP) estimation (i.e. with Priors).
+    - The Expectation-Maximization (EM) algorithm
+    - The Classification EM (CEM) algorithm as an alternative to standard EM
+    - Multiple random initializations (n_init)
+    - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical)
+    - Maximum Likelihood Estimation (MLE) and Maximum a Posteriori (MAP) estimation with priors
 
     Parameters
     ----------
-    n_features : int
-        Dimensionality of the input data (number of features).
     n_components : int, optional
-        Number of mixture components (default: 1).
+        Number of mixture components. (default: 1)
+    n_features : int, optional
+        Dimensionality of the input data (number of features). If None, inferred from data. (default: None)
     covariance_type : str, optional
         Type of covariance parameters to use. Must be one of:
-        'full', 'diag', 'spherical', 'isotropic', 'tied_full', 'tied_diag', 'tied_spherical'.
-        
-        Note: 
-            - 'isotropic' is an alias for 'spherical'
-            - 'full' is an alias for 'tied_full'.
-        
-        (default: 'full')
-    tol : float, optional
-        Convergence threshold for EM (relative improvement in log-likelihood).
-        (default: 1e-4)
-    reg_covar : float, optional
-        Non-negative regularization added to the diagonal of covariance.
-        Helps keep covariance matrices from becoming singular. (default: 1e-6)
+        'full', 'diag', 'spherical', 'tied_full', 'tied_diag', 'tied_spherical'.
+        Aliases: 'tied' → 'tied_full', 'isotropic' → 'spherical'. (default: 'full')
     max_iter : int, optional
         Maximum number of EM iterations to perform. (default: 1000)
-    init_params : str, optional
-        Method for initializing means (kmeans, random, points, kpp, maxdist).
-        (default: 'kmeans')
-    weights_init : torch.Tensor or None, optional
-        User-provided initial component weights of shape (n_components,).
-        If None, weights are set uniformly. (default: None)
-    means_init : torch.Tensor or None, optional
-        User-provided initial component means of shape (n_components, n_features).
-        If None, means are randomized according to `init_params`. (default: None)
-    covariances_init : torch.Tensor or None, optional
-        User-provided initial covariances. Shape depends on `covariance_type`. (default: None)
+    tol : float, optional
+        Convergence threshold based on relative improvement in log-likelihood. (default: 1e-4)
+    reg_covar : float, optional
+        Non-negative regularization added to the diagonal of covariance matrices
+        to prevent singularity. (default: 1e-6)
     n_init : int, optional
         Number of random initializations to try. The best run (highest log-likelihood)
-        is kept. When n_init > 1, each initialization uses a different but deterministic
-        random state derived from `random_state` to ensure both reproducibility and
-        diversity. Specifically, initialization i uses random_state + i as its seed.
-        (default: 1)
+        is kept. When n_init > 1, each initialization uses random_state + i as its seed
+        to ensure both reproducibility and diversity. (default: 1)
+    init_means : str or torch.Tensor, optional
+        Method for initializing means, or a tensor of initial means.
+        - If str: 'kmeans', 'kpp', 'random', 'points', 'maxdist'
+        - If tensor: shape (n_components, n_features) or (n_features,) to broadcast
+        (default: 'kmeans')
+    init_weights : str or torch.Tensor, optional
+        Method for initializing weights, or a tensor of initial weights.
+        - If str: 'uniform', 'random', 'kmeans'
+        - If tensor: shape (n_components,)
+        (default: 'uniform')
+    init_covariances : str or torch.Tensor, optional
+        Method for initializing covariances, or a tensor of initial covariances.
+        - If str: 'empirical', 'eye', 'random', 'global'
+        - If tensor: shape depends on covariance_type (supports broadcasting)
+          * full: (n_features, n_features) or (n_components, n_features, n_features)
+          * diag: (n_features,) or (n_components, n_features)
+          * spherical: scalar or (n_components,)
+        (default: 'empirical')
     random_state : int or None, optional
         Random seed for reproducibility. If None, uses PyTorch's internal seed. 
-        When n_init > 1, this serves as the base seed, with each initialization
-        using random_state + initialization_index to ensure different but 
-        reproducible initializations. (default: None)
+        When n_init > 1, serves as the base seed (initialization i uses random_state + i).
+        (default: None)
     warm_start : bool, optional
         If True, reuse the solution of the previous call to `fit` as initialization.
         (default: False)
+    cem : bool, optional
+        If True, use the Classification EM (hard assignment) algorithm instead of standard EM.
+        (default: False)
+    weight_concentration_prior : torch.Tensor or None, optional
+        Dirichlet concentration prior for the mixture weights (MAP estimation).
+        Shape: (n_components,) or scalar to broadcast. (default: None)
+    mean_prior : torch.Tensor or None, optional
+        Prior for the component means (MAP estimation). Must be used with mean_precision_prior.
+        Shape: (n_features,) or (n_components, n_features). (default: None)
+    mean_precision_prior : float or None, optional
+        Precision (inverse variance) of the mean prior (MAP estimation). (default: None)
+    covariance_prior : torch.Tensor or None, optional
+        Prior for the covariances (MAP estimation). Must be used with degrees_of_freedom_prior.
+        Shape depends on covariance_type (supports broadcasting like init_covariances).
+        (default: None)
+    degrees_of_freedom_prior : float or None, optional
+        Degrees of freedom for the Wishart/Inverse-Wishart prior on covariances (MAP).
+        Must be > n_features - 1. (default: None)
     verbose : bool, optional
         If True, print progress during EM iterations. (default: False)
     verbose_interval : int, optional
-        Frequency (in iterations) at which to print progress. (default: 10)
+        Frequency (in iterations) at which to print progress when verbose=True. (default: 10)
     device : str or None, optional
         Device on which to run computations ('cpu' or 'cuda'). If None, uses GPU if
         available, otherwise CPU. (default: None)
-    weight_concentration_prior : torch.Tensor or None, optional
-        Dirichlet concentration prior for the mixture weights, used in MAP. (default: None)
-    mean_prior : torch.Tensor or None, optional
-        Prior for the means, used in MAP. If provided, must match `mean_precision_prior`.
-        (default: None)
-    mean_precision_prior : float or None, optional
-        Precision of the mean prior, used in MAP. (default: None)
-    covariance_prior : torch.Tensor or None, optional
-        Prior on covariance(s), used in MAP. If provided, must match
-        `degrees_of_freedom_prior`. (default: None)
-    degrees_of_freedom_prior : float or None, optional
-        Degrees of freedom in the Wishart prior for covariances (MAP). (default: None)
-    cov_init_method : str, optional
-        Method for initializing covariances if `covariances_init` is None.
-        Supported: 'eye', 'random', 'empirical'. (default: 'eye')
-    cem : bool, optional
-        If True, use the Classification EM algorithm instead of standard EM.
-        (default: False)
 
     Attributes
     ----------
@@ -110,97 +101,149 @@ class GaussianMixture(nn.Module):
     covariances_ : torch.Tensor
         Mixture component covariances. Shape depends on `covariance_type`.
     initial_weights_ : torch.Tensor
-        Initial mixture component weights before EM optimization of shape (n_components,).
-        These are the weights after initialization but before any EM iterations.
+        Initial mixture component weights before EM optimization, shape (n_components,).
     initial_means_ : torch.Tensor
-        Initial mixture component means before EM optimization of shape (n_components, n_features).
-        These are the means after initialization but before any EM iterations.
+        Initial mixture component means before EM optimization, shape (n_components, n_features).
     initial_covariances_ : torch.Tensor
-        Initial mixture component covariances before EM optimization. Shape depends on `covariance_type`.
-        These are the covariances after initialization but before any EM iterations.
+        Initial mixture component covariances before EM optimization.
     fitted_ : bool
-        Whether the model has been fitted. This attribute is important when using `warm_start`.
+        Whether the model has been fitted.
     converged_ : bool
-        Whether the EM algorithm has converged in the best run.
+        Whether the EM algorithm converged in the best run.
     n_iter_ : int
         Number of EM iterations performed in the best run.
     lower_bound_ : float
         Log-likelihood lower bound on the fitted data for the best run.
     best_random_state_ : int or None
         The random state that produced the best result when n_init > 1.
-        This is useful for reproducing the specific best initialization.
-        Only available after fitting when random_state is not None and n_init > 1.
+        Useful for reproducing the specific best initialization.
     """
 
     def __init__(
         self,
+        # Core model parameters
         n_components: int = 1,
         n_features: int = None,
         covariance_type: str = 'full',
+        
+        # Convergence and training parameters
+        max_iter: int = 1000,
         tol: float = 1e-4,
         reg_covar: float = 1e-6,
-        max_iter: int = 1000,
-        init_params: str = 'kmeans',
-        cov_init_method: str = 'eye',
-        weights_init: torch.Tensor = None,
-        means_init: torch.Tensor = None,
-        covariances_init: torch.Tensor = None,
         n_init: int = 1,
+        
+        # Initialization parameters (accepts str method or torch.Tensor values)
+        init_means='kmeans',
+        init_weights='uniform',
+        init_covariances='empirical',
+        
+        # Random state and restart options
         random_state: int = None,
         warm_start: bool = False,
-        verbose: bool = False,
-        verbose_interval: int = 10,
+        
+        # Algorithm options
+        cem: bool = False,
+        
+        # Prior parameters for MAP estimation
         weight_concentration_prior: torch.Tensor = None,
         mean_prior: torch.Tensor = None,
         mean_precision_prior: float = None,
         covariance_prior: torch.Tensor = None,
         degrees_of_freedom_prior: float = None,
-        cem: bool = False,
+        
+        # Output and device options
+        verbose: bool = False,
+        verbose_interval: int = 10,
         device: str = None,
+        
+        **kwargs  # Catch deprecated parameters
     ):
         super().__init__()
+        
+        # ===================================================================
+        # 1. Validate deprecated parameters
+        # ===================================================================
+        deprecated_params = {
+            'init_params': ('init_means', 'init_means=\'kmeans\''),
+            'cov_init_method': ('init_covariances', 'init_covariances=\'empirical\''),
+            'weights_init': ('init_weights', 'init_weights=torch.tensor([...])'),
+            'means_init': ('init_means', 'init_means=torch.tensor([...])'),
+            'covariances_init': ('init_covariances', 'init_covariances=torch.tensor([...])')
+        }
+        
+        for old_param, (new_param, example) in deprecated_params.items():
+            if old_param in kwargs:
+                raise TypeError(
+                    f"Parameter '{old_param}' has been removed. "
+                    f"Use '{new_param}' instead.\n"
+                    f"The '{new_param}' parameter accepts both strings (method names) and tensors (explicit values).\n"
+                    f"Example: {example}"
+                )
+        
+        if kwargs:
+            unexpected = ', '.join(f"'{k}'" for k in kwargs.keys())
+            raise TypeError(f"GaussianMixture.__init__() got unexpected keyword argument(s): {unexpected}")
 
-        # Basic settings
-        self.n_features = n_features
+        # ===================================================================
+        # 2. Store core model parameters
+        # ===================================================================
         self.n_components = n_components
-
-        # Allow "tied" as alias for "tied_full"
+        self.n_features = n_features
+        
+        # Handle covariance type aliases
         if covariance_type == "tied":
             covariance_type = "tied_full"
-        # Allow "isotropic" as alias for "spherical"
-        if covariance_type == "isotropic":
+        elif covariance_type == "isotropic":
             covariance_type = "spherical"
         self.covariance_type = covariance_type
 
+        # ===================================================================
+        # 3. Store convergence and training parameters
+        # ===================================================================
+        self.max_iter = max_iter
         self.tol = tol
         self.reg_covar = reg_covar
-        self.max_iter = max_iter
-        self.init_params = init_params
-        self.weights_init = weights_init
-        self.means_init = means_init
-        self.covariances_init = covariances_init
+        self.n_init = n_init
+        
+        # ===================================================================
+        # 4. Store initialization parameters
+        # ===================================================================
+        self.init_means = init_means
+        self.init_weights = init_weights
+        self.init_covariances = init_covariances
+        
+        # ===================================================================
+        # 5. Store random state and restart options
+        # ===================================================================
         self.random_state = random_state
         self.warm_start = warm_start
-        self.verbose = verbose
-        self.verbose_interval = verbose_interval
-
-        # Additional features
-        self.n_init = n_init
-        self.cov_init_method = cov_init_method
+        
+        # ===================================================================
+        # 6. Store algorithm options
+        # ===================================================================
         self.cem = cem
-
-        # Device
+        
+        # ===================================================================
+        # 7. Configure device
+        # ===================================================================
         if device is not None:
             self.device = torch.device(device)
         else:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # ===================================================================
+        # 8. Store output options
+        # ===================================================================
+        self.verbose = verbose
+        self.verbose_interval = verbose_interval
 
-        # Check if any prior is given
+        # ===================================================================
+        # 9. Initialize and validate priors
+        # ===================================================================
         self.use_weight_prior = weight_concentration_prior is not None
         self.use_mean_prior = (mean_prior is not None) and (mean_precision_prior is not None)
         self.use_covariance_prior = (covariance_prior is not None) and (degrees_of_freedom_prior is not None)
 
-        # Store priors
         self._init_priors(
             weight_concentration_prior,
             mean_prior,
@@ -209,7 +252,9 @@ class GaussianMixture(nn.Module):
             degrees_of_freedom_prior
         )
 
-        # Initialize internal parameters for mixture
+        # ===================================================================
+        # 10. Initialize model state variables
+        # ===================================================================
         self.weights_ = None
         self.means_ = None
         self.covariances_ = None
@@ -231,82 +276,142 @@ class GaussianMixture(nn.Module):
         degrees_of_freedom_prior: Optional[float]
     ):
         r"""
-        Validate and store prior parameters (if MAP is used).
+        Validate and store prior parameters for MAP estimation.
+
+        This method validates the shapes and values of prior parameters and stores them
+        for use during the M-step. Supports broadcasting for convenience.
 
         Parameters
         ----------
         weight_concentration_prior : torch.Tensor or None
-            Dirichlet prior for the mixture weights.
+            Dirichlet concentration prior for mixture weights.
         mean_prior : torch.Tensor or None
-            Prior means for the Gaussian components.
+            Prior means for Gaussian components.
         mean_precision_prior : float or None
-            Scalar precision factor for the mean prior.
+            Precision (inverse variance) for the mean prior.
         covariance_prior : torch.Tensor or None
-            Prior for covariances, shape depends on `covariance_type`.
+            Prior for covariances (shape depends on covariance_type).
         degrees_of_freedom_prior : float or None
-            Degrees of freedom for the Wishart prior on covariances.
+            Degrees of freedom for the Wishart/Inverse-Wishart prior.
         """
+        # ---------------------------------------------------------------
+        # Weight prior (Dirichlet)
+        # ---------------------------------------------------------------
         if self.use_weight_prior:
-            # Convert to torch.Tensor if not already.
             if not isinstance(weight_concentration_prior, torch.Tensor):
                 weight_concentration_prior = torch.tensor(weight_concentration_prior, device=self.device)
-            # If a single value is provided, replicate it to shape (n_components,)
+            
+            # Broadcast scalar or single value to all components
             if weight_concentration_prior.dim() == 0 or (weight_concentration_prior.dim() == 1 and weight_concentration_prior.numel() == 1):
                 weight_concentration_prior = weight_concentration_prior.expand(self.n_components)
             elif weight_concentration_prior.dim() == 1 and weight_concentration_prior.numel() != self.n_components:
                 raise ValueError(
-                    f"weight_concentration_prior must be of shape ({self.n_components},) or a single value, "
+                    f"weight_concentration_prior must be of shape ({self.n_components},) or a scalar, "
                     f"got {weight_concentration_prior.shape}."
                 )
             self.weight_concentration_prior = weight_concentration_prior.to(self.device).float()
         else:
             self.weight_concentration_prior = None
 
+        # ---------------------------------------------------------------
+        # Mean prior (Gaussian)
+        # ---------------------------------------------------------------
         if self.use_mean_prior:
+            # Broadcast (n_features,) to (n_components, n_features)
             if mean_prior.shape == (self.n_features,):
                 mean_prior = mean_prior.unsqueeze(0).expand(self.n_components, -1)
             elif mean_prior.shape != (self.n_components, self.n_features):
                 raise ValueError(
-                    "mean_prior must be of shape (n_components, n_features) or (n_features,). "
-                    f"Got {mean_prior.shape}."
+                    f"mean_prior must be of shape ({self.n_components}, {self.n_features}) "
+                    f"or ({self.n_features},). Got {mean_prior.shape}."
                 )
             if mean_precision_prior <= 0:
                 raise ValueError("mean_precision_prior must be > 0.")
+            
             self.mean_prior = mean_prior.to(self.device).float()
             self.mean_precision_prior = float(mean_precision_prior)
         else:
             self.mean_prior = None
             self.mean_precision_prior = None
 
+        # ---------------------------------------------------------------
+        # Covariance prior (Wishart/Inverse-Wishart)
+        # ---------------------------------------------------------------
         if self.use_covariance_prior:
             self.degrees_of_freedom_prior = float(degrees_of_freedom_prior)
+            
+            # Validate degrees of freedom
             if self.degrees_of_freedom_prior <= self.n_features - 1:
                 raise ValueError(
-                    "degrees_of_freedom_prior must be greater than "
-                    f"{self.n_features - 1}, got {self.degrees_of_freedom_prior}."
+                    f"degrees_of_freedom_prior must be > {self.n_features - 1}, "
+                    f"got {self.degrees_of_freedom_prior}."
                 )
+            
             expected_shape = self._expected_covar_shape()
-            if covariance_prior.shape != expected_shape:
-                raise ValueError(
-                    f"covariance_prior must be of shape {expected_shape} for "
-                    f"'{self.covariance_type}' covariance type. Got {covariance_prior.shape}."
-                )
+            
+            # Handle broadcasting for non-tied covariance types
+            if self.covariance_type == 'full':
+                if covariance_prior.shape == (self.n_features, self.n_features):
+                    # Broadcast single matrix to all components
+                    covariance_prior = covariance_prior.unsqueeze(0).expand(
+                        self.n_components, self.n_features, self.n_features
+                    ).clone()
+                elif covariance_prior.shape != expected_shape:
+                    raise ValueError(
+                        f"covariance_prior must be of shape {expected_shape} or "
+                        f"({self.n_features}, {self.n_features}) for 'full' covariance. "
+                        f"Got {covariance_prior.shape}."
+                    )
+            
+            elif self.covariance_type == 'diag':
+                if covariance_prior.shape == (self.n_features,):
+                    # Broadcast single vector to all components
+                    covariance_prior = covariance_prior.unsqueeze(0).expand(
+                        self.n_components, self.n_features
+                    ).clone()
+                elif covariance_prior.shape != expected_shape:
+                    raise ValueError(
+                        f"covariance_prior must be of shape {expected_shape} or "
+                        f"({self.n_features},) for 'diag' covariance. "
+                        f"Got {covariance_prior.shape}."
+                    )
+            
+            elif self.covariance_type == 'spherical':
+                if covariance_prior.ndim == 0:
+                    # Broadcast scalar to all components
+                    covariance_prior = covariance_prior.expand(self.n_components).clone()
+                elif covariance_prior.shape != expected_shape:
+                    raise ValueError(
+                        f"covariance_prior must be of shape {expected_shape} or a scalar "
+                        f"for 'spherical' covariance. Got {covariance_prior.shape}."
+                    )
+            
+            else:
+                # Tied covariance types: no broadcasting (single shared covariance)
+                if covariance_prior.shape != expected_shape:
+                    raise ValueError(
+                        f"covariance_prior must be of shape {expected_shape} for "
+                        f"'{self.covariance_type}' covariance. Got {covariance_prior.shape}."
+                    )
+            
             self.covariance_prior = covariance_prior.to(self.device).float()
         else:
             self.degrees_of_freedom_prior = None
             self.covariance_prior = None
 
-        # Validate NIW prior usage
+        # ---------------------------------------------------------------
+        # Validate and report NIW prior usage
+        # ---------------------------------------------------------------
         if self.use_mean_prior and self.use_covariance_prior:
-            # When both mean and covariance priors are specified, we use NIW conjugate priors
+            # Normal-Inverse-Wishart conjugate priors for joint estimation
             if self.verbose:
-                print("Using Normal-Inverse-Wishart (NIW) conjugate priors for joint mean-covariance estimation.")
-        elif self.use_mean_prior and not self.use_covariance_prior:
+                print("INFO: Using Normal-Inverse-Wishart (NIW) conjugate priors for joint mean-covariance estimation.")
+        elif self.use_mean_prior:
             if self.verbose:
-                print("Using Gaussian prior for means only (independent of covariance estimation).")
-        elif not self.use_mean_prior and self.use_covariance_prior:
+                print("INFO: Using Gaussian prior for means only.")
+        elif self.use_covariance_prior:
             if self.verbose:
-                print("Using Inverse-Wishart prior for covariances only (independent of mean estimation).")
+                print("INFO: Using Inverse-Wishart prior for covariances only.")
 
     def _expected_covar_shape(self) -> Tuple:
         r"""
@@ -335,84 +440,255 @@ class GaussianMixture(nn.Module):
 
     def _allocate_parameters(self, X: Optional[torch.Tensor] = None, set_random_state: bool = True):
         r"""
-        Allocate and initialize model parameters (weights, means, covariances).
+        Allocate and initialize model parameters (means, weights, covariances).
+
+        Parameters are initialized in a specific order because some initialization
+        methods depend on others (e.g., kmeans weight initialization needs means first).
 
         Parameters
         ----------
         X : torch.Tensor, optional
-            Input data for data-based initialization methods.
-        set_random_state : bool, default=True
-            Whether to set the random state. Set to False when random state
-            is already set externally (e.g., for multiple initializations).
+            Input data for data-based initialization methods. If None, uses random initialization.
+        set_random_state : bool, optional
+            Whether to set the random state. Set to False when random state is already
+            set externally (e.g., for multiple initializations in n_init > 1). (default: True)
 
-        If X is provided, we can do data-based initialization of means
-        using self.init_params (kmeans, kpp, etc.). Otherwise, we fall back
-        to random or user-provided means_init.
+        Notes
+        -----
+        Initialization order:
+        1. Means (required by some weight and covariance methods)
+        2. Weights (may depend on means for kmeans method)
+        3. Covariances (may depend on means for empirical method)
         """
-        # Seed control - only if requested
+        # ===============================================================
+        # Set random seed if requested
+        # ===============================================================
         if set_random_state and self.random_state is not None:
             torch.manual_seed(self.random_state)
             if torch.cuda.is_available():
                 torch.cuda.manual_seed_all(self.random_state)
 
-        # ----------------------
-        # 1) Allocate weights
-        # ----------------------
-        if self.weights_init is not None:
-            if self.weights_init.shape != (self.n_components,):
+        # ===============================================================
+        # 1. Initialize means
+        # ===============================================================
+        if isinstance(self.init_means, torch.Tensor):
+            # User-provided tensor
+            if self.init_means.shape != (self.n_components, self.n_features):
                 raise ValueError(
-                    f"weights_init must be shape ({self.n_components},), got {self.weights_init.shape}."
+                    f"init_means tensor must be shape ({self.n_components}, {self.n_features}), "
+                    f"got {self.init_means.shape}."
                 )
-            weights = self.weights_init.to(self.device).float()
+            self.means_ = self.init_means.to(self.device).float()
+        
+        elif isinstance(self.init_means, str):
+            # Initialization method
+            if X is None:
+                # No data: fallback to random
+                self.means_ = torch.randn(
+                    self.n_components,
+                    self.n_features,
+                    device=self.device
+                ).float()
+            else:
+                # Data-based initialization
+                X_cpu = X.cpu()
+                init_method = self.init_means.lower()
+                
+                if init_method == 'kmeans':
+                    self.means_ = GMMInitializer.kmeans(X_cpu, self.n_components).to(self.device)
+                elif init_method == 'kpp':
+                    self.means_ = GMMInitializer.kpp(X_cpu, self.n_components).to(self.device)
+                elif init_method == 'points':
+                    self.means_ = GMMInitializer.points(X_cpu, self.n_components).to(self.device)
+                elif init_method == 'maxdist':
+                    self.means_ = GMMInitializer.maxdist(X_cpu, self.n_components).to(self.device)
+                elif init_method == 'random':
+                    self.means_ = GMMInitializer.random(X_cpu, self.n_components).to(self.device)
+                else:
+                    raise ValueError(
+                        f"Unsupported init_means method: '{init_method}'. "
+                        f"Supported: 'kmeans', 'kpp', 'points', 'maxdist', 'random'."
+                    )
+        else:
+            raise TypeError(
+                f"init_means must be a string (method name) or torch.Tensor, got {type(self.init_means)}"
+            )
+
+        self.initial_means_ = self.means_.clone().detach()
+
+        # ===============================================================
+        # 2. Initialize weights
+        # ===============================================================
+        if isinstance(self.init_weights, torch.Tensor):
+            # User-provided tensor
+            if self.init_weights.shape != (self.n_components,):
+                raise ValueError(
+                    f"init_weights tensor must be shape ({self.n_components},), "
+                    f"got {self.init_weights.shape}."
+                )
+            weights = self.init_weights.to(self.device).float()
             if torch.sum(weights) < 1e-20:
                 raise ValueError("Initial weights must sum to > 0.")
             self.weights_ = weights / torch.sum(weights)
+        elif isinstance(self.init_weights, str):
+            # Use initialization method from GMMInitializer
+            init_method = self.init_weights.lower()
+            
+            if init_method in ('uniform', 'equal'):
+                self.weights_ = GMMInitializer.init_weights_uniform(
+                    self.n_components, self.device
+                )
+            elif init_method == 'random':
+                self.weights_ = GMMInitializer.init_weights_random(
+                    self.n_components, self.device
+                )
+            elif init_method == 'kmeans':
+                if X is None:
+                    warnings.warn(
+                        "'kmeans' weight initialization requires data. "
+                        "Falling back to uniform weights.",
+                        UserWarning
+                    )
+                    self.weights_ = GMMInitializer.init_weights_uniform(
+                        self.n_components, self.device
+                    )
+                else:
+                    # Ensure data is on the same device as means for init_weights_from_clusters
+                    X_for_weights = X.to(self.means_.device)
+                    weights = GMMInitializer.init_weights_from_clusters(
+                        X_for_weights, self.means_
+                    )
+                    self.weights_ = weights.to(self.device)
+            else:
+                raise ValueError(
+                    f"Unsupported init_weights method: '{init_method}'. "
+                    f"Supported methods: 'uniform', 'random', 'kmeans'."
+                )
         else:
-            self.weights_ = torch.full(
-                (self.n_components,),
-                1.0 / self.n_components,
-                dtype=torch.float32,
-                device=self.device
+            raise TypeError(
+                f"init_weights must be a string (method name) or torch.Tensor, got {type(self.init_weights)}"
             )
 
         # Store the initial weights for later access
         self.initial_weights_ = self.weights_.clone().detach()
 
         # ----------------------
-        # 2) Allocate means
-        # ----------------------
-        # (If user provided means_init, we trust that. Otherwise we do random or data-based init.)
-        if self.means_init is not None:
-            if self.means_init.shape != (self.n_components, self.n_features):
-                raise ValueError(
-                    f"means_init must be shape ({self.n_components}, {self.n_features}), "
-                    f"got {self.means_init.shape}."
-                )
-            self.means_ = self.means_init.to(self.device).float()
-        else:
-            # default fallback => random normal
-            self.means_ = torch.randn(
-                self.n_components,
-                self.n_features,
-                device=self.device
-            ).float()
-
-            # if we have X, we can do data-based initialization
-            if X is not None:
-                # call the helper for data-based init
-                self._init_means_from_gmminitializer(X)
-
-        # Store the initial means for later access
-        self.initial_means_ = self.means_.clone().detach()
-
-        # ----------------------
         # 3) Allocate covariances
         # ----------------------
-        if self.covariances_init is not None:
-            self._check_covariance_init_shape(self.covariances_init)
-            self.covariances_ = self.covariances_init.to(self.device).float()
+        if isinstance(self.init_covariances, torch.Tensor):
+            # User provided explicit tensor
+            expected_shape = self._expected_covar_shape()
+            init_cov = self.init_covariances
+            
+            # Allow broadcasting: if user provides a single covariance matrix for non-tied types,
+            # expand it to all components
+            if self.covariance_type == 'full':
+                # Can be (n_features, n_features) or (n_components, n_features, n_features)
+                if init_cov.shape == (self.n_features, self.n_features):
+                    # Broadcast to all components
+                    init_cov = init_cov.unsqueeze(0).expand(
+                        self.n_components, self.n_features, self.n_features
+                    ).clone()
+                elif init_cov.shape != expected_shape:
+                    raise ValueError(
+                        f"init_covariances tensor must be of shape {expected_shape} or "
+                        f"({self.n_features}, {self.n_features}) for 'full' covariance type. "
+                        f"Got {init_cov.shape}."
+                    )
+            elif self.covariance_type == 'diag':
+                # Can be (n_features,) or (n_components, n_features)
+                if init_cov.shape == (self.n_features,):
+                    # Broadcast to all components
+                    init_cov = init_cov.unsqueeze(0).expand(
+                        self.n_components, self.n_features
+                    ).clone()
+                elif init_cov.shape != expected_shape:
+                    raise ValueError(
+                        f"init_covariances tensor must be of shape {expected_shape} or "
+                        f"({self.n_features},) for 'diag' covariance type. "
+                        f"Got {init_cov.shape}."
+                    )
+            elif self.covariance_type == 'spherical':
+                # Can be a scalar or (n_components,)
+                if init_cov.ndim == 0:
+                    # Broadcast scalar to all components
+                    init_cov = init_cov.expand(self.n_components).clone()
+                elif init_cov.shape != expected_shape:
+                    raise ValueError(
+                        f"init_covariances tensor must be of shape {expected_shape} or a scalar "
+                        f"for 'spherical' covariance type. Got {init_cov.shape}."
+                    )
+            else:
+                # For tied types, no broadcasting needed
+                if init_cov.shape != expected_shape:
+                    raise ValueError(
+                        f"init_covariances tensor must be of shape {expected_shape} for "
+                        f"'{self.covariance_type}' covariance type. Got {init_cov.shape}."
+                    )
+            
+            self.covariances_ = init_cov.to(self.device).float()
+        elif isinstance(self.init_covariances, str):
+            # Use initialization method from GMMInitializer
+            init_method = self.init_covariances.lower()
+            
+            if init_method == 'eye':
+                self.covariances_ = GMMInitializer.init_covariances_eye(
+                    self.n_components, self.n_features, 
+                    self.covariance_type, self.reg_covar, self.device
+                )
+            elif init_method == 'random':
+                self.covariances_ = GMMInitializer.init_covariances_random(
+                    self.n_components, self.n_features,
+                    self.covariance_type, self.reg_covar, self.device
+                )
+            elif init_method == 'global':
+                if X is None:
+                    warnings.warn(
+                        "Global covariance initialization requires data. "
+                        "Falling back to identity initialization.",
+                        UserWarning
+                    )
+                    self.covariances_ = GMMInitializer.init_covariances_eye(
+                        self.n_components, self.n_features,
+                        self.covariance_type, self.reg_covar, self.device
+                    )
+                else:
+                    # Ensure data is on the correct device
+                    X_for_cov = X.to(self.device)
+                    covs = GMMInitializer.init_covariances_global(
+                        X_for_cov, self.n_components,
+                        self.covariance_type, self.reg_covar
+                    )
+                    self.covariances_ = covs.to(self.device)
+            elif init_method == 'empirical':
+                if X is None:
+                    warnings.warn(
+                        "Empirical covariance initialization requires data. "
+                        "Falling back to identity initialization.",
+                        UserWarning
+                    )
+                    self.covariances_ = GMMInitializer.init_covariances_eye(
+                        self.n_components, self.n_features,
+                        self.covariance_type, self.reg_covar, self.device
+                    )
+                else:
+                    # Ensure data and means are on the same device
+                    X_for_cov = X.to(self.means_.device)
+                    covs = GMMInitializer.init_covariances_empirical(
+                        X_for_cov, self.means_,
+                        self.covariance_type, self.reg_covar
+                    )
+                    self.covariances_ = covs.to(self.device)
+            else:
+                raise ValueError(
+                    f"Unsupported init_covariances method: '{init_method}'. "
+                    f"Supported methods: 'eye', 'random', 'global', 'empirical'."
+                )
         else:
-            self._init_default_covariances()
+            raise TypeError(
+                f"init_covariances must be a string (method name) or torch.Tensor, "
+                f"got {type(self.init_covariances)}"
+            )
 
         # Store the initial covariances for later access
         self.initial_covariances_ = self.covariances_.clone().detach()
@@ -423,340 +699,141 @@ class GaussianMixture(nn.Module):
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
 
-    def _init_means_from_gmminitializer(self, X: torch.Tensor):
+
+    def fit(
+        self,
+        X: torch.Tensor,
+        max_iter: Optional[int] = None,
+        tol: Optional[float] = None,
+        random_state: Optional[int] = None,
+        warm_start: Optional[bool] = None
+    ) -> "GaussianMixture":
         r"""
-        If means_ is still random (and means_init is None),
-        use self.init_params to call the appropriate GMMInitializer method on X.
-        """
-        init_method = self.init_params.lower()
+        Fit the GMM to the data using the Expectation-Maximization algorithm.
 
-        X_cpu = X.cpu()  # GMMInitializer typically works on CPU
-        if init_method == 'kmeans':
-            self.means_ = GMMInitializer.kmeans(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'kpp':
-            self.means_ = GMMInitializer.kpp(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'points':
-            self.means_ = GMMInitializer.points(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'maxdist':
-            self.means_ = GMMInitializer.maxdist(X_cpu, self.n_components).to(self.device)
-        elif init_method == 'random':
-            self.means_ = GMMInitializer.random(X_cpu, self.n_components).to(self.device)
-        else:
-            # fallback => do nothing; we already have random normal means
-            pass
-
-    def _check_covariance_init_shape(self, cov_init: torch.Tensor):
-        r"""
-        Validate the shape of a given covariance initialization against
-        `self.covariance_type`.
-
-        Parameters
-        ----------
-        cov_init : torch.Tensor
-            The user-provided initial covariances to validate.
-        """
-        expected_shape = self._expected_covar_shape()
-        if cov_init.shape != expected_shape:
-            raise ValueError(
-                f"covariances_init must be of shape {expected_shape} for '{self.covariance_type}'. "
-                f"Got {cov_init.shape}."
-            )
-
-    def _init_default_covariances(self):
-        r"""
-        Initialize covariances if the user did not provide any, based on
-        `cov_init_method` and the chosen `covariance_type`.
-        """
-        if self.cov_init_method == "eye":
-            self._init_covar_eye()
-        elif self.cov_init_method == "random":
-            self._init_covar_random()
-        elif self.cov_init_method == "empirical":
-            self._init_covar_empirical(self.means_)
-        else:
-            raise ValueError(f"Unsupported cov_init_method: {self.cov_init_method}")
-
-    def _init_covar_eye(self):
-        r"""
-        Initialize covariances as identity-like matrices/vectors, with `self.reg_covar`
-        added to avoid singular matrices.
-        """
-        if self.covariance_type == 'full':
-            out = []
-            for _ in range(self.n_components):
-                mat = torch.eye(self.n_features, device=self.device)
-                mat *= (1.0 + self.reg_covar)
-                out.append(mat)
-            self.covariances_ = torch.stack(out, dim=0)
-
-        elif self.covariance_type == 'diag':
-            self.covariances_ = torch.ones(
-                self.n_components, self.n_features, device=self.device
-            ) * (1.0 + self.reg_covar)
-
-        elif self.covariance_type == 'spherical':
-            self.covariances_ = torch.ones(
-                self.n_components, device=self.device
-            ) * (1.0 + self.reg_covar)
-
-        elif self.covariance_type == 'tied_full':
-            mat = torch.eye(self.n_features, device=self.device)
-            mat *= (1.0 + self.reg_covar)
-            self.covariances_ = mat
-
-        elif self.covariance_type == 'tied_diag':
-            self.covariances_ = torch.ones(self.n_features, device=self.device) * (1.0 + self.reg_covar)
-
-        elif self.covariance_type == 'tied_spherical':
-            self.covariances_ = torch.tensor(1.0 + self.reg_covar, device=self.device)
-
-        else:
-            raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
-
-    def _init_covar_random(self):
-        r"""
-        Initialize covariances randomly. This can be refined or replaced
-        with more sophisticated approaches if desired.
-        """
-        if self.covariance_type in ('full', 'tied_full'):
-            def random_spd(dim):
-                A = torch.randn(dim, dim, device=self.device)
-                return A @ A.mT + self.reg_covar * torch.eye(dim, device=self.device)
-            
-            if self.covariance_type == 'full':
-                out = [random_spd(self.n_features) for _ in range(self.n_components)]
-                self.covariances_ = torch.stack(out, dim=0)
-            else:
-                self.covariances_ = random_spd(self.n_features)
-
-        elif self.covariance_type in ('diag', 'tied_diag'):
-            shape = (self.n_components, self.n_features) if self.covariance_type == 'diag' else (self.n_features,)
-            self.covariances_ = torch.rand(shape, device=self.device) + self.reg_covar
-
-        elif self.covariance_type in ('spherical', 'tied_spherical'):
-            shape = (self.n_components,) if (self.covariance_type == 'spherical') else ()
-            val = torch.rand(shape, device=self.device) + (1.0 + self.reg_covar)
-            self.covariances_ = val
-        else:
-            raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
-        
-    def _init_covar_empirical(self, X: torch.Tensor):
-        r"""
-        Initialize each covariance by assigning data points to their nearest mean,
-        then computing the cluster-wise empirical covariance matrices (with regularization).
-        Useful when `init_params == 'kmeans'`.
-        """
-        assert self.init_params == 'kmeans', (
-            "Empirical covariance initialization requires k-means init for means."
-        )
-        
-        X = X.to(self.device)
-        if X.dim() == 1:
-            X = X.unsqueeze(1)
-        n_samples = X.size(0)
-        
-        distances = torch.cdist(X, self.means_)  # (n_samples, n_components)
-        labels = torch.argmin(distances, dim=1)  # (n_samples,)
-        
-        if self.covariance_type == 'full':
-            new_covs = []
-            
-            for k in range(self.n_components):
-                cluster_mask = (labels == k)
-                if not torch.any(cluster_mask):
-                    cov_k = torch.eye(self.n_features, device=self.device) * (1.0 + self.reg_covar)
-                else:
-                    cluster_data = X[cluster_mask]
-                    cov_k = torch.cov(cluster_data.T)
-                    cov_k += self.reg_covar * torch.eye(self.n_features, device=self.device)
-                new_covs.append(cov_k)
-            
-            self.covariances_ = torch.stack(new_covs, dim=0)
-
-        elif self.covariance_type == 'diag':
-            new_covs = []
-            
-            for k in range(self.n_components):
-                cluster_mask = (labels == k)
-                if not torch.any(cluster_mask):
-                    cov_k = torch.ones(self.n_features, device=self.device) * (1.0 + self.reg_covar)
-                else:
-                    cluster_data = X[cluster_mask]
-                    cov_mat = torch.cov(cluster_data.T)
-                    diag_vals = torch.diagonal(cov_mat)
-                    diag_vals += self.reg_covar
-                    cov_k = diag_vals
-                new_covs.append(cov_k)
-            
-            self.covariances_ = torch.stack(new_covs, dim=0)
-
-        elif self.covariance_type == 'spherical':
-            new_covs = []
-            
-            for k in range(self.n_components):
-                cluster_mask = (labels == k)
-                if not torch.any(cluster_mask):
-                    cov_k = 1.0 + self.reg_covar
-                else:
-                    cluster_data = X[cluster_mask]
-                    cov_mat = torch.cov(cluster_data.T)
-                    val = torch.mean(torch.diagonal(cov_mat))
-                    val = max(val.item(), self.reg_covar)
-                    cov_k = val
-                new_covs.append(torch.tensor(cov_k, device=self.device))
-            
-            self.covariances_ = torch.stack(new_covs, dim=0)
-
-        elif self.covariance_type == "tied_full":
-            sum_cov = torch.zeros(self.n_features, self.n_features, device=self.device)
-            
-            for k in range(self.n_components):
-                cluster_mask = (labels == k)
-                cluster_data = X[cluster_mask]
-                if cluster_data.size(0) > 0:
-                    diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
-                    cov_k = diff.T @ diff
-                    sum_cov += cov_k
-            
-            sum_cov /= n_samples
-            sum_cov += self.reg_covar * torch.eye(self.n_features, device=self.device)
-            
-            self.covariances_ = sum_cov
-
-        elif self.covariance_type == "tied_diag":
-            sum_diag = torch.zeros(self.n_features, device=self.device)
-            
-            for k in range(self.n_components):
-                cluster_mask = (labels == k)
-                cluster_data = X[cluster_mask]
-                if cluster_data.size(0) > 0:
-                    diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
-                    sum_diag += (diff * diff).sum(dim=0)
-            
-            sum_diag /= n_samples
-            sum_diag += self.reg_covar
-            self.covariances_ = sum_diag
-
-        elif self.covariance_type == "tied_spherical":
-            total_sum = 0.0
-            
-            for k in range(self.n_components):
-                cluster_mask = (labels == k)
-                cluster_data = X[cluster_mask]
-                if cluster_data.size(0) > 0:
-                    diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
-                    total_sum += diff.pow(2).sum().item()
-            
-            var = total_sum / (n_samples * self.n_features)
-            var = max(var, self.reg_covar)
-            self.covariances_ = torch.tensor(var, device=self.device)
-        
-        else:
-            raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
-
-    def fit(self,
-            X: torch.Tensor,
-            max_iter: Optional[int] = None,
-            tol: Optional[float] = None,
-            random_state: Optional[int] = None,
-            warm_start: Optional[bool] = None) -> "GaussianMixture":
-        r"""
-        Fit the GMM to the data using the EM algorithm, possibly across multiple
-        random initializations.
+        Supports multiple random initializations (n_init > 1) to find the best solution.
+        The model with the highest log-likelihood is selected.
 
         Parameters
         ----------
         X : torch.Tensor
             Input data of shape (n_samples, n_features).
         max_iter : int, optional
-            Maximum number of EM iterations. If None, uses `self.max_iter`. (default: None)
+            Maximum number of EM iterations. Overrides `self.max_iter` if provided. (default: None)
         tol : float, optional
-            Convergence tolerance. If None, uses `self.tol`. (default: None)
-        random_state : int or None, optional
+            Convergence tolerance. Overrides `self.tol` if provided. (default: None)
+        random_state : int, optional
             Random seed. Overrides `self.random_state` if provided. (default: None)
-        warm_start : bool or None, optional
-            Whether to warm-start from previously fitted parameters in multi-init
-            settings. If None, uses `self.warm_start`. (default: None)
+        warm_start : bool, optional
+            Whether to warm-start from previously fitted parameters. Overrides `self.warm_start`
+            if provided. (default: None)
 
         Returns
         -------
         self : GaussianMixture
-            The fitted model instance.
-        """
+            The fitted model instance (allows method chaining).
 
+        Raises
+        ------
+        ValueError
+            If n_components > n_samples, or if parameters are invalid.
+        """
+        # ===============================================================
+        # 1. Validate input parameters
+        # ===============================================================
         if X.size(0) < self.n_components:
             raise ValueError(
-                f"n_components={self.n_components} should be <= n_samples={X.size(0)}."
+                f"n_components={self.n_components} must be <= n_samples={X.size(0)}."
             )
         if self.n_components <= 0:
-            raise ValueError(f"Invalid value for n_components: {self.n_components}")
+            raise ValueError(f"Invalid n_components: {self.n_components} (must be > 0).")
         if tol is not None and tol <= 0:
-            raise ValueError(f"Invalid value for tol: {tol}")
+            raise ValueError(f"Invalid tol: {tol} (must be > 0).")
         if max_iter is not None and max_iter <= 0:
-            raise ValueError(f"Invalid value for max_iter: {max_iter}")
+            raise ValueError(f"Invalid max_iter: {max_iter} (must be > 0).")
 
-        if warm_start is None:
-            warm_start = self.warm_start
-
-        if max_iter is None:
-            max_iter = self.max_iter
-
-        if tol is None:
-            tol = self.tol
-
-        best_lower_bound = -float("inf")
-        best_params = None
-        best_random_state = None  # Track which random state gave the best result
-
+        # ===============================================================
+        # 2. Set up parameters (use overrides or defaults)
+        # ===============================================================
+        warm_start = self.warm_start if warm_start is None else warm_start
+        max_iter = self.max_iter if max_iter is None else max_iter
+        tol = self.tol if tol is None else tol
+        
         if random_state is not None:
             self.random_state = random_state
 
-        # Issue warning about random state usage with multiple initializations
+        # ===============================================================
+        # 3. Prepare data
+        # ===============================================================
+        X = X.to(self.device)
+        
+        # Infer n_features from data if not set
+        if self.n_features is None:
+            self.n_features = X.shape[1]
+        
+        # Handle 1D data
+        if X.dim() == 1:
+            X = X.unsqueeze(1)
+        
+        # Validate feature dimension
+        if X.shape[1] != self.n_features:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but expected {self.n_features}."
+            )
+
+        # ===============================================================
+        # 4. Run multiple initializations (if n_init > 1)
+        # ===============================================================
+        best_lower_bound = -float("inf")
+        best_params = None
+        best_random_state = None
+
+        # Warn about random state usage with multiple initializations
         if self.random_state is not None and self.n_init > 1:
             warnings.warn(
                 f"With n_init={self.n_init} and random_state={self.random_state}, "
-                f"the random states used will be [{self.random_state}, "
+                f"initializations will use random states [{self.random_state}, "
                 f"{self.random_state + 1}, ..., {self.random_state + self.n_init - 1}]. "
-                f"The best initialization's random state will be reported after fitting.",
+                f"The best initialization's random state will be stored in best_random_state_.",
                 UserWarning
             )
-
-        X = X.to(self.device)
-        if self.n_features is None:
-            self.n_features = X.shape[1]
-        if X.dim() == 1:
-            X = X.unsqueeze(1)
-        if X.shape[1] != self.n_features:
-            raise ValueError(f"X has {X.shape[1]} features, but n_features={self.n_features}.")
         
         for init_idx in range(self.n_init):
+            # Validate warm_start usage
             if warm_start and self.n_init > 1:
-                raise UserWarning("Leaving warm_start=True with n_init>1 will not re-initialize parameters for each run.")
+                warnings.warn(
+                    "warm_start=True with n_init > 1 will not re-initialize parameters "
+                    "for each run, which may lead to identical results.",
+                    UserWarning
+                )
 
-            # Set different random state for each initialization to ensure diversity
-            # while maintaining reproducibility
+            # Set different random state for each initialization
+            # This ensures diversity while maintaining reproducibility
             if self.random_state is not None:
                 current_random_state = self.random_state + init_idx
                 torch.manual_seed(current_random_state)
                 if torch.cuda.is_available():
                     torch.cuda.manual_seed_all(current_random_state)
 
-            # 1) Allocate parameters (including data-based means if needed)
-            #    do this if not warm-starting or if it's the first run or if multiple inits
+            # Initialize parameters if needed
             if not warm_start or not self.fitted_ or init_idx > 0:
-                self._allocate_parameters(X, set_random_state=False)  # Don't set random state again
+                self._allocate_parameters(X, set_random_state=False)
 
-            # 2) Run one EM
+            # Run single EM optimization
             self._fit_single_run(X, max_iter, tol, run_idx=init_idx)
 
-            # warning for degenerate clusters
+            # Warn about degenerate clusters
             if torch.any(self.weights_ < 1e-8):
-                warnings.warn("Some cluster(s) have near-zero weight. Check for degenerate solutions.", UserWarning)
+                warnings.warn(
+                    "Some cluster(s) have near-zero weight. This may indicate degenerate solutions.",
+                    UserWarning
+                )
 
-            # 3) Track best solution
+            # Track best solution
             if self.lower_bound_ > best_lower_bound:
                 best_lower_bound = self.lower_bound_
-                best_random_state = self.random_state + init_idx if self.random_state is not None else None
+                best_random_state = (self.random_state + init_idx 
+                                   if self.random_state is not None else None)
                 best_params = (
                     self.weights_.clone(),
                     self.means_.clone(),
@@ -768,122 +845,171 @@ class GaussianMixture(nn.Module):
 
             self.fitted_ = True
 
-        # Save best result
+        # ===============================================================
+        # 5. Save best result
+        # ===============================================================
         if best_params is not None:
-            self.weights_, self.means_, self.covariances_, self.converged_, self.n_iter_, self.lower_bound_ = best_params
+            (self.weights_, self.means_, self.covariances_, 
+             self.converged_, self.n_iter_, self.lower_bound_) = best_params
             self.best_random_state_ = best_random_state
         
         # Report which random state produced the best result
         if best_random_state is not None and self.n_init > 1:
             warnings.warn(
-                f"Best initialization used random_state={best_random_state}. "
-                f"To reproduce only this specific result, use random_state={best_random_state} with n_init=1. "
-                f"Note: This random_state may differ from your base random_state ({self.random_state}) "
-                f"and could affect reproducibility in subsequent code.",
+                f"Best result from random_state={best_random_state}. "
+                f"To reproduce this specific result: use random_state={best_random_state} with n_init=1.",
                 UserWarning
             )
         
-        # warning if we didn't converge
+        # Warn if convergence failed
         if not self.converged_:
-            warnings.warn("EM algorithm did not converge. Try increasing max_iter or lowering tol.", UserWarning)
+            warnings.warn(
+                "EM did not converge. Consider increasing max_iter or adjusting tol.",
+                UserWarning
+            )
 
         return self
 
-    def _fit_single_run(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
+    def _fit_single_run(
+        self,
+        X: torch.Tensor,
+        max_iter: int,
+        tol: float,
+        run_idx: int = 0
+    ):
         r"""
-        Perform one run of the EM algorithm (E-step + M-step) or CEM algorithm 
-        (E-step + C-step + M-step).
+        Perform one complete EM or CEM optimization run.
+
+        Standard EM: E-step → M-step → repeat
+        CEM (Classification EM): E-step → C-step (hard assignment) → M-step → repeat
 
         Parameters
         ----------
         X : torch.Tensor
             Input data of shape (n_samples, n_features).
         max_iter : int
-            Maximum iterations for this run.
+            Maximum number of iterations for this run.
         tol : float
-            Convergence tolerance (relative improvement in log-likelihood).
-        run_idx : int
-            Which initialization run we are on (useful for logging).
+            Convergence tolerance based on relative improvement in log-likelihood.
+        run_idx : int, optional
+            Initialization index (for logging purposes). (default: 0)
         """
-
+        # ===============================================================
+        # Prepare data
+        # ===============================================================
         X = X.to(self.device)
         if X.dim() == 1:
             X = X.unsqueeze(1)
         if X.shape[1] != self.n_features:
-            raise ValueError(f"X has {X.shape[1]} features, but n_features={self.n_features}.")
+            raise ValueError(f"X has {X.shape[1]} features, expected {self.n_features}.")
 
+        # ===============================================================
+        # Initialize tracking variables
+        # ===============================================================
         prev_lower_bound = -float("inf")
         
-        # Initial E-step
+        # Initial E-step to compute responsibilities
         resp, log_prob_norm = self._e_step(X)
         self.lower_bound_ = log_prob_norm.mean().item()
         
+        # ===============================================================
+        # EM/CEM iteration loop
+        # ===============================================================
         for n_iter in range(max_iter):
-            # If using CEM, add a C-step between E-step and M-step
+            # Classification step (only for CEM)
             if self.cem:
                 resp = self._c_step(resp)
                 
-            # M-step
+            # Maximization step
             self._m_step(X, resp)
 
-            # Check for convergence
+            # Check convergence
             rel_change = abs(self.lower_bound_ - prev_lower_bound) / (abs(prev_lower_bound) + 1e-20)
             if rel_change < tol:
                 self.converged_ = True
                 if self.verbose:
-                    print(f"[InitRun {run_idx+1}], Iter: {n_iter}, lower bound={self.lower_bound_:.5f}, Converged: {self.converged_}")
+                    print(f"[Run {run_idx+1}] Iteration {n_iter}: "
+                          f"log-likelihood={self.lower_bound_:.5f}, Converged!")
                 break
                 
+            # Update for next iteration
             prev_lower_bound = self.lower_bound_
             resp, log_prob_norm = self._e_step(X)
             self.lower_bound_ = log_prob_norm.mean().item()
 
+            # Verbose output
             if self.verbose and (n_iter % self.verbose_interval == 0):
-                print(f"[InitRun {run_idx+1}], Iter: {n_iter}, lower bound={self.lower_bound_:.5f}, Converged: {self.converged_}")
+                print(f"[Run {run_idx+1}] Iteration {n_iter}: "
+                      f"log-likelihood={self.lower_bound_:.5f}")
 
+        # ===============================================================
+        # Final E-step after convergence
+        # ===============================================================
         if self.converged_:
             resp, log_prob_norm = self._e_step(X)
-            # If CEM, do a final C-step
             if self.cem:
                 resp = self._c_step(resp)
             self.lower_bound_ = log_prob_norm.mean().item()
         else:
-            warnings.warn("EM algorithm did not converge. Try increasing max_iter or lowering tol.", UserWarning)
+            warnings.warn(
+                f"Run {run_idx+1}: EM did not converge after {max_iter} iterations.",
+                UserWarning
+            )
 
         self.n_iter_ = n_iter
     
     def _c_step(self, resp: torch.Tensor) -> torch.Tensor:
         r"""
-        C-step (Classification): Assign each point to a single component.
+        C-step (Classification): Convert soft responsibilities to hard assignments.
+        
+        Used in CEM (Classification EM) algorithm to assign each sample to exactly
+        one component (the one with highest responsibility).
         
         Parameters
         ----------
         resp : torch.Tensor
-            Responsibilities from E-step, shape (n_samples, n_components)
+            Soft responsibilities from E-step, shape (n_samples, n_components).
+            Each row sums to 1.0 and represents posterior probabilities.
             
         Returns
         -------
         hard_resp : torch.Tensor
-            Hard assignments (one-hot), shape (n_samples, n_components)
+            Hard assignments (one-hot encoding), shape (n_samples, n_components).
+            Each row has exactly one 1.0 and rest 0.0.
+            
+        Notes
+        -----
+        This converts the probabilistic assignments from E-step into deterministic
+        assignments, making CEM a "hard" version of EM that can converge faster
+        but may get stuck in local optima more easily.
         """
-        # Get component with maximum responsibility for each sample
-        max_resp_indices = torch.argmax(resp, dim=1)
+        # ===============================================================
+        # Find best component for each sample
+        # ===============================================================
+        max_resp_indices = torch.argmax(resp, dim=1)  # (n_samples,)
         
+        # ===============================================================
         # Create one-hot encoding for hard assignments
+        # ===============================================================
         n_samples = resp.size(0)
         hard_resp = torch.zeros_like(resp)
-        hard_resp[torch.arange(n_samples), max_resp_indices] = 1.0
+        hard_resp[torch.arange(n_samples, device=resp.device), max_resp_indices] = 1.0
         
         return hard_resp
 
-    # ---------------------------
-    # E-step
-    # ---------------------------
+    # ===================================================================
+    # E-step: Expectation
+    # ===================================================================
     def _e_step(self, X: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
-        E-step: compute the responsibilities (posterior probabilities of components)
-        and the per-sample log-likelihood.
+        E-step: Compute responsibilities (posterior probabilities) for each component.
 
+        For each sample, compute the posterior probability that it belongs to each
+        component using Bayes' rule:
+        
+        .. math::
+            γ(z_{ik}) = \frac{π_k N(x_i | μ_k, Σ_k)}{\sum_j π_j N(x_i | μ_j, Σ_j)}
+        
         Parameters
         ----------
         X : torch.Tensor
@@ -892,14 +1018,19 @@ class GaussianMixture(nn.Module):
         Returns
         -------
         resp : torch.Tensor
-            Responsibilities for each sample w.r.t. each component, shape
-            (n_samples, n_components).
+            Responsibilities for each sample w.r.t. each component,
+            shape (n_samples, n_components). Each row sums to 1.0.
         log_prob_norm : torch.Tensor
-            Log-sum-exp of the weighted probabilities for each sample,
-            shape (n_samples,).
+            Log-likelihood for each sample (normalizing constant),
+            shape (n_samples,). These are log p(x_i).
+            
+        Notes
+        -----
+        Computation is done in log-space for numerical stability using log-sum-exp trick.
         """
-        log_weights = torch.log(self.weights_ + 1e-20)
-
+        # ===============================================================
+        # 1. Compute log p(x|z) for each component
+        # ===============================================================
         if self.covariance_type == 'full':
             log_prob = self._estimate_log_gaussian_full(X)
         elif self.covariance_type == 'diag':
@@ -915,219 +1046,430 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
-        # Add log(weights)
-        log_prob = log_prob + log_weights.unsqueeze(0)
-        log_prob_norm = torch.logsumexp(log_prob, dim=1)
+        # ===============================================================
+        # 2. Add log π_k (log of mixing weights)
+        # ===============================================================
+        log_weights = torch.log(self.weights_ + 1e-20)
+        log_prob = log_prob + log_weights.unsqueeze(0)  # (n_samples, n_components)
+        
+        # ===============================================================
+        # 3. Normalize to get responsibilities (log-sum-exp trick)
+        # ===============================================================
+        log_prob_norm = torch.logsumexp(log_prob, dim=1)  # (n_samples,)
         log_resp = log_prob - log_prob_norm.unsqueeze(1)
-        resp = torch.exp(log_resp)
+        resp = torch.exp(log_resp)  # (n_samples, n_components)
+        
         return resp, log_prob_norm
 
-    # ------ Full ------
+    # ===================================================================
+    # Log-Gaussian Probability Estimation
+    # ===================================================================
+    # These methods compute log p(x|z_k, θ_k) for each sample-component pair
+    # using the multivariate Gaussian density:
+    #
+    #   log p(x|μ,Σ) = -½[d·log(2π) + log|Σ| + (x-μ)ᵀΣ⁻¹(x-μ)]
+    #
+    # All computations use log-space for numerical stability.
+    # ===================================================================
+    
     def _estimate_log_gaussian_full(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute log-probabilities under a full covariance model for each
-        sample-component pair.
+        Compute log p(x|z,θ) for full covariance matrices.
 
-        Uses a Cholesky factorization for numerical stability.
+        Each component has its own full covariance matrix Σₖ ∈ ℝ^(d×d).
+        Uses Cholesky decomposition for numerical stability and efficiency.
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+            
+        Returns
+        -------
+        log_prob : torch.Tensor
+            Log-probabilities, shape (n_samples, n_components).
+            
+        Notes
+        -----
+        Cholesky decomposition: Σ = LLᵀ where L is lower triangular.
+        log|Σ| = 2·sum(log(diag(L)))
+        Σ⁻¹(x-μ) solved via triangular solves.
         """
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
+        # ===============================================================
+        # Compute deviations from component means
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        
+        # ===============================================================
+        # Cholesky decomposition: Σ = LLᵀ
+        # ===============================================================
         try:
-            chol = torch.linalg.cholesky(self.covariances_)
+            chol = torch.linalg.cholesky(self.covariances_)  # (n_components, n_features, n_features)
         except RuntimeError as e:
-            raise ValueError(f"Cholesky failed: {e}")
+            raise ValueError(f"Cholesky decomposition failed. Covariances may not be positive definite: {e}")
 
-        log_det = 2.0 * torch.log(torch.diagonal(chol, dim1=-2, dim2=-1)).sum(dim=1)
-        diff_ = diff.unsqueeze(-1)
-        solve = torch.cholesky_solve(diff_, chol)
-        mahal = (diff_ * solve).sum(dim=(2, 3))
+        # ===============================================================
+        # Compute log determinant: log|Σ| = 2·sum(log(diag(L)))
+        # ===============================================================
+        log_det = 2.0 * torch.log(torch.diagonal(chol, dim1=-2, dim2=-1)).sum(dim=1)  # (n_components,)
+        
+        # ===============================================================
+        # Compute Mahalanobis distance: (x-μ)ᵀΣ⁻¹(x-μ)
+        # ===============================================================
+        diff_ = diff.unsqueeze(-1)  # (n_samples, n_components, n_features, 1)
+        solve = torch.cholesky_solve(diff_, chol)  # Σ⁻¹(x-μ)
+        mahal = (diff_ * solve).sum(dim=(2, 3))  # (n_samples, n_components)
 
-        return -0.5 * (
-            self.n_features * torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
-            + log_det.unsqueeze(0)
-            + mahal
-        )
+        # ===============================================================
+        # Combine into log-probability
+        # ===============================================================
+        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        return -0.5 * (self.n_features * log_2pi + log_det.unsqueeze(0) + mahal)
 
-    # ------ Diag ------
     def _estimate_log_gaussian_diag(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute log-probabilities under a diagonal covariance model for each
-        sample-component pair.
+        Compute log p(x|z,θ) for diagonal covariance matrices.
+
+        Each component has a diagonal covariance: Σₖ = diag(σ²ₖ₁, ..., σ²ₖd).
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+            
+        Returns
+        -------
+        log_prob : torch.Tensor
+            Log-probabilities, shape (n_samples, n_components).
         """
-        precisions = 1.0 / (self.covariances_ + 1e-20)
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        log_det = torch.sum(torch.log(self.covariances_ + 1e-20), dim=1)
-        mahal = torch.sum(diff.pow(2) * precisions.unsqueeze(0), dim=2)
+        # ===============================================================
+        # Compute deviations and precisions (inverse variances)
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        precisions = 1.0 / (self.covariances_ + 1e-20)  # (n_components, n_features)
+        
+        # ===============================================================
+        # Log determinant and Mahalanobis distance
+        # ===============================================================
+        log_det = torch.sum(torch.log(self.covariances_ + 1e-20), dim=1)  # (n_components,)
+        mahal = torch.sum(diff.pow(2) * precisions.unsqueeze(0), dim=2)  # (n_samples, n_components)
 
-        return -0.5 * (
-            self.n_features * torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
-            + log_det.unsqueeze(0)
-            + mahal
-        )
+        # ===============================================================
+        # Combine into log-probability
+        # ===============================================================
+        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        return -0.5 * (self.n_features * log_2pi + log_det.unsqueeze(0) + mahal)
 
-    # ------ Spherical ------
     def _estimate_log_gaussian_spherical(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute log-probabilities under a spherical covariance model for each
-        sample-component pair.
+        Compute log p(x|z,θ) for spherical covariance matrices.
+
+        Each component has spherical covariance: Σₖ = σ²ₖ·I.
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+            
+        Returns
+        -------
+        log_prob : torch.Tensor
+            Log-probabilities, shape (n_samples, n_components).
         """
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        precisions = 1.0 / (self.covariances_ + 1e-20)
-        mahal = torch.sum(diff.pow(2), dim=2) * precisions.unsqueeze(0)
-        log_det = self.n_features * torch.log(self.covariances_ + 1e-20)
+        # ===============================================================
+        # Compute deviations and squared distances
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        sq_dist = torch.sum(diff.pow(2), dim=2)  # (n_samples, n_components)
+        
+        # ===============================================================
+        # Scale by precision (1/σ²)
+        # ===============================================================
+        precisions = 1.0 / (self.covariances_ + 1e-20)  # (n_components,)
+        mahal = sq_dist * precisions.unsqueeze(0)
+        
+        # ===============================================================
+        # Log determinant: d·log(σ²)
+        # ===============================================================
+        log_det = self.n_features * torch.log(self.covariances_ + 1e-20)  # (n_components,)
 
-        return -0.5 * (
-            self.n_features * torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
-            + log_det.unsqueeze(0)
-            + mahal
-        )
+        # ===============================================================
+        # Combine into log-probability
+        # ===============================================================
+        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        return -0.5 * (self.n_features * log_2pi + log_det.unsqueeze(0) + mahal)
 
-    # ------ Tied Full ------
     def _estimate_log_gaussian_tied_full(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute log-probabilities under a tied_full covariance model for each
-        sample-component pair.
+        Compute log p(x|z,θ) for tied full covariance.
+
+        All components share the same full covariance matrix Σ ∈ ℝ^(d×d).
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+            
+        Returns
+        -------
+        log_prob : torch.Tensor
+            Log-probabilities, shape (n_samples, n_components).
         """
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
+        # ===============================================================
+        # Compute deviations from component means
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        
+        # ===============================================================
+        # Cholesky decomposition of shared covariance
+        # ===============================================================
         try:
-            chol = torch.linalg.cholesky(self.covariances_)
+            chol = torch.linalg.cholesky(self.covariances_)  # (n_features, n_features)
         except RuntimeError as e:
-            raise ValueError(f"Tied full: Cholesky failed: {e}")
+            raise ValueError(f"Tied full: Cholesky decomposition failed: {e}")
 
-        log_det = 2.0 * torch.log(torch.diagonal(chol)).sum()
-        diff_ = diff.unsqueeze(-1)
+        # ===============================================================
+        # Log determinant (same for all components)
+        # ===============================================================
+        log_det = 2.0 * torch.log(torch.diagonal(chol)).sum()  # scalar
+        
+        # ===============================================================
+        # Mahalanobis distance for all samples and components
+        # ===============================================================
+        diff_ = diff.unsqueeze(-1)  # (n_samples, n_components, n_features, 1)
         solve = torch.cholesky_solve(diff_, chol)
-        mahal = (diff_ * solve).sum(dim=(2, 3))
+        mahal = (diff_ * solve).sum(dim=(2, 3))  # (n_samples, n_components)
 
-        return -0.5 * (
-            self.n_features * torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
-            + log_det
-            + mahal
-        )
+        # ===============================================================
+        # Combine into log-probability
+        # ===============================================================
+        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        return -0.5 * (self.n_features * log_2pi + log_det + mahal)
 
-    # ------ Tied Diag ------
     def _estimate_log_gaussian_tied_diag(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute log-probabilities under a tied_diag covariance model for each
-        sample-component pair.
+        Compute log p(x|z,θ) for tied diagonal covariance.
+
+        All components share the same diagonal covariance: Σ = diag(σ²₁, ..., σ²d).
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+            
+        Returns
+        -------
+        log_prob : torch.Tensor
+            Log-probabilities, shape (n_samples, n_components).
         """
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        cov_vector = self.covariances_ + 1e-20
-        log_det = torch.sum(torch.log(cov_vector))
-        precisions = 1.0 / cov_vector
-        mahal = torch.sum(diff.pow(2) * precisions, dim=2)
+        # ===============================================================
+        # Compute deviations
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        
+        # ===============================================================
+        # Shared diagonal covariance
+        # ===============================================================
+        cov_vector = self.covariances_ + 1e-20  # (n_features,)
+        log_det = torch.sum(torch.log(cov_vector))  # scalar
+        precisions = 1.0 / cov_vector  # (n_features,)
+        
+        # ===============================================================
+        # Mahalanobis distance
+        # ===============================================================
+        mahal = torch.sum(diff.pow(2) * precisions, dim=2)  # (n_samples, n_components)
 
-        return -0.5 * (
-            self.n_features * torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
-            + log_det
-            + mahal
-        )
+        # ===============================================================
+        # Combine into log-probability
+        # ===============================================================
+        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        return -0.5 * (self.n_features * log_2pi + log_det + mahal)
 
-    # ------ Tied Spherical ------
     def _estimate_log_gaussian_tied_spherical(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute log-probabilities under a tied_spherical covariance model for each
-        sample-component pair.
+        Compute log p(x|z,θ) for tied spherical covariance.
+
+        All components share the same spherical covariance: Σ = σ²·I.
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+            
+        Returns
+        -------
+        log_prob : torch.Tensor
+            Log-probabilities, shape (n_samples, n_components).
         """
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        var = self.covariances_ + 1e-20
+        # ===============================================================
+        # Compute deviations and squared distances
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        sq_dist = torch.sum(diff.pow(2), dim=2)  # (n_samples, n_components)
+        
+        # ===============================================================
+        # Shared spherical variance
+        # ===============================================================
+        var = self.covariances_ + 1e-20  # scalar
         prec = 1.0 / var
-        mahal = torch.sum(diff.pow(2), dim=2) * prec
+        mahal = sq_dist * prec
         log_det = self.n_features * torch.log(var)
 
-        return -0.5 * (
-            self.n_features * torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
-            + log_det
-            + mahal
-        )
+        # ===============================================================
+        # Combine into log-probability
+        # ===============================================================
+        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        return -0.5 * (self.n_features * log_2pi + log_det + mahal)
 
     # ---------------------------
     # M-step
     # ---------------------------
+    # ===================================================================
+    # M-step: Maximization
+    # ===================================================================
     def _m_step(self, X: torch.Tensor, resp: torch.Tensor):
         r"""
-        M-step: update the parameters (weights, means, covariances) based on
-        the current responsibilities.
+        M-step: Update model parameters given current responsibilities.
+
+        Updates weights, means, and covariances using either:
+        - MLE (Maximum Likelihood Estimation) if no priors
+        - MAP (Maximum A Posteriori) if priors are specified
+        - NIW (Normal-Inverse-Wishart) conjugate updates if both mean and covariance priors
 
         Parameters
         ----------
         X : torch.Tensor
-            Input data of shape (n_samples, n_features).
+            Input data, shape (n_samples, n_features).
         resp : torch.Tensor
-            Current responsibilities for each sample w.r.t. each component
-            (from E-step or C-step).
+            Current responsibilities for each sample w.r.t. each component,
+            shape (n_samples, n_components). From E-step or C-step.
+            
+        Notes
+        -----
+        The update strategy depends on which priors are specified:
+        
+        1. NIW conjugate (use_mean_prior=True AND use_covariance_prior=True):
+           Joint update of means and covariances using conjugate prior formulas
+           
+        2. Independent priors:
+           - Means: MAP if use_mean_prior=True, else MLE
+           - Covariances: MAP if use_covariance_prior=True, else MLE
+           
+        3. Weights: Always MAP if use_weight_prior=True, else MLE
         """
         n_samples = X.size(0)
-        nk = resp.sum(dim=0) + 1e-20
+        
+        # ===============================================================
+        # 1. Compute effective sample counts per component
+        # ===============================================================
+        nk = resp.sum(dim=0) + 1e-20  # (n_components,)
 
-        # Update weights (MAP or MLE)
+        # ===============================================================
+        # 2. Update mixing weights
+        # ===============================================================
         if self.use_weight_prior:
-            alpha = self.weight_concentration_prior
+            # MAP update with Dirichlet prior
+            alpha = self.weight_concentration_prior  # (n_components,)
             total_alpha = alpha.sum()
             self.weights_ = (nk + alpha - 1.0) / (n_samples + total_alpha - self.n_components)
         else:
+            # MLE update
             self.weights_ = nk / n_samples
-        self.weights_.clamp_(min=1e-20)
+        
+        self.weights_.clamp_(min=1e-20)  # Ensure numerical stability
 
+        # ===============================================================
+        # 3. Update means and covariances
+        # ===============================================================
         # Check if we're using NIW conjugate priors (both mean and covariance priors)
         use_niw = self.use_mean_prior and self.use_covariance_prior
         
         if use_niw:
-            # NIW conjugate updates: update means and covariances jointly
+            # NIW conjugate updates: joint update for means and covariances
             self._update_niw_conjugate(X, resp, nk)
         else:
-            # Independent updates for mean and covariance priors
-            # Update means (MAP or MLE)
+            # Independent updates
+            # Update means
             if self.use_mean_prior:
+                # MAP update with Gaussian prior
                 kappa0 = self.mean_precision_prior
                 numerator = resp.t() @ X + kappa0 * self.mean_prior
                 denom = nk.unsqueeze(1) + kappa0
                 self.means_ = numerator / denom
             else:
+                # MLE update
                 self.means_ = (resp.t() @ X) / nk.unsqueeze(1)
 
-            # Update covariances (MAP or MLE)
+            # Update covariances
             if self.use_covariance_prior:
+                # MAP update with Wishart/Inverse-Wishart prior
                 self._update_covariances_map(X, resp, nk)
             else:
+                # MLE update
                 self._update_covariances_mle(X, resp, nk)
 
+    # ===================================================================
+    # NIW (Normal-Inverse-Wishart) Conjugate Prior Updates
+    # ===================================================================
     def _update_niw_conjugate(self, X: torch.Tensor, resp: torch.Tensor, nk: torch.Tensor):
         r"""
-        Update means and covariances jointly using Normal-Inverse-Wishart conjugate priors.
+        Update means and covariances jointly using Normal-Inverse-Wishart (NIW) conjugate priors.
         
-        This implements the proper NIW posterior updates:
-        μₙ = (λμ₀ + n·ȳ) / (λ + n)
-        λₙ = λ + n  
-        νₙ = ν + n
-        Ψₙ = Ψ + S + (λn/(λ+n)) * (ȳ - μ₀)(ȳ - μ₀)ᵀ
+        The NIW prior is the conjugate prior for a multivariate normal with unknown
+        mean and covariance. The posterior updates are:
+        
+        .. math::
+            μₙ = \frac{λ μ₀ + n ȳ}{λ + n}
+            
+            λₙ = λ + n
+            
+            νₙ = ν + n
+            
+            Ψₙ = Ψ + S + \frac{λ n}{λ + n} (ȳ - μ₀)(ȳ - μ₀)^T
+        
+        where ȳ is the empirical mean, S is the scatter matrix, and (μ₀, λ, Ψ, ν)
+        are the NIW hyperparameters.
         
         Parameters
         ----------
         X : torch.Tensor
-            Input data of shape (n_samples, n_features).
+            Input data, shape (n_samples, n_features).
         resp : torch.Tensor
-            Responsibilities for each sample w.r.t. each component.
+            Responsibilities, shape (n_samples, n_components).
         nk : torch.Tensor
-            Effective number of points assigned to each component.
+            Effective sample count per component, shape (n_components,).
+            
+        Notes
+        -----
+        This method routes to the appropriate covariance-type-specific NIW update.
+        The covariance is computed as E[Σ] = Ψₙ / (νₙ - n_features - 1) for Inverse-Wishart.
         """
-        # NIW prior parameters
-        mu0 = self.mean_prior  # shape: (n_components, n_features)
+        # ===============================================================
+        # Extract NIW prior parameters
+        # ===============================================================
+        mu0 = self.mean_prior  # (n_components, n_features)
         lambda0 = self.mean_precision_prior  # scalar
         psi0 = self.covariance_prior  # shape depends on covariance_type
         nu0 = self.degrees_of_freedom_prior  # scalar
         
-        # Compute empirical means for each component (ȳ)
+        # ===============================================================
+        # Compute empirical means (ȳ) for each component
+        # ===============================================================
         empirical_means = (resp.t() @ X) / nk.unsqueeze(1)  # (n_components, n_features)
         
-        # NIW posterior parameters
+        # ===============================================================
+        # Compute NIW posterior parameters
+        # ===============================================================
         lambda_n = lambda0 + nk  # (n_components,)
         nu_n = nu0 + nk  # (n_components,)
         
-        # Update means using NIW posterior mean formula
+        # Update means using NIW posterior mean
         mu_n = (lambda0 * mu0 + nk.unsqueeze(1) * empirical_means) / lambda_n.unsqueeze(1)
         self.means_ = mu_n
         
-        # Update covariances using NIW posterior formula
+        # ===============================================================
+        # Update covariances (route to covariance-type-specific method)
+        # ===============================================================
         if self.covariance_type == 'full':
             self._update_niw_full(X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0)
         elif self.covariance_type == 'diag':
@@ -1143,9 +1485,23 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance_type: {self.covariance_type}")
 
+    # ===================================================================
+    # MAP (Maximum A Posteriori) Covariance Updates
+    # ===================================================================
     def _update_covariances_map(self, X, resp, nk):
         r"""
-        Update covariances with MAP estimation, depending on `covariance_type`.
+        Update covariances using MAP estimation with prior.
+
+        Routes to appropriate covariance-type-specific MAP update method.
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+        resp : torch.Tensor
+            Responsibilities, shape (n_samples, n_components).
+        nk : torch.Tensor
+            Effective sample counts, shape (n_components,).
         """
         if self.covariance_type == 'full':
             self._update_map_full(X, resp, nk)
@@ -1162,9 +1518,230 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
+    def _update_map_full(self, X, resp, nk):
+        r"""
+        MAP update for full covariance matrices.
+        
+        Uses Inverse-Wishart prior: Σₖ ~ IW(Ψ, ν).
+        Posterior: Σₖ = (Ψ + S_k + prior_mean_term) / (ν + n_k + d)
+        
+        where S_k is the weighted scatter matrix and prior_mean_term accounts
+        for the difference between empirical mean and prior mean when using
+        mean priors.
+        """
+        # ===============================================================
+        # Compute weighted scatter matrix S_k for each component
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        weighted_diff = resp.unsqueeze(-1).unsqueeze(-1) * diff.unsqueeze(3) * diff.unsqueeze(2)
+        sum_diff = weighted_diff.sum(dim=0)  # (n_components, n_features, n_features)
+
+        # ===============================================================
+        # Add mean prior term if using Gaussian prior on means
+        # ===============================================================
+        if self.use_mean_prior:
+            mean_diff = (self.means_ - self.mean_prior).unsqueeze(-1)  # (n_components, n_features, 1)
+            prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1).unsqueeze(-1) \
+                         * mean_diff @ mean_diff.transpose(-1, -2)
+        else:
+            prior_term = torch.zeros_like(sum_diff)
+
+        # ===============================================================
+        # Compute posterior covariance
+        # ===============================================================
+        df = self.degrees_of_freedom_prior + nk.unsqueeze(-1).unsqueeze(-1) + self.n_features
+
+        self.covariances_ = (
+            self.covariance_prior
+            + sum_diff
+            + prior_term
+            + self.reg_covar * torch.eye(self.n_features, device=self.device).unsqueeze(0)
+        ) / df
+
+    def _update_map_diag(self, X, resp, nk):
+        r"""
+        MAP update for diagonal covariance matrices.
+        
+        Each dimension updated independently using Inverse-Gamma priors.
+        """
+        # ===============================================================
+        # Compute weighted scatter (per dimension)
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        sum_diff = (resp.unsqueeze(-1) * diff.pow(2)).sum(dim=0)  # (n_components, n_features)
+
+        # ===============================================================
+        # Add mean prior term if using Gaussian prior on means
+        # ===============================================================
+        if self.use_mean_prior:
+            mean_diff2 = (self.means_ - self.mean_prior).pow(2)
+            prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1) * mean_diff2
+        else:
+            prior_term = torch.zeros_like(sum_diff)
+            
+        # ===============================================================
+        # Compute posterior covariance
+        # ===============================================================
+        df = self.degrees_of_freedom_prior + nk.unsqueeze(-1) + self.n_features
+
+        self.covariances_ = (
+            self.covariance_prior
+            + sum_diff
+            + prior_term
+            + self.reg_covar
+        ) / df
+
+    def _update_map_spherical(self, X, resp, nk):
+        r"""
+        MAP update for spherical covariance (single variance per component).
+        
+        Uses Inverse-Gamma prior on the shared variance.
+        """
+        # ===============================================================
+        # Compute total weighted scatter
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
+        diff2 = diff.pow(2).sum(dim=2)  # (n_samples, n_components)
+        sum_diff = (resp * diff2).sum(dim=0)  # (n_components,)
+
+        # ===============================================================
+        # Add mean prior term if using Gaussian prior on means
+        # ===============================================================
+        if self.use_mean_prior:
+            mean_diff2 = (self.means_ - self.mean_prior).pow(2).sum(dim=1)
+            prior_term = (nk / (nk + self.mean_precision_prior)) * mean_diff2
+        else:
+            prior_term = torch.zeros_like(sum_diff)
+            
+        # ===============================================================
+        # Compute posterior covariance (averaged over dimensions)
+        # ===============================================================
+        df = self.degrees_of_freedom_prior + nk + self.n_features
+
+        self.covariances_ = (
+            self.covariance_prior + sum_diff + prior_term + self.reg_covar
+        ) / (df * self.n_features)
+
+    def _update_map_tied_full(self, X, resp, nk):
+        r"""
+        MAP update for tied full covariance (shared across all components).
+        
+        Pooled scatter matrix across all components with shared Inverse-Wishart prior.
+        """
+        # ===============================================================
+        # Compute pooled scatter matrix across all components
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
+        sum_diff = torch.einsum('nk,nkd,nke->de', resp, diff, diff)  # (n_features, n_features)
+
+        # ===============================================================
+        # Add mean prior term (pooled across components)
+        # ===============================================================
+        if self.use_mean_prior:
+            mean_diff = (self.means_ - self.mean_prior).unsqueeze(-1)
+            prior_term = (
+                (nk / (nk + self.mean_precision_prior)).unsqueeze(-1).unsqueeze(-1)
+                * torch.matmul(mean_diff, mean_diff.transpose(-1, -2))
+            )
+            prior_term = prior_term.sum(dim=0)  # Sum across components
+        else:
+            prior_term = torch.zeros_like(sum_diff)
+            
+        # ===============================================================
+        # Compute posterior covariance
+        # ===============================================================
+        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
+
+        self.covariances_ = (
+            self.covariance_prior
+            + sum_diff
+            + prior_term
+            + self.reg_covar * torch.eye(self.n_features, device=self.device)
+        ) / df
+
+    def _update_map_tied_diag(self, X, resp, nk):
+        r"""
+        MAP update for tied diagonal covariance (shared across components).
+        
+        Per-dimension variance shared across all components.
+        """
+        # ===============================================================
+        # Compute pooled scatter (per dimension)
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
+        sum_diff = torch.einsum('nk,nkd->d', resp, diff.pow(2))  # (n_features,)
+
+        # ===============================================================
+        # Add mean prior term (pooled across components)
+        # ===============================================================
+        if self.use_mean_prior:
+            mean_diff2 = (self.means_ - self.mean_prior).pow(2)  # (n_components, n_features)
+            prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1) * mean_diff2
+            prior_term = prior_term.sum(dim=0)  # (n_features,)
+        else:
+            prior_term = torch.zeros_like(sum_diff)
+
+        # ===============================================================
+        # Compute posterior covariance
+        # ===============================================================
+        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
+
+        self.covariances_ = (
+            self.covariance_prior
+            + sum_diff
+            + prior_term
+            + self.reg_covar
+        ) / df
+
+    def _update_map_tied_spherical(self, X, resp, nk):
+        r"""
+        MAP update for tied spherical covariance (single variance for all).
+        
+        Single shared variance across all components and dimensions.
+        """
+        # ===============================================================
+        # Compute total pooled scatter
+        # ===============================================================
+        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
+        diff2 = diff.pow(2).sum(dim=2)  # (n_samples, n_components)
+        sum_diff = torch.einsum('nk,nk->', resp, diff2)  # scalar
+
+        # ===============================================================
+        # Add mean prior term (pooled across components)
+        # ===============================================================
+        if self.use_mean_prior:
+            mean_diff2 = (self.means_ - self.mean_prior).pow(2).sum(dim=1)  # (n_components,)
+            prior_term = (nk / (nk + self.mean_precision_prior)) * mean_diff2
+            prior_term_total = prior_term.sum()
+        else:
+            prior_term_total = 0.0
+
+        # ===============================================================
+        # Compute posterior covariance
+        # ===============================================================
+        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
+        
+        self.covariances_ = (
+            self.covariance_prior + sum_diff + prior_term_total + self.reg_covar
+        ) / (df * self.n_features)
+
+    # ===================================================================
+    # MLE (Maximum Likelihood Estimation) Covariance Updates
+    # ===================================================================
     def _update_covariances_mle(self, X, resp, nk):
         r"""
-        Update covariances using MLE, depending on `covariance_type`.
+        Update covariances using MLE (no prior).
+
+        Routes to appropriate covariance-type-specific MLE update method.
+        
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+        resp : torch.Tensor
+            Responsibilities, shape (n_samples, n_components).
+        nk : torch.Tensor
+            Effective sample counts, shape (n_components,).
         """
         if self.covariance_type == 'full':
             self._update_mle_full(X, resp, nk)
@@ -1181,331 +1758,335 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
-    # ---------- MAP updates ----------
-    # MAP Full
-    def _update_map_full(self, X, resp, nk):
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        weighted_diff = resp.unsqueeze(-1).unsqueeze(-1) * diff.unsqueeze(3) * diff.unsqueeze(2)
-        sum_diff = weighted_diff.sum(dim=0)
-
-        # Only add mean prior term if mean prior is specified
-        if self.use_mean_prior:
-            mean_diff = (self.means_ - self.mean_prior).unsqueeze(-1)
-            prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1).unsqueeze(-1) \
-                         * mean_diff @ mean_diff.transpose(-1, -2)
-        else:
-            prior_term = torch.zeros_like(sum_diff)
-
-        df = self.degrees_of_freedom_prior + nk.unsqueeze(-1).unsqueeze(-1) + self.n_features
-
-        self.covariances_ = (
-            self.covariance_prior
-            + sum_diff
-            + prior_term
-            + self.reg_covar * torch.eye(self.n_features, device=self.device).unsqueeze(0)
-        ) / df
-
-    # MAP Diag
-    def _update_map_diag(self, X, resp, nk):
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = (resp.unsqueeze(-1) * diff.pow(2)).sum(dim=0)  # (K, D)
-
-        # Only add mean prior term if mean prior is specified
-        if self.use_mean_prior:
-            mean_diff2 = (self.means_ - self.mean_prior).pow(2)
-            prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1) * mean_diff2
-        else:
-            prior_term = torch.zeros_like(sum_diff)
-            
-        df = self.degrees_of_freedom_prior + nk.unsqueeze(-1) + self.n_features
-
-        self.covariances_ = (
-            self.covariance_prior
-            + sum_diff
-            + prior_term
-            + self.reg_covar
-        ) / df
-
-    # MAP Spherical
-    def _update_map_spherical(self, X, resp, nk):
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        diff2 = diff.pow(2).sum(dim=2)
-        sum_diff = (resp * diff2).sum(dim=0)
-
-        # Only add mean prior term if mean prior is specified
-        if self.use_mean_prior:
-            mean_diff2 = (self.means_ - self.mean_prior).pow(2).sum(dim=1)
-            prior_term = (nk / (nk + self.mean_precision_prior)) * mean_diff2
-        else:
-            prior_term = torch.zeros_like(sum_diff)
-            
-        df = self.degrees_of_freedom_prior + nk + self.n_features
-
-        self.covariances_ = (
-            self.covariance_prior + sum_diff + prior_term + self.reg_covar
-        ) / (df * self.n_features)
-
-    # MAP Tied Full
-    def _update_map_tied_full(self, X, resp, nk):
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd,nke->de', resp, diff, diff)
-
-        # Only add mean prior term if mean prior is specified
-        if self.use_mean_prior:
-            mean_diff = (self.means_ - self.mean_prior).unsqueeze(-1)
-            prior_term = (
-                (nk / (nk + self.mean_precision_prior)).unsqueeze(-1).unsqueeze(-1)
-                * torch.matmul(mean_diff, mean_diff.transpose(-1, -2))
-            )
-            prior_term = prior_term.sum(dim=0)  # sum across components
-        else:
-            prior_term = torch.zeros_like(sum_diff)
-            
-        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
-
-        self.covariances_ = (
-            self.covariance_prior
-            + sum_diff
-            + prior_term
-            + self.reg_covar * torch.eye(self.n_features, device=self.device)
-        ) / df
-
-    # MAP Tied Diag
-    def _update_map_tied_diag(self, X, resp, nk):
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd->d', resp, diff.pow(2))
-
-        # Only add mean prior term if mean prior is specified
-        if self.use_mean_prior:
-            mean_diff2 = (self.means_ - self.mean_prior).pow(2)
-            # shape (K, D)
-            prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1) * mean_diff2
-            prior_term = prior_term.sum(dim=0)  # shape (D,)
-        else:
-            prior_term = torch.zeros_like(sum_diff)
-
-        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
-
-        # covariance_prior is shape (n_features,)
-        self.covariances_ = (
-            self.covariance_prior
-            + sum_diff
-            + prior_term
-            + self.reg_covar
-        ) / df
-
-    # MAP Tied Spherical
-    def _update_map_tied_spherical(self, X, resp, nk):
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        diff2 = diff.pow(2).sum(dim=2)
-        sum_diff = torch.einsum('nk,nk->', resp, diff2)
-
-        # Only add mean prior term if mean prior is specified
-        if self.use_mean_prior:
-            mean_diff2 = (self.means_ - self.mean_prior).pow(2).sum(dim=1)
-            # shape (K,)
-            prior_term = (nk / (nk + self.mean_precision_prior)) * mean_diff2
-            prior_term_total = prior_term.sum()
-        else:
-            prior_term_total = 0.0
-
-        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
-        self.covariances_ = (
-            self.covariance_prior + sum_diff + prior_term_total + self.reg_covar
-        ) / (df * self.n_features)
-
-    # ---------- MLE updates  ----------
-    # MLE Full
     def _update_mle_full(self, X, resp, nk):
+        r"""
+        MLE update for full covariance matrices.
+        
+        Σₖ = (1/n_k) Σᵢ γᵢₖ(xᵢ - μₖ)(xᵢ - μₖ)ᵀ + reg·I
+        """
+        # ===============================================================
+        # Compute weighted scatter matrix for each component
+        # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
         weighted_diff = resp.unsqueeze(-1).unsqueeze(-1) * diff.unsqueeze(3) * diff.unsqueeze(2)
-        sum_diff = weighted_diff.sum(dim=0)
+        sum_diff = weighted_diff.sum(dim=0)  # (n_components, n_features, n_features)
+        
+        # ===============================================================
+        # Normalize and add regularization
+        # ===============================================================
         covs = sum_diff / nk.unsqueeze(-1).unsqueeze(-1)
         covs += self.reg_covar * torch.eye(self.n_features, device=self.device).unsqueeze(0)
         self.covariances_ = covs
 
-    # MLE Diag
     def _update_mle_diag(self, X, resp, nk):
+        r"""
+        MLE update for diagonal covariance matrices.
+        
+        σ²ₖd = (1/n_k) Σᵢ γᵢₖ(xᵢd - μₖd)² + reg
+        """
+        # ===============================================================
+        # Compute weighted scatter per dimension
+        # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = (resp.unsqueeze(-1) * diff.pow(2)).sum(dim=0)
+        sum_diff = (resp.unsqueeze(-1) * diff.pow(2)).sum(dim=0)  # (n_components, n_features)
+        
+        # ===============================================================
+        # Normalize and add regularization
+        # ===============================================================
         cov_diag = sum_diff / nk.unsqueeze(-1)
         cov_diag += self.reg_covar
         self.covariances_ = cov_diag
 
-    # MLE Spherical
     def _update_mle_spherical(self, X, resp, nk):
+        r"""
+        MLE update for spherical covariance (single variance per component).
+        
+        σ²ₖ = (1/(n_k·d)) Σᵢ γᵢₖ||xᵢ - μₖ||² + reg
+        """
+        # ===============================================================
+        # Compute total weighted scatter
+        # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        diff2 = diff.pow(2).sum(dim=2)
-        sum_diff2 = (resp * diff2).sum(dim=0)
+        diff2 = diff.pow(2).sum(dim=2)  # (n_samples, n_components)
+        sum_diff2 = (resp * diff2).sum(dim=0)  # (n_components,)
+        
+        # ===============================================================
+        # Normalize by n_k * d and add regularization
+        # ===============================================================
         cov_spherical = sum_diff2 / (nk * self.n_features)
         cov_spherical += self.reg_covar
         self.covariances_ = cov_spherical
 
-    # MLE Tied Full
     def _update_mle_tied_full(self, X, resp, nk):
+        r"""
+        MLE update for tied full covariance (shared across components).
+        
+        Σ = (1/N) Σₖ Σᵢ γᵢₖ(xᵢ - μₖ)(xᵢ - μₖ)ᵀ + reg·I
+        """
+        # ===============================================================
+        # Compute pooled scatter matrix
+        # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd,nke->de', resp, diff, diff)
+        sum_diff = torch.einsum('nk,nkd,nke->de', resp, diff, diff)  # (n_features, n_features)
+        
+        # ===============================================================
+        # Normalize and add regularization
+        # ===============================================================
         cov_tied = sum_diff / nk.sum()
         cov_tied += self.reg_covar * torch.eye(self.n_features, device=self.device)
         self.covariances_ = cov_tied
 
-    # MLE Tied Diag
     def _update_mle_tied_diag(self, X, resp, nk):
+        r"""
+        MLE update for tied diagonal covariance (shared across components).
+        
+        σ²d = (1/N) Σₖ Σᵢ γᵢₖ(xᵢd - μₖd)² + reg
+        """
+        # ===============================================================
+        # Compute pooled scatter per dimension
+        # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd->d', resp, diff.pow(2))
+        sum_diff = torch.einsum('nk,nkd->d', resp, diff.pow(2))  # (n_features,)
+        
+        # ===============================================================
+        # Normalize and add regularization
+        # ===============================================================
         cov_tied_diag = sum_diff / nk.sum()
         cov_tied_diag += self.reg_covar
         self.covariances_ = cov_tied_diag
 
-    # MLE Tied Spherical
     def _update_mle_tied_spherical(self, X, resp, nk):
+        r"""
+        MLE update for tied spherical covariance (single variance for all).
+        
+        σ² = (1/(N·d)) Σₖ Σᵢ γᵢₖ||xᵢ - μₖ||² + reg
+        """
+        # ===============================================================
+        # Compute total pooled scatter
+        # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd->', resp, diff.pow(2))
+        sum_diff = torch.einsum('nk,nkd->', resp, diff.pow(2))  # scalar
+        
+        # ===============================================================
+        # Normalize by N * d and add regularization
+        # ===============================================================
         cov_tied_spherical = sum_diff / (nk.sum() * self.n_features)
         cov_tied_spherical += self.reg_covar
         self.covariances_ = cov_tied_spherical
 
-    # ---------------------------
-    # NIW Conjugate Updates
-    # ---------------------------
+
+    # ===================================================================
+    # NIW (Normal-Inverse-Wishart) Specific Covariance Updates
+    # ===================================================================
+    # These methods implement the covariance component of the NIW posterior.
+    # The mean component is handled in _update_niw_conjugate().
+    # ===================================================================
     
     def _update_niw_full(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""NIW update for full covariances."""
-        # Compute S (empirical covariance for each component)
+        r"""
+        NIW posterior update for full covariance matrices.
+        
+        Computes: Ψₙ = Ψ₀ + S + (λ₀n/(λ₀+n))(ȳ - μ₀)(ȳ - μ₀)ᵀ
+        Then: Σₖ = Ψₙ / νₙ
+        
+        Parameters
+        ----------
+        All parameters come from _update_niw_conjugate().
+        """
+        # ===============================================================
+        # Compute scatter matrix S for each component
+        # ===============================================================
         diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
         weighted_diff = resp.unsqueeze(-1).unsqueeze(-1) * diff.unsqueeze(3) * diff.unsqueeze(2)
         S = weighted_diff.sum(dim=0)  # (n_components, n_features, n_features)
         
-        # Compute cross-term: (λ₀n/(λ₀+n)) * (ȳ - μ₀)(ȳ - μ₀)ᵀ
+        # ===============================================================
+        # Compute cross-term: (λ₀n/(λ₀+n)) (ȳ - μ₀)(ȳ - μ₀)ᵀ
+        # ===============================================================
         mean_diff = empirical_means - self.mean_prior  # (n_components, n_features)
         cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
         cross_term = cross_term_coeff.unsqueeze(-1).unsqueeze(-1) * (
             mean_diff.unsqueeze(-1) @ mean_diff.unsqueeze(-2)
         )  # (n_components, n_features, n_features)
         
-        # NIW posterior covariance: Ψₙ = Ψ₀ + S + cross_term
+        # ===============================================================
+        # NIW posterior scale matrix and regularization
+        # ===============================================================
         psi_n = psi0 + S + cross_term
-        
-        # Regularization
         psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device).unsqueeze(0)
         
-        # Final covariance estimate (divide by degrees of freedom)
+        # ===============================================================
+        # Final covariance: E[Σ] = Ψₙ / νₙ
+        # ===============================================================
         self.covariances_ = psi_n / nu_n.unsqueeze(-1).unsqueeze(-1)
 
     def _update_niw_diag(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""NIW update for diagonal covariances."""
-        # Compute S (diagonal empirical covariance for each component)
+        r"""
+        NIW posterior update for diagonal covariance matrices.
+        
+        Each dimension updated independently using NIW formula.
+        """
+        # ===============================================================
+        # Compute scatter matrix S (diagonal)
+        # ===============================================================
         diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
         weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
         S = weighted_diff_sq.sum(dim=0)  # (n_components, n_features)
         
-        # Compute cross-term: (λ₀n/(λ₀+n)) * (ȳ - μ₀)²
+        # ===============================================================
+        # Compute cross-term (per dimension)
+        # ===============================================================
         mean_diff_sq = (empirical_means - self.mean_prior).pow(2)  # (n_components, n_features)
         cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
         cross_term = cross_term_coeff.unsqueeze(-1) * mean_diff_sq  # (n_components, n_features)
         
-        # NIW posterior covariance: Ψₙ = Ψ₀ + S + cross_term
+        # ===============================================================
+        # NIW posterior and regularization
+        # ===============================================================
         psi_n = psi0 + S + cross_term
-        
-        # Regularization
         psi_n += self.reg_covar
         
-        # Final covariance estimate
+        # ===============================================================
+        # Final covariance
+        # ===============================================================
         self.covariances_ = psi_n / nu_n.unsqueeze(-1)
 
     def _update_niw_spherical(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""NIW update for spherical covariances."""
-        # Compute S (scalar empirical covariance for each component)
+        r"""
+        NIW posterior update for spherical covariances.
+        
+        Single variance per component (isotropic).
+        """
+        # ===============================================================
+        # Compute total scatter (sum over features)
+        # ===============================================================
         diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
         weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
-        S = weighted_diff_sq.sum(dim=(0, 2))  # (n_components,) - sum over samples and features
+        S = weighted_diff_sq.sum(dim=(0, 2))  # (n_components,)
         
-        # Compute cross-term: (λ₀n/(λ₀+n)) * ||ȳ - μ₀||²
+        # ===============================================================
+        # Compute cross-term (total squared distance)
+        # ===============================================================
         mean_diff_norm_sq = (empirical_means - self.mean_prior).pow(2).sum(dim=1)  # (n_components,)
         cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
         cross_term = cross_term_coeff * mean_diff_norm_sq  # (n_components,)
         
-        # NIW posterior covariance: Ψₙ = Ψ₀ + S + cross_term
+        # ===============================================================
+        # NIW posterior and regularization
+        # ===============================================================
         psi_n = psi0 + S + cross_term
-        
-        # Regularization
         psi_n += self.reg_covar * self.n_features
         
-        # Final covariance estimate (divide by degrees of freedom and features)
+        # ===============================================================
+        # Final covariance (averaged over dimensions)
+        # ===============================================================
         self.covariances_ = psi_n / (nu_n * self.n_features)
 
     def _update_niw_tied_full(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""NIW update for tied full covariances."""
-        # Compute S (tied empirical covariance across all components)
+        r"""
+        NIW posterior update for tied full covariance.
+        
+        Single shared full covariance matrix across all components.
+        """
+        # ===============================================================
+        # Compute pooled scatter matrix
+        # ===============================================================
         diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
         S = torch.einsum('nk,nkd,nke->de', resp, diff, diff)  # (n_features, n_features)
         
-        # Compute cross-term: sum over components of (λ₀nₖ/(λ₀+nₖ)) * (ȳₖ - μ₀ₖ)(ȳₖ - μ₀ₖ)ᵀ
+        # ===============================================================
+        # Compute pooled cross-term
+        # ===============================================================
         mean_diff = empirical_means - self.mean_prior  # (n_components, n_features)
         cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
         cross_term = torch.einsum('k,kd,ke->de', cross_term_coeff, mean_diff, mean_diff)  # (n_features, n_features)
         
-        # NIW posterior covariance: Ψₙ = Ψ₀ + S + cross_term
+        # ===============================================================
+        # NIW posterior and regularization
+        # ===============================================================
         psi_n = psi0 + S + cross_term
-        
-        # Regularization
         psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device)
         
-        # Final covariance estimate (divide by total degrees of freedom)
+        # ===============================================================
+        # Final covariance (total degrees of freedom)
+        # ===============================================================
         total_nu_n = self.degrees_of_freedom_prior + nk.sum()
         self.covariances_ = psi_n / total_nu_n
 
     def _update_niw_tied_diag(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""NIW update for tied diagonal covariances."""
-        # Compute S (tied diagonal empirical covariance across all components)
+        r"""
+        NIW posterior update for tied diagonal covariance.
+        
+        Shared diagonal covariance across all components.
+        """
+        # ===============================================================
+        # Compute pooled scatter (per dimension)
+        # ===============================================================
         diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
         weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
-        S = weighted_diff_sq.sum(dim=(0, 1))  # (n_features,) - sum over samples and components
+        S = weighted_diff_sq.sum(dim=(0, 1))  # (n_features,)
         
-        # Compute cross-term: sum over components of (λ₀nₖ/(λ₀+nₖ)) * (ȳₖ - μ₀ₖ)²
+        # ===============================================================
+        # Compute pooled cross-term
+        # ===============================================================
         mean_diff_sq = (empirical_means - self.mean_prior).pow(2)  # (n_components, n_features)
         cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
         cross_term = torch.einsum('k,kd->d', cross_term_coeff, mean_diff_sq)  # (n_features,)
         
-        # NIW posterior covariance: Ψₙ = Ψ₀ + S + cross_term
+        # ===============================================================
+        # NIW posterior and regularization
+        # ===============================================================
         psi_n = psi0 + S + cross_term
-        
-        # Regularization
         psi_n += self.reg_covar
         
-        # Final covariance estimate
+        # ===============================================================
+        # Final covariance
+        # ===============================================================
         total_nu_n = self.degrees_of_freedom_prior + nk.sum()
         self.covariances_ = psi_n / total_nu_n
 
     def _update_niw_tied_spherical(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""NIW update for tied spherical covariances."""
-        # Compute S (tied scalar empirical covariance across all components)
+        r"""
+        NIW posterior update for tied spherical covariance.
+        
+        Single shared variance across all components and dimensions.
+        """
+        # ===============================================================
+        # Compute total pooled scatter
+        # ===============================================================
         diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
         weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
-        S = weighted_diff_sq.sum()  # scalar - sum over samples, components, and features
+        S = weighted_diff_sq.sum()  # scalar
         
-        # Compute cross-term: sum over components of (λ₀nₖ/(λ₀+nₖ)) * ||ȳₖ - μ₀ₖ||²
+        # ===============================================================
+        # Compute pooled cross-term
+        # ===============================================================
         mean_diff_norm_sq = (empirical_means - self.mean_prior).pow(2).sum(dim=1)  # (n_components,)
         cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
         cross_term = (cross_term_coeff * mean_diff_norm_sq).sum()  # scalar
         
-        # NIW posterior covariance: Ψₙ = Ψ₀ + S + cross_term
+        # ===============================================================
+        # NIW posterior and regularization
+        # ===============================================================
         psi_n = psi0 + S + cross_term
-        
-        # Regularization
         psi_n += self.reg_covar * nk.sum() * self.n_features
         
-        # Final covariance estimate
+        # ===============================================================
+        # Final covariance (total samples and features)
+        # ===============================================================
         total_nu_n = self.degrees_of_freedom_prior + nk.sum()
         self.covariances_ = psi_n / (total_nu_n * self.n_features)
 
-    # ---------------------------
-    # Prediction / Scoring
-    # ---------------------------
+    # ===================================================================
+    # Prediction and Scoring Methods
+    # ===================================================================
+    
     def predict(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Predict cluster labels for each sample in X (i.e., argmax of responsibilities).
+        Predict cluster labels for samples (hard assignment).
 
+        Assigns each sample to the component with maximum posterior probability.
+        
         Parameters
         ----------
         X : torch.Tensor
@@ -1515,19 +2096,31 @@ class GaussianMixture(nn.Module):
         -------
         labels : torch.Tensor
             Cluster labels for each sample, shape (n_samples,).
+            Each label is an integer in [0, n_components-1].
+            
+        Warnings
+        --------
+        Issues warning if model hasn't been fitted or didn't converge.
+        
+        See Also
+        --------
+        predict_proba : Get soft assignments (posterior probabilities).
         """
         if not self.fitted_:
             warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
         elif not self.converged_:
             warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
+            
         resp, _ = self._e_step(X.to(self.device))
         return torch.argmax(resp, dim=1)
 
     def predict_proba(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Return the posterior probabilities (responsibilities) of each sample
-        belonging to each component.
+        Get posterior probabilities for each component (soft assignment).
 
+        Returns the responsibility of each component for each sample:
+        γ(z_{ik}) = p(z_k | x_i, θ)
+        
         Parameters
         ----------
         X : torch.Tensor
@@ -1536,19 +2129,31 @@ class GaussianMixture(nn.Module):
         Returns
         -------
         resp : torch.Tensor
-            Responsibilities, shape (n_samples, n_components).
+            Posterior probabilities (responsibilities), shape (n_samples, n_components).
+            Each row sums to 1.0.
+            
+        Warnings
+        --------
+        Issues warning if model hasn't been fitted or didn't converge.
+        
+        See Also
+        --------
+        predict : Get hard assignments (argmax of probabilities).
         """
         if not self.fitted_:
             warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
         elif not self.converged_:
             warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
+            
         resp, _ = self._e_step(X.to(self.device))
         return resp
 
     def score_samples(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute per-sample log-likelihood under the model.
+        Compute log-likelihood for each sample.
 
+        Returns log p(x_i | θ) for each sample under the fitted GMM.
+        
         Parameters
         ----------
         X : torch.Tensor
@@ -1558,18 +2163,30 @@ class GaussianMixture(nn.Module):
         -------
         log_prob : torch.Tensor
             Log-likelihood for each sample, shape (n_samples,).
+            Higher values indicate better fit to the model.
+            
+        Warnings
+        --------
+        Issues warning if model hasn't been fitted or didn't converge.
+        
+        See Also
+        --------
+        score : Get average log-likelihood across all samples.
         """
         if not self.fitted_:
             warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
         elif not self.converged_:
             warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
+            
         _, log_prob_norm = self._e_step(X.to(self.device))
         return log_prob_norm
 
     def score(self, X: torch.Tensor) -> float:
         r"""
-        Compute the average log-likelihood of X under the model.
+        Compute average log-likelihood of data.
 
+        Useful for model selection and comparison.
+        
         Parameters
         ----------
         X : torch.Tensor
@@ -1578,10 +2195,19 @@ class GaussianMixture(nn.Module):
         Returns
         -------
         score : float
-            Mean log-likelihood across all samples.
+            Mean log-likelihood: (1/n) Σᵢ log p(xᵢ | θ).
+            Higher values indicate better fit.
+            
+        See Also
+        --------
+        score_samples : Get per-sample log-likelihoods.
         """
         return self.score_samples(X).mean().item()
 
+    # ===================================================================
+    # Sampling Method
+    # ===================================================================
+    
     def sample(self, n_samples: int = 1, component: int = None, std_radius: float = None, 
                std_range: Tuple[float, float] = None, confidence: float = None,
                confidence_range: Tuple[float, float] = None,
@@ -1590,71 +2216,98 @@ class GaussianMixture(nn.Module):
         r"""
         Generate new samples from the fitted GMM.
 
+        Supports both standard sampling and constrained sampling with rejection.
+        Can sample from all components (according to weights) or a specific component,
+        with optional constraints on distance from mean or a center point.
+
         Parameters
         ----------
-        n_samples : int
+        n_samples : int, default=1
             Number of samples to generate.
+            
         component : int, optional
             If specified, samples only from this component. If None, samples 
-            from all components according to their weights. (default: None)
+            from all components according to their weights.
+            
         std_radius : float, optional
-            If specified, only return samples within this many standard deviations
-            from the component mean (measured using Mahalanobis distance). Uses
-            rejection sampling to ensure all returned samples are within the radius.
-            If None, samples from the entire Gaussian distribution. Cannot be used
-            together with std_range or confidence. (default: None)
-        std_range : tuple of float, optional
-            If specified, only return samples whose Mahalanobis distance from the
-            component mean falls within this range (min_std, max_std). For example,
-            std_range=(1.0, 2.0) returns samples between 1 and 2 standard deviations,
-            and std_range=(3.0, float('inf')) returns samples further than 3 standard
-            deviations. Uses rejection sampling. Cannot be used together with std_radius
-            or confidence. (default: None)
+            Only return samples within this many standard deviations from the
+            component mean (Mahalanobis distance ≤ std_radius). Uses rejection
+            sampling. Cannot be combined with other distance constraints.
+            
+        std_range : tuple of (float, float), optional
+            Only return samples whose Mahalanobis distance falls within
+            (min_std, max_std). Examples:
+            - (1.0, 2.0): between 1 and 2 standard deviations
+            - (3.0, inf): further than 3 standard deviations (outliers)
+            Cannot be combined with other distance constraints.
+            
         confidence : float, optional
-            If specified, only return samples within the confidence ellipse (e.g., 
-            confidence=0.95 for 95% confidence interval). This is converted to the
-            appropriate standard deviation radius using the chi-squared distribution.
-            For example, confidence=0.95 corresponds to approximately 1.96σ for 2D data.
-            Cannot be used together with std_radius, std_range, or confidence_range. (default: None)
-        confidence_range : tuple of float, optional
-            If specified, only return samples whose confidence level falls within this
-            range (min_confidence, max_confidence). For example, confidence_range=(0.68, 0.95)
-            returns samples between the 68% and 95% confidence ellipses. This is converted
-            to the corresponding std_range using the chi-squared distribution, then uses
-            rejection sampling. Cannot be used together with std_radius, std_range, or
-            confidence. (default: None)
+            Only return samples within the confidence ellipse (e.g., 0.95 for 95%).
+            Converted to std_radius using χ² distribution. For 2D data, 0.95 ≈ 2.45σ.
+            Cannot be combined with other distance constraints.
+            
+        confidence_range : tuple of (float, float), optional
+            Only return samples between two confidence ellipses. Example:
+            (0.68, 0.95) returns samples between 68% and 95% confidence regions.
+            Cannot be combined with other distance constraints.
+            
         center_point : torch.Tensor, optional
-            If specified, only return samples within center_radius distance from this point.
-            Should be a tensor of shape (n_features,). Uses Euclidean distance.
-            Must be used together with center_radius. Cannot be used together with
-            std_radius, std_range, or confidence. (default: None)
+            Only return samples within center_radius Euclidean distance from this
+            point. Shape (n_features,). Must be used with center_radius.
+            Cannot be combined with other distance constraints.
+            
         center_radius : float, optional
-            If specified, only return samples within this Euclidean distance from center_point.
-            Must be used together with center_point. (default: None)
-        max_attempts_per_sample : int, optional
-            Maximum number of attempts to generate a valid sample that satisfies the
-            distance constraints (std_radius, std_range, confidence, confidence_range, or 
-            center constraints) before giving up. Higher values increase the chance of 
-            satisfying restrictive constraints but may slow down sampling. (default: 1000)
+            Euclidean distance threshold from center_point.
+            Must be used with center_point.
+            
+        max_attempts_per_sample : int, default=1000
+            Maximum rejection sampling attempts per sample before raising error.
+            Increase for very restrictive constraints.
 
         Returns
         -------
         samples : torch.Tensor
-            Generated samples of shape (n_samples, n_features).
+            Generated samples, shape (n_samples, n_features).
         indices : torch.Tensor
-            The indices of the component each sample came from, shape (n_samples,).
+            Component index for each sample, shape (n_samples,).
+            
+        Raises
+        ------
+        ValueError
+            If parameter combinations are invalid or constraints conflict.
+        RuntimeError
+            If rejection sampling fails to find valid samples.
+            
+        Warnings
+        --------
+        Issues warning if model hasn't been fitted or didn't converge.
         """
+        # ===============================================================
+        # 1. Check model state
+        # ===============================================================
         if not self.fitted_:
             warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
         elif not self.converged_:
             warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
 
-        # Validate parameter combinations
-        constraint_params = [std_radius, std_range, confidence, confidence_range, (center_point, center_radius)]
-        non_none_params = [p for p in constraint_params if p is not None and (not isinstance(p, tuple) or all(x is not None for x in p))]
-        if len(non_none_params) > 1:
-            raise ValueError("Cannot specify more than one of: std_radius, std_range, confidence, confidence_range, or center constraints. Use only one.")
+        # ===============================================================
+        # 2. Validate constraint parameter combinations
+        # ===============================================================
+        constraint_params = [std_radius, std_range, confidence, confidence_range, 
+                            (center_point, center_radius)]
+        non_none_params = [p for p in constraint_params 
+                          if p is not None and (not isinstance(p, tuple) or 
+                                               all(x is not None for x in p))]
         
+        if len(non_none_params) > 1:
+            raise ValueError(
+                "Cannot specify more than one of: std_radius, std_range, confidence, "
+                "confidence_range, or center constraints. Use only one."
+            )
+        
+        # ===============================================================
+        # 3. Validate and convert std_range
+        # ===============================================================
         if std_range is not None:
             if len(std_range) != 2:
                 raise ValueError("std_range must be a tuple of exactly 2 values (min_std, max_std)")
@@ -1664,72 +2317,112 @@ class GaussianMixture(nn.Module):
             if max_std <= min_std:
                 raise ValueError("std_range maximum must be greater than minimum")
         
+        # ===============================================================
+        # 4. Convert confidence to std_radius
+        # ===============================================================
         if confidence is not None:
             if not (0 < confidence < 1):
                 raise ValueError(f"confidence must be between 0 and 1, got {confidence}")
-            # Convert confidence to std_radius for internal use
             std_radius = self._confidence_to_std_radius(confidence)
         
+        # ===============================================================
+        # 5. Convert confidence_range to std_range
+        # ===============================================================
         if confidence_range is not None:
             if len(confidence_range) != 2:
-                raise ValueError("confidence_range must be a tuple of exactly 2 values (min_confidence, max_confidence)")
+                raise ValueError(
+                    "confidence_range must be a tuple of exactly 2 values "
+                    "(min_confidence, max_confidence)"
+                )
             min_conf, max_conf = confidence_range
             if not (0 <= min_conf < 1) or not (0 < max_conf <= 1):
-                raise ValueError(f"confidence_range values must be in range [0, 1), got ({min_conf}, {max_conf})")
+                raise ValueError(
+                    f"confidence_range values must be in [0, 1), got ({min_conf}, {max_conf})"
+                )
             if max_conf <= min_conf:
                 raise ValueError("confidence_range maximum must be greater than minimum")
-            # Convert confidence_range to std_range for internal use
-            # Handle special case where min_conf = 0.0 (corresponds to std_radius = 0)
+            
+            # Convert to std_range (handle min_conf=0 special case)
             min_std = 0.0 if min_conf == 0.0 else self._confidence_to_std_radius(min_conf)
             max_std = self._confidence_to_std_radius(max_conf)
             std_range = (min_std, max_std)
 
-        # Validate center point constraints
+        # ===============================================================
+        # 6. Validate center point constraints
+        # ===============================================================
         if (center_point is None) != (center_radius is None):
             raise ValueError("center_point and center_radius must be specified together")
         
         if center_point is not None:
             center_point = center_point.to(self.device)
             if center_point.dim() != 1 or center_point.size(0) != self.n_features:
-                raise ValueError(f"center_point must be a 1D tensor with {self.n_features} features, got shape {center_point.shape}")
+                raise ValueError(
+                    f"center_point must be a 1D tensor with {self.n_features} features, "
+                    f"got shape {center_point.shape}"
+                )
             if center_radius <= 0:
                 raise ValueError(f"center_radius must be positive, got {center_radius}")
 
+        # ===============================================================
+        # 7. Select component indices
+        # ===============================================================
         if component is not None:
             # Validate component index
             if not (0 <= component < self.n_components):
-                raise ValueError(f"component must be between 0 and {self.n_components - 1}, got {component}")
-            
-            # Sample only from the specified component
+                raise ValueError(
+                    f"component must be between 0 and {self.n_components - 1}, got {component}"
+                )
+            # Sample only from specified component
             indices = torch.full((n_samples,), component, dtype=torch.long, device=self.device)
         else:
             # Choose components according to mixture weights
             indices = torch.multinomial(self.weights_, n_samples, replacement=True)
         
+        # ===============================================================
+        # 8a. Standard sampling (no distance constraints)
+        # ===============================================================
         if std_radius is None and std_range is None and center_point is None:
-            # Standard sampling without distance constraints
             means = self.means_[indices]
             covariances = self._build_covariances_for_sampling(indices, n_samples)
             samples = MultivariateNormal(means, covariance_matrix=covariances).sample()
             return samples, indices
+        
+        # ===============================================================
+        # 8b. Rejection sampling (with distance constraints)
+        # ===============================================================
         else:
-            # Rejection sampling for distance constraints
+            # Define distance check function and description
             if std_radius is not None:
                 if std_radius <= 0:
                     raise ValueError("std_radius must be positive")
-                distance_check = lambda sample, comp_idx: self._compute_mahalanobis_distance(sample.unsqueeze(0), torch.tensor([comp_idx], device=self.device)).item() <= std_radius
+                distance_check = lambda sample, comp_idx: (
+                    self._compute_mahalanobis_distance(
+                        sample.unsqueeze(0), 
+                        torch.tensor([comp_idx], device=self.device)
+                    ).item() <= std_radius
+                )
                 constraint_desc = f"within {std_radius} standard deviations"
+                
             elif std_range is not None:
                 min_std, max_std = std_range
-                distance_check = lambda sample, comp_idx: min_std <= self._compute_mahalanobis_distance(sample.unsqueeze(0), torch.tensor([comp_idx], device=self.device)).item() <= max_std
+                distance_check = lambda sample, comp_idx: (
+                    min_std <= self._compute_mahalanobis_distance(
+                        sample.unsqueeze(0), 
+                        torch.tensor([comp_idx], device=self.device)
+                    ).item() <= max_std
+                )
                 if max_std == float('inf'):
                     constraint_desc = f"further than {min_std} standard deviations"
                 else:
                     constraint_desc = f"between {min_std} and {max_std} standard deviations"
+                    
             else:  # center_point is not None
-                distance_check = lambda sample, comp_idx: torch.norm(sample - center_point).item() <= center_radius
+                distance_check = lambda sample, comp_idx: (
+                    torch.norm(sample - center_point).item() <= center_radius
+                )
                 constraint_desc = f"within {center_radius} units from center point"
             
+            # Perform rejection sampling
             valid_samples = []
             valid_indices = []
             
@@ -1738,12 +2431,14 @@ class GaussianMixture(nn.Module):
                 attempts = 0
                 
                 while attempts < max_attempts_per_sample:
-                    # Generate a single sample from the component
+                    # Generate candidate sample
                     mean = self.means_[comp_idx:comp_idx+1]  # Keep batch dimension
-                    cov = self._build_covariances_for_sampling(torch.tensor([comp_idx], device=self.device), 1)
+                    cov = self._build_covariances_for_sampling(
+                        torch.tensor([comp_idx], device=self.device), 1
+                    )
                     sample = MultivariateNormal(mean, covariance_matrix=cov).sample()
                     
-                    # Check if sample satisfies distance constraint
+                    # Accept if constraint satisfied
                     if distance_check(sample.squeeze(0), comp_idx):
                         valid_samples.append(sample.squeeze(0))
                         valid_indices.append(comp_idx)
@@ -1751,49 +2446,73 @@ class GaussianMixture(nn.Module):
                     
                     attempts += 1
                 
+                # Raise error if max attempts exceeded
                 if attempts >= max_attempts_per_sample:
-                    raise RuntimeError(f"Could not generate sample {i+1} {constraint_desc} "
-                                     f"after {max_attempts_per_sample} attempts. This indicates the constraint is too restrictive. "
-                                     f"Try increasing max_attempts_per_sample or relaxing the constraint.")
+                    raise RuntimeError(
+                        f"Could not generate sample {i+1} {constraint_desc} "
+                        f"after {max_attempts_per_sample} attempts. "
+                        f"Constraint is too restrictive. Try increasing "
+                        f"max_attempts_per_sample or relaxing the constraint."
+                    )
             
+            # Stack results
             samples = torch.stack(valid_samples)
             indices = torch.tensor(valid_indices, dtype=torch.long, device=self.device)
             return samples, indices
 
+    # ===================================================================
+    # Helper Methods for Sampling
+    # ===================================================================
+    
     def _build_covariances_for_sampling(self, indices, n_samples):
         r"""
-        Construct a batch of covariance matrices for the chosen component indices.
+        Construct batch of full covariance matrices for sampling.
+
+        Converts the stored covariance format (which may be tied, diagonal, or spherical)
+        into full (n_features × n_features) covariance matrices suitable for sampling.
 
         Parameters
         ----------
         indices : torch.Tensor
-            Indices of the chosen components, shape (n_samples,).
+            Component indices for each sample, shape (n_samples,).
         n_samples : int
-            Number of total samples to be generated.
+            Number of samples to generate.
 
         Returns
         -------
         covs : torch.Tensor
-            A batch of covariance matrices of shape (n_samples, n_features, n_features).
+            Full covariance matrices, shape (n_samples, n_features, n_features).
         """
+        # ===============================================================
+        # Component-specific covariances
+        # ===============================================================
         if self.covariance_type == 'full':
+            # Already in full format
             return self.covariances_[indices]
 
         elif self.covariance_type == 'diag':
+            # Convert diagonal to full matrix (zeros off-diagonal)
             return torch.diag_embed(self.covariances_[indices])
 
         elif self.covariance_type == 'spherical':
+            # σ²·I for each component
             eye = torch.eye(self.n_features, device=self.device).unsqueeze(0)
             return eye * self.covariances_[indices].view(-1, 1, 1)
 
+        # ===============================================================
+        # Tied (shared) covariances
+        # ===============================================================
         elif self.covariance_type == 'tied_full':
+            # Same full matrix for all samples
             return self.covariances_.unsqueeze(0).expand(n_samples, -1, -1)
 
         elif self.covariance_type == 'tied_diag':
+            # Same diagonal for all samples
             diag_mat = torch.diag_embed(self.covariances_)
             return diag_mat.unsqueeze(0).expand(n_samples, -1, -1)
 
         elif self.covariance_type == 'tied_spherical':
+            # Same σ²·I for all samples
             eye = torch.eye(self.n_features, device=self.device).unsqueeze(0)
             return eye * self.covariances_
 
@@ -1802,97 +2521,85 @@ class GaussianMixture(nn.Module):
 
     def _confidence_to_std_radius(self, confidence: float) -> float:
         r"""
-        Convert a confidence level (e.g., 0.95) to the corresponding standard deviation radius.
+        Convert confidence level to standard deviation radius.
         
-        For a d-dimensional multivariate Gaussian, the squared Mahalanobis distance follows
-        a chi-squared distribution with d degrees of freedom. This method finds the radius
-        that contains the specified percentage of the probability mass.
+        For multivariate Gaussian, the squared Mahalanobis distance follows χ²
+        distribution with d degrees of freedom. This finds the radius containing
+        the specified probability mass.
+        
+        For example:
+        - confidence=0.95 in 2D → radius ≈ 2.45σ (95% of points within ellipse)
+        - confidence=0.68 in 2D → radius ≈ 1.51σ (68% of points within ellipse)
         
         Parameters
         ----------
         confidence : float
-            Confidence level between 0 and 1 (e.g., 0.95 for 95% confidence).
+            Confidence level in (0, 1), e.g., 0.95 for 95%.
             
         Returns
         -------
         std_radius : float
-            The standard deviation radius corresponding to the confidence level.
+            Standard deviation radius: sqrt(χ²_d(confidence))
         """
         if not (0 < confidence < 1):
             raise ValueError(f"confidence must be between 0 and 1, got {confidence}")
-        
-        if not HAS_SCIPY:
-            # Fallback using approximate conversions for common cases
-            # These are approximations for 2D case, but reasonable for most uses
-            approx_mapping = {
-                0.68: 1.00,   # ~68% ≈ 1σ
-                0.90: 1.64,   # ~90% ≈ 1.64σ  
-                0.95: 1.96,   # ~95% ≈ 1.96σ
-                0.99: 2.58,   # ~99% ≈ 2.58σ
-                0.997: 3.00,  # ~99.7% ≈ 3σ
-            }
-            
-            # Find closest match
-            closest_conf = min(approx_mapping.keys(), key=lambda x: abs(x - confidence))
-            if abs(closest_conf - confidence) > 0.05:
-                warnings.warn(
-                    f"scipy not available for exact confidence calculation. "
-                    f"Using approximation for {closest_conf:.1%} instead of {confidence:.1%}. "
-                    f"Install scipy for exact calculations.",
-                    UserWarning
-                )
-            return approx_mapping[closest_conf]
-        
-        else:
-            # Exact calculation using chi-squared distribution
-            # For d dimensions, the squared Mahalanobis distance ~ χ²(d)
-            # We want P(χ²(d) ≤ r²) = confidence, so r = √(χ²⁻¹(confidence, d))
-            chi2_quantile = chi2.ppf(confidence, df=self.n_features)
-            return math.sqrt(chi2_quantile)
+
+        # χ² quantile for given confidence and dimensionality
+        chi2_quantile = chi2.ppf(confidence, df=self.n_features)
+        return math.sqrt(chi2_quantile)
 
     def _compute_mahalanobis_distance(self, samples: torch.Tensor, component_indices: torch.Tensor) -> torch.Tensor:
         r"""
-        Compute the Mahalanobis distance from samples to their respective component means.
+        Compute Mahalanobis distance from samples to component means.
+        
+        Mahalanobis distance accounts for covariance structure:
+        d²(x, μ) = (x - μ)ᵀ Σ⁻¹ (x - μ)
         
         Parameters
         ----------
         samples : torch.Tensor
-            Samples to compute distance for, shape (n_samples, n_features).
+            Sample points, shape (n_samples, n_features).
         component_indices : torch.Tensor
-            Component indices for each sample, shape (n_samples,).
+            Component for each sample, shape (n_samples,).
             
         Returns
         -------
         distances : torch.Tensor
-            Mahalanobis distances for each sample, shape (n_samples,).
+            Mahalanobis distances, shape (n_samples,).
+            Distance of 1.0 = one standard deviation from mean.
         """
-        n_samples = samples.size(0)
+        # ===============================================================
+        # Compute deviations from component means
+        # ===============================================================
         means = self.means_[component_indices]  # (n_samples, n_features)
         diff = samples - means  # (n_samples, n_features)
         
+        # ===============================================================
+        # Compute d² = diff^T Σ⁻¹ diff (depends on covariance type)
+        # ===============================================================
         if self.covariance_type == 'full':
-            # For full covariance, we need to compute diff^T * inv(cov) * diff for each sample
+            # Component-specific full covariances
             covs = self.covariances_[component_indices]  # (n_samples, n_features, n_features)
             diff_expanded = diff.unsqueeze(-1)  # (n_samples, n_features, 1)
             try:
                 inv_covs = torch.inverse(covs)
             except RuntimeError:
-                # If singular, use pseudoinverse
+                # Handle singular matrices
                 inv_covs = torch.pinverse(covs)
             mahal_sq = torch.bmm(torch.bmm(diff.unsqueeze(1), inv_covs), diff_expanded).squeeze()
             
         elif self.covariance_type == 'diag':
-            # For diagonal covariance: sum((diff^2) / var)
+            # Component-specific diagonal: d² = Σᵢ (xᵢ - μᵢ)² / σᵢ²
             vars = self.covariances_[component_indices]  # (n_samples, n_features)
             mahal_sq = torch.sum(diff.pow(2) / vars, dim=1)
             
         elif self.covariance_type == 'spherical':
-            # For spherical covariance: ||diff||^2 / var
+            # Component-specific spherical: d² = ||x - μ||² / σ²
             vars = self.covariances_[component_indices]  # (n_samples,)
             mahal_sq = torch.sum(diff.pow(2), dim=1) / vars
             
         elif self.covariance_type == 'tied_full':
-            # Tied full covariance - same inverse for all components
+            # Shared full covariance
             try:
                 inv_cov = torch.inverse(self.covariances_)
             except RuntimeError:
@@ -1900,11 +2607,11 @@ class GaussianMixture(nn.Module):
             mahal_sq = torch.sum(diff * torch.matmul(diff, inv_cov), dim=1)
             
         elif self.covariance_type == 'tied_diag':
-            # Tied diagonal covariance
+            # Shared diagonal covariance
             mahal_sq = torch.sum(diff.pow(2) / self.covariances_, dim=1)
             
         elif self.covariance_type == 'tied_spherical':
-            # Tied spherical covariance
+            # Shared spherical covariance
             mahal_sq = torch.sum(diff.pow(2), dim=1) / self.covariances_
             
         else:
@@ -1912,35 +2619,54 @@ class GaussianMixture(nn.Module):
             
         return torch.sqrt(mahal_sq)
 
+    # ===================================================================
+    # Model Persistence (Save/Load)
+    # ===================================================================
+    
     def save(self, filepath: str):
         r"""
-        Save the GMM model parameters and metadata to a file.
+        Save GMM model to disk.
+
+        Saves all model parameters, configuration, training state, and priors
+        to a PyTorch file that can be reloaded later.
 
         Parameters
         ----------
         filepath : str
-            Path where to save the model. Should typically end with '.pth'.
+            Path where to save the model. Typically ends with '.pth' or '.pt'.
+            
+        See Also
+        --------
+        load : Class method to load a saved model.
+        save_state_dict : Get state dictionary without saving to file.
         """
         state_dict = {
-            # Model parameters
+            # ===============================================================
+            # Model parameters (fitted)
+            # ===============================================================
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
             
+            # ===============================================================
             # Initial parameters (for reproducibility)
+            # ===============================================================
             'initial_weights_': self.initial_weights_,
             'initial_means_': self.initial_means_,
             'initial_covariances_': self.initial_covariances_,
             
+            # ===============================================================
             # Model configuration
+            # ===============================================================
             'n_components': self.n_components,
             'n_features': self.n_features,
             'covariance_type': self.covariance_type,
             'tol': self.tol,
             'reg_covar': self.reg_covar,
             'max_iter': self.max_iter,
-            'init_params': self.init_params,
-            'cov_init_method': self.cov_init_method,
+            'init_means': self.init_means,
+            'init_weights': self.init_weights,
+            'init_covariances': self.init_covariances,
             'n_init': self.n_init,
             'random_state': self.random_state,
             'warm_start': self.warm_start,
@@ -1948,13 +2674,17 @@ class GaussianMixture(nn.Module):
             'verbose_interval': self.verbose_interval,
             'cem': self.cem,
             
+            # ===============================================================
             # Training state
+            # ===============================================================
             'fitted_': self.fitted_,
             'converged_': self.converged_,
             'n_iter_': self.n_iter_,
             'lower_bound_': self.lower_bound_,
             
+            # ===============================================================
             # Prior settings
+            # ===============================================================
             'use_weight_prior': self.use_weight_prior,
             'use_mean_prior': self.use_mean_prior,
             'use_covariance_prior': self.use_covariance_prior,
@@ -1970,28 +2700,55 @@ class GaussianMixture(nn.Module):
     @classmethod
     def load(cls, filepath: str, device: str = None) -> "GaussianMixture":
         r"""
-        Load a GMM model from a saved file.
+        Load GMM model from disk.
+
+        Creates a new GaussianMixture instance with all parameters and state
+        restored from a saved file.
 
         Parameters
         ----------
         filepath : str
             Path to the saved model file.
         device : str, optional
-            Device to load the model on ('cpu' or 'cuda'). If None, uses the
-            device from the saved model or defaults to GPU if available.
+            Device to load model tensors on ('cpu' or 'cuda'). 
+            If None, uses device from saved model or defaults to GPU if available.
 
         Returns
         -------
         model : GaussianMixture
-            The loaded GMM model.
+            The loaded GMM model, ready for prediction or continued training.
+            
+        Notes
+        -----
+        Handles backward compatibility with older saved models that used
+        deprecated parameter names like 'init_params' and 'cov_init_method'.
+        
+        See Also
+        --------
+        save : Save a model to disk.
+        load_state_dict : Load from a state dictionary.
         """
-        # Load the state dictionary
+        # ===============================================================
+        # Load state dictionary from file
+        # ===============================================================
         if device is None:
             state_dict = torch.load(filepath, weights_only=False)
         else:
             state_dict = torch.load(filepath, map_location=device, weights_only=False)
         
-        # Create a new instance with the saved configuration
+        # ===============================================================
+        # Handle backward compatibility
+        # ===============================================================
+        if 'init_params' in state_dict and 'init_means' not in state_dict:
+            state_dict['init_means'] = state_dict['init_params']
+        if 'cov_init_method' in state_dict and 'init_covariances' not in state_dict:
+            state_dict['init_covariances'] = state_dict['cov_init_method']
+        if 'init_weights' not in state_dict:
+            state_dict['init_weights'] = 'uniform'
+        
+        # ===============================================================
+        # Create new instance with saved configuration
+        # ===============================================================
         model = cls(
             n_components=state_dict['n_components'],
             n_features=state_dict['n_features'],
@@ -1999,8 +2756,9 @@ class GaussianMixture(nn.Module):
             tol=state_dict['tol'],
             reg_covar=state_dict['reg_covar'],
             max_iter=state_dict['max_iter'],
-            init_params=state_dict['init_params'],
-            cov_init_method=state_dict['cov_init_method'],
+            init_means=state_dict['init_means'],
+            init_weights=state_dict['init_weights'],
+            init_covariances=state_dict['init_covariances'],
             n_init=state_dict['n_init'],
             random_state=state_dict['random_state'],
             warm_start=state_dict['warm_start'],
@@ -2015,7 +2773,9 @@ class GaussianMixture(nn.Module):
             cem=state_dict['cem'],
         )
         
-        # Load the trained parameters and state
+        # ===============================================================
+        # Load trained parameters and state
+        # ===============================================================
         model.weights_ = state_dict['weights_']
         model.means_ = state_dict['means_']
         model.covariances_ = state_dict['covariances_']
@@ -2027,7 +2787,9 @@ class GaussianMixture(nn.Module):
         model.n_iter_ = state_dict['n_iter_']
         model.lower_bound_ = state_dict['lower_bound_']
         
-        # Set prior flags
+        # ===============================================================
+        # Load prior flags
+        # ===============================================================
         model.use_weight_prior = state_dict['use_weight_prior']
         model.use_mean_prior = state_dict['use_mean_prior']
         model.use_covariance_prior = state_dict['use_covariance_prior']
@@ -2036,36 +2798,50 @@ class GaussianMixture(nn.Module):
 
     def save_state_dict(self) -> dict:
         r"""
-        Return the state dictionary of the model (similar to PyTorch's state_dict()).
+        Get model state as a dictionary (PyTorch-style).
         
-        This is useful for integration with other PyTorch workflows and for
-        custom saving/loading logic.
+        Useful for custom saving/loading workflows or integration with
+        other PyTorch models.
 
         Returns
         -------
         state_dict : dict
-            Dictionary containing model parameters and metadata.
+            Dictionary containing all model parameters, configuration,
+            and training state.
+            
+        See Also
+        --------
+        load_state_dict : Load from a state dictionary.
+        to_dict : Get a simplified dictionary (basic parameters only).
+        save : Save directly to a file.
         """
         return {
+            # ===============================================================
             # Model parameters
+            # ===============================================================
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
             
+            # ===============================================================
             # Initial parameters
+            # ===============================================================
             'initial_weights_': self.initial_weights_,
             'initial_means_': self.initial_means_,
             'initial_covariances_': self.initial_covariances_,
             
+            # ===============================================================
             # Model configuration
+            # ===============================================================
             'n_components': self.n_components,
             'n_features': self.n_features,
             'covariance_type': self.covariance_type,
             'tol': self.tol,
             'reg_covar': self.reg_covar,
             'max_iter': self.max_iter,
-            'init_params': self.init_params,
-            'cov_init_method': self.cov_init_method,
+            'init_means': self.init_means,
+            'init_weights': self.init_weights,
+            'init_covariances': self.init_covariances,
             'n_init': self.n_init,
             'random_state': self.random_state,
             'warm_start': self.warm_start,
@@ -2073,13 +2849,17 @@ class GaussianMixture(nn.Module):
             'verbose_interval': self.verbose_interval,
             'cem': self.cem,
             
+            # ===============================================================
             # Training state
+            # ===============================================================
             'fitted_': self.fitted_,
             'converged_': self.converged_,
             'n_iter_': self.n_iter_,
             'lower_bound_': self.lower_bound_,
             
+            # ===============================================================
             # Prior settings
+            # ===============================================================
             'use_weight_prior': self.use_weight_prior,
             'use_mean_prior': self.use_mean_prior,
             'use_covariance_prior': self.use_covariance_prior,
@@ -2092,26 +2872,62 @@ class GaussianMixture(nn.Module):
 
     def load_state_dict(self, state_dict: dict):
         r"""
-        Load state from a state dictionary (similar to PyTorch's load_state_dict()).
+        Load model state from a dictionary (PyTorch-style).
+
+        Updates the current model instance with parameters and configuration
+        from the state dictionary.
 
         Parameters
         ----------
         state_dict : dict
             Dictionary containing model parameters and metadata.
-        """
-        # Load configuration (only if not already set)
-        if hasattr(self, 'n_components') and self.n_components != state_dict['n_components']:
-            warnings.warn(f"n_components mismatch: current={self.n_components}, loaded={state_dict['n_components']}")
+            Typically obtained from save_state_dict().
+            
+        Warnings
+        --------
+        Issues warning if loading a state dict with different n_components
+        than the current model.
         
+        Notes
+        -----
+        Handles backward compatibility with older state dictionaries.
+        
+        See Also
+        --------
+        save_state_dict : Get state dictionary from current model.
+        load : Load model from file (creates new instance).
+        """
+        # ===============================================================
+        # Validate compatibility
+        # ===============================================================
+        if hasattr(self, 'n_components') and self.n_components != state_dict['n_components']:
+            warnings.warn(
+                f"n_components mismatch: current={self.n_components}, "
+                f"loaded={state_dict['n_components']}"
+            )
+        
+        # ===============================================================
+        # Handle backward compatibility
+        # ===============================================================
+        if 'init_params' in state_dict and 'init_means' not in state_dict:
+            state_dict['init_means'] = state_dict['init_params']
+        if 'cov_init_method' in state_dict and 'init_covariances' not in state_dict:
+            state_dict['init_covariances'] = state_dict['cov_init_method']
+        if 'init_weights' not in state_dict:
+            state_dict['init_weights'] = 'uniform'
+        
+        # ===============================================================
         # Update configuration
+        # ===============================================================
         self.n_components = state_dict['n_components']
         self.n_features = state_dict['n_features']
         self.covariance_type = state_dict['covariance_type']
         self.tol = state_dict['tol']
         self.reg_covar = state_dict['reg_covar']
         self.max_iter = state_dict['max_iter']
-        self.init_params = state_dict['init_params']
-        self.cov_init_method = state_dict['cov_init_method']
+        self.init_means = state_dict['init_means']
+        self.init_weights = state_dict['init_weights']
+        self.init_covariances = state_dict['init_covariances']
         self.n_init = state_dict['n_init']
         self.random_state = state_dict['random_state']
         self.warm_start = state_dict['warm_start']
@@ -2119,7 +2935,9 @@ class GaussianMixture(nn.Module):
         self.verbose_interval = state_dict['verbose_interval']
         self.cem = state_dict['cem']
         
+        # ===============================================================
         # Load parameters
+        # ===============================================================
         self.weights_ = state_dict['weights_']
         self.means_ = state_dict['means_']
         self.covariances_ = state_dict['covariances_']
@@ -2127,13 +2945,17 @@ class GaussianMixture(nn.Module):
         self.initial_means_ = state_dict['initial_means_']
         self.initial_covariances_ = state_dict['initial_covariances_']
         
+        # ===============================================================
         # Load training state
+        # ===============================================================
         self.fitted_ = state_dict['fitted_']
         self.converged_ = state_dict['converged_']
         self.n_iter_ = state_dict['n_iter_']
         self.lower_bound_ = state_dict['lower_bound_']
         
+        # ===============================================================
         # Load prior settings
+        # ===============================================================
         self.use_weight_prior = state_dict['use_weight_prior']
         self.use_mean_prior = state_dict['use_mean_prior']
         self.use_covariance_prior = state_dict['use_covariance_prior']
@@ -2142,3 +2964,16 @@ class GaussianMixture(nn.Module):
         self.mean_precision_prior = state_dict['mean_precision_prior']
         self.covariance_prior = state_dict['covariance_prior']
         self.degrees_of_freedom_prior = state_dict['degrees_of_freedom_prior']
+
+    def to_dict(self) -> dict:
+        r"""
+        Alias for save_state_dict() for convenience.
+        
+        Returns the state dictionary of the model.
+
+        Returns
+        -------
+        state_dict : dict
+            Dictionary containing model parameters and metadata.
+        """
+        return self.save_state_dict()
