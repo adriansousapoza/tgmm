@@ -1,0 +1,21 @@
+# Documentation build requirements for Read the Docs
+# MkDocs Material theme with plugins
+
+# Core dependencies
+torch>=2.0.0
+numpy>=1.20.0
+
+# MkDocs and Material theme
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+mkdocstrings[python]>=0.24.0
+mkdocs-jupyter>=0.24.0
+pymdown-extensions>=10.0
+
+# Optional dependencies for notebook execution
+matplotlib>=3.5.0
+scipy>=1.7.0
+mpltern>=1.0.0
+
+# Minimal dependencies for importing the package
+setuptools
