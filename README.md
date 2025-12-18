@@ -1,7 +1,7 @@
 # tgmm: A Gaussian Mixture Model based on Expectation-Maximisation implemented with PyTorch
 
 [![PyPI version](https://badge.fury.io/py/tgmm.svg)](https://badge.fury.io/py/tgmm)
-[![Documentation Status](https://readthedocs.org/projects/tgmm/badge/?version=latest)](https://tgmm.readthedocs.io/en/latest/?badge=latest)
+[![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://adriansousapoza.github.io/tgmm/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.0+-orange.svg)](https://pytorch.org/)
 
