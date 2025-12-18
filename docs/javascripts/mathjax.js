@@ -6,11 +6,12 @@ window.MathJax = {
     processEnvironments: true
   },
   options: {
-    ignoreHtmlClass: ".*|",
-    processHtmlClass: "arithmatex"
+    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
   }
 };
 
 document$.subscribe(() => { 
-  MathJax.typesetPromise()
+  MathJax.startup.output.clearCache();
+  MathJax.typesetClear();
+  MathJax.typesetPromise();
 })

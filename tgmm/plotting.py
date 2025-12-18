@@ -498,7 +498,7 @@ def plot_gmm(
 # Helper functions
 ##############################################################################
 
-def dynamic_figsize(rows, cols, base_width=8, base_height=6):
+def dynamic_figsize(rows, cols, base_width=7, base_height=4.5):
     """Calculate figure size based on subplot grid."""
     return (cols * base_width, rows * base_height)
 

@@ -1,7 +1,7 @@
 site_name: tgmm Documentation
 site_description: A Gaussian Mixture Model implementation in PyTorch with EM/MAP estimation
 site_author: Adrián A. Sousa-Poza
-site_url: https://tgmm.readthedocs.io
+site_url: https://adriansousapoza.github.io/TorchGMM/
 
 repo_name: adriansousapoza/TorchGMM
 repo_url: https://github.com/adriansousapoza/TorchGMM
@@ -114,11 +114,16 @@ plugins:
       execute: false
       allow_errors: false
       kernel_name: python3
+      ignore_h1_titles: true
+      include_requirejs: true
 
 extra_javascript:
   - javascripts/mathjax.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css
 
 nav:
   - Home: index.md
