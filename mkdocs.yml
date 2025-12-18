@@ -38,8 +38,8 @@ theme:
     - content.code.annotate
   icon:
     repo: fontawesome/brands/github
-  logo: assets/gmm-logo.png
-  favicon: assets/gmm-logo.png
+  logo: assets/tgmm-logo.png
+  favicon: assets/tgmm-logo.png
 
 extra:
   version:
