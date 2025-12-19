@@ -2,98 +2,98 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/contributing/</loc>
-         <lastmod>2025-12-18</lastmod>
-    </url>
-    <url>
-         <loc>https://adriansousapoza.github.io/tgmm/migration-guide/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/clustering-metrics/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/gaussian-mixture/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/gmm-initializer/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/plotting/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/assets/em_animation/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/assets/logo_generator/</loc>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/getting-started/installation/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/getting-started/quickstart/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/cem/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/em_algorithm/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/gmm/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/metrics/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/niw_priors_comparison/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/pca_plotting/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/priors/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/sampling/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/visualise/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/tutorials/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/clustering-metrics/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/gmm-initializer/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/plotting/</loc>
-         <lastmod>2025-12-18</lastmod>
+         <lastmod>2025-12-19</lastmod>
     </url>
 </urlset>
