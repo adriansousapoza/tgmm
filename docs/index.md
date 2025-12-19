@@ -1,10 +1,10 @@
-# tgmm: Gaussian Mixture Models in PyTorch
-
 <div align="center" markdown="1">
 
-<img src="assets/gmm-logo.png" alt="TorchGMM Logo" width="300"/>
+<img src="assets/tgmm-logo.png" alt="TorchGMM Logo" width="300"/>
 
 </div>
+
+# Gaussian Mixture Models in PyTorch
 
 **tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) in PyTorch, featuring:
 
@@ -21,16 +21,70 @@
 import torch
 from tgmm import GaussianMixture
 
-# Fit a GMM with 3 components
-gmm = GaussianMixture(n_components=3, n_features=2, covariance_type='full')
+# Fit a GMM with 3 components (showing all default parameters)
+gmm = GaussianMixture(
+    # Core model parameters
+    n_components=3,
+    n_features=2,
+    covariance_type='full',
+    
+    # Convergence and training parameters
+    max_iter=1000,
+    tol=1e-4,
+    reg_covar=1e-6,
+    n_init=1,
+    
+    # Initialization parameters
+    init_means='kmeans',
+    init_weights='uniform',
+    init_covariances='empirical',
+    
+    # Random state and restart options
+    random_state=None,
+    warm_start=False,
+    
+    # Algorithm options
+    cem=False,
+    
+    # Prior parameters for MAP estimation
+    weight_concentration_prior=None,
+    mean_prior=None,
+    mean_precision_prior=None,
+    covariance_prior=None,
+    degrees_of_freedom_prior=None,
+    
+    # Output and device options
+    verbose=False,
+    verbose_interval=10,
+    device=None
+)
+
 gmm.fit(X)
 
 # Make predictions
 labels = gmm.predict(X)
 probabilities = gmm.predict_proba(X)
 
-# Generate new samples
-samples, component_ids = gmm.sample(100)
+# Score samples
+log_likelihood_per_sample = gmm.score_samples(X)
+average_log_likelihood = gmm.score(X)
+
+# Generate new samples (showing all default parameters)
+samples, component_ids = gmm.sample(
+    n_samples=1,
+    component=None,
+    std_radius=None,
+    std_range=None,
+    confidence=None,
+    confidence_range=None,
+    center_point=None,
+    center_radius=None,
+    max_attempts_per_sample=1000
+)
+
+# Save and load models
+gmm.save('my_gmm_model.pth')
+loaded_gmm = GaussianMixture.load('my_gmm_model.pth', device=None)
 ```
 
 ## Key Features
