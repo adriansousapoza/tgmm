@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/tgmm-logo.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -326,25 +326,6 @@
         </a>
       </li>
     
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../migration-guide.md" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Migration Guide
-
-      </a>
-    </li>
   
 
       
@@ -1000,6 +981,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../notebooks/em_algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../notebooks/metrics/" class="md-nav__link">
         
   
@@ -1376,33 +1385,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../migration-guide.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migration Guide
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../contributing/" class="md-nav__link">
         
   
@@ -1578,11 +1560,12 @@
 <p>Interactive Jupyter notebook tutorials demonstrating various features of TorchGMM.</p>
 <h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../notebooks/gmm/"><strong>Gaussian Mixture Models (GMM)</strong></a> - Basic introduction to fitting GMMs with TorchGMM</li>
-<li><a href="../notebooks/cem/"><strong>Initialization Methods</strong></a> - Comparison of initialization strategies including CEM</li>
+<li><a href="../notebooks/gmm/"><strong>Gaussian Mixture Models (GMM)</strong></a> - Basic introduction to fitting GMMs with TorchGMM, including a comparison of mean/weight/covariance initialization strategies</li>
+<li><a href="../notebooks/em_algorithm/"><strong>EM Algorithm Walkthrough</strong></a> - Step-by-step visualization of how the EM algorithm updates responsibilities and parameters each iteration</li>
 </ul>
 <h2 id="advanced-topics">Advanced Topics<a class="headerlink" href="#advanced-topics" title="Permanent link">&para;</a></h2>
 <ul>
+<li><a href="../notebooks/cem/"><strong>Classification EM (CEM)</strong></a> - Comparing the hard-assignment CEM algorithm against standard EM</li>
 <li><a href="../notebooks/priors/"><strong>Prior Distributions</strong></a> - Using priors for regularization and MAP estimation</li>
 <li><a href="../notebooks/niw_priors_comparison/"><strong>NIW Priors Comparison</strong></a> - Detailed comparison of Normal-Inverse-Wishart priors</li>
 <li><a href="../notebooks/sampling/"><strong>Sampling from GMMs</strong></a> - Generating synthetic data from fitted models</li>

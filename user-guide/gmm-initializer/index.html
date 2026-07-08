@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/tgmm-logo.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -326,25 +326,6 @@
         </a>
       </li>
     
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../../migration-guide.md" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Migration Guide
-
-      </a>
-    </li>
   
 
       
@@ -729,15 +710,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#initialization-methods" class="md-nav__link">
+  <a href="#mean-initialization-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Initialization Methods
+        Mean Initialization Methods
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Initialization Methods">
+    <nav class="md-nav" aria-label="Mean Initialization Methods">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1002,6 +983,34 @@
     
   
     Basic GMM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/em_algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Algorithm Walkthrough
   
 
     
@@ -1398,33 +1407,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../migration-guide.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migration Guide
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../contributing/" class="md-nav__link">
         
   
@@ -1494,15 +1476,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#initialization-methods" class="md-nav__link">
+  <a href="#mean-initialization-methods" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Initialization Methods
+        Mean Initialization Methods
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Initialization Methods">
+    <nav class="md-nav" aria-label="Mean Initialization Methods">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1620,41 +1602,53 @@
 
 <h1 id="gmm-initializer">GMM Initializer<a class="headerlink" href="#gmm-initializer" title="Permanent link">&para;</a></h1>
 <p>The <code>GMMInitializer</code> class provides various strategies for initializing Gaussian Mixture Models. Good initialization is crucial for the EM algorithm to converge to a good solution.</p>
+<p><code>GMMInitializer</code> is a collection of <code>@staticmethod</code>s -- there is no instance to construct. Each
+method takes the data (and sometimes the current means) directly and returns a tensor.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Available initialization methods:</p>
+<p><strong>Means</strong> (<code>init_means</code>):</p>
 <ul>
-<li><strong>kmeans</strong>: Use K-means clustering (recommended)</li>
-<li><strong>kpp</strong>: K-means++ initialization</li>
-<li><strong>random</strong>: Random selection of data points</li>
-<li><strong>points</strong>: Use specific provided points</li>
-<li><strong>maxdist</strong>: Maximize distance between initial centers</li>
+<li><strong>kmeans</strong>: Lloyd's algorithm, started from a k-means++ initialization (recommended)</li>
+<li><strong>kpp</strong>: K-means++ initialization only (no Lloyd iterations)</li>
+<li><strong>random</strong>: Sample from a Gaussian fit to the data's mean/covariance</li>
+<li><strong>points</strong>: Randomly selected data points</li>
+<li><strong>maxdist</strong>: Greedily maximize the minimum distance between centers</li>
 </ul>
+<p><strong>Weights</strong> (<code>init_weights</code>):</p>
+<ul>
+<li><strong>uniform</strong> / <strong>equal</strong>: All components start with equal weight (default)</li>
+<li><strong>random</strong>: Sample from a symmetric Dirichlet distribution</li>
+<li><strong>kmeans</strong>: Proportional to cluster sizes from a nearest-mean assignment</li>
+</ul>
+<p><strong>Covariances</strong> (<code>init_covariances</code>):</p>
+<ul>
+<li><strong>empirical</strong>: Estimated from data assigned to each component by nearest mean (default)</li>
+<li><strong>eye</strong>: Identity-like matrices/vectors, scaled by <code>1 + reg_covar</code></li>
+<li><strong>random</strong>: Random positive semi-definite matrices/vectors</li>
+<li><strong>global</strong>: The single global covariance of the whole dataset, shared or repeated across components</li>
+</ul>
+<p>All three also accept a <code>torch.Tensor</code> of explicit values instead of a method name.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
-<p>The initializer is used internally by <code>GaussianMixture</code>, but can also be used standalone:</p>
+<p><code>GMMInitializer</code> is used internally by <code>GaussianMixture</code>, but its static methods can also be
+called directly to build custom initial parameters:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMMInitializer</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Create initializer</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">initializer</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="p">(</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">device</span><span class="o">=</span><span class="s1">&#39;cuda&#39;</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Initialize means using K-means</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">means</span> <span class="o">=</span> <span class="n">initializer</span><span class="o">.</span><span class="n">initialize_means</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">)</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="c1"># Initialize weights (uniform by default)</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">initializer</span><span class="o">.</span><span class="n">initialize_weights</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;uniform&#39;</span><span class="p">)</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="c1"># Initialize covariances</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="n">covariances</span> <span class="o">=</span> <span class="n">initializer</span><span class="o">.</span><span class="n">initialize_covariances</span><span class="p">(</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="n">X</span><span class="p">,</span> <span class="n">means</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Initialize means using K-means (or .kpp, .random, .points, .maxdist)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">means</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">kmeans</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Initialize weights proportional to cluster sizes</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">init_weights_from_clusters</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">means</span><span class="p">)</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Initialize covariances from the data assigned to each component</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">covariances</span> <span class="o">=</span> <span class="n">GMMInitializer</span><span class="o">.</span><span class="n">init_covariances_empirical</span><span class="p">(</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">X</span><span class="p">,</span> <span class="n">means</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">reg_covar</span><span class="o">=</span><span class="mf">1e-6</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
 </span></code></pre></div>
-<h2 id="initialization-methods">Initialization Methods<a class="headerlink" href="#initialization-methods" title="Permanent link">&para;</a></h2>
+<h2 id="mean-initialization-methods">Mean Initialization Methods<a class="headerlink" href="#mean-initialization-methods" title="Permanent link">&para;</a></h2>
 <h3 id="k-means-initialization">K-means Initialization<a class="headerlink" href="#k-means-initialization" title="Permanent link">&para;</a></h3>
-<p>Uses scikit-learn's K-means algorithm:</p>
+<p>A pure PyTorch implementation of Lloyd's algorithm, started from a k-means++ initialization
+(no scikit-learn dependency):</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
@@ -1662,8 +1656,8 @@
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">)</span>
 </span></code></pre></div>
-<p><strong>Advantages</strong>: Fast, usually provides good starting points<br />
-<strong>Disadvantages</strong>: Requires scikit-learn</p>
+<p><strong>Advantages</strong>: Usually provides good starting points
+<strong>Disadvantages</strong>: Slower than a single k-means++ pass, no convergence guarantee within <code>max_iter</code></p>
 <h3 id="k-means-initialization_1">K-means++ Initialization<a class="headerlink" href="#k-means-initialization_1" title="Permanent link">&para;</a></h3>
 <p>Smart initialization that spreads centers apart:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
@@ -1673,10 +1667,10 @@
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">)</span>
 </span></code></pre></div>
-<p><strong>Advantages</strong>: Better than random, avoids clustering centers too close<br />
+<p><strong>Advantages</strong>: Better than random, avoids clustering centers too close
 <strong>Disadvantages</strong>: Slightly slower than random</p>
 <h3 id="random-initialization">Random Initialization<a class="headerlink" href="#random-initialization" title="Permanent link">&para;</a></h3>
-<p>Randomly selects K data points:</p>
+<p>Draws centers from a Gaussian fit to the data's empirical mean and covariance:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
@@ -1684,7 +1678,7 @@
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">)</span>
 </span></code></pre></div>
-<p><strong>Advantages</strong>: Fast, simple<br />
+<p><strong>Advantages</strong>: Fast, simple
 <strong>Disadvantages</strong>: May lead to poor convergence</p>
 <h3 id="custom-points">Custom Points<a class="headerlink" href="#custom-points" title="Permanent link">&para;</a></h3>
 <p>Provide specific initial centers:</p>
@@ -1709,45 +1703,34 @@
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="weight-initialization">Weight Initialization<a class="headerlink" href="#weight-initialization" title="Permanent link">&para;</a></h2>
-<p>Weights can be initialized as:</p>
-<ul>
-<li><strong>uniform</strong>: All components have equal weight (default)</li>
-<li><strong>data</strong>: Based on proximity of data to initial means</li>
-</ul>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">init_weights</span><span class="o">=</span><span class="s1">&#39;uniform&#39;</span>  <span class="c1"># or &#39;data&#39;</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Equal weight for every component (default)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_weights</span><span class="o">=</span><span class="s1">&#39;uniform&#39;</span><span class="p">)</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Random weights sampled from a symmetric Dirichlet distribution</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_weights</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">)</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Proportional to cluster sizes (nearest-mean assignment)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_weights</span><span class="o">=</span><span class="s1">&#39;kmeans&#39;</span><span class="p">)</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Explicit weights (normalized to sum to 1)</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_weights</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">]))</span>
 </span></code></pre></div>
 <h2 id="covariance-initialization">Covariance Initialization<a class="headerlink" href="#covariance-initialization" title="Permanent link">&para;</a></h2>
-<p>Covariances can be initialized as:</p>
-<ul>
-<li><strong>data</strong>: Estimated from data assigned to each component</li>
-<li><strong>identity</strong>: Identity matrix</li>
-<li><strong>custom</strong>: Provide specific covariance matrices</li>
-</ul>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Data-based initialization</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">init_covariances</span><span class="o">=</span><span class="s1">&#39;data&#39;</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="p">)</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1"># Identity initialization</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="n">init_covariances</span><span class="o">=</span><span class="s1">&#39;identity&#39;</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="p">)</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="c1"># Custom covariances</span>
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="n">init_covs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span>
-</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>    <span class="n">init_covariances</span><span class="o">=</span><span class="n">init_covs</span>
-</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Estimated from data assigned to each component (default)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_covariances</span><span class="o">=</span><span class="s1">&#39;empirical&#39;</span><span class="p">)</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Identity-like matrices, scaled by (1 + reg_covar)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_covariances</span><span class="o">=</span><span class="s1">&#39;eye&#39;</span><span class="p">)</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Random positive semi-definite matrices</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_covariances</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">)</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># Shared global covariance of the whole dataset</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_covariances</span><span class="o">=</span><span class="s1">&#39;global&#39;</span><span class="p">)</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Explicit covariances</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="n">init_covs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">init_covariances</span><span class="o">=</span><span class="n">init_covs</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="complete-api-reference">Complete API Reference<a class="headerlink" href="#complete-api-reference" title="Permanent link">&para;</a></h2>
 <p>For full details, see the <a href="../../api/gmm-initializer/">API Reference</a>.</p>
