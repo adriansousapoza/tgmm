@@ -170,8 +170,8 @@ class ClusteringMetrics:
         labels = labels.to(X.device)
         distances = torch.cdist(X, X)  # (n_samples, n_samples)
         
-        A = torch.zeros(labels.size(0), dtype=torch.float, device=X.device)
-        B = torch.full((labels.size(0),), float('inf'), dtype=torch.float, device=X.device)
+        A = torch.zeros(labels.size(0), dtype=X.dtype, device=X.device)
+        B = torch.full((labels.size(0),), float('inf'), dtype=X.dtype, device=X.device)
 
         # For each cluster i, compute intra-cluster distances and inter-cluster distances
         for i in range(n_components):

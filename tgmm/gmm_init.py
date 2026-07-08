@@ -91,10 +91,10 @@ class GMMInitializer:
         mu = torch.mean(data, dim=0)
         if data.dim() == 1:
             cov = torch.var(data)
-            samples = torch.randn(k, device=data.device) * torch.sqrt(cov)
+            samples = torch.randn(k, device=data.device, dtype=data.dtype) * torch.sqrt(cov)
         else:
             cov = torch.cov(data.t())
-            samples = torch.randn(k, data.size(1), device=data.device) @ torch.linalg.cholesky(cov).t()
+            samples = torch.randn(k, data.size(1), device=data.device, dtype=data.dtype) @ torch.linalg.cholesky(cov).t()
         samples += mu
         return samples
 
@@ -143,7 +143,7 @@ class GMMInitializer:
             A (k, D) tensor representing the initial cluster centers.
         """
         n_samples, _ = data.shape
-        centroids = torch.empty((k, data.size(1)), device=data.device)
+        centroids = torch.empty((k, data.size(1)), device=data.device, dtype=data.dtype)
 
         # Pick the first center uniformly at random
         initial_idx = torch.randint(0, n_samples, (1,), device=data.device)
@@ -229,7 +229,7 @@ class GMMInitializer:
             A (k, D) tensor representing the initial cluster centers.
         """
         n_samples, _ = data.shape
-        centroids = torch.empty((k, data.size(1)), device=data.device)
+        centroids = torch.empty((k, data.size(1)), device=data.device, dtype=data.dtype)
 
         initial_idx = torch.randint(0, n_samples, (1,), device=data.device)
         centroids[0] = data[initial_idx]
@@ -252,17 +252,20 @@ class GMMInitializer:
     # ====================================================================
     
     @staticmethod
-    def init_weights_uniform(n_components: int, device: torch.device) -> torch.Tensor:
+    def init_weights_uniform(n_components: int, device: torch.device,
+                              dtype: torch.dtype = torch.float32) -> torch.Tensor:
         r"""
         Initialize weights uniformly (equal weights for all components).
-        
+
         Parameters
         ----------
         n_components : int
             Number of mixture components.
         device : torch.device
             Device to create the tensor on.
-            
+        dtype : torch.dtype, optional
+            Floating point dtype for the tensor. (default: torch.float32)
+
         Returns
         -------
         torch.Tensor
@@ -271,30 +274,33 @@ class GMMInitializer:
         return torch.full(
             (n_components,),
             1.0 / n_components,
-            dtype=torch.float32,
+            dtype=dtype,
             device=device
         )
-    
+
     @staticmethod
-    def init_weights_random(n_components: int, device: torch.device) -> torch.Tensor:
+    def init_weights_random(n_components: int, device: torch.device,
+                             dtype: torch.dtype = torch.float32) -> torch.Tensor:
         r"""
         Initialize weights randomly from a Dirichlet distribution.
-        
+
         Parameters
         ----------
         n_components : int
             Number of mixture components.
         device : torch.device
             Device to create the tensor on.
-            
+        dtype : torch.dtype, optional
+            Floating point dtype for the tensor. (default: torch.float32)
+
         Returns
         -------
         torch.Tensor
             Random weights of shape (n_components,) that sum to 1.
         """
-        alpha = torch.ones(n_components, device=device)
+        alpha = torch.ones(n_components, device=device, dtype=dtype)
         weights = torch.distributions.Dirichlet(alpha).sample()
-        return weights.float()
+        return weights.to(dtype)
     
     @staticmethod
     def init_weights_from_clusters(data: torch.Tensor, means: torch.Tensor) -> torch.Tensor:
@@ -323,7 +329,7 @@ class GMMInitializer:
         labels = torch.argmin(distances, dim=1)
         
         # Count points per cluster
-        counts = torch.bincount(labels, minlength=n_components).float()
+        counts = torch.bincount(labels, minlength=n_components).to(data.dtype)
         
         # Handle empty clusters
         counts = torch.clamp(counts, min=1e-10)
@@ -336,12 +342,13 @@ class GMMInitializer:
     # ====================================================================
     
     @staticmethod
-    def init_covariances_eye(n_components: int, n_features: int, 
-                            covariance_type: str, reg_covar: float, 
-                            device: torch.device) -> torch.Tensor:
+    def init_covariances_eye(n_components: int, n_features: int,
+                            covariance_type: str, reg_covar: float,
+                            device: torch.device,
+                            dtype: torch.dtype = torch.float32) -> torch.Tensor:
         r"""
         Initialize covariances as identity-like matrices/vectors.
-        
+
         Parameters
         ----------
         n_components : int
@@ -354,7 +361,9 @@ class GMMInitializer:
             Regularization added to diagonal.
         device : torch.device
             Device to create tensors on.
-            
+        dtype : torch.dtype, optional
+            Floating point dtype for the tensors. (default: torch.float32)
+
         Returns
         -------
         torch.Tensor
@@ -363,29 +372,30 @@ class GMMInitializer:
         if covariance_type == 'full':
             out = []
             for _ in range(n_components):
-                mat = torch.eye(n_features, device=device) * (1.0 + reg_covar)
+                mat = torch.eye(n_features, device=device, dtype=dtype) * (1.0 + reg_covar)
                 out.append(mat)
             return torch.stack(out, dim=0)
         elif covariance_type == 'diag':
-            return torch.ones(n_components, n_features, device=device) * (1.0 + reg_covar)
+            return torch.ones(n_components, n_features, device=device, dtype=dtype) * (1.0 + reg_covar)
         elif covariance_type == 'spherical':
-            return torch.ones(n_components, device=device) * (1.0 + reg_covar)
+            return torch.ones(n_components, device=device, dtype=dtype) * (1.0 + reg_covar)
         elif covariance_type == 'tied_full':
-            return torch.eye(n_features, device=device) * (1.0 + reg_covar)
+            return torch.eye(n_features, device=device, dtype=dtype) * (1.0 + reg_covar)
         elif covariance_type == 'tied_diag':
-            return torch.ones(n_features, device=device) * (1.0 + reg_covar)
+            return torch.ones(n_features, device=device, dtype=dtype) * (1.0 + reg_covar)
         elif covariance_type == 'tied_spherical':
-            return torch.tensor(1.0 + reg_covar, device=device)
+            return torch.tensor(1.0 + reg_covar, device=device, dtype=dtype)
         else:
             raise ValueError(f"Unsupported covariance type: {covariance_type}")
     
     @staticmethod
     def init_covariances_random(n_components: int, n_features: int,
                                covariance_type: str, reg_covar: float,
-                               device: torch.device) -> torch.Tensor:
+                               device: torch.device,
+                               dtype: torch.dtype = torch.float32) -> torch.Tensor:
         r"""
         Initialize covariances randomly as positive semi-definite matrices.
-        
+
         Parameters
         ----------
         n_components : int
@@ -398,7 +408,9 @@ class GMMInitializer:
             Regularization added to diagonal.
         device : torch.device
             Device to create tensors on.
-            
+        dtype : torch.dtype, optional
+            Floating point dtype for the tensors. (default: torch.float32)
+
         Returns
         -------
         torch.Tensor
@@ -406,19 +418,19 @@ class GMMInitializer:
         """
         if covariance_type in ('full', 'tied_full'):
             def random_spd(dim):
-                A = torch.randn(dim, dim, device=device)
-                return A @ A.mT + reg_covar * torch.eye(dim, device=device)
-            
+                A = torch.randn(dim, dim, device=device, dtype=dtype)
+                return A @ A.mT + reg_covar * torch.eye(dim, device=device, dtype=dtype)
+
             if covariance_type == 'full':
                 return torch.stack([random_spd(n_features) for _ in range(n_components)], dim=0)
             else:
                 return random_spd(n_features)
         elif covariance_type in ('diag', 'tied_diag'):
             shape = (n_components, n_features) if covariance_type == 'diag' else (n_features,)
-            return torch.rand(shape, device=device) + reg_covar
+            return torch.rand(shape, device=device, dtype=dtype) + reg_covar
         elif covariance_type in ('spherical', 'tied_spherical'):
             shape = (n_components,) if (covariance_type == 'spherical') else ()
-            return torch.rand(shape, device=device) + (1.0 + reg_covar)
+            return torch.rand(shape, device=device, dtype=dtype) + (1.0 + reg_covar)
         else:
             raise ValueError(f"Unsupported covariance type: {covariance_type}")
     
@@ -449,11 +461,11 @@ class GMMInitializer:
         
         n_features = data.size(1)
         device = data.device
-        
+
         # Compute global covariance matrix
         global_cov = torch.cov(data.T)
-        global_cov += reg_covar * torch.eye(n_features, device=device)
-        
+        global_cov += reg_covar * torch.eye(n_features, device=device, dtype=data.dtype)
+
         if covariance_type == 'full':
             return global_cov.unsqueeze(0).repeat(n_components, 1, 1)
         elif covariance_type == 'diag':
@@ -461,7 +473,7 @@ class GMMInitializer:
             return diag_vals.unsqueeze(0).repeat(n_components, 1)
         elif covariance_type == 'spherical':
             avg_var = torch.mean(torch.diagonal(global_cov))
-            return torch.full((n_components,), avg_var.item(), device=device)
+            return torch.full((n_components,), avg_var.item(), device=device, dtype=data.dtype)
         elif covariance_type == 'tied_full':
             return global_cov
         elif covariance_type == 'tied_diag':
@@ -512,23 +524,23 @@ class GMMInitializer:
             for k in range(n_components):
                 cluster_mask = (labels == k)
                 if not torch.any(cluster_mask):
-                    cov_k = torch.eye(n_features, device=device) * (1.0 + reg_covar)
+                    cov_k = torch.eye(n_features, device=device, dtype=data.dtype) * (1.0 + reg_covar)
                 else:
                     cluster_data = data[cluster_mask]
                     cov_k = torch.cov(cluster_data.T)
                     # Ensure cov_k is always a matrix (for n_features=1, torch.cov returns scalar)
                     if cov_k.ndim == 0:
                         cov_k = cov_k.reshape(1, 1)
-                    cov_k += reg_covar * torch.eye(n_features, device=device)
+                    cov_k += reg_covar * torch.eye(n_features, device=device, dtype=data.dtype)
                 new_covs.append(cov_k)
             return torch.stack(new_covs, dim=0)
-            
+
         elif covariance_type == 'diag':
             new_covs = []
             for k in range(n_components):
                 cluster_mask = (labels == k)
                 if not torch.any(cluster_mask):
-                    cov_k = torch.ones(n_features, device=device) * (1.0 + reg_covar)
+                    cov_k = torch.ones(n_features, device=device, dtype=data.dtype) * (1.0 + reg_covar)
                 else:
                     cluster_data = data[cluster_mask]
                     cov_mat = torch.cov(cluster_data.T)
@@ -554,11 +566,11 @@ class GMMInitializer:
                         cov_k = max(cov_mat.item(), reg_covar)
                     else:
                         cov_k = max(torch.mean(torch.diagonal(cov_mat)).item(), reg_covar)
-                new_covs.append(torch.tensor(cov_k, device=device))
+                new_covs.append(torch.tensor(cov_k, device=device, dtype=data.dtype))
             return torch.stack(new_covs, dim=0)
-            
+
         elif covariance_type == 'tied_full':
-            sum_cov = torch.zeros(n_features, n_features, device=device)
+            sum_cov = torch.zeros(n_features, n_features, device=device, dtype=data.dtype)
             for k in range(n_components):
                 cluster_mask = (labels == k)
                 cluster_data = data[cluster_mask]
@@ -566,11 +578,11 @@ class GMMInitializer:
                     diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
                     sum_cov += diff.T @ diff
             sum_cov /= n_samples
-            sum_cov += reg_covar * torch.eye(n_features, device=device)
+            sum_cov += reg_covar * torch.eye(n_features, device=device, dtype=data.dtype)
             return sum_cov
-            
+
         elif covariance_type == 'tied_diag':
-            sum_diag = torch.zeros(n_features, device=device)
+            sum_diag = torch.zeros(n_features, device=device, dtype=data.dtype)
             for k in range(n_components):
                 cluster_mask = (labels == k)
                 cluster_data = data[cluster_mask]
@@ -590,7 +602,7 @@ class GMMInitializer:
                     diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
                     total_sum += diff.pow(2).sum().item()
             var = max(total_sum / (n_samples * n_features), reg_covar)
-            return torch.tensor(var, device=device)
+            return torch.tensor(var, device=device, dtype=data.dtype)
             
         else:
             raise ValueError(f"Unsupported covariance type: {covariance_type}")

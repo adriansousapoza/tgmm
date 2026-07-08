@@ -44,7 +44,7 @@ class GaussianMixture(nn.Module):
     init_means : str or torch.Tensor, optional
         Method for initializing means, or a tensor of initial means.
         - If str: 'kmeans', 'kpp', 'random', 'points', 'maxdist'
-        - If tensor: shape (n_components, n_features) or (n_features,) to broadcast
+        - If tensor: shape (n_components, n_features) exactly (no broadcasting)
         (default: 'kmeans')
     init_weights : str or torch.Tensor, optional
         Method for initializing weights, or a tensor of initial weights.
@@ -106,6 +106,10 @@ class GaussianMixture(nn.Module):
         Initial mixture component means before EM optimization, shape (n_components, n_features).
     initial_covariances_ : torch.Tensor
         Initial mixture component covariances before EM optimization.
+    dtype : torch.dtype
+        Floating point dtype used for all model parameters. Set to the dtype
+        of the data passed to `fit` (e.g. torch.float64 is fully supported),
+        or torch.get_default_dtype() before the first call to `fit`.
     fitted_ : bool
         Whether the model has been fitted.
     converged_ : bool
@@ -230,7 +234,12 @@ class GaussianMixture(nn.Module):
             self.device = torch.device(device)
         else:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
+
+        # Working floating dtype. Overridden by the dtype of X at fit() time,
+        # so the model follows the data (e.g. torch.float64) instead of
+        # silently downcasting to float32.
+        self.dtype = torch.get_default_dtype()
+
         # ===================================================================
         # 8. Store output options
         # ===================================================================
@@ -299,7 +308,7 @@ class GaussianMixture(nn.Module):
         # ---------------------------------------------------------------
         if self.use_weight_prior:
             if not isinstance(weight_concentration_prior, torch.Tensor):
-                weight_concentration_prior = torch.tensor(weight_concentration_prior, device=self.device)
+                weight_concentration_prior = torch.tensor(weight_concentration_prior, device=self.device, dtype=self.dtype)
             
             # Broadcast scalar or single value to all components
             if weight_concentration_prior.dim() == 0 or (weight_concentration_prior.dim() == 1 and weight_concentration_prior.numel() == 1):
@@ -309,7 +318,7 @@ class GaussianMixture(nn.Module):
                     f"weight_concentration_prior must be of shape ({self.n_components},) or a scalar, "
                     f"got {weight_concentration_prior.shape}."
                 )
-            self.weight_concentration_prior = weight_concentration_prior.to(self.device).float()
+            self.weight_concentration_prior = weight_concentration_prior.to(device=self.device, dtype=self.dtype)
         else:
             self.weight_concentration_prior = None
 
@@ -328,7 +337,7 @@ class GaussianMixture(nn.Module):
             if mean_precision_prior <= 0:
                 raise ValueError("mean_precision_prior must be > 0.")
             
-            self.mean_prior = mean_prior.to(self.device).float()
+            self.mean_prior = mean_prior.to(device=self.device, dtype=self.dtype)
             self.mean_precision_prior = float(mean_precision_prior)
         else:
             self.mean_prior = None
@@ -394,7 +403,7 @@ class GaussianMixture(nn.Module):
                         f"'{self.covariance_type}' covariance. Got {covariance_prior.shape}."
                     )
             
-            self.covariance_prior = covariance_prior.to(self.device).float()
+            self.covariance_prior = covariance_prior.to(device=self.device, dtype=self.dtype)
         else:
             self.degrees_of_freedom_prior = None
             self.covariance_prior = None
@@ -478,8 +487,8 @@ class GaussianMixture(nn.Module):
                     f"init_means tensor must be shape ({self.n_components}, {self.n_features}), "
                     f"got {self.init_means.shape}."
                 )
-            self.means_ = self.init_means.to(self.device).float()
-        
+            self.means_ = self.init_means.to(device=self.device, dtype=self.dtype)
+
         elif isinstance(self.init_means, str):
             # Initialization method
             if X is None:
@@ -487,8 +496,9 @@ class GaussianMixture(nn.Module):
                 self.means_ = torch.randn(
                     self.n_components,
                     self.n_features,
-                    device=self.device
-                ).float()
+                    device=self.device,
+                    dtype=self.dtype
+                )
             else:
                 # Data-based initialization
                 X_cpu = X.cpu()
@@ -526,21 +536,21 @@ class GaussianMixture(nn.Module):
                     f"init_weights tensor must be shape ({self.n_components},), "
                     f"got {self.init_weights.shape}."
                 )
-            weights = self.init_weights.to(self.device).float()
+            weights = self.init_weights.to(device=self.device, dtype=self.dtype)
             if torch.sum(weights) < 1e-20:
                 raise ValueError("Initial weights must sum to > 0.")
             self.weights_ = weights / torch.sum(weights)
         elif isinstance(self.init_weights, str):
             # Use initialization method from GMMInitializer
             init_method = self.init_weights.lower()
-            
+
             if init_method in ('uniform', 'equal'):
                 self.weights_ = GMMInitializer.init_weights_uniform(
-                    self.n_components, self.device
+                    self.n_components, self.device, dtype=self.dtype
                 )
             elif init_method == 'random':
                 self.weights_ = GMMInitializer.init_weights_random(
-                    self.n_components, self.device
+                    self.n_components, self.device, dtype=self.dtype
                 )
             elif init_method == 'kmeans':
                 if X is None:
@@ -550,7 +560,7 @@ class GaussianMixture(nn.Module):
                         UserWarning
                     )
                     self.weights_ = GMMInitializer.init_weights_uniform(
-                        self.n_components, self.device
+                        self.n_components, self.device, dtype=self.dtype
                     )
                 else:
                     # Ensure data is on the same device as means for init_weights_from_clusters
@@ -626,20 +636,20 @@ class GaussianMixture(nn.Module):
                         f"'{self.covariance_type}' covariance type. Got {init_cov.shape}."
                     )
             
-            self.covariances_ = init_cov.to(self.device).float()
+            self.covariances_ = init_cov.to(device=self.device, dtype=self.dtype)
         elif isinstance(self.init_covariances, str):
             # Use initialization method from GMMInitializer
             init_method = self.init_covariances.lower()
-            
+
             if init_method == 'eye':
                 self.covariances_ = GMMInitializer.init_covariances_eye(
-                    self.n_components, self.n_features, 
-                    self.covariance_type, self.reg_covar, self.device
+                    self.n_components, self.n_features,
+                    self.covariance_type, self.reg_covar, self.device, dtype=self.dtype
                 )
             elif init_method == 'random':
                 self.covariances_ = GMMInitializer.init_covariances_random(
                     self.n_components, self.n_features,
-                    self.covariance_type, self.reg_covar, self.device
+                    self.covariance_type, self.reg_covar, self.device, dtype=self.dtype
                 )
             elif init_method == 'global':
                 if X is None:
@@ -766,7 +776,18 @@ class GaussianMixture(nn.Module):
         # 3. Prepare data
         # ===============================================================
         X = X.to(self.device)
-        
+
+        # Follow the data's floating dtype (e.g. float64) instead of the
+        # float32 default. Any priors already validated in __init__ are
+        # recast to match, since they were processed before X was known.
+        self.dtype = X.dtype
+        if self.weight_concentration_prior is not None:
+            self.weight_concentration_prior = self.weight_concentration_prior.to(dtype=self.dtype)
+        if self.mean_prior is not None:
+            self.mean_prior = self.mean_prior.to(dtype=self.dtype)
+        if self.covariance_prior is not None:
+            self.covariance_prior = self.covariance_prior.to(dtype=self.dtype)
+
         # Infer n_features from data if not set
         if self.n_features is None:
             self.n_features = X.shape[1]
@@ -1123,7 +1144,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         # Combine into log-probability
         # ===============================================================
-        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        log_2pi = math.log(2.0 * math.pi)
         return -0.5 * (self.n_features * log_2pi + log_det.unsqueeze(0) + mahal)
 
     def _estimate_log_gaussian_diag(self, X: torch.Tensor) -> torch.Tensor:
@@ -1157,7 +1178,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         # Combine into log-probability
         # ===============================================================
-        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        log_2pi = math.log(2.0 * math.pi)
         return -0.5 * (self.n_features * log_2pi + log_det.unsqueeze(0) + mahal)
 
     def _estimate_log_gaussian_spherical(self, X: torch.Tensor) -> torch.Tensor:
@@ -1196,7 +1217,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         # Combine into log-probability
         # ===============================================================
-        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        log_2pi = math.log(2.0 * math.pi)
         return -0.5 * (self.n_features * log_2pi + log_det.unsqueeze(0) + mahal)
 
     def _estimate_log_gaussian_tied_full(self, X: torch.Tensor) -> torch.Tensor:
@@ -1243,7 +1264,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         # Combine into log-probability
         # ===============================================================
-        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        log_2pi = math.log(2.0 * math.pi)
         return -0.5 * (self.n_features * log_2pi + log_det + mahal)
 
     def _estimate_log_gaussian_tied_diag(self, X: torch.Tensor) -> torch.Tensor:
@@ -1282,7 +1303,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         # Combine into log-probability
         # ===============================================================
-        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        log_2pi = math.log(2.0 * math.pi)
         return -0.5 * (self.n_features * log_2pi + log_det + mahal)
 
     def _estimate_log_gaussian_tied_spherical(self, X: torch.Tensor) -> torch.Tensor:
@@ -1318,7 +1339,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         # Combine into log-probability
         # ===============================================================
-        log_2pi = torch.log(torch.tensor(2.0 * torch.pi, device=self.device))
+        log_2pi = math.log(2.0 * math.pi)
         return -0.5 * (self.n_features * log_2pi + log_det + mahal)
 
     # ---------------------------
@@ -1555,7 +1576,7 @@ class GaussianMixture(nn.Module):
             self.covariance_prior
             + sum_diff
             + prior_term
-            + self.reg_covar * torch.eye(self.n_features, device=self.device).unsqueeze(0)
+            + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
         ) / df
 
     def _update_map_diag(self, X, resp, nk):
@@ -1656,7 +1677,7 @@ class GaussianMixture(nn.Module):
             self.covariance_prior
             + sum_diff
             + prior_term
-            + self.reg_covar * torch.eye(self.n_features, device=self.device)
+            + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
         ) / df
 
     def _update_map_tied_diag(self, X, resp, nk):
@@ -1775,7 +1796,7 @@ class GaussianMixture(nn.Module):
         # Normalize and add regularization
         # ===============================================================
         covs = sum_diff / nk.unsqueeze(-1).unsqueeze(-1)
-        covs += self.reg_covar * torch.eye(self.n_features, device=self.device).unsqueeze(0)
+        covs += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
         self.covariances_ = covs
 
     def _update_mle_diag(self, X, resp, nk):
@@ -1833,7 +1854,7 @@ class GaussianMixture(nn.Module):
         # Normalize and add regularization
         # ===============================================================
         cov_tied = sum_diff / nk.sum()
-        cov_tied += self.reg_covar * torch.eye(self.n_features, device=self.device)
+        cov_tied += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
         self.covariances_ = cov_tied
 
     def _update_mle_tied_diag(self, X, resp, nk):
@@ -1913,7 +1934,7 @@ class GaussianMixture(nn.Module):
         # NIW posterior scale matrix and regularization
         # ===============================================================
         psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device).unsqueeze(0)
+        psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
         
         # ===============================================================
         # Final covariance: E[Σ] = Ψₙ / νₙ
@@ -2005,7 +2026,7 @@ class GaussianMixture(nn.Module):
         # NIW posterior and regularization
         # ===============================================================
         psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device)
+        psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
         
         # ===============================================================
         # Final covariance (total degrees of freedom)
@@ -2496,7 +2517,7 @@ class GaussianMixture(nn.Module):
 
         elif self.covariance_type == 'spherical':
             # σ²·I for each component
-            eye = torch.eye(self.n_features, device=self.device).unsqueeze(0)
+            eye = torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
             return eye * self.covariances_[indices].view(-1, 1, 1)
 
         # ===============================================================
@@ -2513,7 +2534,7 @@ class GaussianMixture(nn.Module):
 
         elif self.covariance_type == 'tied_spherical':
             # Same σ²·I for all samples
-            eye = torch.eye(self.n_features, device=self.device).unsqueeze(0)
+            eye = torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
             return eye * self.covariances_
 
         else:
@@ -2779,6 +2800,7 @@ class GaussianMixture(nn.Module):
         model.weights_ = state_dict['weights_']
         model.means_ = state_dict['means_']
         model.covariances_ = state_dict['covariances_']
+        model.dtype = model.means_.dtype
         model.initial_weights_ = state_dict['initial_weights_']
         model.initial_means_ = state_dict['initial_means_']
         model.initial_covariances_ = state_dict['initial_covariances_']
@@ -2941,6 +2963,7 @@ class GaussianMixture(nn.Module):
         self.weights_ = state_dict['weights_']
         self.means_ = state_dict['means_']
         self.covariances_ = state_dict['covariances_']
+        self.dtype = self.means_.dtype
         self.initial_weights_ = state_dict['initial_weights_']
         self.initial_means_ = state_dict['initial_means_']
         self.initial_covariances_ = state_dict['initial_covariances_']

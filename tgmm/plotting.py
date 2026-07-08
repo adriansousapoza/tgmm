@@ -619,15 +619,18 @@ def get_covariance_matrix(gmm, component_idx):
     elif cov_type == 'diag':
         cov_matrix = torch.diag(covariances[component_idx])
     elif cov_type == 'spherical':
+        # plot_gmm only ever renders 2D ellipses, so the identity is always 2x2
+        # regardless of n_components (covariances here has shape (n_components,))
         var_val = covariances[component_idx]
-        cov_matrix = torch.eye(covariances.shape[-1] if len(covariances.shape) > 0 else 2) * var_val
+        cov_matrix = torch.eye(2) * var_val
     elif cov_type == 'tied_full':
         cov_matrix = covariances
     elif cov_type == 'tied_diag':
         cov_matrix = torch.diag(covariances)
     elif cov_type == 'tied_spherical':
+        # covariances is a 0-dim scalar tensor here, so there is no shape to derive a size from
         var_val = covariances
-        cov_matrix = torch.eye(covariances.shape[-1] if hasattr(covariances, 'shape') else 2) * var_val
+        cov_matrix = torch.eye(2) * var_val
     else:
         raise ValueError(f"Unsupported covariance_type: {cov_type}")
     
