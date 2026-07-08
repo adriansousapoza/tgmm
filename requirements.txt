@@ -18,3 +18,6 @@ mkdocs-material>=9.4.0
 mkdocstrings[python]>=0.24.0
 mkdocs-jupyter>=0.24.0
 pymdown-extensions>=10.0
+
+# Testing dependencies
+pytest>=7.0.0

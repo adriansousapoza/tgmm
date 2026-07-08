@@ -83,6 +83,31 @@ def read_examples_requirements():
         return example_deps
     return []
 
+def read_test_requirements():
+    """Read testing requirements from requirements.txt."""
+    requirements_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
+    if os.path.exists(requirements_path):
+        with open(requirements_path, 'r') as f:
+            lines = f.read().splitlines()
+
+        # Filter for testing dependencies
+        test_deps = []
+        in_test_section = False
+
+        for line in lines:
+            line = line.strip()
+            if line.startswith('# Testing dependencies'):
+                in_test_section = True
+                continue
+            elif line.startswith('#') and in_test_section:
+                in_test_section = False
+                continue
+            elif in_test_section and line and not line.startswith('#'):
+                test_deps.append(line)
+
+        return test_deps
+    return []
+
 setup(
     name="tgmm",
     version="0.2.0",
@@ -97,7 +122,8 @@ setup(
     extras_require={
         "docs": read_docs_requirements(),
         "examples": read_examples_requirements(),
-        "all": read_docs_requirements() + read_examples_requirements(),
+        "test": read_test_requirements(),
+        "all": read_docs_requirements() + read_examples_requirements() + read_test_requirements(),
     },
     classifiers=[
         "Programming Language :: Python :: 3",
