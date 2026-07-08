@@ -3,10 +3,9 @@
 ## Requirements
 
 - **Python**: 3.8 or higher
-- **PyTorch**: 1.0 or higher
+- **PyTorch**: 2.5 or higher
 - **NumPy**: For numerical operations
-- **SciPy**: For statistical functions
-- **scikit-learn**: For K-means initialization and metrics
+- **SciPy**: For statistical functions and some initialization methods
 
 ## Installation Methods
 

@@ -4,11 +4,12 @@ Interactive Jupyter notebook tutorials demonstrating various features of TorchGM
 
 ## Getting Started
 
-- [**Gaussian Mixture Models (GMM)**](../notebooks/gmm.ipynb) - Basic introduction to fitting GMMs with TorchGMM
-- [**Initialization Methods**](../notebooks/cem.ipynb) - Comparison of initialization strategies including CEM
+- [**Gaussian Mixture Models (GMM)**](../notebooks/gmm.ipynb) - Basic introduction to fitting GMMs with TorchGMM, including a comparison of mean/weight/covariance initialization strategies
+- [**EM Algorithm Walkthrough**](../notebooks/em_algorithm.ipynb) - Step-by-step visualization of how the EM algorithm updates responsibilities and parameters each iteration
 
 ## Advanced Topics
 
+- [**Classification EM (CEM)**](../notebooks/cem.ipynb) - Comparing the hard-assignment CEM algorithm against standard EM
 - [**Prior Distributions**](../notebooks/priors.ipynb) - Using priors for regularization and MAP estimation
 - [**NIW Priors Comparison**](../notebooks/niw_priors_comparison.ipynb) - Detailed comparison of Normal-Inverse-Wishart priors
 - [**Sampling from GMMs**](../notebooks/sampling.ipynb) - Generating synthetic data from fitted models

@@ -1,313 +1,203 @@
 # Plotting and Visualization
 
-The `plotting` module provides tools for visualizing GMM clustering results, including PCA-based projections for high-dimensional data.
+The `tgmm.plotting` module provides one flexible function, `plot_gmm`, for visualizing 2D GMM
+clustering results, plus two small helpers: `dynamic_figsize` and
+`match_predicted_to_true_labels`.
 
 ## Overview
 
-Visualization functions include:
+`plot_gmm` supports:
 
-- **2D/3D scatter plots** with cluster assignments
-- **PCA projections** for high-dimensional data
-- **Confidence ellipses** showing cluster distributions
-- **Component overlays** visualizing individual Gaussians
-- **Interactive plots** using Plotly
+- **2D scatter plots** colored by predicted cluster, true labels, or a continuous value (e.g. log-likelihood)
+- **Confidence ellipses** at one or more standard-deviation levels per component
+- **Component means**, and optionally the pre-EM **initial means**
+- **Weight-scaled** marker size/alpha to visualize mixing weights
+- Highlighting **incorrect predictions** against ground truth
+
+`plot_gmm` only accepts 2D data (`X.shape[1] == 2`) -- for higher-dimensional data, project to 2D
+yourself first (e.g. with PCA) and pass the projected coordinates. See the
+[PCA Plotting tutorial](../notebooks/pca_plotting.ipynb) for a worked example.
 
 ## Basic 2D Plotting
 
 ```python
-from tgmm import GaussianMixture
-from tgmm.plotting import plot_gmm_2d
-import torch
+from tgmm import GaussianMixture, plot_gmm
+import matplotlib.pyplot as plt
 
 # Fit GMM
 gmm = GaussianMixture(n_components=3, n_features=2)
-gmm.fit(X)
+gmm.fit(X_tensor)
 
-# Plot results
-plot_gmm_2d(
-    X, 
-    gmm, 
-    show_ellipses=True,
-    show_centers=True,
-    title='GMM Clustering Results'
-)
+# Plot results (X can be a numpy array or torch tensor)
+plt.figure(figsize=(8, 6))
+plot_gmm(X, gmm, title='GMM Clustering Results', show_ellipses=True, show_means=True)
+plt.show()
 ```
 
-## PCA Projection for High-Dimensional Data
-
-When data has more than 2-3 dimensions, use PCA to project to 2D:
+## Coloring by Cluster and Comparing to Ground Truth
 
 ```python
-from tgmm.plotting import plot_gmm_pca
+fig, axes = plt.subplots(1, 2, figsize=(15, 6))
 
-# X has shape (n_samples, n_features) where n_features > 3
-gmm = GaussianMixture(n_components=5, n_features=X.shape[1])
-gmm.fit(X)
+# Color by predicted cluster
+plot_gmm(X, gmm, ax=axes[0], color_by_cluster=True, title='Predicted Clusters')
 
-# Project to 2D using PCA and plot
-plot_gmm_pca(
-    X, 
-    gmm,
-    n_components=2,  # Project to 2D
-    show_variance=True,  # Show explained variance
-    show_ellipses=True
+# Compare against ground truth, highlighting misclassifications
+plot_gmm(
+    X, gmm,
+    ax=axes[1],
+    true_labels=true_labels,
+    color_by_cluster=True,
+    match_labels_to_true=True,
+    show_incorrect_predictions=True,
+    title='Predictions vs Truth'
 )
+plt.tight_layout()
+plt.show()
 ```
 
-## 3D Visualization
+## Continuous Coloring (Log-Likelihood)
 
 ```python
-from tgmm.plotting import plot_gmm_3d
+log_probs = gmm.score_samples(X_tensor)
 
-# For 3D data
-gmm = GaussianMixture(n_components=4, n_features=3)
-gmm.fit(X_3d)
-
-plot_gmm_3d(
-    X_3d,
-    gmm,
-    show_ellipses=True,
-    interactive=True  # Use Plotly for rotation
+plot_gmm(
+    X, gmm,
+    log_probs=log_probs.cpu().numpy(),
+    colormap='viridis',
+    colorbar_label='Log Probability',
+    show_ellipses=False,
+    title='Colored by Log-Likelihood'
 )
+plt.show()
 ```
 
 ## Confidence Ellipses
 
-Visualize cluster distributions with confidence ellipses:
+Show one or more standard-deviation levels per component:
 
 ```python
-plot_gmm_2d(
-    X, 
-    gmm,
+plot_gmm(
+    X, gmm,
     show_ellipses=True,
-    confidence=0.95,  # 95% confidence ellipse
-    alpha=0.3  # Transparency
+    ellipse_std_devs=[1, 2, 3],  # 1, 2, and 3 std-dev ellipses
+    ellipse_alpha=0.3,
+    ellipse_fill=True
 )
 ```
 
-## Component Visualization
+## Initial vs Final Means
 
-Show individual Gaussian components:
+Show where EM started (`gmm.initial_means_`) alongside the fitted means:
 
 ```python
-from tgmm.plotting import plot_components
-
-plot_components(
-    gmm,
-    component_ids=[0, 1, 2],  # Which components to show
+plot_gmm(
+    X, gmm,
+    show_initial_means=True,
     show_means=True,
-    show_covariances=True
+    ellipse_std_devs=[1],
+    title='Initial vs Final Means'
 )
 ```
 
-## Convergence Monitoring
+## Weight Visualization
 
-Track convergence during fitting:
-
-```python
-from tgmm.plotting import plot_convergence
-
-gmm = GaussianMixture(n_components=3, n_features=2, verbose=True)
-gmm.fit(X)
-
-# Plot log-likelihood over iterations
-plot_convergence(gmm.lower_bound_history_)
-```
-
-## Customization
-
-### Color Maps
+Scale marker size and/or ellipse transparency by each component's mixing weight:
 
 ```python
-plot_gmm_2d(
-    X, 
-    gmm,
-    cmap='viridis',  # Color map for clusters
-    show_ellipses=True
+plot_gmm(
+    X, gmm,
+    scale_alpha_by_weight=True,
+    scale_size_by_weight=True,
+    title='Scaled by Component Weight'
 )
 ```
 
-### Figure Size and DPI
+## Custom Styling
 
 ```python
-plot_gmm_2d(
-    X, 
-    gmm,
-    figsize=(12, 8),
-    dpi=150
+plot_gmm(
+    X, gmm,
+    # Point styling
+    point_size=8,
+    point_alpha=0.7,
+
+    # Ellipse styling
+    ellipse_std_devs=[1, 2, 3],
+    ellipse_alpha=0.3,
+    ellipse_fill=True,
+    ellipse_line_style='--',
+
+    # Mean markers
+    mean_marker='*',
+    mean_size=100,
+    mean_color='red',
+
+    title='Custom Styled GMM'
 )
 ```
 
-### Custom Styling
+## Side-by-Side Comparison
 
 ```python
-import matplotlib.pyplot as plt
+from tgmm import dynamic_figsize
 
-fig, ax = plt.subplots(figsize=(10, 8))
-plot_gmm_2d(
-    X, 
-    gmm,
-    ax=ax,  # Use custom axes
-    show_ellipses=True,
-    ellipse_color='red',
-    center_marker='X',
-    center_size=200
-)
-ax.set_xlabel('Feature 1', fontsize=14)
-ax.set_ylabel('Feature 2', fontsize=14)
-plt.tight_layout()
-plt.show()
-```
+cov_types = ['full', 'diag', 'spherical']
+fig, axes = plt.subplots(1, len(cov_types), figsize=dynamic_figsize(1, len(cov_types)))
 
-## Advanced Examples
-
-### Side-by-Side Comparison
-
-```python
-import matplotlib.pyplot as plt
-
-fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-for i, cov_type in enumerate(['full', 'diag', 'spherical']):
-    gmm = GaussianMixture(
-        n_components=3, 
-        n_features=2,
-        covariance_type=cov_type
-    )
-    gmm.fit(X)
-    
-    plot_gmm_2d(
-        X, 
-        gmm,
-        ax=axes[i],
-        show_ellipses=True,
-        title=f'{cov_type.capitalize()} Covariance'
-    )
+for ax, cov_type in zip(axes, cov_types):
+    gmm = GaussianMixture(n_components=3, n_features=2, covariance_type=cov_type, random_state=42)
+    gmm.fit(X_tensor)
+    plot_gmm(X, gmm, ax=ax, show_ellipses=True, title=f'{cov_type.capitalize()} Covariance')
 
 plt.tight_layout()
 plt.show()
 ```
 
-### Animation of EM Steps
+## High-Dimensional Data
 
-```python
-from tgmm.plotting import animate_em_steps
-
-gmm = GaussianMixture(n_components=3, n_features=2, max_iter=20)
-gmm.fit(X, track_steps=True)  # Enable step tracking
-
-# Create animation showing EM iterations
-animate_em_steps(
-    X, 
-    gmm,
-    save_path='em_animation.gif',
-    fps=2
-)
-```
-
-### Probability Contours
-
-```python
-from tgmm.plotting import plot_probability_contours
-
-plot_probability_contours(
-    X, 
-    gmm,
-    n_levels=10,
-    show_data=True,
-    log_scale=True  # Use log probability
-)
-```
-
-## PCA Visualization Details
-
-When working with high-dimensional data:
-
-```python
-from tgmm.plotting import plot_gmm_pca
-import numpy as np
-
-# High-dimensional data
-X_hd = torch.randn(1000, 50)  # 50 dimensions
-gmm = GaussianMixture(n_components=5, n_features=50)
-gmm.fit(X_hd)
-
-# Project to 2D and visualize
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-
-# Plot with cluster coloring
-plot_gmm_pca(
-    X_hd, 
-    gmm,
-    n_components=2,
-    ax=ax1,
-    show_variance=True,
-    title='PCA Projection with Clusters'
-)
-
-# Plot showing component densities
-plot_gmm_pca(
-    X_hd, 
-    gmm,
-    n_components=2,
-    ax=ax2,
-    show_density=True,
-    title='PCA Projection with Density'
-)
-
-plt.tight_layout()
-plt.show()
-```
-
-### Explained Variance
+`plot_gmm` requires exactly 2 features. Project higher-dimensional data down first, for example
+with PCA:
 
 ```python
 from sklearn.decomposition import PCA
 
-pca = PCA(n_components=10)
-pca.fit(X_hd.numpy())
+pca = PCA(n_components=2)
+X_2d = pca.fit_transform(X_hd.numpy())
 
-# Plot variance explained
-plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
-plt.plot(pca.explained_variance_ratio_, 'o-')
-plt.xlabel('Component')
-plt.ylabel('Explained Variance Ratio')
-plt.title('Scree Plot')
+gmm = GaussianMixture(n_components=5, n_features=2)
+gmm.fit(torch.tensor(X_2d, dtype=torch.float32))
 
-plt.subplot(1, 2, 2)
-plt.plot(np.cumsum(pca.explained_variance_ratio_), 'o-')
-plt.xlabel('Component')
-plt.ylabel('Cumulative Explained Variance')
-plt.title('Cumulative Variance')
-plt.tight_layout()
-plt.show()
+plot_gmm(X_2d, gmm, show_ellipses=True, title='PCA Projection with Clusters')
 ```
 
-## Interactive Plots with Plotly
+See the [PCA Plotting tutorial](../notebooks/pca_plotting.ipynb) for fitting directly in the
+original high-dimensional space and only projecting for visualization.
+
+## Matching Predicted Labels to Ground Truth
+
+Cluster indices from `predict()` are arbitrary -- use `match_predicted_to_true_labels` to remap
+them (via the Hungarian algorithm) before computing supervised metrics or coloring plots
+consistently:
 
 ```python
-from tgmm.plotting import plot_gmm_interactive
+from tgmm import match_predicted_to_true_labels
 
-# Create interactive 3D plot
-plot_gmm_interactive(
-    X_3d, 
-    gmm,
-    title='Interactive GMM Visualization',
-    show_ellipses=True,
-    save_html='gmm_plot.html'
-)
+predicted_labels = gmm.predict(X_tensor)
+aligned_labels = match_predicted_to_true_labels(true_labels, predicted_labels)
 ```
+
+`plot_gmm`'s `match_labels_to_true=True` option does this internally when both `true_labels`
+and a fitted `gmm` are supplied.
 
 ## Tips for Effective Visualization
 
-1. **Choose appropriate projections**: Use PCA for high-dimensional data
-2. **Adjust transparency**: Use `alpha` parameter to see overlapping clusters
-3. **Scale data**: Standardize features for better ellipse visualization
-4. **Use confidence levels**: Show different probability contours (e.g., 0.68, 0.95, 0.99)
-5. **Compare models**: Plot multiple covariance types side-by-side
-6. **Monitor convergence**: Plot log-likelihood to ensure proper fitting
+1. **Project first**: Use PCA (or another method) for data with more than 2 features
+2. **Adjust transparency**: Use `point_alpha` / `ellipse_alpha` to see overlapping clusters
+3. **Use multiple std-dev levels**: `ellipse_std_devs=[1, 2, 3]` shows spread at a glance
+4. **Compare models side-by-side**: Loop over `covariance_type` or initialization method with one `ax` per panel
+5. **Check initial vs. final means**: `show_initial_means=True` helps debug poor convergence
 
 ## Complete API Reference
 
-For full details on all plotting functions, see the [API Reference](../api/plotting.md).
+For full details on `plot_gmm` and its helpers, see the [API Reference](../api/plotting.md).

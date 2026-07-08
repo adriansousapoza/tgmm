@@ -173,7 +173,7 @@ Good initialization is critical for EM convergence:
 gmm = GaussianMixture(n_components=3, n_features=2, init_means='kmeans')
 ```
 
-Uses scikit-learn's K-means to initialize component means.
+Runs a pure-PyTorch Lloyd's algorithm (started from a k-means++ initialization) to initialize component means -- no scikit-learn dependency.
 
 ### K-means++ Initialization
 

@@ -152,6 +152,12 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# Reference papers/publications (not part of the package)
+resources/
+
+# Cloned reference repo (scikit-learn-contrib/hdbscan), not part of this package
+hdbscan/
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

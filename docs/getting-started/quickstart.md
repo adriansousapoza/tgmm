@@ -174,7 +174,6 @@ Compare models with different numbers of components:
 ```python
 from tgmm import ClusteringMetrics
 
-metrics = ClusteringMetrics()
 best_k = None
 best_score = -float('inf')
 
@@ -182,9 +181,9 @@ for k in range(2, 10):
     gmm = GaussianMixture(n_components=k, n_features=2, random_state=42)
     gmm.fit(X)
     labels = gmm.predict(X)
-    
+
     # Use Silhouette score for model selection
-    score = metrics.silhouette_score(X, labels)
+    score = ClusteringMetrics.silhouette_score(X, labels, n_components=k)
     print(f"k={k}: Silhouette={score:.3f}, BIC={gmm.lower_bound_:.2f}")
     
     if score > best_score:

@@ -9,6 +9,10 @@ edit_uri: edit/main/docs/
 
 copyright: Copyright &copy; 2025 Adrián A. Sousa-Poza
 
+# HDBSCAN integration is experimental/WIP -- keep it out of the published site
+exclude_docs: |
+  notebooks/hdbscan.ipynb
+
 theme:
   name: material
   palette:
@@ -138,6 +142,7 @@ nav:
   - Tutorials:
       - Overview: tutorials/index.md
       - Basic GMM: notebooks/gmm.ipynb
+      - EM Algorithm Walkthrough: notebooks/em_algorithm.ipynb
       - Metrics & Evaluation: notebooks/metrics.ipynb
       - Using Priors (MAP): notebooks/priors.ipynb
       - CEM Algorithm: notebooks/cem.ipynb
@@ -150,5 +155,4 @@ nav:
       - tgmm.GMMInitializer: api/gmm-initializer.md
       - tgmm.ClusteringMetrics: api/clustering-metrics.md
       - tgmm.plotting: api/plotting.md
-  - Migration Guide: migration-guide.md
   - Contributing: contributing.md
