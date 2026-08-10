@@ -226,6 +226,37 @@ gmm.fit(X)
 
 CEM tends to converge faster but may be more prone to local minima.
 
+## Supervised Fitting
+
+If you already know the true class of every point, `fit` can skip EM/CEM
+entirely and fit one Gaussian per class directly from the labeled data —
+pass `labels`:
+
+```python
+gmm = GaussianMixture(n_components=3, covariance_type='full')
+gmm.fit(X, labels=y)  # y: shape (n_samples,), one of 3 distinct values
+
+print(gmm.classes_)      # the 3 distinct label values seen, sorted
+print(gmm.converged_)    # always True
+print(gmm.n_iter_)       # always 1
+```
+
+This is the fully-labeled limit of Classification EM: instead of assigning
+each point to its highest-responsibility component (`argmax(resp)`), the
+assignment comes from the true label. Since that assignment never depends
+on the current parameter estimates, there's nothing left to iterate — a
+single M-step already recovers the same per-class mean/covariance/weight
+you'd get from Classification EM if it had converged with the correct
+partition. `n_components` must equal the number of distinct values in
+`labels`; label values don't need to be contiguous integers (`classes_[k]`
+recovers the original label for component `k`). `n_init` and `warm_start`
+are ignored — the result is deterministic. Any configured `mean_prior` /
+`covariance_prior` still applies, giving a regularized supervised fit for
+classes with few samples.
+
+See `notebooks/supervised_gmm.ipynb` for a worked comparison of plain EM,
+CEM, and supervised fitting on the same synthetic data.
+
 ## Convergence Control
 
 ```python
