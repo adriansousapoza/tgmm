@@ -254,8 +254,9 @@ are ignored — the result is deterministic. Any configured `mean_prior` /
 `covariance_prior` still applies, giving a regularized supervised fit for
 classes with few samples.
 
-See `notebooks/supervised_gmm.ipynb` for a worked comparison of plain EM,
-CEM, and supervised fitting on the same synthetic data.
+See the [Supervised Fitting notebook](../notebooks/supervised_gmm.ipynb) for
+a worked comparison of plain EM, CEM, and supervised fitting on the same
+synthetic data.
 
 ## Convergence Control
 

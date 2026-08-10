@@ -10,6 +10,7 @@ Interactive Jupyter notebook tutorials demonstrating various features of TorchGM
 ## Advanced Topics
 
 - [**Classification EM (CEM)**](../notebooks/cem.ipynb) - Comparing the hard-assignment CEM algorithm against standard EM
+- [**Supervised Fitting**](../notebooks/supervised_gmm.ipynb) - Comparing EM, CEM, and label-supervised fitting on the same synthetic data
 - [**Prior Distributions**](../notebooks/priors.ipynb) - Using priors for regularization and MAP estimation
 - [**NIW Priors Comparison**](../notebooks/niw_priors_comparison.ipynb) - Detailed comparison of Normal-Inverse-Wishart priors
 - [**Sampling from GMMs**](../notebooks/sampling.ipynb) - Generating synthetic data from fitted models

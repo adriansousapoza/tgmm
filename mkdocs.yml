@@ -9,9 +9,12 @@ edit_uri: edit/main/docs/
 
 copyright: Copyright &copy; 2025 Adrián A. Sousa-Poza
 
-# HDBSCAN integration is experimental/WIP -- keep it out of the published site
+# HDBSCAN integration is experimental/WIP -- keep it out of the published site.
+# superpowers/ holds this project's internal SDD workflow artifacts (specs,
+# plans) -- not public documentation.
 exclude_docs: |
   notebooks/hdbscan.ipynb
+  superpowers/
 
 theme:
   name: material
@@ -146,6 +149,7 @@ nav:
       - Metrics & Evaluation: notebooks/metrics.ipynb
       - Using Priors (MAP): notebooks/priors.ipynb
       - CEM Algorithm: notebooks/cem.ipynb
+      - Supervised Fitting: notebooks/supervised_gmm.ipynb
       - Visualization: notebooks/visualise.ipynb
       - PCA Plotting Demo: notebooks/pca_plotting.ipynb
       - NIW Priors Comparison: notebooks/niw_priors_comparison.ipynb
