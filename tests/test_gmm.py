@@ -654,3 +654,65 @@ def test_unsupervised_fit_unaffected_by_labels_param_default():
     gmm_b.fit(X_3D, labels=None)
     assert torch.allclose(gmm_a.means_.cpu(), gmm_b.means_.cpu())
     assert torch.allclose(gmm_a.weights_.cpu(), gmm_b.weights_.cpu())
+
+
+def test_supervised_fit_then_unsupervised_fit_clears_classes_():
+    """`classes_` is documented as set only after a supervised fit ("absent
+    otherwise"). A later unsupervised fit on the same instance must not
+    leave a stale label mapping from a previous supervised fit lying
+    around -- predict()/classes_ lookups would silently mis-map otherwise."""
+    gmm = GaussianMixture(n_components=3, random_state=0, max_iter=5)
+    gmm.fit(X_SUP, labels=Y_SUP)
+    assert hasattr(gmm, 'classes_')
+
+    gmm.fit(X_SUP)  # unsupervised refit (labels=None) on the same instance
+    assert not hasattr(gmm, 'classes_')
+
+
+# ============================================================================
+# 16. Supervised fitting: covariance-degeneracy warning (Fix 2)
+# ============================================================================
+
+def _make_sparse_class_data(counts, n_features=3, seed=11):
+    """Synthetic labeled data where class `c` gets `counts[c]` samples."""
+    generator = torch.Generator().manual_seed(seed)
+    X_list, y_list = [], []
+    for c, n in enumerate(counts):
+        mean = torch.randn(n_features, generator=generator) * 5
+        X_c = torch.randn(n, n_features, generator=generator) + mean
+        X_list.append(X_c)
+        y_list.append(torch.full((n,), c, dtype=torch.long))
+    return torch.cat(X_list, dim=0), torch.cat(y_list, dim=0)
+
+
+def test_supervised_fit_singleton_class_warns_full_covariance():
+    """A class with a single sample can't support a 'full' covariance
+    estimate from its own data alone -- this should now warn (previously
+    the weight-based check could never fire for a realistic dataset)."""
+    X, y = _make_sparse_class_data([1, 49, 50], n_features=3)
+    gmm = GaussianMixture(n_components=3, covariance_type='full')
+    with pytest.warns(UserWarning, match="too few samples"):
+        gmm.fit(X, labels=y)
+
+
+def test_supervised_fit_two_sample_class_warns_full_covariance_3d():
+    """2 samples in 3D give a rank-deficient scatter matrix for 'full'
+    covariance -- the reviewer's repro case (eigenvalues like
+    [1e-6, 1e-6, 0.62] and a spuriously high score_samples)."""
+    X, y = _make_sparse_class_data([2, 50, 50], n_features=3)
+    gmm = GaussianMixture(n_components=3, covariance_type='full')
+    with pytest.warns(UserWarning, match="too few samples"):
+        gmm.fit(X, labels=y)
+
+
+def test_supervised_fit_well_populated_no_degeneracy_warning(recwarn):
+    """The existing 60-samples-per-class fixture is well populated relative
+    to n_features=3 for 'full' covariance and must not trigger the
+    degeneracy warning."""
+    gmm = GaussianMixture(n_components=3, covariance_type='full')
+    gmm.fit(X_SUP, labels=Y_SUP)
+    degeneracy_warnings = [
+        w for w in recwarn.list
+        if issubclass(w.category, UserWarning) and "too few samples" in str(w.message)
+    ]
+    assert not degeneracy_warnings

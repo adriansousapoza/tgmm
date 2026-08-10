@@ -746,7 +746,9 @@ class GaussianMixture(nn.Module):
             contiguous or zero-indexed (see `classes_`). Bypasses the
             EM/CEM loop and `n_init` entirely: the fit is a single M-step
             and is deterministic, since the assignment never depends on the
-            current parameter estimates. (default: None)
+            current parameter estimates. `warm_start` is ignored as well,
+            for the same reason. `converged_` is always ``True`` and
+            `n_iter_` is always ``1`` after a supervised fit. (default: None)
         max_iter : int, optional
             Maximum number of EM iterations. Overrides `self.max_iter` if provided. (default: None)
         tol : float, optional
@@ -828,7 +830,31 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         if labels is not None:
             component_idx = self._validate_labels(labels, X)
-            self._allocate_parameters(X)
+
+            # _allocate_parameters is only called here to give
+            # weights_/means_/covariances_ (and initial_*_) the right
+            # shape/device/dtype -- their *values* are immediately
+            # overwritten by _m_step below. Running the instance's
+            # configured init strategy (kmeans + empirical covariance by
+            # default) would compute a full clustering and covariance
+            # estimate that's thrown away one line later, making
+            # supervised fitting far slower than the single closed-form
+            # pass it's supposed to be. Swap to cheap placeholder methods
+            # for just this call, restoring the originals afterward even
+            # if the call raises. Only string method names are swapped --
+            # a user-provided init tensor still gets its normal shape
+            # validation and is used as given.
+            orig_init_means = self.init_means
+            orig_init_covariances = self.init_covariances
+            try:
+                if isinstance(self.init_means, str):
+                    self.init_means = 'random'
+                if isinstance(self.init_covariances, str):
+                    self.init_covariances = 'eye'
+                self._allocate_parameters(X)
+            finally:
+                self.init_means = orig_init_means
+                self.init_covariances = orig_init_covariances
 
             n_samples = X.size(0)
             resp = torch.zeros(n_samples, self.n_components, device=self.device, dtype=self.dtype)
@@ -843,15 +869,41 @@ class GaussianMixture(nn.Module):
             self.best_random_state_ = None
             self.fitted_ = True
 
-            if torch.any(self.weights_ < 1e-8):
-                warnings.warn(
-                    "Some class(es) have near-zero weight after supervised "
-                    "fitting (very few samples for that label). This may "
-                    "indicate a degenerate component.",
-                    UserWarning
-                )
+            # Supervised weights are n_c / n with n_c >= 1 for every class
+            # (torch.unique guarantees each distinct label appears at least
+            # once), so a weight-based degeneracy check would need n > 1e8
+            # to ever fire -- it's dead code. What actually goes degenerate
+            # is a per-component covariance estimated from too few of that
+            # class's own points (rank-deficient for 'full', a zero real
+            # variance propped up only by reg_covar for 'diag'/'spherical').
+            # Tied covariance types pool residuals across *all* classes, so
+            # a single small class doesn't by itself make the shared
+            # estimate degenerate -- no separate check for those.
+            if self.covariance_type in ('full', 'diag', 'spherical'):
+                component_counts = torch.bincount(component_idx, minlength=self.n_components)
+                min_required = self.n_features + 1 if self.covariance_type == 'full' else 2
+                sparse_mask = component_counts < min_required
+                if torch.any(sparse_mask):
+                    sparse_classes = self.classes_[sparse_mask].tolist()
+                    warnings.warn(
+                        f"Class(es) {sparse_classes} have too few samples "
+                        f"(need > {min_required - 1}) to reliably estimate a "
+                        f"'{self.covariance_type}' covariance from that class's "
+                        "own data alone. The resulting covariance may be "
+                        "rank-deficient or dominated entirely by reg_covar.",
+                        UserWarning
+                    )
 
             return self
+
+        # An unsupervised fit means classes_ genuinely doesn't exist (see
+        # its docstring: "Only set after a supervised fit -- absent
+        # otherwise"), not that it exists holding a stale mapping from a
+        # previous supervised fit on this same instance. Without this, a
+        # later predict()/classes_ lookup would silently mis-map the new,
+        # unrelated cluster indices through the old label table.
+        if hasattr(self, 'classes_'):
+            del self.classes_
 
         # ===============================================================
         # 4. Run multiple initializations (if n_init > 1)
