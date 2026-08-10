@@ -121,6 +121,11 @@ class GaussianMixture(nn.Module):
     best_random_state_ : int or None
         The random state that produced the best result when n_init > 1.
         Useful for reproducing the specific best initialization.
+    classes_ : torch.Tensor
+        Sorted distinct label values seen by the most recent supervised
+        `fit(X, labels=...)` call; `classes_[k]` is the original label for
+        component `k`. Only set after a supervised fit — absent otherwise.
+        Not persisted by `save`/`load` or `save_state_dict`/`load_state_dict`.
     """
 
     def __init__(
@@ -713,6 +718,7 @@ class GaussianMixture(nn.Module):
     def fit(
         self,
         X: torch.Tensor,
+        labels: Optional[torch.Tensor] = None,
         max_iter: Optional[int] = None,
         tol: Optional[float] = None,
         random_state: Optional[int] = None,
@@ -728,6 +734,19 @@ class GaussianMixture(nn.Module):
         ----------
         X : torch.Tensor
             Input data of shape (n_samples, n_features).
+        labels : torch.Tensor or array-like, optional
+            Per-sample ground-truth class labels, shape (n_samples,). If
+            given, `fit` performs **supervised fitting**: one Gaussian
+            component is fit per distinct label directly from that label's
+            data (the classification-likelihood limit of CEM where the
+            classification step uses the true label instead of
+            ``argmax(resp)`` — see the "Supervised Fitting" section of the
+            user guide). Requires ``n_components`` to equal the number of
+            distinct values in `labels`. Label values don't need to be
+            contiguous or zero-indexed (see `classes_`). Bypasses the
+            EM/CEM loop and `n_init` entirely: the fit is a single M-step
+            and is deterministic, since the assignment never depends on the
+            current parameter estimates. (default: None)
         max_iter : int, optional
             Maximum number of EM iterations. Overrides `self.max_iter` if provided. (default: None)
         tol : float, optional
@@ -747,6 +766,8 @@ class GaussianMixture(nn.Module):
         ------
         ValueError
             If n_components > n_samples, or if parameters are invalid.
+            If `labels` is given and its length doesn't match `X`, or its
+            number of distinct values doesn't equal `n_components`.
         """
         # ===============================================================
         # 1. Validate input parameters
@@ -801,6 +822,36 @@ class GaussianMixture(nn.Module):
             raise ValueError(
                 f"X has {X.shape[1]} features, but expected {self.n_features}."
             )
+
+        # ===============================================================
+        # 3b. Supervised fit: bypass EM/CEM entirely when labels are given
+        # ===============================================================
+        if labels is not None:
+            component_idx = self._validate_labels(labels, X)
+            self._allocate_parameters(X)
+
+            n_samples = X.size(0)
+            resp = torch.zeros(n_samples, self.n_components, device=self.device, dtype=self.dtype)
+            resp[torch.arange(n_samples, device=self.device), component_idx] = 1.0
+
+            self._m_step(X, resp)
+
+            _, log_prob_norm = self._e_step(X)
+            self.lower_bound_ = log_prob_norm.mean().item()
+            self.converged_ = True
+            self.n_iter_ = 1
+            self.best_random_state_ = None
+            self.fitted_ = True
+
+            if torch.any(self.weights_ < 1e-8):
+                warnings.warn(
+                    "Some class(es) have near-zero weight after supervised "
+                    "fitting (very few samples for that label). This may "
+                    "indicate a degenerate component.",
+                    UserWarning
+                )
+
+            return self
 
         # ===============================================================
         # 4. Run multiple initializations (if n_init > 1)
@@ -978,7 +1029,56 @@ class GaussianMixture(nn.Module):
             )
 
         self.n_iter_ = n_iter
-    
+
+    def _validate_labels(self, labels, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Validate and map user-provided class labels to contiguous component
+        indices for supervised fitting.
+
+        Parameters
+        ----------
+        labels : array-like
+            Per-sample class labels, shape (n_samples,). Values do not need
+            to already be contiguous or zero-indexed; the mapping used is
+            recorded in `self.classes_`.
+        X : torch.Tensor
+            The data being fit, used only to check `labels` has a matching
+            length.
+
+        Returns
+        -------
+        component_idx : torch.Tensor
+            Long tensor of shape (n_samples,) with values in
+            [0, n_components), where component `k` corresponds to the
+            original label `self.classes_[k]`.
+
+        Raises
+        ------
+        ValueError
+            If `labels` isn't 1D of length `n_samples`, or if the number of
+            distinct labels doesn't equal `self.n_components`.
+        """
+        if not torch.is_tensor(labels):
+            labels = torch.as_tensor(labels)
+        labels = labels.to(device=self.device)
+
+        if labels.dim() != 1 or labels.size(0) != X.size(0):
+            raise ValueError(
+                f"labels must be a 1D array of length n_samples={X.size(0)}, "
+                f"got shape {tuple(labels.shape)}."
+            )
+
+        classes = torch.unique(labels, sorted=True)
+        if classes.numel() != self.n_components:
+            raise ValueError(
+                f"Supervised fit requires exactly one Gaussian component per "
+                f"distinct label: found {classes.numel()} unique label(s) in "
+                f"`labels` but n_components={self.n_components}."
+            )
+
+        self.classes_ = classes
+        return torch.searchsorted(classes, labels).long()
+
     def _c_step(self, resp: torch.Tensor) -> torch.Tensor:
         r"""
         C-step (Classification): Convert soft responsibilities to hard assignments.

@@ -540,3 +540,117 @@ def test_different_n_init_values(n_init):
     gmm = GaussianMixture(n_components=3, n_init=n_init, random_state=42, max_iter=10)
     gmm.fit(X_3D)
     assert gmm.fitted_
+
+
+# ============================================================================
+# 15. Supervised fitting (labels)
+# ============================================================================
+
+def generate_labeled_test_data(n_per_class=60, n_features=3, n_classes=3, seed=7):
+    """Generate synthetic per-class clustered data with known labels."""
+    generator = torch.Generator().manual_seed(seed)
+    X_list, y_list = [], []
+    for c in range(n_classes):
+        mean = torch.randn(n_features, generator=generator) * 5
+        cov = torch.eye(n_features) + torch.randn(n_features, n_features, generator=generator) * 0.1
+        cov = cov @ cov.T  # positive definite
+        X_c = torch.randn(n_per_class, n_features, generator=generator) @ cov.T + mean
+        X_list.append(X_c)
+        y_list.append(torch.full((n_per_class,), c, dtype=torch.long))
+    return torch.cat(X_list, dim=0), torch.cat(y_list, dim=0)
+
+
+X_SUP, Y_SUP = generate_labeled_test_data()
+
+
+@pytest.mark.parametrize("covariance_type", ["full", "diag", "spherical", "tied_full"])
+def test_supervised_fit_recovers_per_class_mean(covariance_type):
+    gmm = GaussianMixture(n_components=3, covariance_type=covariance_type)
+    gmm.fit(X_SUP, labels=Y_SUP)
+    assert gmm.fitted_
+    for c in range(3):
+        expected_mean = X_SUP[Y_SUP == c].mean(dim=0)
+        assert torch.allclose(gmm.means_[c].cpu(), expected_mean, atol=1e-4)
+
+
+def test_supervised_fit_recovers_per_class_full_covariance():
+    gmm = GaussianMixture(n_components=3, covariance_type="full", reg_covar=0.0)
+    gmm.fit(X_SUP, labels=Y_SUP)
+    for c in range(3):
+        X_c = X_SUP[Y_SUP == c]
+        expected_cov = torch.cov(X_c.T, correction=0)
+        assert torch.allclose(gmm.covariances_[c].cpu(), expected_cov, atol=1e-4)
+
+
+def test_supervised_fit_recovers_class_weights():
+    gmm = GaussianMixture(n_components=3)
+    gmm.fit(X_SUP, labels=Y_SUP)
+    expected_weights = torch.tensor([1 / 3, 1 / 3, 1 / 3])
+    assert torch.allclose(gmm.weights_.cpu(), expected_weights, atol=1e-4)
+
+
+def test_supervised_fit_converges_in_one_iteration():
+    gmm = GaussianMixture(n_components=3)
+    gmm.fit(X_SUP, labels=Y_SUP)
+    assert gmm.converged_
+    assert gmm.n_iter_ == 1
+
+
+def test_supervised_fit_predict_proba_sums_to_one():
+    gmm = GaussianMixture(n_components=3)
+    gmm.fit(X_SUP, labels=Y_SUP)
+    probs = gmm.predict_proba(X_SUP)
+    assert torch.allclose(probs.sum(dim=1).cpu(), torch.ones(X_SUP.size(0)), atol=1e-5)
+
+
+def test_supervised_fit_noncontiguous_labels_round_trip():
+    y_noncontig = Y_SUP * 3 + 2  # {0, 1, 2} -> {2, 5, 8}
+    gmm = GaussianMixture(n_components=3)
+    gmm.fit(X_SUP, labels=y_noncontig)
+    assert torch.equal(gmm.classes_.cpu(), torch.tensor([2, 5, 8]))
+    preds = gmm.predict(X_SUP)
+    mapped = gmm.classes_.cpu()[preds.cpu()]
+    # Well-separated synthetic classes: predictions should match original labels almost always.
+    assert (mapped == y_noncontig).float().mean() > 0.95
+
+
+def test_supervised_fit_wrong_n_components_raises():
+    gmm = GaussianMixture(n_components=2)  # only 2 slots for 3 distinct labels
+    with pytest.raises(ValueError, match="n_components"):
+        gmm.fit(X_SUP, labels=Y_SUP)
+
+
+def test_supervised_fit_wrong_labels_length_raises():
+    gmm = GaussianMixture(n_components=3)
+    with pytest.raises(ValueError, match="n_samples"):
+        gmm.fit(X_SUP, labels=Y_SUP[:-1])
+
+
+def test_supervised_fit_with_mean_prior_shrinks_estimate():
+    """A mean prior pulled toward zero should measurably shrink the supervised
+    per-class mean estimate compared to the unregularized MLE, confirming
+    _m_step's prior handling is actually exercised by the supervised path."""
+    gmm_mle = GaussianMixture(n_components=3)
+    gmm_mle.fit(X_SUP, labels=Y_SUP)
+
+    gmm_map = GaussianMixture(
+        n_components=3,
+        n_features=3,
+        mean_prior=torch.zeros(3),
+        mean_precision_prior=5.0,
+    )
+    gmm_map.fit(X_SUP, labels=Y_SUP)
+
+    mle_norm = gmm_mle.means_.norm(dim=1)
+    map_norm = gmm_map.means_.norm(dim=1)
+    assert torch.all(map_norm < mle_norm)
+
+
+def test_unsupervised_fit_unaffected_by_labels_param_default():
+    """labels=None (the default) must be unchanged from before this feature existed."""
+    gmm_a = GaussianMixture(n_components=3, random_state=0)
+    gmm_a.fit(X_3D)
+    gmm_b = GaussianMixture(n_components=3, random_state=0)
+    gmm_b.fit(X_3D, labels=None)
+    assert torch.allclose(gmm_a.means_.cpu(), gmm_b.means_.cpu())
+    assert torch.allclose(gmm_a.weights_.cpu(), gmm_b.weights_.cpu())
