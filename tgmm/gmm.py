@@ -988,6 +988,28 @@ class GaussianMixture(nn.Module):
             number of distinct values doesn't equal `n_components`.
         """
         # ===============================================================
+        # 0. Gibbs-sampling mode (n_components=None): dispatch and return
+        # early, before any of the EM-specific validation below runs (it
+        # assumes self.n_components is an int).
+        # ===============================================================
+        if self.n_components is None:
+            if labels is not None:
+                raise ValueError(
+                    "Supervised fitting (labels=...) requires a fixed n_components; "
+                    "got n_components=None (Gibbs sampling infers the component count "
+                    "itself, so there's no fixed-K target for supervised labels)."
+                )
+            X = X.to(device=self.device)
+            self.dtype = X.dtype
+            self.n_features = X.shape[1]
+            if random_state is not None:
+                self.random_state = random_state
+            if self.random_state is not None:
+                torch.manual_seed(self.random_state)
+            self._fit_gibbs(X)
+            return self
+
+        # ===============================================================
         # 1. Validate input parameters
         # ===============================================================
         if X.size(0) < self.n_components:
@@ -2479,6 +2501,508 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         total_nu_n = self.degrees_of_freedom_prior + nk.sum()
         self.covariances_ = psi_n / (total_nu_n * self.n_features)
+
+    # ===================================================================
+    # Gibbs sampling (collapsed, Neal's Algorithm 3) -- n_components=None
+    #
+    # Ported from tgmm.dpgmm.DPGMM (see
+    # docs/superpowers/specs/2026-07-28-dpgmm-design.md for the full
+    # derivation). Operates on self.mean_prior_/self.covariance_prior_
+    # (set by _resolve_priors_gibbs below) -- distinct from
+    # self.mean_prior/self.covariance_prior, the raw constructor args
+    # validated in __init__, since Gibbs mode's prior is a single shared
+    # vector/matrix (components are created/destroyed dynamically, so
+    # there's no fixed K to broadcast a per-component prior against) while
+    # EM's _init_priors broadcasts one prior per component slot.
+    # ===================================================================
+
+    def _resolve_max_components(self, n_samples: int) -> int:
+        if self.max_components is not None:
+            return self.max_components
+        if self.init_k is not None:
+            return self.init_k
+        # max_components=None and init_k=None: unbounded with no caller-
+        # supplied seed. Single-site Gibbs moves split a cluster that got
+        # merged at init only very slowly, so an overly conservative seed
+        # can permanently starve the sampler of components -- keep this
+        # generous.
+        return max(2, min(20, n_samples // 2))
+
+    def _finalize_active_components(self, n_samples: int):
+        expected_counts = self.weights_ * n_samples
+        self.active_ = expected_counts > self.weight_threshold
+        self.n_components_ = int(self.active_.sum().item())
+
+    def _resolve_priors_gibbs(self, X: torch.Tensor, init_labels: torch.Tensor):
+        r"""
+        Normalize the (already-required, non-None -- see __init__) NIW
+        prior into the shapes this section's per-sweep math expects: a
+        single shared mean vector / covariance matrix. `init_labels` is
+        accepted for signature parity with the pre-merge DPGMM version
+        but is unused now that there's no data-dependent default left to
+        resolve from it (see suggest_priors for the equivalent explicit
+        helper).
+        """
+        n_features = self.n_features
+
+        mp = self.mean_prior if isinstance(self.mean_prior, torch.Tensor) \
+            else torch.tensor(self.mean_prior, device=self.device, dtype=self.dtype)
+        self.mean_prior_ = mp.reshape(-1)[:n_features].to(device=self.device, dtype=self.dtype)
+
+        if self.degrees_of_freedom_prior <= n_features - 1:
+            raise ValueError(
+                f"degrees_of_freedom_prior must be > {n_features - 1}, "
+                f"got {self.degrees_of_freedom_prior}."
+            )
+
+        cp = self.covariance_prior if isinstance(self.covariance_prior, torch.Tensor) \
+            else torch.tensor(self.covariance_prior, device=self.device, dtype=self.dtype)
+        self.covariance_prior_ = cp.to(device=self.device, dtype=self.dtype)
+
+    def _niw_posterior_full(self, n_k: torch.Tensor, sum_x_k: torch.Tensor, sum_xxT_k: torch.Tensor):
+        r"""
+        Batched NIW posterior parameters for 'full' covariance, given cached
+        per-component sufficient statistics. Vectorized over the leading
+        component dimension so all K slots can be scored for one point in a
+        single call.
+
+        Parameters
+        ----------
+        n_k : (K,)
+        sum_x_k : (K, d)
+        sum_xxT_k : (K, d, d)
+
+        Returns
+        -------
+        mu_n : (K, d)
+        lambda_n : (K,)
+        nu_n : (K,)
+        psi_n : (K, d, d)
+        """
+        d = self.n_features
+        lambda0 = self.mean_precision_prior
+        nu0 = self.degrees_of_freedom_prior
+        mu0 = self.mean_prior_
+        psi0 = self.covariance_prior_
+
+        n_k_safe = n_k.clamp(min=1e-12)
+        empirical_mean = sum_x_k / n_k_safe.unsqueeze(-1)
+        S = sum_xxT_k - n_k.unsqueeze(-1).unsqueeze(-1) * (
+            empirical_mean.unsqueeze(-1) @ empirical_mean.unsqueeze(-2)
+        )
+
+        lambda_n = lambda0 + n_k
+        nu_n = nu0 + n_k
+        mu_n = (lambda0 * mu0.unsqueeze(0) + sum_x_k) / lambda_n.unsqueeze(-1)
+
+        mean_diff = empirical_mean - mu0.unsqueeze(0)
+        cross_coeff = (lambda0 * n_k) / lambda_n
+        cross_term = cross_coeff.unsqueeze(-1).unsqueeze(-1) * (
+            mean_diff.unsqueeze(-1) @ mean_diff.unsqueeze(-2)
+        )
+
+        psi_n = psi0.unsqueeze(0) + S + cross_term
+        psi_n = psi_n + self.reg_covar * torch.eye(d, device=self.device, dtype=self.dtype).unsqueeze(0)
+        return mu_n, lambda_n, nu_n, psi_n
+
+    def _mvt_log_prob_full(self, x: torch.Tensor, mu_n: torch.Tensor, lambda_n: torch.Tensor,
+                            nu_n: torch.Tensor, psi_n: torch.Tensor) -> torch.Tensor:
+        r"""
+        Log-density of the multivariate Student-t posterior predictive
+        (NIW marginal likelihood), batched over the leading component
+        dimension:
+
+            t_{nu_n-d+1}(x; mu_n, Psi_n(lambda_n+1) / (lambda_n(nu_n-d+1)))
+        """
+        d = self.n_features
+        df = nu_n - d + 1.0
+        scale = psi_n * ((lambda_n + 1.0) / (lambda_n * df)).unsqueeze(-1).unsqueeze(-1)
+        chol = torch.linalg.cholesky(scale)
+
+        diff = x.unsqueeze(0) - mu_n
+        diff_ = diff.unsqueeze(-1)
+        solve = torch.cholesky_solve(diff_, chol)
+        mahal = (diff_ * solve).sum(dim=(1, 2))
+        log_det = 2.0 * torch.log(torch.diagonal(chol, dim1=-2, dim2=-1)).sum(dim=-1)
+
+        return (
+            torch.lgamma((df + d) / 2.0) - torch.lgamma(df / 2.0)
+            - 0.5 * d * torch.log(df * math.pi)
+            - 0.5 * log_det
+            - 0.5 * (df + d) * torch.log1p(mahal / df)
+        )
+
+    def _niw_posterior_diag(self, n_k: torch.Tensor, sum_x_k: torch.Tensor, sum_x2_k: torch.Tensor):
+        r"""
+        Batched NIW posterior for 'diag' covariance. Each dimension is an
+        independent Normal-Inverse-Gamma model with its own scale
+        `psi0_j`, but sharing one degrees-of-freedom parameter `nu0` across
+        dimensions -- identical in form to `_niw_posterior_full` /
+        `_update_niw_diag`, just without off-diagonal terms. `sum_x2_k` is
+        the per-dimension sum of squares (K, d), not a full outer-product
+        matrix.
+        """
+        lambda0 = self.mean_precision_prior
+        nu0 = self.degrees_of_freedom_prior
+        mu0 = self.mean_prior_
+        psi0 = self.covariance_prior_
+
+        n_k_safe = n_k.clamp(min=1e-12)
+        empirical_mean = sum_x_k / n_k_safe.unsqueeze(-1)
+        S = sum_x2_k - n_k.unsqueeze(-1) * empirical_mean.pow(2)
+
+        lambda_n = lambda0 + n_k
+        nu_n = nu0 + n_k
+        mu_n = (lambda0 * mu0.unsqueeze(0) + sum_x_k) / lambda_n.unsqueeze(-1)
+
+        mean_diff_sq = (empirical_mean - mu0.unsqueeze(0)).pow(2)
+        cross_coeff = (lambda0 * n_k) / lambda_n
+        cross_term = cross_coeff.unsqueeze(-1) * mean_diff_sq
+
+        psi_n = psi0.unsqueeze(0) + S + cross_term + self.reg_covar
+        return mu_n, lambda_n, nu_n, psi_n
+
+    def _mvt_log_prob_diag(self, x: torch.Tensor, n_k: torch.Tensor, mu_n: torch.Tensor,
+                            lambda_n: torch.Tensor, nu_n: torch.Tensor, psi_n: torch.Tensor) -> torch.Tensor:
+        r"""
+        Log-density of the per-dimension Student-t posterior predictive for
+        'diag' covariance, summed (i.e. product in probability space) over
+        dimensions. Unlike `_mvt_log_prob_full`, the degrees of freedom are
+        `nu_n` directly -- there is no "-d+1" correction here, since each
+        dimension marginalizes an independent scalar variance rather than a
+        joint d x d Wishart-distributed matrix. `n_k` is accepted for a
+        uniform call signature across covariance types but unused.
+        """
+        df = nu_n.unsqueeze(-1)  # (K, 1), broadcasts against (K, d)
+        scale = psi_n * (lambda_n + 1.0).unsqueeze(-1) / (nu_n.unsqueeze(-1) * lambda_n.unsqueeze(-1))
+        diff = x.unsqueeze(0) - mu_n
+
+        log_prob_per_dim = (
+            torch.lgamma((df + 1.0) / 2.0) - torch.lgamma(df / 2.0)
+            - 0.5 * torch.log(df * math.pi * scale)
+            - 0.5 * (df + 1.0) * torch.log1p(diff.pow(2) / (df * scale))
+        )
+        return log_prob_per_dim.sum(dim=-1)
+
+    def _niw_posterior_spherical(self, n_k: torch.Tensor, sum_x_k: torch.Tensor, sum_sq_k: torch.Tensor):
+        r"""
+        Batched NIW posterior for 'spherical' covariance: a single shared
+        scalar variance pools all `d` dimensions together (an isotropic
+        Normal-Inverse-Gamma model), identical in form to
+        `_update_niw_spherical`. `sum_sq_k` is the total sum of squares
+        across samples AND dimensions (K,), not a per-dimension or
+        per-sample statistic.
+        """
+        mu0 = self.mean_prior_
+        lambda0 = self.mean_precision_prior
+        nu0 = self.degrees_of_freedom_prior
+        psi0 = self.covariance_prior_
+
+        n_k_safe = n_k.clamp(min=1e-12)
+        empirical_mean = sum_x_k / n_k_safe.unsqueeze(-1)
+        S = sum_sq_k - n_k * empirical_mean.pow(2).sum(dim=-1)
+
+        lambda_n = lambda0 + n_k
+        nu_n = nu0 + n_k  # matches the covariance point-estimate convention elsewhere
+        mu_n = (lambda0 * mu0.unsqueeze(0) + sum_x_k) / lambda_n.unsqueeze(-1)
+
+        mean_diff_norm_sq = (empirical_mean - mu0.unsqueeze(0)).pow(2).sum(dim=-1)
+        cross_coeff = (lambda0 * n_k) / lambda_n
+        cross_term = cross_coeff * mean_diff_norm_sq
+
+        psi_n = psi0 + S + cross_term + self.reg_covar * self.n_features
+        return mu_n, lambda_n, nu_n, psi_n
+
+    def _mvt_log_prob_spherical(self, x: torch.Tensor, n_k: torch.Tensor, mu_n: torch.Tensor,
+                                 lambda_n: torch.Tensor, nu_n: torch.Tensor, psi_n: torch.Tensor) -> torch.Tensor:
+        r"""
+        Log-density of the isotropic multivariate Student-t posterior
+        predictive for 'spherical' covariance. Degrees of freedom here are
+        `nu0 + n_k * d` (an isotropic-NIG marginal pooling all `d`
+        dimensions' worth of "observations" into one shared variance) --
+        deliberately *not* the `nu_n = nu0 + n_k` used for the point-estimate
+        covariance elsewhere; these are two different, each internally
+        valid, uses of the same prior hyperparameters. See
+        docs/superpowers/specs/2026-07-28-dpgmm-design.md.
+        """
+        d = self.n_features
+        nu0 = self.degrees_of_freedom_prior
+        df = nu0 + n_k * d
+        scale = psi_n * (lambda_n + 1.0) / (lambda_n * df)
+        diff_sq = (x.unsqueeze(0) - mu_n).pow(2).sum(dim=-1)
+
+        return (
+            torch.lgamma((df + d) / 2.0) - torch.lgamma(df / 2.0)
+            - 0.5 * d * torch.log(df * math.pi * scale)
+            - 0.5 * (df + d) * torch.log1p(diff_sq / (df * scale))
+        )
+
+    def _gibbs_log_likelihood(self, x: torch.Tensor, n_k: torch.Tensor, sum_x_k: torch.Tensor,
+                               stat2_k: torch.Tensor) -> torch.Tensor:
+        r"""Batched (over active components) NIW marginal log-likelihood of
+        a single point `x`, dispatching on `covariance_type`."""
+        if self.covariance_type == "full":
+            mu_n, lambda_n, nu_n, psi_n = self._niw_posterior_full(n_k, sum_x_k, stat2_k)
+            return self._mvt_log_prob_full(x, mu_n, lambda_n, nu_n, psi_n)
+        elif self.covariance_type == "diag":
+            mu_n, lambda_n, nu_n, psi_n = self._niw_posterior_diag(n_k, sum_x_k, stat2_k)
+            return self._mvt_log_prob_diag(x, n_k, mu_n, lambda_n, nu_n, psi_n)
+        elif self.covariance_type == "spherical":
+            mu_n, lambda_n, nu_n, psi_n = self._niw_posterior_spherical(n_k, sum_x_k, stat2_k)
+            return self._mvt_log_prob_spherical(x, n_k, mu_n, lambda_n, nu_n, psi_n)
+        else:
+            raise NotImplementedError(
+                f"Gibbs sampling for covariance_type={self.covariance_type!r} is not implemented."
+            )
+
+    def _gibbs_final_point_estimate(self, n_k: torch.Tensor, sum_x_k: torch.Tensor, stat2_k: torch.Tensor):
+        r"""Point-estimate (means_, covariances_) from final sufficient stats, dispatching on covariance_type."""
+        if self.covariance_type == "full":
+            mu_n, lambda_n, nu_n, psi_n = self._niw_posterior_full(n_k, sum_x_k, stat2_k)
+            return mu_n, psi_n / nu_n.unsqueeze(-1).unsqueeze(-1)
+        elif self.covariance_type == "diag":
+            mu_n, lambda_n, nu_n, psi_n = self._niw_posterior_diag(n_k, sum_x_k, stat2_k)
+            return mu_n, psi_n / nu_n.unsqueeze(-1)
+        elif self.covariance_type == "spherical":
+            mu_n, lambda_n, nu_n, psi_n = self._niw_posterior_spherical(n_k, sum_x_k, stat2_k)
+            return mu_n, psi_n / (nu_n * self.n_features)
+        else:
+            raise NotImplementedError(
+                f"Gibbs sampling for covariance_type={self.covariance_type!r} is not implemented."
+            )
+
+    def _gibbs_point_stat2(self, xi: torch.Tensor) -> torch.Tensor:
+        r"""Per-point contribution to the type-specific 'second statistic'
+        cache: outer product (full), per-dim square (diag), or total
+        sum-of-squares scalar (spherical)."""
+        if self.covariance_type == "full":
+            return torch.outer(xi, xi)
+        elif self.covariance_type == "diag":
+            return xi.pow(2)
+        elif self.covariance_type == "spherical":
+            return xi.pow(2).sum()
+        else:
+            raise NotImplementedError(
+                f"Gibbs sampling for covariance_type={self.covariance_type!r} is not implemented."
+            )
+
+    def _gibbs_batch_stat2(self, Xk: torch.Tensor) -> torch.Tensor:
+        r"""Batch version of `_gibbs_point_stat2`, used once at initialization."""
+        if self.covariance_type == "full":
+            return Xk.t() @ Xk
+        elif self.covariance_type == "diag":
+            return (Xk ** 2).sum(dim=0)
+        elif self.covariance_type == "spherical":
+            return (Xk ** 2).sum()
+        else:
+            raise NotImplementedError(
+                f"Gibbs sampling for covariance_type={self.covariance_type!r} is not implemented."
+            )
+
+    def _gibbs_zero_stat2(self, K: int) -> torch.Tensor:
+        r"""Zero-initialized type-specific 'second statistic' cache for `K` components."""
+        d = self.n_features
+        if self.covariance_type == "full":
+            return torch.zeros(K, d, d, device=self.device, dtype=self.dtype)
+        elif self.covariance_type == "diag":
+            return torch.zeros(K, d, device=self.device, dtype=self.dtype)
+        elif self.covariance_type == "spherical":
+            return torch.zeros(K, device=self.device, dtype=self.dtype)
+        else:
+            raise NotImplementedError(
+                f"Gibbs sampling for covariance_type={self.covariance_type!r} is not implemented."
+            )
+
+    def _fit_gibbs(self, X: torch.Tensor):
+        if self.covariance_type not in ("full", "diag", "spherical"):
+            raise NotImplementedError(
+                f"Gibbs sampling for covariance_type={self.covariance_type!r} "
+                "is not yet implemented."
+            )
+        if self.max_components is not None:
+            self._fit_gibbs_truncated(X, self.max_components)
+        else:
+            self._fit_gibbs_unbounded(X)
+
+    def _fit_gibbs_truncated(self, X: torch.Tensor, K: int):
+        r"""
+        Truncated collapsed Gibbs sampling: K fixed slots (some may end up
+        empty), each point's assignment resampled from
+
+            p(z_i = k | z_-i) propto (n_k^{-i} + alpha/K) * marginal_lik(x_i | table k)
+
+        the finite-dimensional Dirichlet-multinomial (Polya urn)
+        approximation to the CRP -- exact for a symmetric
+        Dirichlet(alpha/K, ..., alpha/K) prior over K weights, and
+        converging to the true CRP rule (`propto n_k^{-i}`, plus a
+        separate `propto alpha` new-table term) as K grows relative to the
+        number of clusters actually in use. This is deliberately the same
+        occupancy-driven rule `_fit_gibbs_unbounded` uses (`torch.log(n_k)`
+        there, `torch.log(n_k + alpha/K)` here) -- see
+        docs/superpowers/specs/2026-07-28-dpgmm-design.md.
+        """
+        n_samples, d = X.shape
+
+        X_cpu = X.cpu()
+        init_means = GMMInitializer.kmeans(X_cpu, K).to(device=self.device, dtype=self.dtype)
+        z = torch.cdist(X, init_means).argmin(dim=1)
+
+        self._resolve_priors_gibbs(X, z)
+
+        n_k = torch.zeros(K, device=self.device, dtype=self.dtype)
+        sum_x_k = torch.zeros(K, d, device=self.device, dtype=self.dtype)
+        stat2_k = self._gibbs_zero_stat2(K)
+        for k in range(K):
+            mask = z == k
+            n_k[k] = mask.sum()
+            if n_k[k] > 0:
+                Xk = X[mask]
+                sum_x_k[k] = Xk.sum(dim=0)
+                stat2_k[k] = self._gibbs_batch_stat2(Xk)
+
+        alpha_per_slot = self.alpha / K
+
+        for sweep in range(self.max_iter):
+            for i in range(n_samples):
+                xi = X[i]
+                k_old = int(z[i].item())
+                n_k[k_old] -= 1
+                sum_x_k[k_old] -= xi
+                stat2_k[k_old] -= self._gibbs_point_stat2(xi)
+
+                log_lik = self._gibbs_log_likelihood(xi, n_k, sum_x_k, stat2_k)
+                log_pi = torch.log(n_k + alpha_per_slot)
+                log_probs = log_pi + log_lik
+                probs = torch.softmax(log_probs, dim=0)
+                k_new = int(torch.multinomial(probs, 1).item())
+
+                z[i] = k_new
+                n_k[k_new] += 1
+                sum_x_k[k_new] += xi
+                stat2_k[k_new] += self._gibbs_point_stat2(xi)
+
+            order = torch.argsort(n_k, descending=True)
+            inv_order = torch.empty_like(order)
+            inv_order[order] = torch.arange(K, device=self.device)
+            n_k = n_k[order]
+            sum_x_k = sum_x_k[order]
+            stat2_k = stat2_k[order]
+            z = inv_order[z]
+
+        self.means_, self.covariances_ = self._gibbs_final_point_estimate(n_k, sum_x_k, stat2_k)
+        self.weights_ = n_k / n_k.sum()
+
+        self.n_iter_ = self.max_iter
+        self.fitted_ = True
+        self.converged_ = True
+        self._finalize_active_components(n_samples)
+
+    def _fit_gibbs_unbounded(self, X: torch.Tensor):
+        r"""
+        Neal's Algorithm 3: collapsed Gibbs sampling for a Dirichlet Process
+        mixture with no fixed component cap. Each point is assigned to an
+        existing component with probability proportional to that
+        component's current occupancy (the Chinese Restaurant Process
+        "sit at an occupied table" term), or to a brand-new component with
+        probability proportional to `alpha` (the "start a new table" term),
+        scored by the NIW marginal likelihood under the prior alone.
+
+        Components are keyed by an ever-increasing integer id rather than a
+        fixed-size array index, since components are created and destroyed
+        every sweep. The final sweep's partition is reported directly (a
+        single posterior draw) rather than an average -- see the design
+        doc for why cross-sweep averaging isn't meaningful here.
+        """
+        n_samples, d = X.shape
+
+        K_init = self._resolve_max_components(n_samples)
+        X_cpu = X.cpu()
+        init_means = GMMInitializer.kmeans(X_cpu, K_init).to(device=self.device, dtype=self.dtype)
+        z_init = torch.cdist(X, init_means).argmin(dim=1)
+
+        self._resolve_priors_gibbs(X, z_init)
+
+        next_id = 0
+        stats = {}
+        z = torch.empty(n_samples, dtype=torch.long, device=self.device)
+        for k in range(K_init):
+            mask = z_init == k
+            if not mask.any():
+                continue
+            cid = next_id
+            next_id += 1
+            Xk = X[mask]
+            stats[cid] = [
+                torch.tensor(float(Xk.shape[0]), device=self.device, dtype=self.dtype),
+                Xk.sum(dim=0),
+                self._gibbs_batch_stat2(Xk),
+            ]
+            z[mask] = cid
+
+        burn_in = self.burn_in if self.burn_in is not None else max(1, self.max_iter // 5)
+        k_history = []
+        log_alpha = math.log(self.alpha)
+
+        zero_n = torch.zeros(1, device=self.device, dtype=self.dtype)
+        zero_sum_x = torch.zeros(1, d, device=self.device, dtype=self.dtype)
+        zero_stat2 = self._gibbs_zero_stat2(1)
+
+        for sweep in range(self.max_iter):
+            for i in range(n_samples):
+                xi = X[i]
+                cid_old = int(z[i].item())
+                stats[cid_old][0] -= 1.0
+                stats[cid_old][1] -= xi
+                stats[cid_old][2] -= self._gibbs_point_stat2(xi)
+                if stats[cid_old][0].item() <= 0:
+                    del stats[cid_old]
+
+                active_ids = list(stats.keys())
+                if active_ids:
+                    n_k = torch.stack([stats[c][0] for c in active_ids])
+                    sum_x_k = torch.stack([stats[c][1] for c in active_ids])
+                    stat2_k = torch.stack([stats[c][2] for c in active_ids])
+                    log_probs_existing = torch.log(n_k) + self._gibbs_log_likelihood(
+                        xi, n_k, sum_x_k, stat2_k)
+                else:
+                    log_probs_existing = torch.empty(0, device=self.device, dtype=self.dtype)
+
+                log_prob_new = log_alpha + self._gibbs_log_likelihood(
+                    xi, zero_n, zero_sum_x, zero_stat2)[0]
+
+                all_log_probs = torch.cat([log_probs_existing, log_prob_new.unsqueeze(0)])
+                probs = torch.softmax(all_log_probs, dim=0)
+                choice = int(torch.multinomial(probs, 1).item())
+
+                if choice == len(active_ids):
+                    cid_new = next_id
+                    next_id += 1
+                    stats[cid_new] = [
+                        torch.tensor(1.0, device=self.device, dtype=self.dtype),
+                        xi.clone(),
+                        self._gibbs_point_stat2(xi).clone(),
+                    ]
+                else:
+                    cid_new = active_ids[choice]
+                    stats[cid_new][0] += 1.0
+                    stats[cid_new][1] += xi
+                    stats[cid_new][2] += self._gibbs_point_stat2(xi)
+                z[i] = cid_new
+
+            if sweep >= burn_in:
+                k_history.append(len(stats))
+
+        active_ids = list(stats.keys())
+        n_k = torch.stack([stats[c][0] for c in active_ids])
+        sum_x_k = torch.stack([stats[c][1] for c in active_ids])
+        stat2_k = torch.stack([stats[c][2] for c in active_ids])
+        self.means_, self.covariances_ = self._gibbs_final_point_estimate(n_k, sum_x_k, stat2_k)
+        self.weights_ = n_k / n_k.sum()
+        self.n_iter_ = self.max_iter
+        self.fitted_ = True
+        self.converged_ = True
+        self._finalize_active_components(n_samples)
+        self.n_components_history_ = k_history
 
     # ===================================================================
     # Prediction and Scoring Methods

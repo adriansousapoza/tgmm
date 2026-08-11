@@ -883,3 +883,62 @@ def test_supervised_fit_well_populated_no_degeneracy_warning(recwarn):
         if issubclass(w.category, UserWarning) and "too few samples" in str(w.message)
     ]
     assert not degeneracy_warnings
+
+
+def test_gibbs_mode_truncated_fit_produces_valid_partition():
+    torch.manual_seed(0)
+    centers = [[0.0, 0.0], [15.0, 0.0], [7.5, 13.0]]
+    covs = [1.5 * torch.eye(2) for _ in range(3)]
+    from tgmm.synthetic_data import generate_gmm_data
+    X, true_labels = generate_gmm_data(centers, [c.numpy() for c in covs], [30, 30, 30], random_state=0)
+    X = X.double()
+
+    mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = \
+        GaussianMixture.suggest_priors(X, n_components=6)
+    model = GaussianMixture(n_components=None, max_components=6, covariance_type="full",
+                             alpha=1.0, max_iter=60, burn_in=20, random_state=0,
+                             mean_prior=mean_prior, mean_precision_prior=mean_precision_prior,
+                             covariance_prior=covariance_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
+    model.fit(X)
+
+    assert model.fitted_
+    assert model.weights_.shape == (6,)
+    assert model.weights_.sum().item() == pytest.approx(1.0, abs=1e-6)
+    assert 2 <= model.n_components_ <= 6
+
+    from sklearn.metrics import adjusted_rand_score
+    predicted = model.predict(X)
+    assert adjusted_rand_score(true_labels.numpy(), predicted.numpy()) > 0.5
+
+
+def test_gibbs_mode_unbounded_fit_produces_valid_partition():
+    torch.manual_seed(0)
+    centers = [[0.0, 0.0], [15.0, 0.0], [7.5, 13.0]]
+    covs = [1.5 * torch.eye(2) for _ in range(3)]
+    from tgmm.synthetic_data import generate_gmm_data
+    X, true_labels = generate_gmm_data(centers, [c.numpy() for c in covs], [25, 25, 25], random_state=0)
+    X = X.double()
+
+    mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = \
+        GaussianMixture.suggest_priors(X, n_components=6)
+    model = GaussianMixture(n_components=None, max_components=None, covariance_type="full",
+                             alpha=1.0, max_iter=50, burn_in=15, random_state=0,
+                             mean_prior=mean_prior, mean_precision_prior=mean_precision_prior,
+                             covariance_prior=covariance_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
+    model.fit(X)
+
+    assert model.fitted_
+    assert model.max_components is None  # unbounded config untouched by fitting
+    assert model.n_components_ == int(model.active_.sum().item())
+    assert model.n_components_ >= 1
+
+    from sklearn.metrics import adjusted_rand_score
+    predicted = model.predict(X)
+    assert adjusted_rand_score(true_labels.numpy(), predicted.numpy()) > 0.3
+
+
+def test_gibbs_mode_supervised_labels_raises():
+    with pytest.raises(ValueError, match="labels"):
+        model = GaussianMixture(n_components=None, mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                                 covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+        model.fit(torch.randn(20, 2, dtype=torch.float64), labels=torch.zeros(20, dtype=torch.long))
