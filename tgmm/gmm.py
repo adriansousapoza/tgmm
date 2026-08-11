@@ -366,7 +366,15 @@ class GaussianMixture(nn.Module):
             # None so the attribute always exists post-__init__, matching
             # every other mode/attribute in this class (e.g. save()/load()
             # round-tripping via __dict__ requires the attribute to exist).
+            # Whatever the caller passed for weight_concentration_prior is
+            # silently ignored here -- same treatment as other EM-only args
+            # (n_init, warm_start) that Gibbs mode simply doesn't use.
+            # use_weight_prior must agree with this: it's the flag other
+            # code trusts to mean "weight_concentration_prior is a real,
+            # usable tensor," so it's reset to False here rather than left
+            # at whatever the raw constructor argument implied above.
             self.weight_concentration_prior = None
+            self.use_weight_prior = False
         else:
             self._init_priors(
                 weight_concentration_prior,

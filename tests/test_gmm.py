@@ -615,6 +615,22 @@ def test_gibbs_mode_rejects_non_positive_mean_precision_prior():
                          covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
 
 
+def test_gibbs_mode_use_weight_prior_flag_matches_none_value():
+    # use_weight_prior is a flag other code trusts to mean
+    # "weight_concentration_prior is a real, usable tensor." Gibbs mode
+    # has no weight-concentration-prior concept at all (weights there are
+    # controlled via alpha, not a Dirichlet concentration prior), so even
+    # when the caller passes a real tensor, it must be silently ignored
+    # -- same treatment as other EM-only args (n_init, warm_start) -- and
+    # the flag must agree with the (always-None) stored value rather than
+    # staying True from the raw constructor argument.
+    model = GaussianMixture(n_components=None, weight_concentration_prior=torch.ones(3),
+                             mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+    assert model.weight_concentration_prior is None
+    assert model.use_weight_prior is False
+
+
 # ============================================================================
 # suggest_priors
 # ============================================================================
