@@ -942,3 +942,12 @@ def test_gibbs_mode_supervised_labels_raises():
         model = GaussianMixture(n_components=None, mean_prior=torch.zeros(2), mean_precision_prior=0.1,
                                  covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
         model.fit(torch.randn(20, 2, dtype=torch.float64), labels=torch.zeros(20, dtype=torch.long))
+
+
+def test_gibbs_mode_fit_honors_max_iter_override():
+    torch.manual_seed(0)
+    model = GaussianMixture(n_components=None, max_components=5, max_iter=5,
+                             mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+    model.fit(torch.randn(30, 2, dtype=torch.float64), max_iter=50)
+    assert model.n_iter_ == 50
