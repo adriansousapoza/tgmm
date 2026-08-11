@@ -506,6 +506,136 @@ def test_invalid_covariance_type_raises():
 
 
 # ============================================================================
+# Gibbs mode (n_components=None) construction
+# ============================================================================
+
+def test_gibbs_mode_requires_all_four_priors():
+    with pytest.raises(ValueError, match="mean_prior"):
+        GaussianMixture(n_components=None, mean_precision_prior=0.1,
+                         covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+
+
+def test_gibbs_mode_requires_mean_precision_prior():
+    with pytest.raises(ValueError, match="mean_precision_prior"):
+        GaussianMixture(n_components=None, mean_prior=torch.zeros(2),
+                         covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+
+
+def test_gibbs_mode_requires_covariance_prior():
+    with pytest.raises(ValueError, match="covariance_prior"):
+        GaussianMixture(n_components=None, mean_prior=torch.zeros(2),
+                         mean_precision_prior=0.1, degrees_of_freedom_prior=4.0)
+
+
+def test_gibbs_mode_requires_degrees_of_freedom_prior():
+    with pytest.raises(ValueError, match="degrees_of_freedom_prior"):
+        GaussianMixture(n_components=None, mean_prior=torch.zeros(2),
+                         mean_precision_prior=0.1, covariance_prior=torch.eye(2))
+
+
+def test_gibbs_mode_error_message_lists_all_missing_priors():
+    with pytest.raises(ValueError, match="mean_prior.*mean_precision_prior.*covariance_prior.*degrees_of_freedom_prior"):
+        GaussianMixture(n_components=None)
+
+
+def test_gibbs_mode_with_all_priors_constructs_successfully():
+    model = GaussianMixture(n_components=None, mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+    assert model.n_components is None
+    assert model.max_components == 20  # default
+
+
+@pytest.mark.parametrize("covariance_type", ["tied_full", "tied_diag", "tied_spherical"])
+def test_gibbs_mode_rejects_tied_covariance_at_construction(covariance_type):
+    # Must raise at __init__, before any prior is even checked -- so no
+    # prior args are needed to trigger this.
+    with pytest.raises(NotImplementedError, match="tied"):
+        GaussianMixture(n_components=None, covariance_type=covariance_type)
+
+
+def test_em_mode_unaffected_by_gibbs_validation():
+    # n_components=K (EM mode) must still work with zero priors -- plain MLE,
+    # exactly as today. This is the regression guard for "no behavior change."
+    model = GaussianMixture(n_components=3)
+    assert model.n_components == 3
+    assert model.use_mean_prior is False
+    assert model.use_covariance_prior is False
+
+
+def test_em_mode_silently_accepts_gibbs_only_params():
+    # Gibbs-only params (max_components, alpha, burn_in, weight_threshold,
+    # init_k) must not raise when passed alongside a fixed n_components --
+    # they're simply unused by the EM path, not an error condition.
+    model = GaussianMixture(n_components=3, max_components=99, alpha=2.0, burn_in=5,
+                             weight_threshold=0.5, init_k=10)
+    model.fit(X_3D)
+    assert model.fitted_
+    assert model.n_components_ == 3
+
+
+def test_gibbs_mode_silently_accepts_em_only_params():
+    # EM-only params (n_init, warm_start) must not raise when passed
+    # alongside n_components=None -- simply unused by the Gibbs path.
+    model = GaussianMixture(n_components=None, max_components=4, n_init=5, warm_start=True,
+                             mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+    assert model.n_components is None
+
+
+def test_gibbs_mode_new_params_stored():
+    model = GaussianMixture(n_components=None, max_components=15, alpha=2.0, burn_in=5,
+                             weight_threshold=0.5, init_k=10,
+                             mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+    assert model.max_components == 15
+    assert model.alpha == 2.0
+    assert model.burn_in == 5
+    assert model.weight_threshold == 0.5
+    assert model.init_k == 10
+
+
+# ============================================================================
+# suggest_priors
+# ============================================================================
+
+def test_suggest_priors_returns_four_element_tuple():
+    X = torch.randn(100, 3, dtype=torch.float64)
+    result = GaussianMixture.suggest_priors(X, n_components=4)
+    assert len(result) == 4
+    mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = result
+    assert mean_prior.shape == (3,)
+    assert isinstance(mean_precision_prior, float)
+    assert covariance_prior.shape == (3, 3)  # covariance_type='full' default
+    assert degrees_of_freedom_prior == pytest.approx(5.0)  # n_features + 2
+
+
+def test_suggest_priors_covariance_type_diag_shape():
+    X = torch.randn(100, 3, dtype=torch.float64)
+    _, _, covariance_prior, _ = GaussianMixture.suggest_priors(X, n_components=4, covariance_type="diag")
+    assert covariance_prior.shape == (3,)
+
+
+def test_suggest_priors_covariance_type_spherical_shape():
+    X = torch.randn(100, 3, dtype=torch.float64)
+    _, _, covariance_prior, _ = GaussianMixture.suggest_priors(X, n_components=4, covariance_type="spherical")
+    assert covariance_prior.shape == ()
+
+
+def test_suggest_priors_result_is_directly_usable():
+    # The whole point: pass suggest_priors' output straight into the
+    # constructor without any reshaping.
+    torch.manual_seed(0)
+    X = torch.cat([torch.randn(50, 2, dtype=torch.float64) - 5.0,
+                    torch.randn(50, 2, dtype=torch.float64) + 5.0])
+    mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = \
+        GaussianMixture.suggest_priors(X, n_components=2)
+    model = GaussianMixture(n_components=None, max_components=5, mean_prior=mean_prior,
+                             mean_precision_prior=mean_precision_prior, covariance_prior=covariance_prior,
+                             degrees_of_freedom_prior=degrees_of_freedom_prior, random_state=0)
+    assert model.fitted_ is False  # constructed but not yet fit -- this test only checks construction
+
+
+# ============================================================================
 # 14. Stress tests
 # ============================================================================
 

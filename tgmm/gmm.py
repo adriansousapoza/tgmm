@@ -19,11 +19,17 @@ class GaussianMixture(nn.Module):
     - Multiple random initializations (n_init)
     - Configurable covariance types (full, diag, spherical, tied_full, tied_diag, tied_spherical)
     - Maximum Likelihood Estimation (MLE) and Maximum a Posteriori (MAP) estimation with priors
+    - Bayesian/Akaike information criteria (`bic`, `aic`) for model selection
 
     Parameters
     ----------
-    n_components : int, optional
-        Number of mixture components. (default: 1)
+    n_components : int or None, optional
+        Number of mixture components. If None, selects Gibbs-sampling mode:
+        the number of components is inferred during `fit` (up to
+        `max_components`) instead of fixed in advance, and mean_prior,
+        mean_precision_prior, covariance_prior, and degrees_of_freedom_prior
+        become required. See `max_components`, `alpha`, and `suggest_priors`.
+        (default: None)
     n_features : int, optional
         Dimensionality of the input data (number of features). If None, inferred from data. (default: None)
     covariance_type : str, optional
@@ -84,6 +90,22 @@ class GaussianMixture(nn.Module):
     degrees_of_freedom_prior : float or None, optional
         Degrees of freedom for the Wishart/Inverse-Wishart prior on covariances (MAP).
         Must be > n_features - 1. (default: None)
+    max_components : int or None, optional
+        Gibbs mode only (n_components=None): upper bound on the number of
+        components tracked during sampling. Ignored in EM mode. (default: 20)
+    alpha : float, optional
+        Gibbs mode only: Dirichlet process concentration parameter, controlling
+        how readily new components are proposed. Ignored in EM mode. (default: 1.0)
+    burn_in : int or None, optional
+        Gibbs mode only: number of initial sweeps discarded before collecting
+        the fitted estimate. Ignored in EM mode. (default: None)
+    weight_threshold : float or None, optional
+        Gibbs mode only: components with weight below this threshold are
+        treated as inactive when reporting results. Ignored in EM mode.
+        (default: None)
+    init_k : int or None, optional
+        Gibbs mode only: number of components to seed the sampler with.
+        Ignored in EM mode. (default: None)
     verbose : bool, optional
         If True, print progress during EM iterations. (default: False)
     verbose_interval : int, optional
@@ -121,6 +143,14 @@ class GaussianMixture(nn.Module):
     best_random_state_ : int or None
         The random state that produced the best result when n_init > 1.
         Useful for reproducing the specific best initialization.
+    n_components_ : int or None
+        Number of components after fitting. Equal to `n_components` in EM
+        mode; in Gibbs mode, the inferred count (set once fit() supports
+        Gibbs mode). None before the first fit.
+    active_ : torch.Tensor or None
+        Gibbs mode only: boolean/index mask of which of the tracked
+        `max_components` slots are active in the fitted result. None in EM
+        mode and before the first fit.
     classes_ : torch.Tensor
         Sorted distinct label values seen by the most recent supervised
         `fit(X, labels=...)` call; `classes_[k]` is the original label for
@@ -131,40 +161,47 @@ class GaussianMixture(nn.Module):
     def __init__(
         self,
         # Core model parameters
-        n_components: int = 1,
+        n_components: Optional[int] = None,
         n_features: int = None,
         covariance_type: str = 'full',
-        
+
         # Convergence and training parameters
         max_iter: int = 1000,
         tol: float = 1e-4,
         reg_covar: float = 1e-6,
         n_init: int = 1,
-        
+
         # Initialization parameters (accepts str method or torch.Tensor values)
         init_means='kmeans',
         init_weights='uniform',
         init_covariances='empirical',
-        
+
         # Random state and restart options
         random_state: int = None,
         warm_start: bool = False,
-        
+
         # Algorithm options
         cem: bool = False,
-        
-        # Prior parameters for MAP estimation
+
+        # Prior parameters for MAP estimation (EM mode) / required NIW prior (Gibbs mode)
         weight_concentration_prior: torch.Tensor = None,
         mean_prior: torch.Tensor = None,
         mean_precision_prior: float = None,
         covariance_prior: torch.Tensor = None,
         degrees_of_freedom_prior: float = None,
-        
+
+        # Gibbs-sampling mode (n_components=None) parameters -- ignored in EM mode
+        max_components: Optional[int] = 20,
+        alpha: float = 1.0,
+        burn_in: Optional[int] = None,
+        weight_threshold: Optional[float] = None,
+        init_k: Optional[int] = None,
+
         # Output and device options
         verbose: bool = False,
         verbose_interval: int = 10,
         device: str = None,
-        
+
         **kwargs  # Catch deprecated parameters
     ):
         super().__init__()
@@ -198,13 +235,29 @@ class GaussianMixture(nn.Module):
         # ===================================================================
         self.n_components = n_components
         self.n_features = n_features
-        
+
         # Handle covariance type aliases
         if covariance_type == "tied":
             covariance_type = "tied_full"
         elif covariance_type == "isotropic":
             covariance_type = "spherical"
         self.covariance_type = covariance_type
+
+        # Gibbs mode (n_components=None): tied_* covariance is rejected
+        # immediately -- a shared covariance couples every component's
+        # residuals together, so Neal's Algorithm 3 (fully-collapsed Gibbs)
+        # does not factor per component. See
+        # docs/superpowers/specs/2026-07-28-dpgmm-design.md.
+        if n_components is None and covariance_type in ("tied_full", "tied_diag", "tied_spherical"):
+            raise NotImplementedError(
+                f"Gibbs sampling does not support covariance_type={covariance_type!r}. "
+                "A shared/tied covariance couples every component's residuals together, so "
+                "Neal's Algorithm 3 (fully-collapsed Gibbs) does not factor per component -- "
+                "this holds for both truncated and unbounded Gibbs. A correct treatment needs "
+                "a partially-collapsed sampler (explicit Inverse-Wishart resampling of the "
+                "shared covariance each sweep), which is out of scope for this class. See "
+                "docs/superpowers/specs/2026-07-28-dpgmm-design.md."
+            )
 
         # ===================================================================
         # 3. Store convergence and training parameters
@@ -213,25 +266,34 @@ class GaussianMixture(nn.Module):
         self.tol = tol
         self.reg_covar = reg_covar
         self.n_init = n_init
-        
+
         # ===================================================================
         # 4. Store initialization parameters
         # ===================================================================
         self.init_means = init_means
         self.init_weights = init_weights
         self.init_covariances = init_covariances
-        
+
         # ===================================================================
         # 5. Store random state and restart options
         # ===================================================================
         self.random_state = random_state
         self.warm_start = warm_start
-        
+
         # ===================================================================
         # 6. Store algorithm options
         # ===================================================================
         self.cem = cem
-        
+
+        # ===================================================================
+        # 6b. Store Gibbs-mode parameters (ignored in EM mode)
+        # ===================================================================
+        self.max_components = max_components
+        self.alpha = float(alpha)
+        self.burn_in = burn_in
+        self.weight_threshold = weight_threshold if weight_threshold is not None else 1.0
+        self.init_k = init_k
+
         # ===================================================================
         # 7. Configure device
         # ===================================================================
@@ -258,13 +320,51 @@ class GaussianMixture(nn.Module):
         self.use_mean_prior = (mean_prior is not None) and (mean_precision_prior is not None)
         self.use_covariance_prior = (covariance_prior is not None) and (degrees_of_freedom_prior is not None)
 
-        self._init_priors(
-            weight_concentration_prior,
-            mean_prior,
-            mean_precision_prior,
-            covariance_prior,
-            degrees_of_freedom_prior
-        )
+        if n_components is None:
+            # Gibbs mode: Neal's Algorithm 3 requires a full NIW prior to
+            # integrate out means/covariances -- there is no MLE fallback
+            # the way EM has. Rather than silently resolving a default (an
+            # earlier version of this project's DPGMM class did this, and
+            # the auto-resolved default measurably changed fitted
+            # covariances -- see the covariance-prior-fix revision-history
+            # entry in docs/superpowers/specs/2026-07-28-dpgmm-design.md),
+            # require the caller to supply all four explicitly.
+            missing = [
+                name for name, value in [
+                    ("mean_prior", mean_prior),
+                    ("mean_precision_prior", mean_precision_prior),
+                    ("covariance_prior", covariance_prior),
+                    ("degrees_of_freedom_prior", degrees_of_freedom_prior),
+                ] if value is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"Gibbs sampling (n_components=None) requires an explicit NIW prior -- "
+                    f"missing: {', '.join(missing)}. There is no default: an earlier "
+                    "auto-resolved default materially changed fitted covariances in this "
+                    "project's development (see docs/superpowers/specs/2026-07-28-dpgmm-design.md). "
+                    "Use GaussianMixture.suggest_priors(X, n_components=<your max_components guess>) "
+                    "for a principled starting point, inspect/adjust it, and pass it in explicitly."
+                )
+            # Stored directly (not broadcast per-component the way EM's
+            # _init_priors does): Gibbs mode's components are created and
+            # destroyed dynamically, so there is no fixed K to broadcast
+            # against -- a single shared mean vector / covariance matrix,
+            # not one per component slot. Reshaped to this class's
+            # NIW-posterior-formula shape at fit() time by
+            # _resolve_priors_gibbs (Task 2), once n_features is known.
+            self.mean_prior = mean_prior
+            self.mean_precision_prior = float(mean_precision_prior)
+            self.covariance_prior = covariance_prior
+            self.degrees_of_freedom_prior = float(degrees_of_freedom_prior)
+        else:
+            self._init_priors(
+                weight_concentration_prior,
+                mean_prior,
+                mean_precision_prior,
+                covariance_prior,
+                degrees_of_freedom_prior
+            )
 
         # ===================================================================
         # 10. Initialize model state variables
@@ -280,6 +380,104 @@ class GaussianMixture(nn.Module):
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
         self.best_random_state_ = None
+        self.n_components_ = None
+        self.active_ = None
+
+    @staticmethod
+    def suggest_priors(X: torch.Tensor, n_components: int, covariance_type: str = "full"):
+        r"""
+        A principled starting point for the NIW prior Gibbs-mode fitting
+        (`n_components=None`) requires, estimated from a quick k-means
+        partition of X into `n_components` groups.
+
+        Returns `(mean_prior, mean_precision_prior, covariance_prior,
+        degrees_of_freedom_prior)` -- pass these back into the constructor
+        explicitly; nothing calls this automatically (Gibbs mode has no
+        default prior -- see `__init__`).
+
+        `mean_prior` is X's overall mean. `covariance_prior` is the pooled
+        within-cluster scatter of the k-means partition (mirrors the
+        pooled-variance estimator from ANOVA/LDA: sum of each cluster's own
+        scatter around its own mean, divided by total within-cluster
+        degrees of freedom) -- deliberately not X's marginal covariance,
+        which for well-separated multi-modal data conflates *between*-
+        cluster spread with *within*-cluster spread and inflates every
+        component's fitted covariance (a 10-d, 5-cluster, well-separated
+        synthetic case measured a 74x mismatch between the two). See
+        docs/superpowers/specs/2026-07-28-dpgmm-design.md. `mean_precision_prior`
+        defaults to 0.1 and `degrees_of_freedom_prior` to `n_features + 2`,
+        chosen (per that same design doc) to keep the prior weak relative
+        to real data while staying numerically safe for near-empty
+        components.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data to base the suggestion on, shape (n_samples, n_features).
+        n_components : int
+            Number of k-means groups to pool within-cluster scatter over.
+            Doesn't need to match `max_components` exactly -- this is a
+            prior guess at typical component scale, refined every sweep by
+            Gibbs sampling itself, not the final answer.
+        covariance_type : str, default='full'
+            One of 'full', 'diag', 'spherical', 'tied_full', 'tied_diag',
+            'tied_spherical' -- determines `covariance_prior`'s shape.
+
+        Returns
+        -------
+        mean_prior : torch.Tensor, shape (n_features,)
+        mean_precision_prior : float
+        covariance_prior : torch.Tensor, shape depends on covariance_type
+        degrees_of_freedom_prior : float
+        """
+        n_features = X.shape[1]
+        device, dtype = X.device, X.dtype
+
+        X_cpu = X.cpu()
+        centers = GMMInitializer.kmeans(X_cpu, n_components).to(device=device, dtype=dtype)
+        init_labels = torch.cdist(X, centers).argmin(dim=1)
+
+        mean_prior = X.mean(dim=0)
+        mean_precision_prior = 0.1
+        degrees_of_freedom_prior = float(n_features + 2)
+
+        if covariance_type in ("full", "tied_full"):
+            pooled_S = torch.zeros(n_features, n_features, device=device, dtype=dtype)
+        elif covariance_type in ("diag", "tied_diag"):
+            pooled_S = torch.zeros(n_features, device=device, dtype=dtype)
+        else:
+            pooled_S = torch.zeros((), device=device, dtype=dtype)
+
+        dof = 0.0
+        for c in range(n_components):
+            mask = init_labels == c
+            n_c = int(mask.sum().item())
+            if n_c < 2:
+                continue
+            diff = X[mask] - X[mask].mean(dim=0)
+            if covariance_type in ("full", "tied_full"):
+                pooled_S = pooled_S + diff.t() @ diff
+            elif covariance_type in ("diag", "tied_diag"):
+                pooled_S = pooled_S + diff.pow(2).sum(dim=0)
+            else:
+                pooled_S = pooled_S + diff.pow(2).sum()
+            dof += n_c - 1
+
+        if dof > 0:
+            covariance_prior = pooled_S / dof
+        else:
+            # Degenerate fallback (e.g. every initial cluster a singleton):
+            # pooling is undefined, so fall back to the marginal covariance.
+            empirical_cov = torch.cov(X.T) if X.shape[0] > 1 else torch.eye(
+                n_features, device=device, dtype=dtype)
+            if covariance_type in ("full", "tied_full"):
+                covariance_prior = empirical_cov.clone()
+            elif covariance_type in ("diag", "tied_diag"):
+                covariance_prior = torch.diagonal(empirical_cov).clone()
+            else:
+                covariance_prior = torch.diagonal(empirical_cov).mean().clone()
+
+        return mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior
 
     def _init_priors(
         self,
@@ -894,6 +1092,7 @@ class GaussianMixture(nn.Module):
                         UserWarning
                     )
 
+            self.n_components_ = self.n_components
             return self
 
         # An unsupervised fit means classes_ genuinely doesn't exist (see
@@ -992,6 +1191,7 @@ class GaussianMixture(nn.Module):
                 UserWarning
             )
 
+        self.n_components_ = self.n_components
         return self
 
     def _fit_single_run(
@@ -1615,7 +1815,13 @@ class GaussianMixture(nn.Module):
         Notes
         -----
         This method routes to the appropriate covariance-type-specific NIW update.
-        The covariance is computed as E[Σ] = Ψₙ / (νₙ - n_features - 1) for Inverse-Wishart.
+        The covariance point estimate used throughout this module (both here
+        and in `_update_covariances_map`) is Σ = Ψₙ / νₙ, *not* the
+        textbook Inverse-Wishart posterior mean E[Σ] = Ψₙ / (νₙ - n_features - 1).
+        Ψₙ / νₙ is used deliberately: unlike the textbook mean, it stays
+        finite and positive for every νₙ > 0 (the mean formula is undefined
+        once νₙ <= n_features + 1, which a near-empty component can reach),
+        and the two agree closely whenever νₙ >> n_features anyway.
         """
         # ===============================================================
         # Extract NIW prior parameters
@@ -1720,16 +1926,17 @@ class GaussianMixture(nn.Module):
             prior_term = torch.zeros_like(sum_diff)
 
         # ===============================================================
-        # Compute posterior covariance
+        # Compute posterior covariance (nu_n = nu0 + n_k, matching
+        # _update_niw_full's convention -- see that method's docstring)
         # ===============================================================
-        df = self.degrees_of_freedom_prior + nk.unsqueeze(-1).unsqueeze(-1) + self.n_features
+        nu_n = self.degrees_of_freedom_prior + nk.unsqueeze(-1).unsqueeze(-1)
 
         self.covariances_ = (
             self.covariance_prior
             + sum_diff
             + prior_term
             + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
-        ) / df
+        ) / nu_n
 
     def _update_map_diag(self, X, resp, nk):
         r"""
@@ -1753,16 +1960,17 @@ class GaussianMixture(nn.Module):
             prior_term = torch.zeros_like(sum_diff)
             
         # ===============================================================
-        # Compute posterior covariance
+        # Compute posterior covariance (nu_n = nu0 + n_k, matching
+        # _update_niw_diag's convention)
         # ===============================================================
-        df = self.degrees_of_freedom_prior + nk.unsqueeze(-1) + self.n_features
+        nu_n = self.degrees_of_freedom_prior + nk.unsqueeze(-1)
 
         self.covariances_ = (
             self.covariance_prior
             + sum_diff
             + prior_term
             + self.reg_covar
-        ) / df
+        ) / nu_n
 
     def _update_map_spherical(self, X, resp, nk):
         r"""
@@ -1787,13 +1995,14 @@ class GaussianMixture(nn.Module):
             prior_term = torch.zeros_like(sum_diff)
             
         # ===============================================================
-        # Compute posterior covariance (averaged over dimensions)
+        # Compute posterior covariance (averaged over dimensions; nu_n =
+        # nu0 + n_k, matching _update_niw_spherical's convention)
         # ===============================================================
-        df = self.degrees_of_freedom_prior + nk + self.n_features
+        nu_n = self.degrees_of_freedom_prior + nk
 
         self.covariances_ = (
             self.covariance_prior + sum_diff + prior_term + self.reg_covar
-        ) / (df * self.n_features)
+        ) / (nu_n * self.n_features)
 
     def _update_map_tied_full(self, X, resp, nk):
         r"""
@@ -1821,16 +2030,17 @@ class GaussianMixture(nn.Module):
             prior_term = torch.zeros_like(sum_diff)
             
         # ===============================================================
-        # Compute posterior covariance
+        # Compute posterior covariance (nu_n = nu0 + sum_k n_k, matching
+        # _update_niw_tied_full's convention)
         # ===============================================================
-        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
+        nu_n = self.degrees_of_freedom_prior + nk.sum()
 
         self.covariances_ = (
             self.covariance_prior
             + sum_diff
             + prior_term
             + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
-        ) / df
+        ) / nu_n
 
     def _update_map_tied_diag(self, X, resp, nk):
         r"""
@@ -1855,16 +2065,17 @@ class GaussianMixture(nn.Module):
             prior_term = torch.zeros_like(sum_diff)
 
         # ===============================================================
-        # Compute posterior covariance
+        # Compute posterior covariance (nu_n = nu0 + sum_k n_k, matching
+        # _update_niw_tied_diag's convention)
         # ===============================================================
-        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
+        nu_n = self.degrees_of_freedom_prior + nk.sum()
 
         self.covariances_ = (
             self.covariance_prior
             + sum_diff
             + prior_term
             + self.reg_covar
-        ) / df
+        ) / nu_n
 
     def _update_map_tied_spherical(self, X, resp, nk):
         r"""
@@ -1890,13 +2101,14 @@ class GaussianMixture(nn.Module):
             prior_term_total = 0.0
 
         # ===============================================================
-        # Compute posterior covariance
+        # Compute posterior covariance (nu_n = nu0 + sum_k n_k, matching
+        # _update_niw_tied_spherical's convention)
         # ===============================================================
-        df = self.degrees_of_freedom_prior + nk.sum() + self.n_features
-        
+        nu_n = self.degrees_of_freedom_prior + nk.sum()
+
         self.covariances_ = (
             self.covariance_prior + sum_diff + prior_term_total + self.reg_covar
-        ) / (df * self.n_features)
+        ) / (nu_n * self.n_features)
 
     # ===================================================================
     # MLE (Maximum Likelihood Estimation) Covariance Updates
@@ -2377,6 +2589,88 @@ class GaussianMixture(nn.Module):
         """
         return self.score_samples(X).mean().item()
 
+    def _n_parameters(self) -> int:
+        r"""
+        Number of free parameters in the fitted model.
+
+        Counts mixture weights ($n_{components} - 1$, since they sum to 1),
+        means ($n_{components} \times n_{features}$), and covariance
+        parameters, whose count depends on `covariance_type` (see
+        `_expected_covar_shape` for the corresponding parameter *shapes*).
+        Used by `bic`/`aic`.
+        """
+        n_features = self.n_features
+        if self.covariance_type == 'full':
+            cov_params = self.n_components * n_features * (n_features + 1) / 2.0
+        elif self.covariance_type == 'diag':
+            cov_params = self.n_components * n_features
+        elif self.covariance_type == 'spherical':
+            cov_params = self.n_components
+        elif self.covariance_type == 'tied_full':
+            cov_params = n_features * (n_features + 1) / 2.0
+        elif self.covariance_type == 'tied_diag':
+            cov_params = n_features
+        elif self.covariance_type == 'tied_spherical':
+            cov_params = 1
+        else:
+            raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
+
+        mean_params = n_features * self.n_components
+        weight_params = self.n_components - 1
+        return int(cov_params + mean_params + weight_params)
+
+    def bic(self, X: torch.Tensor) -> float:
+        r"""
+        Bayesian Information Criterion for this model on `X`.
+
+        $$ \text{BIC} = n_{\text{params}} \ln(n_{\text{samples}}) - 2 \times \text{log\_likelihood} $$
+
+        Lower is better. Matches `sklearn.mixture.GaussianMixture.bic` for
+        the covariance types shared with sklearn (`full`, `diag`,
+        `spherical`, and `tied_full` <-> sklearn's `tied`).
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data to score, shape (n_samples, n_features).
+
+        Returns
+        -------
+        float
+            The BIC score (lower is better).
+
+        See Also
+        --------
+        aic : Akaike Information Criterion (weaker complexity penalty).
+        """
+        n_samples = X.shape[0]
+        return -2.0 * self.score(X) * n_samples + self._n_parameters() * math.log(n_samples)
+
+    def aic(self, X: torch.Tensor) -> float:
+        r"""
+        Akaike Information Criterion for this model on `X`.
+
+        $$ \text{AIC} = 2 \times n_{\text{params}} - 2 \times \text{log\_likelihood} $$
+
+        Lower is better. Matches `sklearn.mixture.GaussianMixture.aic` for
+        the covariance types shared with sklearn (see `bic`).
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data to score, shape (n_samples, n_features).
+
+        Returns
+        -------
+        float
+            The AIC score (lower is better).
+
+        See Also
+        --------
+        bic : Bayesian Information Criterion (stronger complexity penalty).
+        """
+        return -2.0 * self.score(X) * X.shape[0] + 2.0 * self._n_parameters()
+
     # ===================================================================
     # Sampling Method
     # ===================================================================
@@ -2556,8 +2850,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         if std_radius is None and std_range is None and center_point is None:
             means = self.means_[indices]
-            covariances = self._build_covariances_for_sampling(indices, n_samples)
-            samples = MultivariateNormal(means, covariance_matrix=covariances).sample()
+            samples = self._sample_affine(means, indices)
             return samples, indices
         
         # ===============================================================
@@ -2688,6 +2981,66 @@ class GaussianMixture(nn.Module):
             # Same σ²·I for all samples
             eye = torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
             return eye * self.covariances_
+
+        else:
+            raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
+
+    def _sample_affine(self, means: torch.Tensor, indices: torch.Tensor) -> torch.Tensor:
+        r"""
+        Draw samples for non-'full' covariance types via a direct affine
+        transform of standard normal noise, instead of constructing a
+        MultivariateNormal with a covariance matrix that must be broadcast
+        across samples.
+
+        MultivariateNormal(loc, covariance_matrix=cov) densifies `cov` to a
+        full (n_samples, n_features, n_features) tensor whenever it has to
+        broadcast a covariance across the batch -- for large n_features and
+        n_samples this exhausts memory (GitHub issue #1). Even 'full' only
+        has n_components distinct covariance matrices, so it is handled here
+        too by grouping samples per component instead of gathering into an
+        (n_samples, n_features, n_features) tensor.
+
+        Parameters
+        ----------
+        means : torch.Tensor
+            Per-sample component means, shape (n_samples, n_features).
+        indices : torch.Tensor
+            Component index for each sample, shape (n_samples,).
+
+        Returns
+        -------
+        samples : torch.Tensor
+            Generated samples, shape (n_samples, n_features).
+        """
+        z = torch.randn(means.shape, device=self.device, dtype=self.dtype)
+
+        if self.covariance_type == 'full':
+            samples = torch.empty_like(means)
+            for comp in torch.unique(indices).tolist():
+                mask = indices == comp
+                L = torch.linalg.cholesky(self.covariances_[comp])
+                samples[mask] = means[mask] + z[mask] @ L.T
+            return samples
+
+        elif self.covariance_type == 'diag':
+            std = self.covariances_[indices].sqrt()
+            return means + z * std
+
+        elif self.covariance_type == 'spherical':
+            std = self.covariances_[indices].sqrt().unsqueeze(-1)
+            return means + z * std
+
+        elif self.covariance_type == 'tied_full':
+            L = torch.linalg.cholesky(self.covariances_)
+            return means + z @ L.T
+
+        elif self.covariance_type == 'tied_diag':
+            std = self.covariances_.sqrt()
+            return means + z * std
+
+        elif self.covariance_type == 'tied_spherical':
+            std = self.covariances_.sqrt()
+            return means + z * std
 
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
