@@ -951,3 +951,15 @@ def test_gibbs_mode_fit_honors_max_iter_override():
                              covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
     model.fit(torch.randn(30, 2, dtype=torch.float64), max_iter=50)
     assert model.n_iter_ == 50
+
+
+@pytest.mark.parametrize("bad_max_iter", [0, -3])
+def test_gibbs_mode_fit_rejects_non_positive_max_iter_override(bad_max_iter):
+    torch.manual_seed(0)
+    model = GaussianMixture(n_components=None, max_components=5, max_iter=5,
+                             mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+    with pytest.raises(ValueError, match="Invalid max_iter"):
+        model.fit(torch.randn(30, 2, dtype=torch.float64), max_iter=bad_max_iter)
+    # the rejected override must not leak into instance state
+    assert model.max_iter == 5
