@@ -1008,9 +1008,13 @@ class GaussianMixture(nn.Module):
                 self.random_state = random_state
             if self.random_state is not None:
                 torch.manual_seed(self.random_state)
+            original_max_iter = self.max_iter
             if max_iter is not None:
                 self.max_iter = max_iter
-            self._fit_gibbs(X)
+            try:
+                self._fit_gibbs(X)
+            finally:
+                self.max_iter = original_max_iter
             return self
 
         # ===============================================================

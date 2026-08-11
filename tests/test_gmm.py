@@ -953,6 +953,26 @@ def test_gibbs_mode_fit_honors_max_iter_override():
     assert model.n_iter_ == 50
 
 
+def test_gibbs_mode_fit_max_iter_override_does_not_leak_into_instance():
+    torch.manual_seed(0)
+    model = GaussianMixture(n_components=None, max_components=5, max_iter=5,
+                             mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+
+    model.fit(torch.randn(30, 2, dtype=torch.float64), max_iter=100)
+    # the override took effect for this call...
+    assert model.n_iter_ == 100
+    # ...but must not permanently mutate the instance's max_iter, matching
+    # EM mode's convention (a call-local override, not a persistent change)
+    assert model.max_iter == 5
+
+    # a subsequent bare fit() (no override) must use the original
+    # construction-time max_iter, not the leaked override value
+    model.fit(torch.randn(30, 2, dtype=torch.float64))
+    assert model.n_iter_ == 5
+    assert model.max_iter == 5
+
+
 @pytest.mark.parametrize("bad_max_iter", [0, -3])
 def test_gibbs_mode_fit_rejects_non_positive_max_iter_override(bad_max_iter):
     torch.manual_seed(0)
