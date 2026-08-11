@@ -594,6 +594,27 @@ def test_gibbs_mode_new_params_stored():
     assert model.init_k == 10
 
 
+def test_gibbs_mode_sets_weight_concentration_prior_to_none():
+    # Gibbs mode has no weight-concentration-prior concept (no
+    # Dirichlet/stick-breaking weight parameter the way EM's variational
+    # path does), but the attribute must still exist post-construction --
+    # every other mode sets it (to a tensor or None) via _init_priors, and
+    # code like save() reads it unconditionally via __dict__.
+    model = GaussianMixture(n_components=None, mean_prior=torch.zeros(2), mean_precision_prior=0.1,
+                             covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+    assert model.weight_concentration_prior is None
+
+
+def test_gibbs_mode_rejects_non_positive_mean_precision_prior():
+    # Gibbs-mode eager validation checks prior *presence* (see
+    # test_gibbs_mode_requires_mean_precision_prior) but must also check
+    # *validity*, matching EM mode's _init_priors path which raises for
+    # mean_precision_prior <= 0.
+    with pytest.raises(ValueError, match="mean_precision_prior"):
+        GaussianMixture(n_components=None, mean_prior=torch.zeros(2), mean_precision_prior=-1.0,
+                         covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
+
+
 # ============================================================================
 # suggest_priors
 # ============================================================================

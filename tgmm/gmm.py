@@ -346,6 +346,9 @@ class GaussianMixture(nn.Module):
                     "Use GaussianMixture.suggest_priors(X, n_components=<your max_components guess>) "
                     "for a principled starting point, inspect/adjust it, and pass it in explicitly."
                 )
+            if mean_precision_prior <= 0:
+                raise ValueError("mean_precision_prior must be > 0.")
+
             # Stored directly (not broadcast per-component the way EM's
             # _init_priors does): Gibbs mode's components are created and
             # destroyed dynamically, so there is no fixed K to broadcast
@@ -357,6 +360,13 @@ class GaussianMixture(nn.Module):
             self.mean_precision_prior = float(mean_precision_prior)
             self.covariance_prior = covariance_prior
             self.degrees_of_freedom_prior = float(degrees_of_freedom_prior)
+            # Gibbs mode has no weight-concentration-prior concept (no
+            # Dirichlet/stick-breaking weight prior parameter the way EM's
+            # variational path does -- DPGMM never had one either); set to
+            # None so the attribute always exists post-__init__, matching
+            # every other mode/attribute in this class (e.g. save()/load()
+            # round-tripping via __dict__ requires the attribute to exist).
+            self.weight_concentration_prior = None
         else:
             self._init_priors(
                 weight_concentration_prior,
