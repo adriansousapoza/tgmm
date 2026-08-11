@@ -999,6 +999,8 @@ class GaussianMixture(nn.Module):
                     "got n_components=None (Gibbs sampling infers the component count "
                     "itself, so there's no fixed-K target for supervised labels)."
                 )
+            if max_iter is not None and max_iter <= 0:
+                raise ValueError(f"Invalid max_iter: {max_iter} (must be > 0).")
             X = X.to(device=self.device)
             self.dtype = X.dtype
             self.n_features = X.shape[1]
@@ -1007,8 +1009,6 @@ class GaussianMixture(nn.Module):
             if self.random_state is not None:
                 torch.manual_seed(self.random_state)
             if max_iter is not None:
-                if max_iter <= 0:
-                    raise ValueError(f"Invalid max_iter: {max_iter} (must be > 0).")
                 self.max_iter = max_iter
             self._fit_gibbs(X)
             return self

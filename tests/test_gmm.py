@@ -961,5 +961,6 @@ def test_gibbs_mode_fit_rejects_non_positive_max_iter_override(bad_max_iter):
                              covariance_prior=torch.eye(2), degrees_of_freedom_prior=4.0)
     with pytest.raises(ValueError, match="Invalid max_iter"):
         model.fit(torch.randn(30, 2, dtype=torch.float64), max_iter=bad_max_iter)
-    # the rejected override must not leak into instance state
+    # the rejected override is validated before any instance state is
+    # mutated, so it must not leak into self.max_iter
     assert model.max_iter == 5
