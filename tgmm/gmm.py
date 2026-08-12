@@ -241,6 +241,14 @@ class GaussianMixture(nn.Module):
             covariance_type = "tied_full"
         elif covariance_type == "isotropic":
             covariance_type = "spherical"
+
+        # Validate covariance type
+        valid_covariance_types = ("full", "diag", "spherical", "tied_full", "tied_diag", "tied_spherical")
+        if covariance_type not in valid_covariance_types:
+            raise ValueError(
+                f"covariance_type must be one of {valid_covariance_types}, got {covariance_type!r}"
+            )
+
         self.covariance_type = covariance_type
 
         # Gibbs mode (n_components=None): tied_* covariance is rejected
