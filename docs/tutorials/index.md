@@ -14,6 +14,8 @@ Interactive Jupyter notebook tutorials demonstrating various features of TorchGM
 - [**Prior Distributions**](../notebooks/priors.ipynb) - Using priors for regularization and MAP estimation
 - [**NIW Priors Comparison**](../notebooks/niw_priors_comparison.ipynb) - Detailed comparison of Normal-Inverse-Wishart priors
 - [**Sampling from GMMs**](../notebooks/sampling.ipynb) - Generating synthetic data from fitted models
+- [**Dirichlet Process Mixture (Gibbs Sampling)**](../notebooks/dpgmm.ipynb) - Inferring the number of components with `GaussianMixture(n_components=None, ...)`, compared against classical EM
+- [**Gibbs Sampling Internals**](../notebooks/dpgmm_gibbs_sampling.ipynb) - Step-by-step look at the collapsed Gibbs sampler itself
 
 ## Visualization
 

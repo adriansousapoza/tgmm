@@ -154,6 +154,8 @@ nav:
       - PCA Plotting Demo: notebooks/pca_plotting.ipynb
       - NIW Priors Comparison: notebooks/niw_priors_comparison.ipynb
       - Sampling: notebooks/sampling.ipynb
+      - Dirichlet Process Mixture (Gibbs Sampling): notebooks/dpgmm.ipynb
+      - Gibbs Sampling Internals: notebooks/dpgmm_gibbs_sampling.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - tgmm.GMMInitializer: api/gmm-initializer.md

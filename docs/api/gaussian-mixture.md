@@ -7,11 +7,14 @@
       heading_level: 2
       members:
         - __init__
+        - suggest_priors
         - fit
         - predict
         - predict_proba
         - score
         - score_samples
+        - bic
+        - aic
         - sample
         - save
         - load

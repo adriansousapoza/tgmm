@@ -258,6 +258,68 @@ See the [Supervised Fitting notebook](../notebooks/supervised_gmm.ipynb) for
 a worked comparison of plain EM, CEM, and supervised fitting on the same
 synthetic data.
 
+## Gibbs Sampling: Inferring the Number of Components
+
+If you don't know `K` ahead of time, `GaussianMixture(n_components=None,
+...)` switches from EM to a collapsed Gibbs sampler that infers the number
+of components from the data during `fit`, instead of requiring it fixed in
+advance:
+
+```python
+from tgmm import GaussianMixture
+
+# A principled starting point for the NIW prior Gibbs mode requires,
+# estimated from a quick k-means pass over the data.
+mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = \
+    GaussianMixture.suggest_priors(X, n_components=10)
+
+gmm = GaussianMixture(
+    n_components=None,       # switches to Gibbs sampling
+    covariance_type='full',  # 'full', 'diag', or 'spherical' -- no tied_* support
+    max_components=20,       # upper bound on tracked components
+    alpha=1.0,                # Dirichlet process concentration
+    mean_prior=mean_prior,
+    mean_precision_prior=mean_precision_prior,
+    covariance_prior=covariance_prior,
+    degrees_of_freedom_prior=degrees_of_freedom_prior,
+    max_iter=50,               # an exact sweep count in Gibbs mode -- see below
+)
+gmm.fit(X)
+
+print(gmm.n_components_)  # the inferred component count
+print(gmm.active_)        # which of the max_components slots are in use
+```
+
+Unlike EM, Gibbs mode has **no default prior**: an earlier version of this
+project auto-resolved one, and the auto-resolved default measurably
+distorted fitted covariances, so `__init__` requires `mean_prior`,
+`mean_precision_prior`, `covariance_prior`, and `degrees_of_freedom_prior`
+explicitly whenever `n_components=None`. `GaussianMixture.suggest_priors(X,
+n_components=<a rough guess>)` gives a sensible starting point -- inspect
+and adjust it before passing it in if needed.
+
+Key parameters (see the [API reference](../api/gaussian-mixture.md) for
+full detail):
+
+- `max_components`: upper bound on the number of components tracked while sampling (default `20`). Set to `None` for the unbounded variant, which creates and destroys components on the fly instead of using a fixed number of slots.
+- `alpha`: Dirichlet process concentration -- higher values make the sampler more willing to propose new components.
+- `init_k`: number of components to seed the sampler with.
+- `weight_threshold`: a component is treated as inactive (excluded from `n_components_`/`active_`) once its *expected point count*, `weight * n_samples`, drops to or below this value -- a count threshold, not a raw weight.
+- `burn_in`: unbounded variant only -- sweeps excluded from `n_components_history_`, the per-sweep trace of how many components were active. It does not affect the fitted parameters themselves, which always come from the final sweep regardless of `burn_in`.
+
+Gibbs sampling has no EM-style convergence check, so `max_iter` is an
+*exact* sweep count rather than an early-stoppable cap. Each sweep is an
+O(n_samples) Python-level loop over every point, so the EM-oriented default
+of 1000 can be far slower than necessary for Gibbs mode -- pass an
+explicit, usually much smaller, value.
+
+See the [Dirichlet Process Mixture notebook](../notebooks/dpgmm.ipynb) for a
+worked comparison against classical EM, the [Gibbs Sampling Internals
+notebook](../notebooks/dpgmm_gibbs_sampling.ipynb) for a step-by-step look
+at the sampler itself, and [the design
+doc](https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md)
+for the full derivation and rationale.
+
 ## Convergence Control
 
 ```python
