@@ -1141,6 +1141,7 @@ class GaussianMixture(nn.Module):
                     )
 
             self.n_components_ = self.n_components
+            self.active_ = torch.ones(self.n_components, dtype=torch.bool, device=self.device)
             return self
 
         # An unsupervised fit means classes_ genuinely doesn't exist (see
@@ -1220,10 +1221,13 @@ class GaussianMixture(nn.Module):
         # 5. Save best result
         # ===============================================================
         if best_params is not None:
-            (self.weights_, self.means_, self.covariances_, 
+            (self.weights_, self.means_, self.covariances_,
              self.converged_, self.n_iter_, self.lower_bound_) = best_params
             self.best_random_state_ = best_random_state
-        
+
+        self.n_components_ = self.n_components
+        self.active_ = torch.ones(self.n_components, dtype=torch.bool, device=self.device)
+
         # Report which random state produced the best result
         if best_random_state is not None and self.n_init > 1:
             warnings.warn(
@@ -1239,7 +1243,6 @@ class GaussianMixture(nn.Module):
                 UserWarning
             )
 
-        self.n_components_ = self.n_components
         return self
 
     def _fit_single_run(
@@ -3143,19 +3146,32 @@ class GaussianMixture(nn.Module):
         r"""
         Number of free parameters in the fitted model.
 
-        Counts mixture weights ($n_{components} - 1$, since they sum to 1),
-        means ($n_{components} \times n_{features}$), and covariance
+        Counts mixture weights ($n_{components\_} - 1$, since they sum to 1),
+        means ($n_{components\_} \times n_{features}$), and covariance
         parameters, whose count depends on `covariance_type` (see
         `_expected_covar_shape` for the corresponding parameter *shapes*).
-        Used by `bic`/`aic`.
+        Used by `bic`/`aic`. Uses `self.n_components_` (set after every
+        fit, in both EM and Gibbs mode -- see `fit`), not `self.n_components`
+        directly: in Gibbs mode `self.n_components` is `None` and
+        `n_components_` is the inferred *active* count (pruned slots
+        contribute negligibly to `score`'s likelihood, so they shouldn't
+        count as parameters "actually in use"); in EM mode the two are
+        equal, since EM has no pruning concept. If `n_components_` hasn't
+        been populated at all (e.g. `weights_`/`means_`/`covariances_` were
+        set directly rather than via `fit()`, to score externally-fitted
+        parameters), falls back to `self.weights_.shape[0]` -- the actual
+        fitted slot count, same quantity `sample()`'s validation uses.
         """
         n_features = self.n_features
+        n_components = self.n_components_
+        if n_components is None:
+            n_components = self.weights_.shape[0]
         if self.covariance_type == 'full':
-            cov_params = self.n_components * n_features * (n_features + 1) / 2.0
+            cov_params = n_components * n_features * (n_features + 1) / 2.0
         elif self.covariance_type == 'diag':
-            cov_params = self.n_components * n_features
+            cov_params = n_components * n_features
         elif self.covariance_type == 'spherical':
-            cov_params = self.n_components
+            cov_params = n_components
         elif self.covariance_type == 'tied_full':
             cov_params = n_features * (n_features + 1) / 2.0
         elif self.covariance_type == 'tied_diag':
@@ -3165,8 +3181,8 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
-        mean_params = n_features * self.n_components
-        weight_params = self.n_components - 1
+        mean_params = n_features * n_components
+        weight_params = n_components - 1
         return int(cov_params + mean_params + weight_params)
 
     def bic(self, X: torch.Tensor) -> float:
@@ -3384,10 +3400,14 @@ class GaussianMixture(nn.Module):
         # 7. Select component indices
         # ===============================================================
         if component is not None:
-            # Validate component index
-            if not (0 <= component < self.n_components):
+            # Validate component index. Uses self.weights_.shape[0] (the
+            # actual number of fitted slots) rather than self.n_components
+            # directly: the latter is None in Gibbs mode, and this must
+            # work whether the model was EM- or Gibbs-fit.
+            n_slots = self.weights_.shape[0]
+            if not (0 <= component < n_slots):
                 raise ValueError(
-                    f"component must be between 0 and {self.n_components - 1}, got {component}"
+                    f"component must be between 0 and {n_slots - 1}, got {component}"
                 )
             # Sample only from specified component
             indices = torch.full((n_samples,), component, dtype=torch.long, device=self.device)
@@ -3749,7 +3769,12 @@ class GaussianMixture(nn.Module):
             'verbose': self.verbose,
             'verbose_interval': self.verbose_interval,
             'cem': self.cem,
-            
+            'max_components': self.max_components,
+            'alpha': self.alpha,
+            'burn_in': self.burn_in,
+            'weight_threshold': self.weight_threshold,
+            'init_k': self.init_k,
+
             # ===============================================================
             # Training state
             # ===============================================================
@@ -3757,7 +3782,9 @@ class GaussianMixture(nn.Module):
             'converged_': self.converged_,
             'n_iter_': self.n_iter_,
             'lower_bound_': self.lower_bound_,
-            
+            'n_components_': self.n_components_,
+            'active_': self.active_,
+
             # ===============================================================
             # Prior settings
             # ===============================================================
@@ -3770,7 +3797,7 @@ class GaussianMixture(nn.Module):
             'covariance_prior': self.covariance_prior,
             'degrees_of_freedom_prior': self.degrees_of_freedom_prior,
         }
-        
+
         torch.save(state_dict, filepath)
 
     @classmethod
@@ -3847,8 +3874,13 @@ class GaussianMixture(nn.Module):
             covariance_prior=state_dict['covariance_prior'],
             degrees_of_freedom_prior=state_dict['degrees_of_freedom_prior'],
             cem=state_dict['cem'],
+            max_components=state_dict.get('max_components', 20),
+            alpha=state_dict.get('alpha', 1.0),
+            burn_in=state_dict.get('burn_in'),
+            weight_threshold=state_dict.get('weight_threshold'),
+            init_k=state_dict.get('init_k'),
         )
-        
+
         # ===============================================================
         # Load trained parameters and state
         # ===============================================================
@@ -3863,7 +3895,11 @@ class GaussianMixture(nn.Module):
         model.converged_ = state_dict['converged_']
         model.n_iter_ = state_dict['n_iter_']
         model.lower_bound_ = state_dict['lower_bound_']
-        
+        model.n_components_ = state_dict.get('n_components_', state_dict['n_components'])
+        model.active_ = state_dict.get('active_')
+        if model.active_ is None and model.n_components_ is not None:
+            model.active_ = torch.ones(model.n_components_, dtype=torch.bool, device=model.device)
+
         # ===============================================================
         # Load prior flags
         # ===============================================================
@@ -3925,7 +3961,12 @@ class GaussianMixture(nn.Module):
             'verbose': self.verbose,
             'verbose_interval': self.verbose_interval,
             'cem': self.cem,
-            
+            'max_components': self.max_components,
+            'alpha': self.alpha,
+            'burn_in': self.burn_in,
+            'weight_threshold': self.weight_threshold,
+            'init_k': self.init_k,
+
             # ===============================================================
             # Training state
             # ===============================================================
@@ -3933,7 +3974,9 @@ class GaussianMixture(nn.Module):
             'converged_': self.converged_,
             'n_iter_': self.n_iter_,
             'lower_bound_': self.lower_bound_,
-            
+            'n_components_': self.n_components_,
+            'active_': self.active_,
+
             # ===============================================================
             # Prior settings
             # ===============================================================
@@ -4011,7 +4054,12 @@ class GaussianMixture(nn.Module):
         self.verbose = state_dict['verbose']
         self.verbose_interval = state_dict['verbose_interval']
         self.cem = state_dict['cem']
-        
+        self.max_components = state_dict.get('max_components', 20)
+        self.alpha = state_dict.get('alpha', 1.0)
+        self.burn_in = state_dict.get('burn_in')
+        self.weight_threshold = state_dict.get('weight_threshold')
+        self.init_k = state_dict.get('init_k')
+
         # ===============================================================
         # Load parameters
         # ===============================================================
@@ -4022,7 +4070,7 @@ class GaussianMixture(nn.Module):
         self.initial_weights_ = state_dict['initial_weights_']
         self.initial_means_ = state_dict['initial_means_']
         self.initial_covariances_ = state_dict['initial_covariances_']
-        
+
         # ===============================================================
         # Load training state
         # ===============================================================
@@ -4030,7 +4078,11 @@ class GaussianMixture(nn.Module):
         self.converged_ = state_dict['converged_']
         self.n_iter_ = state_dict['n_iter_']
         self.lower_bound_ = state_dict['lower_bound_']
-        
+        self.n_components_ = state_dict.get('n_components_', state_dict['n_components'])
+        self.active_ = state_dict.get('active_')
+        if self.active_ is None and self.n_components_ is not None:
+            self.active_ = torch.ones(self.n_components_, dtype=torch.bool, device=self.device)
+
         # ===============================================================
         # Load prior settings
         # ===============================================================

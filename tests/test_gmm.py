@@ -1,4 +1,5 @@
 """Pytest suite for GaussianMixture covering settings, combinations, and edge cases."""
+import math
 import os
 import tempfile
 
@@ -984,3 +985,111 @@ def test_gibbs_mode_fit_rejects_non_positive_max_iter_override(bad_max_iter):
     # the rejected override is validated before any instance state is
     # mutated, so it must not leak into self.max_iter
     assert model.max_iter == 5
+
+
+def test_em_mode_sets_n_components_and_active_after_fit():
+    model = GaussianMixture(n_components=3, random_state=0)
+    model.fit(X_3D)
+    assert model.n_components_ == 3
+    assert torch.equal(model.active_, torch.ones(3, dtype=torch.bool))
+
+
+def test_em_mode_supervised_fit_sets_n_components_and_active():
+    labels = torch.tensor([0, 0, 1, 1, 2, 2] * 5, dtype=torch.long)
+    X = torch.cat([X_3D[:len(labels) // 3], X_3D[:len(labels) // 3], X_3D[:len(labels) // 3]])[:len(labels)]
+    model = GaussianMixture(n_components=3, n_features=3)
+    model.fit(X, labels=labels)
+    assert model.n_components_ == 3
+    assert torch.equal(model.active_, torch.ones(3, dtype=torch.bool))
+
+
+def test_bic_aic_use_n_components_uniformly():
+    # Regression guard: _n_parameters must read self.n_components_, not
+    # self.n_components, for both modes to agree on the same formula.
+    model = GaussianMixture(n_components=3, random_state=0)
+    model.fit(X_3D)
+    assert model._n_parameters() > 0
+    assert model.bic(X_3D) == pytest.approx(
+        -2.0 * model.score(X_3D) * X_3D.shape[0] + model._n_parameters() * math.log(X_3D.shape[0])
+    )
+
+
+def test_save_load_round_trip_gibbs_mode():
+    torch.manual_seed(0)
+    from tgmm.synthetic_data import generate_gmm_data
+    centers = [[0.0, 0.0], [15.0, 0.0], [7.5, 13.0]]
+    covs = [1.5 * torch.eye(2).numpy() for _ in range(3)]
+    X, _ = generate_gmm_data(centers, covs, [20, 20, 20], random_state=0)
+    X = X.double()
+
+    mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = \
+        GaussianMixture.suggest_priors(X, n_components=5)
+    model = GaussianMixture(n_components=None, max_components=5, alpha=1.0, burn_in=5,
+                             weight_threshold=1.0, init_k=None, max_iter=20, random_state=0,
+                             mean_prior=mean_prior, mean_precision_prior=mean_precision_prior,
+                             covariance_prior=covariance_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
+    model.fit(X)
+    expected = model.predict(X)
+
+    import tempfile, os
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "gibbs_gmm.pth")
+        model.save(path)
+        loaded = GaussianMixture.load(path)
+
+    assert loaded.n_components is None
+    assert loaded.max_components == 5
+    assert loaded.n_components_ == model.n_components_
+    assert torch.equal(loaded.active_, model.active_)
+    assert torch.equal(loaded.predict(X), expected)
+
+
+def test_sample_with_explicit_component_works_in_gibbs_mode():
+    # Regression guard: sample(n_samples, component=k)'s index validation
+    # used to read self.n_components directly, which is None in Gibbs
+    # mode and would raise TypeError comparing int < None.
+    torch.manual_seed(0)
+    from tgmm.synthetic_data import generate_gmm_data
+    centers = [[0.0, 0.0], [15.0, 0.0]]
+    covs = [1.5 * torch.eye(2).numpy() for _ in range(2)]
+    X, _ = generate_gmm_data(centers, covs, [20, 20], random_state=0)
+    X = X.double()
+
+    mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = \
+        GaussianMixture.suggest_priors(X, n_components=4)
+    model = GaussianMixture(n_components=None, max_components=4, max_iter=15, random_state=0,
+                             mean_prior=mean_prior, mean_precision_prior=mean_precision_prior,
+                             covariance_prior=covariance_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
+    model.fit(X)
+
+    samples, indices = model.sample(5, component=0)
+    assert samples.shape == (5, 2)
+    assert (indices == 0).all()
+
+    with pytest.raises(ValueError, match="component"):
+        model.sample(5, component=model.weights_.shape[0])  # one past the last valid slot
+
+
+def test_save_state_dict_load_state_dict_round_trip_gibbs_mode():
+    torch.manual_seed(0)
+    from tgmm.synthetic_data import generate_gmm_data
+    centers = [[0.0, 0.0], [15.0, 0.0]]
+    covs = [1.5 * torch.eye(2).numpy() for _ in range(2)]
+    X, _ = generate_gmm_data(centers, covs, [20, 20], random_state=0)
+    X = X.double()
+
+    mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior = \
+        GaussianMixture.suggest_priors(X, n_components=4)
+    model = GaussianMixture(n_components=None, max_components=4, max_iter=15, random_state=0,
+                             mean_prior=mean_prior, mean_precision_prior=mean_precision_prior,
+                             covariance_prior=covariance_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
+    model.fit(X)
+    state = model.save_state_dict()
+
+    reloaded = GaussianMixture(n_components=None, max_components=4, max_iter=15, random_state=0,
+                                mean_prior=mean_prior, mean_precision_prior=mean_precision_prior,
+                                covariance_prior=covariance_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
+    reloaded.load_state_dict(state)
+    assert reloaded.n_components_ == model.n_components_
+    assert torch.equal(reloaded.active_, model.active_)
+    assert torch.equal(reloaded.predict(X), model.predict(X))
