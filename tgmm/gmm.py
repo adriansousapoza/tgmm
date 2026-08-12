@@ -37,7 +37,20 @@ class GaussianMixture(nn.Module):
         'full', 'diag', 'spherical', 'tied_full', 'tied_diag', 'tied_spherical'.
         Aliases: 'tied' → 'tied_full', 'isotropic' → 'spherical'. (default: 'full')
     max_iter : int, optional
-        Maximum number of EM iterations to perform. (default: 1000)
+        EM mode: maximum number of EM iterations to perform; EM stops
+        early once the relative log-likelihood improvement drops below
+        `tol` (see `tol`). Gibbs mode (`n_components=None`): the *exact*
+        number of Gibbs sweeps run -- there is no early-stopping /
+        convergence check in Gibbs mode (see `converged_`), so `fit()`
+        always runs precisely `max_iter` sweeps, never fewer. Each Gibbs
+        sweep is an O(n_samples) Python-level loop over every point
+        (measured ~0.114 ms/point/sweep), so the shared default of 1000
+        can mean tens of minutes at moderate `n_samples` (e.g. roughly
+        19 minutes at n_samples=10,000). The default is left unchanged
+        here so existing EM-tuned code isn't surprised by a different
+        value -- when using Gibbs mode, pass an explicit, usually much
+        smaller, `max_iter` instead of relying on this default.
+        (default: 1000)
     tol : float, optional
         Convergence threshold based on relative improvement in log-likelihood. (default: 1e-4)
     reg_covar : float, optional
@@ -97,12 +110,22 @@ class GaussianMixture(nn.Module):
         Gibbs mode only: Dirichlet process concentration parameter, controlling
         how readily new components are proposed. Ignored in EM mode. (default: 1.0)
     burn_in : int or None, optional
-        Gibbs mode only: number of initial sweeps discarded before collecting
-        the fitted estimate. Ignored in EM mode. (default: None)
+        Gibbs mode, unbounded variant only (`max_components=None`):
+        number of initial sweeps excluded when recording
+        `n_components_history_` (the per-sweep active-component-count
+        trace). Does **not** affect the fitted `weights_`/`means_`/
+        `covariances_` themselves -- those are always taken from the
+        final sweep regardless of `burn_in`, in both truncated and
+        unbounded Gibbs mode. Ignored entirely in truncated Gibbs mode
+        (`max_components` is an int) and in EM mode. If None, resolved
+        internally to `max(1, max_iter // 5)`. (default: None)
     weight_threshold : float or None, optional
-        Gibbs mode only: components with weight below this threshold are
-        treated as inactive when reporting results. Ignored in EM mode.
-        (default: None)
+        Gibbs mode only: a component is treated as inactive (excluded
+        from `active_`/`n_components_`) when its *expected point count*
+        -- `weight_i * n_samples`, not the raw weight/probability itself
+        -- is not greater than this threshold. E.g. the resolved default
+        of 1.0 means "expected to own at most one point." Ignored in EM
+        mode. (default: None, resolved internally to 1.0)
     init_k : int or None, optional
         Gibbs mode only: number of components to seed the sampler with.
         Ignored in EM mode. (default: None)
@@ -135,7 +158,16 @@ class GaussianMixture(nn.Module):
     fitted_ : bool
         Whether the model has been fitted.
     converged_ : bool
-        Whether the EM algorithm converged in the best run.
+        Whether the EM algorithm converged in the best run. In Gibbs mode
+        (`n_components=None`), this is unconditionally `True` after
+        `fit()` regardless of how many sweeps ran or any actual
+        convergence assessment -- Gibbs sampling has no equivalent of
+        EM's log-likelihood-plateau stopping criterion, so this flag
+        does not indicate sampler convergence there (and `sample()`'s
+        "did not converge" warning, gated on this flag, can never fire
+        for a Gibbs-mode fit). If precision matters for a Gibbs-mode fit,
+        inspect `n_components_history_` (unbounded mode only) for
+        component-count stability across sweeps, or increase `max_iter`.
     n_iter_ : int
         Number of EM iterations performed in the best run.
     lower_bound_ : float
@@ -458,6 +490,14 @@ class GaussianMixture(nn.Module):
         mean_precision_prior : float
         covariance_prior : torch.Tensor, shape depends on covariance_type
         degrees_of_freedom_prior : float
+
+        See Also
+        --------
+        __init__ : `max_iter`'s docstring there explains that Gibbs mode
+            treats it as an exact sweep count with no early stopping, and
+            that the shared default of 1000 can be far slower than
+            necessary for Gibbs mode -- worth passing an explicit,
+            smaller value alongside the priors returned here.
         """
         n_features = X.shape[1]
         device, dtype = X.device, X.dtype
@@ -3196,6 +3236,66 @@ class GaussianMixture(nn.Module):
         weight_params = n_components - 1
         return int(cov_params + mean_params + weight_params)
 
+    def _active_score(self, X: torch.Tensor) -> float:
+        r"""
+        Mean log-likelihood of `X` under only the *active* components
+        (`self.active_`), with their weights renormalized to sum to 1
+        over just that subset.
+
+        Used by `bic`/`aic` to stay internally consistent with
+        `_n_parameters()` in Gibbs mode: `_n_parameters()` charges for
+        `self.n_components_` (the active count), while plain `score()`
+        evaluates the likelihood of the *entire* fitted mixture
+        (`self.weights_`, unmasked) -- correct as a general-purpose
+        score, but not what a fair BIC/AIC comparison wants when some
+        components have been pruned from the parameter count.
+
+        Reuses `_e_step`'s per-covariance-type math (rather than
+        duplicating it) by temporarily swapping `weights_`/`means_`/
+        `covariances_` down to the active-only, renormalized subset for
+        the duration of the call -- mirroring the restrict-to-`active_`
+        pattern used for prediction elsewhere (e.g. the `restricted_predict`
+        helper in notebooks/dpgmm.ipynb), just applied to the likelihood
+        instead of a hard assignment. Not part of the public API.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data to score, shape (n_samples, n_features).
+
+        Returns
+        -------
+        float
+            Mean log-likelihood under the active-only, renormalized
+            mixture.
+        """
+        active_weights = self.weights_[self.active_]
+        active_weights = active_weights / active_weights.sum()
+        orig_weights, orig_means, orig_covariances = self.weights_, self.means_, self.covariances_
+        try:
+            self.weights_ = active_weights
+            self.means_ = self.means_[self.active_]
+            self.covariances_ = self.covariances_[self.active_]
+            _, log_prob_norm = self._e_step(X.to(self.device))
+        finally:
+            self.weights_, self.means_, self.covariances_ = orig_weights, orig_means, orig_covariances
+        return log_prob_norm.mean().item()
+
+    def _score_for_information_criterion(self, X: torch.Tensor) -> float:
+        r"""
+        The log-likelihood `bic`/`aic` should use: plain `score(X)` in
+        every case except a Gibbs-mode fit where some components have
+        been pruned (`self.n_components_ != self.weights_.shape[0]`), in
+        which case `_active_score(X)` is used instead so the likelihood
+        term is charged against the same component set `_n_parameters()`
+        counts. See `_active_score` and `bic`'s docstring.
+        """
+        if (self.n_components is None and self.active_ is not None
+                and self.n_components_ is not None
+                and self.n_components_ != self.weights_.shape[0]):
+            return self._active_score(X)
+        return self.score(X)
+
     def bic(self, X: torch.Tensor) -> float:
         r"""
         Bayesian Information Criterion for this model on `X`.
@@ -3205,6 +3305,19 @@ class GaussianMixture(nn.Module):
         Lower is better. Matches `sklearn.mixture.GaussianMixture.bic` for
         the covariance types shared with sklearn (`full`, `diag`,
         `spherical`, and `tied_full` <-> sklearn's `tied`).
+
+        Gibbs-mode nuance: when components have been pruned
+        (`n_components_ < weights_.shape[0]`, e.g. after unbounded Gibbs
+        sampling leaves a small-but-nonzero-weight component below
+        `weight_threshold`), the log-likelihood term uses only the
+        *active* components (renormalized), not the full fitted mixture
+        `score(X)` would return -- otherwise this method would charge
+        `_n_parameters()` for a smaller component set than the
+        likelihood it's paired with actually reflects, silently
+        understating the complexity penalty. `score`/`score_samples`
+        are unaffected by this and continue to reflect the full fitted
+        mixture, which remains the right default for general-purpose
+        scoring. See `_active_score`.
 
         Parameters
         ----------
@@ -3221,7 +3334,8 @@ class GaussianMixture(nn.Module):
         aic : Akaike Information Criterion (weaker complexity penalty).
         """
         n_samples = X.shape[0]
-        return -2.0 * self.score(X) * n_samples + self._n_parameters() * math.log(n_samples)
+        ll = self._score_for_information_criterion(X)
+        return -2.0 * ll * n_samples + self._n_parameters() * math.log(n_samples)
 
     def aic(self, X: torch.Tensor) -> float:
         r"""
@@ -3231,6 +3345,11 @@ class GaussianMixture(nn.Module):
 
         Lower is better. Matches `sklearn.mixture.GaussianMixture.aic` for
         the covariance types shared with sklearn (see `bic`).
+
+        Gibbs-mode nuance: see `bic` -- the same active-components-only
+        likelihood is used here when components have been pruned, for
+        the same reason (staying consistent with what `_n_parameters()`
+        charges for).
 
         Parameters
         ----------
@@ -3246,7 +3365,8 @@ class GaussianMixture(nn.Module):
         --------
         bic : Bayesian Information Criterion (stronger complexity penalty).
         """
-        return -2.0 * self.score(X) * X.shape[0] + 2.0 * self._n_parameters()
+        ll = self._score_for_information_criterion(X)
+        return -2.0 * ll * X.shape[0] + 2.0 * self._n_parameters()
 
     # ===================================================================
     # Sampling Method

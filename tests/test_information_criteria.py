@@ -184,3 +184,110 @@ def test_gibbs_gmm_bic_aic_match_manual_formula():
 
     assert model.bic(X) == pytest.approx(expected_bic)
     assert model.aic(X) == pytest.approx(expected_aic)
+
+
+# ============================================================================
+# GaussianMixture, unbounded Gibbs mode: bic()/aic() must charge for the
+# same component set they score, not silently mix "likelihood of the full
+# mixture" with "parameter count of just the active components."
+#
+# In truncated Gibbs mode this mismatch is harmless: pruned slots end up
+# with essentially zero weight, so including/excluding them from the
+# likelihood term barely moves it. Unbounded Gibbs mode is different --
+# weight_threshold prunes by *expected count* (weight * n_samples), so a
+# component with a real, non-negligible weight can still be pruned purely
+# because n_samples is small, and that component then measurably shifts
+# score()'s likelihood despite not being charged for in _n_parameters().
+# This reproduces that: a genuinely non-negligible-weight second component,
+# manually marked inactive via an artificially strict weight_threshold
+# (mirroring how make_fitted_gibbs_gmm above injects a controlled, reproducible
+# state without running the -- much heavier and non-deterministic -- Gibbs
+# sampler itself).
+# ============================================================================
+
+def make_fitted_unbounded_gibbs_gmm_with_pruned_component(weight_threshold):
+    n_features = 1
+    mean_prior = torch.zeros(n_features, dtype=torch.float64)
+    mean_precision_prior = 1e-6
+    covariance_prior = torch.eye(n_features, dtype=torch.float64)
+    degrees_of_freedom_prior = float(n_features + 1)
+
+    # max_components=None: unbounded Gibbs mode (as opposed to the truncated
+    # mode used by make_fitted_gibbs_gmm above).
+    model = GaussianMixture(n_components=None, n_features=n_features,
+                             covariance_type="full", max_components=None,
+                             mean_prior=mean_prior,
+                             mean_precision_prior=mean_precision_prior,
+                             covariance_prior=covariance_prior,
+                             degrees_of_freedom_prior=degrees_of_freedom_prior,
+                             weight_threshold=weight_threshold, device="cpu")
+    model.dtype = torch.float64
+    model.fitted_ = True
+    model.converged_ = True
+    # Two components close enough together that the second one's density
+    # measurably overlaps the first's over the tested range, so pruning it
+    # from the likelihood term actually moves the log-likelihood -- not just
+    # in principle.
+    model.means_ = torch.tensor([[0.0], [1.5]], dtype=torch.float64)
+    model.covariances_ = torch.eye(n_features, dtype=torch.float64).unsqueeze(0).repeat(2, 1, 1)
+    model.weights_ = torch.tensor([0.95, 0.05], dtype=torch.float64)
+    # weight_threshold is set high enough (relative to n_samples used in the
+    # test below) that the second component's expected count falls at/under
+    # it despite its weight (0.05) being far from negligible.
+    n_samples = 200
+    model.active_ = (model.weights_ * n_samples) > weight_threshold
+    model.n_components_ = int(model.active_.sum().item())
+    return model
+
+
+def test_gibbs_unbounded_bic_aic_use_active_only_likelihood_not_full_score():
+    # weight_threshold=15: component 1's expected count is 0.05*200=10,
+    # which is <= 15, so it's pruned; component 0's is 0.95*200=190 > 15,
+    # so it stays active. n_components_ == 1 while weights_.shape[0] == 2.
+    model = make_fitted_unbounded_gibbs_gmm_with_pruned_component(weight_threshold=15.0)
+    assert model.n_components_ == 1
+    assert model.weights_.shape[0] == 2
+
+    X = torch.linspace(-3.0, 4.5, 200, dtype=torch.float64).unsqueeze(1)
+    n_samples = X.shape[0]
+
+    full_ll = model.score(X)          # score() still reflects the full 2-component mixture
+    active_ll = model._active_score(X)  # log-likelihood under component 0 alone
+
+    # Sanity check this is actually a reproducing case: the pruned
+    # component's overlap with the tested range must move the likelihood
+    # by a non-trivial amount, or this test wouldn't catch a regression
+    # back to the old (buggy) behavior.
+    assert active_ll != pytest.approx(full_ll)
+    assert abs(active_ll - full_ll) > 0.05  # nats/sample
+
+    n_params = model._n_parameters()  # charges for n_components_ == 1
+    expected_bic = -2.0 * active_ll * n_samples + n_params * math.log(n_samples)
+    expected_aic = -2.0 * active_ll * n_samples + 2.0 * n_params
+
+    assert model.bic(X) == pytest.approx(expected_bic)
+    assert model.aic(X) == pytest.approx(expected_aic)
+
+    # And explicitly confirm this differs from the pre-fix behavior, which
+    # would have paired the 1-component parameter count with the full
+    # 2-component score() likelihood instead.
+    old_buggy_bic = -2.0 * full_ll * n_samples + n_params * math.log(n_samples)
+    old_buggy_aic = -2.0 * full_ll * n_samples + 2.0 * n_params
+    assert model.bic(X) != pytest.approx(old_buggy_bic)
+    assert model.aic(X) != pytest.approx(old_buggy_aic)
+
+    # score()/score_samples() themselves must stay unaffected -- bic/aic's
+    # fix must not change what score() returns.
+    assert model.score(X) == pytest.approx(full_ll)
+
+
+def test_gibbs_truncated_bic_aic_unaffected_when_no_pruning():
+    # No pruning (n_components_ == weights_.shape[0]) must be a no-op:
+    # bic()/aic() should behave exactly as before this fix, i.e. use plain
+    # score(). Reuses make_fitted_gibbs_gmm (truncated mode) from above with
+    # n_total_slots == n_components.
+    model = make_fitted_gibbs_gmm(n_components=4, n_total_slots=4)
+    assert model.n_components_ == model.weights_.shape[0]
+    X = torch.randn(150, model.n_features, dtype=torch.float64) * 5
+
+    assert model._score_for_information_criterion(X) == pytest.approx(model.score(X))
