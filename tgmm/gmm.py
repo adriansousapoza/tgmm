@@ -410,7 +410,7 @@ class GaussianMixture(nn.Module):
         self.active_ = None
 
     @staticmethod
-    def suggest_priors(X: torch.Tensor, n_components: int, covariance_type: str = "full"):
+    def suggest_priors(X: torch.Tensor, n_components: int, covariance_type: str = "full", random_state: int = None):
         r"""
         A principled starting point for the NIW prior Gibbs-mode fitting
         (`n_components=None`) requires, estimated from a quick k-means
@@ -448,6 +448,9 @@ class GaussianMixture(nn.Module):
         covariance_type : str, default='full'
             One of 'full', 'diag', 'spherical', 'tied_full', 'tied_diag',
             'tied_spherical' -- determines `covariance_prior`'s shape.
+        random_state : int, optional
+            Random seed for reproducibility of k-means initialization.
+            If None, randomness is not controlled.
 
         Returns
         -------
@@ -460,7 +463,7 @@ class GaussianMixture(nn.Module):
         device, dtype = X.device, X.dtype
 
         X_cpu = X.cpu()
-        centers = GMMInitializer.kmeans(X_cpu, n_components).to(device=device, dtype=dtype)
+        centers = GMMInitializer.kmeans(X_cpu, n_components, random_state=random_state).to(device=device, dtype=dtype)
         init_labels = torch.cdist(X, centers).argmin(dim=1)
 
         mean_prior = X.mean(dim=0)

@@ -119,7 +119,7 @@ class GMMInitializer:
         return data[indices]
 
     @staticmethod
-    def kpp(data: torch.Tensor, k: int) -> torch.Tensor:
+    def kpp(data: torch.Tensor, k: int, random_state: int = None) -> torch.Tensor:
         r"""
         Initialize cluster centers using the k-means++ algorithm.
 
@@ -136,6 +136,8 @@ class GMMInitializer:
             A 2D tensor of shape (N, D) representing the dataset.
         k : int
             Number of cluster centers to generate.
+        random_state : int, optional
+            Random seed for reproducibility. If None, randomness is not controlled.
 
         Returns
         -------
@@ -145,31 +147,37 @@ class GMMInitializer:
         n_samples, _ = data.shape
         centroids = torch.empty((k, data.size(1)), device=data.device, dtype=data.dtype)
 
+        # Create a generator if random_state is provided
+        generator = None
+        if random_state is not None:
+            generator = torch.Generator(device=data.device)
+            generator.manual_seed(random_state)
+
         # Pick the first center uniformly at random
-        initial_idx = torch.randint(0, n_samples, (1,), device=data.device)
+        initial_idx = torch.randint(0, n_samples, (1,), device=data.device, generator=generator)
         centroids[0] = data[initial_idx]
 
         for i in range(1, k):
             dist_sq = torch.cdist(data, centroids[:i]).pow(2).min(dim=1)[0]
             probabilities = dist_sq / dist_sq.sum()
-            selected_idx = torch.multinomial(probabilities, 1)
+            selected_idx = torch.multinomial(probabilities, 1, generator=generator)
             centroids[i] = data[selected_idx]
 
         return centroids
 
     @staticmethod
-    def kmeans(data: torch.Tensor, k: int, max_iter: int = 1000, atol: float = 1e-4) -> torch.Tensor:
+    def kmeans(data: torch.Tensor, k: int, max_iter: int = 1000, atol: float = 1e-4, random_state: int = None) -> torch.Tensor:
         r"""
         Initialize cluster centers by running the k-means algorithm on ``data``.
 
         Starting from a k-means++ initialization, k-means iteratively refines the centers by:
-        
-        1. **Assignment:**  
+
+        1. **Assignment:**
            $c_j = \arg\min_{i} \|x_j - \mu_i\|^2,$ for each data point $x_j$.
-        
-        2. **Update:**  
+
+        2. **Update:**
            $\mu_i = \frac{1}{\|C_i\|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.
-        
+
         The algorithm stops when the centers move by less than the specified tolerance.
 
         Parameters
@@ -182,13 +190,15 @@ class GMMInitializer:
             Maximum number of iterations (default is 1000).
         atol : float, optional
             Convergence tolerance (default is $1\times10^{-4}$).
+        random_state : int, optional
+            Random seed for reproducibility. If None, randomness is not controlled.
 
         Returns
         -------
         torch.Tensor
             A (k, D) tensor representing the final cluster centers.
         """
-        centroids = GMMInitializer.kpp(data, k)
+        centroids = GMMInitializer.kpp(data, k, random_state=random_state)
 
         for _ in range(max_iter):
             distances = torch.cdist(data, centroids)
