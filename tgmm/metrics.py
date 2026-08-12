@@ -8,13 +8,18 @@ class ClusteringMetrics:
     This class provides methods such as:
     
     - **KL divergence** for comparing two GMMs (via Monte Carlo).
-    - **Information criteria** (AIC, BIC) for model selection.
     - **Unsupervised metrics** (silhouette, Davies-Bouldin, Calinski-Harabasz, Dunn index).
     - **Supervised metrics** (Rand index, ARI, mutual info variants, purity, classification report).
 
     All methods are static for convenience, and most accept data in PyTorch Tensors
     (potentially on GPU). For supervised metrics, the user must provide `labels_true`
     and `labels_pred` as integer-encoded 1D tensors of the same shape.
+
+    BIC/AIC are not here: they only need a model's own log-likelihood and
+    parameter count, so they live as `bic`/`aic` methods on `GaussianMixture`
+    directly (e.g. ``gmm.bic(X)``), covering both EM and Gibbs-sampling modes
+    (selected via `n_components` as an integer or ``None``), rather than as
+    free functions that take a model apart.
 
     Example
     -------
@@ -32,108 +37,6 @@ class ClusteringMetrics:
         ari = ClusteringMetrics.adjusted_rand_score(labels_true, pred_labels)
         print("ARI =", ari)
     """
-
-    @staticmethod
-    def bic_score(
-        lower_bound_: float,
-        X: torch.Tensor,
-        n_components: int,
-        covariance_type: str
-    ) -> float:
-        r"""
-        Compute the Bayesian Information Criterion (BIC) for a GMM given its
-        average log-likelihood (lower bound).
-
-        $ \text{BIC} = n_{\text{params}} \ln(n_{\text{samples}}) - 2 \times \text{log\_likelihood} $
-
-        Parameters
-        ----------
-        lower_bound_ : float
-            Average (per-sample) log-likelihood or lower bound from the GMM.
-        X : torch.Tensor
-            Data used in fitting, shape (n_samples, n_features).
-        n_components : int
-            Number of mixture components in the GMM.
-        covariance_type : str
-            Covariance type, one of {'full', 'tied', 'diag', 'spherical'}.
-
-        Returns
-        -------
-        float
-            The BIC score (lower is better).
-        """
-        n_samples, n_features = X.shape
-
-        # Determine number of free parameters in covariance
-        if covariance_type == 'full':
-            cov_params = n_components * n_features * (n_features + 1) / 2.0
-        elif covariance_type == 'diag':
-            cov_params = n_components * n_features
-        elif covariance_type == 'tied':
-            cov_params = n_features * (n_features + 1) / 2.0
-        elif covariance_type == 'spherical':
-            cov_params = n_components
-        else:
-            raise ValueError(f"Unsupported covariance type: {covariance_type}")
-
-        # Means + weights
-        mean_params = n_features * n_components
-        weight_params = n_components - 1
-
-        n_parameters = cov_params + mean_params + weight_params
-        log_likelihood = lower_bound_ * n_samples  # total log-likelihood
-
-        bic = n_parameters * torch.log(torch.tensor(n_samples, dtype=torch.float)) - 2.0 * log_likelihood
-        return bic.item()
-
-    @staticmethod
-    def aic_score(
-        lower_bound_: float,
-        X: torch.Tensor,
-        n_components: int,
-        covariance_type: str
-    ) -> float:
-        r"""
-        Compute the Akaike Information Criterion (AIC) for a GMM.
-
-        $ \text{AIC} = 2 \times n_{\text{params}} - 2 \times \text{log\_likelihood} $
-
-        Parameters
-        ----------
-        lower_bound_ : float
-            Average (per-sample) log-likelihood from the GMM.
-        X : torch.Tensor
-            Data used in fitting, shape (n_samples, n_features).
-        n_components : int
-            Number of mixture components.
-        covariance_type : str
-            Covariance type, one of {'full', 'tied', 'diag', 'spherical'}.
-
-        Returns
-        -------
-        float
-            The AIC score (lower is better).
-        """
-        n_samples, n_features = X.shape
-        if covariance_type == 'full':
-            cov_params = n_components * n_features * (n_features + 1) / 2.0
-        elif covariance_type == 'diag':
-            cov_params = n_components * n_features
-        elif covariance_type == 'tied':
-            cov_params = n_features * (n_features + 1) / 2.0
-        elif covariance_type == 'spherical':
-            cov_params = n_components
-        else:
-            raise ValueError(f"Unsupported covariance type: {covariance_type}")
-
-        mean_params = n_features * n_components
-        weight_params = n_components - 1
-
-        n_parameters = cov_params + mean_params + weight_params
-        log_likelihood = lower_bound_ * n_samples
-        aic = 2.0 * n_parameters - 2.0 * log_likelihood
-
-        return aic
 
     @staticmethod
     def silhouette_score(
@@ -843,6 +746,11 @@ class ClusteringMetrics:
         -------
         results : dict
             A dictionary of metric_name -> metric_value pairs.
+
+        Notes
+        -----
+        BIC/AIC are not computed here -- call ``gmm_model.bic(X)`` /
+        ``gmm_model.aic(X)`` directly.
         """
         if not gmm_model.fitted_:
             raise ValueError("The GMM model must be fitted before evaluation.")
@@ -858,7 +766,7 @@ class ClusteringMetrics:
                 "classification_report", "confusion_matrix",
                 # Unsupervised
                 "silhouette_score", "davies_bouldin_index", "calinski_harabasz_score",
-                "dunn_index", "bic_score", "aic_score",
+                "dunn_index",
             ]
 
         # Predict cluster labels
@@ -913,21 +821,5 @@ class ClusteringMetrics:
                 results["dunn_index"] = ClusteringMetrics.dunn_index(
                     X.cpu(), pred_labels, gmm_model.n_components
                 )
-
-        # Info criteria
-        if "bic_score" in metrics:
-            results["bic_score"] = ClusteringMetrics.bic_score(
-                gmm_model.lower_bound_,
-                X.cpu(),
-                gmm_model.n_components,
-                gmm_model.covariance_type
-            )
-        if "aic_score" in metrics:
-            results["aic_score"] = ClusteringMetrics.aic_score(
-                gmm_model.lower_bound_,
-                X.cpu(),
-                gmm_model.n_components,
-                gmm_model.covariance_type
-            )
 
         return results
