@@ -254,6 +254,16 @@ def test_gibbs_unbounded_bic_aic_use_active_only_likelihood_not_full_score():
     full_ll = model.score(X)          # score() still reflects the full 2-component mixture
     active_ll = model._active_score(X)  # log-likelihood under component 0 alone
 
+    # Independent closed-form check: with only component 0 active (mean=0,
+    # covariance=I in 1-D) and correctly renormalized to weight 1.0, the
+    # active-only mixture is exactly a standard N(0, 1) -- computed here
+    # from the Gaussian log-density formula directly, not by calling
+    # anything _active_score/bic/aic themselves use, so this actually
+    # exercises the renormalization and masking rather than just checking
+    # self-consistency between bic/aic and _active_score.
+    expected_active_ll = (-0.5 * math.log(2 * math.pi) - 0.5 * X.squeeze(1) ** 2).mean().item()
+    assert active_ll == pytest.approx(expected_active_ll)
+
     # Sanity check this is actually a reproducing case: the pruned
     # component's overlap with the tested range must move the likelihood
     # by a non-trivial amount, or this test wouldn't catch a regression
