@@ -14,7 +14,11 @@ Metrics are divided into two categories:
 - Davies-Bouldin Index
 - Calinski-Harabasz Index
 - Dunn Index
-- BIC / AIC
+
+BIC/AIC aren't here -- they only need a model's own log-likelihood and
+parameter count, so they're `bic`/`aic` methods on `GaussianMixture` directly
+(`gmm.bic(X)`, `gmm.aic(X)`) -- including when constructed with
+`n_components=None` for Gibbs-sampling mode -- not `ClusteringMetrics` calls.
 
 **Supervised** (requires ground truth labels):
 - Rand Index / Adjusted Rand Index (ARI)
@@ -184,7 +188,9 @@ for cov_type in ['full', 'diag', 'spherical']:
         'type': cov_type,
         'silhouette': ClusteringMetrics.silhouette_score(X, labels, n_components=3),
         'davies_bouldin': ClusteringMetrics.davies_bouldin_index(X, labels, n_components=3),
-        'log_likelihood': gmm.lower_bound_
+        'log_likelihood': gmm.lower_bound_,
+        'bic': gmm.bic(X),
+        'aic': gmm.aic(X),
     })
 
 # Print comparison
@@ -192,7 +198,9 @@ for result in results:
     print(f"{result['type']:12s} - "
           f"Silhouette: {result['silhouette']:.3f}, "
           f"DB: {result['davies_bouldin']:.3f}, "
-          f"LogLik: {result['log_likelihood']:.2f}")
+          f"LogLik: {result['log_likelihood']:.2f}, "
+          f"BIC: {result['bic']:.2f}, "
+          f"AIC: {result['aic']:.2f}")
 ```
 
 ## Complete API Reference

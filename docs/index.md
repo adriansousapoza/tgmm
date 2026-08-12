@@ -21,8 +21,8 @@ strategies, and a comprehensive suite of clustering metrics and visualization to
 === "Development (Latest)"
 
     ```bash
-    git clone https://github.com/adriansousapoza/TorchGMM.git
-    cd TorchGMM
+    git clone https://github.com/adriansousapoza/tgmm.git
+    cd tgmm
     pip install -e .
     ```
 
@@ -76,6 +76,7 @@ The core `GaussianMixture` class supports:
 - **Estimation Methods**: MLE (Maximum Likelihood) or MAP (Maximum A Posteriori) with priors
 - **Algorithms**: Standard EM or CEM (Classification EM) for hard assignments
 - **Initialization**: Multiple strategies via `GMMInitializer`
+- **Model Selection**: `bic`/`aic` methods for comparing fits at different `n_components`
 
 ### 2. Bayesian Inference with Priors
 
@@ -91,7 +92,8 @@ Support for conjugate priors enables proper Bayesian inference:
 Comprehensive evaluation with `ClusteringMetrics`:
 
 **Unsupervised Metrics** (no ground truth needed):
-- Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index, Dunn Index, BIC, AIC
+- Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index, Dunn Index
+  (BIC/AIC are `bic`/`aic` methods on `GaussianMixture` directly -- including `GaussianMixture(n_components=None, ...)` -- not `ClusteringMetrics`)
 
 **Supervised Metrics** (with ground truth labels):
 - Adjusted Rand Index (ARI), Normalized/Adjusted Mutual Information, Purity
