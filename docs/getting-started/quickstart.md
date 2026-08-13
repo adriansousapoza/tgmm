@@ -184,7 +184,7 @@ for k in range(2, 10):
 
     # Use Silhouette score for model selection
     score = ClusteringMetrics.silhouette_score(X, labels, n_components=k)
-    print(f"k={k}: Silhouette={score:.3f}, BIC={gmm.lower_bound_:.2f}")
+    print(f"k={k}: Silhouette={score:.3f}, BIC={gmm.bic(X):.2f}")
     
     if score > best_score:
         best_score = score
@@ -252,4 +252,4 @@ Now that you know the basics:
 - **[User Guide](../user-guide/gaussian-mixture.md)** - Deep dive into GMM features
 - **[Tutorials](../tutorials/index.md)** - Interactive examples with visualization
 - **[API Reference](../api/gaussian-mixture.md)** - Complete documentation
-- **[Bayesian Priors](../notebooks/priors.ipynb)** - Learn about MAP estimation
+- **[Bayesian Priors](../notebooks/09_priors.ipynb)** - Learn about MAP estimation

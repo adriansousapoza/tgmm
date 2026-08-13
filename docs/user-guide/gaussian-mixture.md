@@ -145,7 +145,7 @@ gmm = GaussianMixture(
 gmm.fit(X)
 ```
 
-See the [Priors Tutorial](../notebooks/priors.ipynb) for details.
+See the [Priors Tutorial](../notebooks/09_priors.ipynb) for details.
 
 ### Normal-Inverse-Wishart (NIW) Conjugate Prior
 
@@ -254,7 +254,7 @@ are ignored — the result is deterministic. Any configured `mean_prior` /
 `covariance_prior` still applies, giving a regularized supervised fit for
 classes with few samples.
 
-See the [Supervised Fitting notebook](../notebooks/supervised_gmm.ipynb) for
+See the [Supervised Fitting notebook](../notebooks/05_supervised_gmm.ipynb) for
 a worked comparison of plain EM, CEM, and supervised fitting on the same
 synthetic data.
 
@@ -313,10 +313,10 @@ O(n_samples) Python-level loop over every point, so the EM-oriented default
 of 1000 can be far slower than necessary for Gibbs mode -- pass an
 explicit, usually much smaller, value.
 
-See the [Dirichlet Process Mixture notebook](../notebooks/dpgmm.ipynb) for a
-worked comparison against classical EM, the [Gibbs Sampling Internals
-notebook](../notebooks/dpgmm_gibbs_sampling.ipynb) for a step-by-step look
-at the sampler itself, and [the design
+See the [Dirichlet Process Mixture notebook](../notebooks/11_dpgmm.ipynb) for
+the stick-breaking/Gibbs-sampling math, a step-by-step walkthrough of the
+sampler itself, and a worked comparison against classical EM; see [the
+design
 doc](https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md)
 for the full derivation and rationale.
 

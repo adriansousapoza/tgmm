@@ -108,7 +108,7 @@ def test_unbounded_matches_truncated_given_same_init_k():
     # On well-separated data, truncated (max_components=K) and unbounded
     # (max_components=None, init_k=K) should start from the identical
     # k-means partition and settle on the identical final one for the same
-    # random_state -- the scenario notebooks/dpgmm_gibbs_sampling.ipynb's
+    # random_state -- the scenario notebooks/11_dpgmm.ipynb's
     # "Truncated and unbounded Gibbs agree" section demonstrates. This is
     # not a universal guarantee on harder (overlapping/non-Gaussian) data,
     # where the two samplers' slightly different per-sweep rules can still

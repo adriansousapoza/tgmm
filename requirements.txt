@@ -4,11 +4,11 @@ numpy>=1.23.0
 
 # Optional dependencies (needed for full functionality)
 matplotlib>=3.10.1  # Required for plotting module
+seaborn>=0.12.2     # Required for plotting module (theme/palette)
 scipy>=1.10.1       # Required for metrics and some initialization methods
 scikit-learn>=1.2.2 # Required comparison with sklearn GMM
 
 # Example/notebook dependencies (optional, for running examples)
-seaborn>=0.12.2
 tqdm
 pandas
 

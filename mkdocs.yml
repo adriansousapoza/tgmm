@@ -9,11 +9,9 @@ edit_uri: edit/main/docs/
 
 copyright: Copyright &copy; 2025 Adrián A. Sousa-Poza
 
-# HDBSCAN integration is experimental/WIP -- keep it out of the published site.
 # superpowers/ holds this project's internal SDD workflow artifacts (specs,
 # plans) -- not public documentation.
 exclude_docs: |
-  notebooks/hdbscan.ipynb
   superpowers/
 
 theme:
@@ -53,7 +51,7 @@ extra:
     provider: mike
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/adriansousapoza/TorchGMM
+      link: https://github.com/adriansousapoza/tgmm
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/tgmm/
 
@@ -144,18 +142,18 @@ nav:
       - Plotting & Visualization: user-guide/plotting.md
   - Tutorials:
       - Overview: tutorials/index.md
-      - Basic GMM: notebooks/gmm.ipynb
-      - EM Algorithm Walkthrough: notebooks/em_algorithm.ipynb
-      - Metrics & Evaluation: notebooks/metrics.ipynb
-      - Using Priors (MAP): notebooks/priors.ipynb
-      - CEM Algorithm: notebooks/cem.ipynb
-      - Supervised Fitting: notebooks/supervised_gmm.ipynb
-      - Visualization: notebooks/visualise.ipynb
-      - PCA Plotting Demo: notebooks/pca_plotting.ipynb
-      - NIW Priors Comparison: notebooks/niw_priors_comparison.ipynb
-      - Sampling: notebooks/sampling.ipynb
-      - Dirichlet Process Mixture (Gibbs Sampling): notebooks/dpgmm.ipynb
-      - Gibbs Sampling Internals: notebooks/dpgmm_gibbs_sampling.ipynb
+      - 1. Basic GMM: notebooks/01_gmm.ipynb
+      - 2. EM Algorithm Walkthrough: notebooks/02_em_algorithm.ipynb
+      - 3. Visualization: notebooks/03_visualise.ipynb
+      - 4. CEM Algorithm: notebooks/04_cem.ipynb
+      - 5. Supervised Fitting: notebooks/05_supervised_gmm.ipynb
+      - 6. Metrics & Evaluation: notebooks/06_metrics.ipynb
+      - 7. Sampling: notebooks/07_sampling.ipynb
+      - 8. PCA Plotting Demo: notebooks/08_pca_plotting.ipynb
+      - 9. Using Priors (MAP): notebooks/09_priors.ipynb
+      - 10. NIW Priors Comparison: notebooks/10_niw_priors_comparison.ipynb
+      - 11. Dirichlet Process Mixtures (Stick-Breaking & Gibbs Sampling): notebooks/11_dpgmm.ipynb
+      - 12. HDBSCAN Clustering: notebooks/12_hdbscan.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - tgmm.GMMInitializer: api/gmm-initializer.md

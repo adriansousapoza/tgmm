@@ -158,6 +158,10 @@ resources/
 # Cloned reference repo (scikit-learn-contrib/hdbscan), not part of this package
 hdbscan/
 
+# Cloned reference repos (scikit-learn, pomegranate), not part of this package
+scikit-learn/
+pomegranate/
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

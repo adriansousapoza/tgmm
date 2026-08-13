@@ -3255,7 +3255,7 @@ class GaussianMixture(nn.Module):
         `covariances_` down to the active-only, renormalized subset for
         the duration of the call -- mirroring the restrict-to-`active_`
         pattern used for prediction elsewhere (e.g. the `restricted_predict`
-        helper in notebooks/dpgmm.ipynb), just applied to the likelihood
+        helper in notebooks/11_dpgmm.ipynb), just applied to the likelihood
         instead of a hard assignment. Not part of the public API.
 
         Parameters

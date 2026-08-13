@@ -25,8 +25,8 @@ For the latest features or if you want to contribute:
 
 ```bash
 # Clone the repository
-git clone https://github.com/adriansousapoza/TorchGMM.git
-cd TorchGMM
+git clone https://github.com/adriansousapoza/tgmm.git
+cd tgmm
 
 # Install in editable mode
 pip install -e .

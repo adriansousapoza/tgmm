@@ -16,7 +16,7 @@ clustering results, plus two small helpers: `dynamic_figsize` and
 
 `plot_gmm` only accepts 2D data (`X.shape[1] == 2`) -- for higher-dimensional data, project to 2D
 yourself first (e.g. with PCA) and pass the projected coordinates. See the
-[PCA Plotting tutorial](../notebooks/pca_plotting.ipynb) for a worked example.
+[PCA Plotting tutorial](../notebooks/08_pca_plotting.ipynb) for a worked example.
 
 ## Basic 2D Plotting
 
@@ -171,7 +171,7 @@ gmm.fit(torch.tensor(X_2d, dtype=torch.float32))
 plot_gmm(X_2d, gmm, show_ellipses=True, title='PCA Projection with Clusters')
 ```
 
-See the [PCA Plotting tutorial](../notebooks/pca_plotting.ipynb) for fitting directly in the
+See the [PCA Plotting tutorial](../notebooks/08_pca_plotting.ipynb) for fitting directly in the
 original high-dimensional space and only projecting for visualization.
 
 ## Matching Predicted Labels to Ground Truth

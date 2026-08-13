@@ -1,30 +1,34 @@
 # Tutorials
 
-Interactive Jupyter notebook tutorials demonstrating various features of TorchGMM.
+Interactive Jupyter notebook tutorials demonstrating various features of tgmm, numbered in the
+suggested reading order.
 
-## Getting Started
+## 1. Foundations
 
-- [**Gaussian Mixture Models (GMM)**](../notebooks/gmm.ipynb) - Basic introduction to fitting GMMs with TorchGMM, including a comparison of mean/weight/covariance initialization strategies
-- [**EM Algorithm Walkthrough**](../notebooks/em_algorithm.ipynb) - Step-by-step visualization of how the EM algorithm updates responsibilities and parameters each iteration
+- [**1. Gaussian Mixture Models (GMM)**](../notebooks/01_gmm.ipynb) - Basic introduction to fitting GMMs with tgmm, including a comparison of mean/weight/covariance initialization strategies
+- [**2. EM Algorithm Walkthrough**](../notebooks/02_em_algorithm.ipynb) - Step-by-step visualization of how the EM algorithm updates responsibilities and parameters each iteration
+- [**3. Visualization Techniques**](../notebooks/03_visualise.ipynb) - Comprehensive guide to `plot_gmm`, the toolkit every later tutorial uses
 
-## Advanced Topics
+## 2. Fitting Variants
 
-- [**Classification EM (CEM)**](../notebooks/cem.ipynb) - Comparing the hard-assignment CEM algorithm against standard EM
-- [**Supervised Fitting**](../notebooks/supervised_gmm.ipynb) - Comparing EM, CEM, and label-supervised fitting on the same synthetic data
-- [**Prior Distributions**](../notebooks/priors.ipynb) - Using priors for regularization and MAP estimation
-- [**NIW Priors Comparison**](../notebooks/niw_priors_comparison.ipynb) - Detailed comparison of Normal-Inverse-Wishart priors
-- [**Sampling from GMMs**](../notebooks/sampling.ipynb) - Generating synthetic data from fitted models
-- [**Dirichlet Process Mixture (Gibbs Sampling)**](../notebooks/dpgmm.ipynb) - Inferring the number of components with `GaussianMixture(n_components=None, ...)`, compared against classical EM
-- [**Gibbs Sampling Internals**](../notebooks/dpgmm_gibbs_sampling.ipynb) - Step-by-step look at the collapsed Gibbs sampler itself
+- [**4. Classification EM (CEM)**](../notebooks/04_cem.ipynb) - Comparing the hard-assignment CEM algorithm against standard EM
+- [**5. Supervised Fitting**](../notebooks/05_supervised_gmm.ipynb) - Comparing EM, CEM, and label-supervised fitting on the same synthetic data
 
-## Visualization
+## 3. Evaluation & Utilities
 
-- [**PCA Plotting**](../notebooks/pca_plotting.ipynb) - Visualizing high-dimensional GMM results with PCA
-- [**Visualization Techniques**](../notebooks/visualise.ipynb) - Comprehensive guide to plotting GMM results
+- [**6. Clustering Metrics**](../notebooks/06_metrics.ipynb) - Evaluating GMM performance with various metrics
+- [**7. Sampling from GMMs**](../notebooks/07_sampling.ipynb) - Generating synthetic data from fitted models
+- [**8. PCA Plotting**](../notebooks/08_pca_plotting.ipynb) - Visualizing high-dimensional GMM results with PCA
 
-## Model Evaluation
+## 4. Bayesian Priors
 
-- [**Clustering Metrics**](../notebooks/metrics.ipynb) - Evaluating GMM performance with various metrics
+- [**9. Prior Distributions**](../notebooks/09_priors.ipynb) - Using priors for regularization and MAP estimation
+- [**10. NIW Priors Comparison**](../notebooks/10_niw_priors_comparison.ipynb) - Detailed comparison of Normal-Inverse-Wishart priors
+
+## 5. Advanced / Nonparametric Methods
+
+- [**11. Dirichlet Process Mixtures: Stick-Breaking and Gibbs Sampling**](../notebooks/11_dpgmm.ipynb) - The math (stick-breaking, Chinese Restaurant Process), a step-by-step sampler walkthrough, then validating `GaussianMixture(n_components=None, ...)` against classical EM at scale
+- [**12. HDBSCAN Clustering**](../notebooks/12_hdbscan.ipynb) - Density-based clustering with a PyTorch HDBSCAN implementation, including using it to remove noise before fitting a GMM
 
 ## Running Tutorials
 
