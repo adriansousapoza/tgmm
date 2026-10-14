@@ -55,6 +55,24 @@ class BaseMixture(nn.Module, ABC):
     verbose_interval, device : see `GaussianMixture`'s docstring for each
         -- the semantics are identical here; every one defaults to the
         same value `GaussianMixture` uses.
+    components_per_class : int or dict, default=1
+        For `fit(X, labels=...)` (semi-)supervised fitting (Phase 5):
+        how many components each class owns, MclustDA-style -- an `int`
+        gives every class that many components; a `dict` (keyed by the
+        original label value) sets it per class. The total across all
+        classes present in `labels` must equal `n_components`. Ignored
+        when `fit` is called without `labels`.
+    unlabeled_weight : float, default=1.0
+        Semi-supervised fitting only (some but not all rows labeled):
+        multiplies unlabeled rows' responsibilities before they're
+        accumulated into the M-step's sufficient statistics (Nigam et al.,
+        2000). `0` recovers a fit using only the labeled rows.
+    label_confidence : float, default=1.0
+        Semi-supervised fitting only: with `c < 1`, a labeled row keeps
+        mass `c` on its class's component block and distributes `1 - c`
+        over the other components according to its own unclamped
+        posterior -- a knob for labels that might themselves be noisy.
+        `1.0` (default) fully clamps labeled rows to their class block.
     """
 
     def __init__(
@@ -76,6 +94,9 @@ class BaseMixture(nn.Module, ABC):
         step_size: Optional[object] = None,
         sem_burn_in: Optional[int] = None,
         sem_estimate: str = 'best',
+        components_per_class=1,
+        unlabeled_weight: float = 1.0,
+        label_confidence: float = 1.0,
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -124,6 +145,34 @@ class BaseMixture(nn.Module, ABC):
         if sem_estimate not in _VALID_SEM_ESTIMATES:
             raise ValueError(f"sem_estimate must be one of {_VALID_SEM_ESTIMATES}, got {sem_estimate!r}")
         self.sem_estimate = sem_estimate
+
+        if not (isinstance(components_per_class, int) or isinstance(components_per_class, dict)):
+            raise TypeError(f"components_per_class must be an int or dict, got {type(components_per_class)}")
+        if isinstance(components_per_class, int) and components_per_class <= 0:
+            raise ValueError(f"components_per_class must be > 0, got {components_per_class}.")
+        self.components_per_class = components_per_class
+
+        if unlabeled_weight < 0:
+            raise ValueError(f"unlabeled_weight must be >= 0, got {unlabeled_weight}.")
+        self.unlabeled_weight = unlabeled_weight
+
+        if not (0.0 <= label_confidence <= 1.0):
+            raise ValueError(f"label_confidence must be in [0, 1], got {label_confidence}.")
+        self.label_confidence = label_confidence
+
+        self.classes_ = None
+        self.class_of_component_ = None
+
+        # Optional callable(X, resp_or_None), called once right after
+        # _allocate_parameters (with resp=None) and once after every M-step
+        # (with the resp actually used) during semi-supervised fitting
+        # only. Not user-facing API: `PositiveUnlabeledMixture` (Phase 5.2)
+        # sets this internally on its underlying model to implement its
+        # 'fixed' (freeze the positive block's parameters) and 'prior'
+        # (NIW-blend the positive block toward its labeled-only fit)
+        # anchor strategies, without BaseMixture needing to know either
+        # exists. `None` (default) is a no-op everywhere else.
+        self._post_mstep_hook = None
 
         if device is not None:
             self.device = torch.device(device)
@@ -626,6 +675,7 @@ class BaseMixture(nn.Module, ABC):
     def fit(
         self,
         X: torch.Tensor,
+        labels: Optional[torch.Tensor] = None,
         max_iter: Optional[int] = None,
         tol: Optional[float] = None,
         random_state: Optional[int] = None,
@@ -656,6 +706,26 @@ class BaseMixture(nn.Module, ABC):
             X = X.unsqueeze(1)
         if X.shape[1] != self.n_features:
             raise ValueError(f"X has {X.shape[1]} features, but expected {self.n_features}.")
+
+        # ===============================================================
+        # (Semi-)supervised fitting (Phase 5): bypass the unsupervised
+        # n_init loop below entirely. See the Phase 5 design doc.
+        # ===============================================================
+        if labels is not None:
+            if not torch.is_tensor(labels):
+                labels = torch.as_tensor(labels)
+            labels = labels.to(device=self.device)
+            if labels.dim() != 1 or labels.size(0) != X.size(0):
+                raise ValueError(
+                    f"labels must be a 1D array of length n_samples={X.size(0)}, "
+                    f"got shape {tuple(labels.shape)}."
+                )
+            if torch.all(labels != -1):
+                return self._fit_supervised(X, labels)
+            return self._fit_semisupervised(X, labels, max_iter, tol)
+
+        self.classes_ = None
+        self.class_of_component_ = None
 
         best_lower_bound = -float("inf")
         best_snapshot = None
@@ -726,6 +796,399 @@ class BaseMixture(nn.Module, ABC):
         return self
 
     # ===================================================================
+    # (Semi-)supervised fitting (Phase 5). See the design doc at
+    # docs/superpowers/specs/2026-10-14-phase5-semi-supervised-pu-design.md
+    # for the full rationale, in particular the two documented scope
+    # reductions: tied covariance types aren't supported when any class's
+    # `components_per_class` block is > 1, and `'sem'`/`'saem'`/online EM
+    # aren't supported for semi-supervised (partially-labeled) fitting.
+    # ===================================================================
+    def _is_tied_covariance(self) -> bool:
+        r"""
+        Whether this instance's current covariance-like parameterization is
+        shared ("tied") across *every* component, making it incompatible
+        with fitting each class's component block as an independent
+        sub-mixture (`_fit_supervised`'s `components_per_class > 1` path).
+        `False` by default (e.g. `VonMisesFisherMixture`, which has no
+        covariance at all); `GaussianMixture`/`StudentTMixture` override
+        this with their own `covariance_type` check.
+        """
+        return False
+
+    def _post_supervised_fit_warnings(self, component_counts: torch.Tensor):
+        r"""
+        Hook called once at the end of `_fit_supervised`, given the number
+        of (labeled) rows that went into each fitted component, in
+        component order. No-op by default; `GaussianMixture` overrides
+        this with its pre-existing sparse-component warning.
+        """
+        pass
+
+    def _resolve_classes_and_blocks(self, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        r"""
+        `classes_` and `class_of_component_` (shape `(n_components,)`,
+        which class -- an index into `classes_` -- each component belongs
+        to), resolved from `labels` and `self.components_per_class`.
+        Components are laid out in contiguous per-class blocks, in
+        `classes_`'s sorted order (MclustDA-style).
+
+        When `components_per_class` is a plain `int`, `classes_` is the
+        sorted distinct non-`-1` values actually present in `labels`. When
+        it's a `dict`, its *keys* define the complete, authoritative set of
+        classes instead -- every labeled value must be one of those keys,
+        but a key needn't appear in `labels` at all. This is what lets
+        `PositiveUnlabeledMixture` (Phase 5.2) reserve a block of
+        `n_components_negative` components for an implicit "negative"
+        class that is never directly labeled (every non-positive row is
+        simply unlabeled, `-1`, not labeled `0`).
+
+        Raises
+        ------
+        ValueError
+            If `labels` has no non-`-1` values; if `components_per_class`
+            is a dict and a label value isn't one of its keys, or any of
+            its values is a non-positive int; or if the resulting total
+            component count doesn't equal `self.n_components`.
+        """
+        known = labels[labels != -1]
+        if known.numel() == 0:
+            raise ValueError("labels must contain at least one non- -1 (known) value.")
+
+        if isinstance(self.components_per_class, dict):
+            labeled_classes = torch.unique(known, sorted=True)
+            unknown_labels = [c for c in labeled_classes.tolist() if c not in self.components_per_class]
+            if unknown_labels:
+                raise ValueError(
+                    f"components_per_class is missing an entry for label value(s) "
+                    f"{unknown_labels}, which are present in labels."
+                )
+            class_values = sorted(self.components_per_class.keys())
+            block_sizes = []
+            for class_label in class_values:
+                m_c = self.components_per_class[class_label]
+                if not isinstance(m_c, int) or m_c <= 0:
+                    raise ValueError(
+                        f"components_per_class[{class_label!r}] must be a positive int, got {m_c!r}."
+                    )
+                block_sizes.append(m_c)
+            classes = torch.tensor(class_values, dtype=labels.dtype, device=labels.device)
+        else:
+            classes = torch.unique(known, sorted=True)
+            block_sizes = [self.components_per_class] * classes.numel()
+
+        total = sum(block_sizes)
+        if total != self.n_components:
+            raise ValueError(
+                f"components_per_class implies {total} total component(s) "
+                f"({dict(zip(classes.tolist(), block_sizes))}), but "
+                f"n_components={self.n_components}."
+            )
+
+        class_of_component = torch.repeat_interleave(
+            torch.arange(classes.numel(), device=labels.device),
+            torch.tensor(block_sizes, device=labels.device),
+        )
+        return classes, class_of_component
+
+    def _fit_component_block(self, X_block: torch.Tensor, n_block: int, random_state: Optional[int]) -> dict:
+        r"""
+        Fit a block of `n_block` components via ordinary unsupervised EM on
+        `X_block` alone, reusing `BaseMixture.fit`'s own n_init loop
+        directly (not `self.fit`, to avoid re-entering a subclass's own
+        `fit` override or this class's (semi-)supervised dispatch).
+        `self.n_components`/`self.random_state` are temporarily
+        reconfigured for the call and restored afterward -- the full
+        fitted bookkeeping (`fitted_`/`converged_`/etc.) is deliberately
+        *not* restored, since `_fit_supervised`, the only caller, always
+        overwrites it itself once every class's block has been fit.
+
+        Returns
+        -------
+        dict
+            `self._get_param_snapshot()` for the fitted block.
+        """
+        orig_n_components = self.n_components
+        orig_random_state = self.random_state
+        try:
+            self.n_components = n_block
+            if random_state is not None:
+                self.random_state = random_state
+            BaseMixture.fit(self, X_block)
+            return self._get_param_snapshot()
+        finally:
+            self.n_components = orig_n_components
+            self.random_state = orig_random_state
+
+    def _fit_supervised(self, X: torch.Tensor, labels: torch.Tensor):
+        r"""
+        Fully-labeled (no `-1`) fit: one component block per class. See the
+        design doc for the two sub-cases (every block size 1: a single
+        one-hot M-step over the whole dataset; any block > 1: each class's
+        block fit independently, then assembled -- tied covariance types
+        unsupported in that sub-case, see `_is_tied_covariance`).
+        """
+        import warnings
+
+        classes, class_of_component = self._resolve_classes_and_blocks(labels)
+        n_classes = classes.numel()
+        block_sizes = [int((class_of_component == c).sum().item()) for c in range(n_classes)]
+        n_samples = X.shape[0]
+
+        if all(m == 1 for m in block_sizes):
+            component_idx = torch.searchsorted(classes, labels)
+            self._allocate_parameters(X)
+            resp = torch.zeros(n_samples, self.n_components, device=self.device, dtype=self.dtype)
+            resp[torch.arange(n_samples, device=self.device), component_idx] = 1.0
+            self._m_step(X, resp)
+            component_counts = torch.bincount(component_idx, minlength=self.n_components)
+        else:
+            if self._is_tied_covariance():
+                raise ValueError(
+                    "components_per_class > 1 is not supported together with a tied "
+                    "covariance type (tied_full/tied_diag/tied_spherical): a single "
+                    "shared covariance can't be assembled from independently-fit "
+                    "per-class component blocks. Use a per-component covariance "
+                    "type (e.g. 'full'/'diag'/'spherical') instead."
+                )
+            per_class_snapshots = []
+            component_counts_parts = []
+            for c_idx, class_label in enumerate(classes.tolist()):
+                mask = labels == class_label
+                X_c = X[mask]
+                n_c = int(mask.sum().item())
+                m_c = block_sizes[c_idx]
+                snapshot = self._fit_component_block(X_c, m_c, random_state=self.random_state)
+                snapshot['weights_'] = snapshot['weights_'] * (n_c / n_samples)
+                per_class_snapshots.append(snapshot)
+                component_counts_parts.append(torch.full((m_c,), n_c, dtype=torch.long, device=self.device))
+            merged = {
+                key: torch.cat([snap[key] for snap in per_class_snapshots], dim=0)
+                for key in per_class_snapshots[0]
+            }
+            self._apply_snapshot(merged)
+            component_counts = torch.cat(component_counts_parts)
+
+        self.classes_ = classes
+        self.class_of_component_ = class_of_component
+        self.converged_ = True
+        self.n_iter_ = 1
+        self.best_random_state_ = None
+        self.fitted_ = True
+        self.n_components_ = self.n_components
+        self.active_ = torch.ones(self.n_components, dtype=torch.bool, device=self.device)
+        self.lower_bound_ = self.score(X)
+
+        self._post_supervised_fit_warnings(component_counts)
+        return self
+
+    def _clamp_responsibilities(
+        self, resp: torch.Tensor, is_labeled: torch.Tensor, block_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        r"""
+        For labeled rows, zero responsibility outside the row's class block
+        and renormalize inside it (one-hot when the block has 1 component);
+        `self.label_confidence < 1` blends `label_confidence` mass on that
+        renormalized in-block posterior with `1 - label_confidence` on the
+        *original* (unclamped) out-of-block posterior, rescaled to sum to
+        that remainder. Unlabeled rows pass through untouched.
+        """
+        if not bool(is_labeled.any()):
+            return resp
+
+        resp = resp.clone()
+        labeled_resp = resp[is_labeled]
+        block = block_mask[is_labeled]
+        within_mass = (labeled_resp * block).sum(dim=1, keepdim=True)
+        clamped = torch.where(block, labeled_resp / within_mass.clamp(min=1e-20), torch.zeros_like(labeled_resp))
+
+        if self.label_confidence >= 1.0:
+            resp[is_labeled] = clamped
+            return resp
+
+        outside_mass = (1.0 - within_mass).clamp(min=1e-20)
+        outside_part = torch.where(block, torch.zeros_like(labeled_resp), labeled_resp) / outside_mass
+        blended = self.label_confidence * clamped + (1.0 - self.label_confidence) * outside_part
+        resp[is_labeled] = blended
+        return resp
+
+    def _semisupervised_log_likelihood(
+        self, X: torch.Tensor, is_labeled: torch.Tensor, block_mask: torch.Tensor,
+    ) -> float:
+        r"""
+        The plan's own semi-supervised objective:
+        :math:`\sum_{\text{labeled}} \log \sum_{k \in \text{block}(c_i)} \pi_k f_k(x_i)
+        + \sum_{\text{unlabeled}} \log \sum_k \pi_k f_k(x_i)`, averaged over
+        samples (matching every other family's `lower_bound_` convention).
+        Computed directly from `_component_log_prob`, not from the clamped
+        responsibilities -- clamping is a statistics-accumulation device
+        for the M-step, not part of the likelihood itself.
+        """
+        log_joint = self._component_log_prob(X) + torch.log(self.weights_ + 1e-20).unsqueeze(0)
+        ll = torch.empty(X.shape[0], device=X.device, dtype=X.dtype)
+        if bool(is_labeled.any()):
+            masked = log_joint[is_labeled].masked_fill(~block_mask[is_labeled], float('-inf'))
+            ll[is_labeled] = torch.logsumexp(masked, dim=1)
+        if bool((~is_labeled).any()):
+            ll[~is_labeled] = torch.logsumexp(log_joint[~is_labeled], dim=1)
+        return ll.mean().item()
+
+    def _fit_single_run_semisupervised(
+        self, X: torch.Tensor, is_labeled: torch.Tensor, label_class_idx: torch.Tensor,
+        max_iter: int, tol: float, run_idx: int = 0,
+    ):
+        import warnings
+
+        block_mask = torch.zeros(X.shape[0], self.n_components, dtype=torch.bool, device=X.device)
+        if bool(is_labeled.any()):
+            block_mask[is_labeled] = (
+                self.class_of_component_.unsqueeze(0) == label_class_idx[is_labeled].unsqueeze(1)
+            )
+
+        prev_lower_bound = -float("inf")
+        prev_prev_lower_bound = None
+
+        resp, _ = self._e_step(X)
+        resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+        self.lower_bound_ = self._semisupervised_log_likelihood(X, is_labeled, block_mask)
+        ll_history = [self.lower_bound_]
+
+        for n_iter in range(max_iter):
+            if self.algorithm == 'cem':
+                hard = self._c_step(resp)
+                resp = torch.where(is_labeled.unsqueeze(1), resp, hard)
+
+            if self.unlabeled_weight == 1.0:
+                resp_for_mstep = resp
+            else:
+                resp_for_mstep = resp.clone()
+                resp_for_mstep[~is_labeled] = resp_for_mstep[~is_labeled] * self.unlabeled_weight
+            self._m_step(X, resp_for_mstep)
+            if self._post_mstep_hook is not None:
+                self._post_mstep_hook(X, resp_for_mstep)
+
+            if self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
+                self.converged_ = True
+                if self.verbose:
+                    print(f"[Run {run_idx+1}] Iteration {n_iter}: "
+                          f"log-likelihood={self.lower_bound_:.5f}, Converged!")
+                break
+
+            prev_prev_lower_bound = prev_lower_bound
+            prev_lower_bound = self.lower_bound_
+            resp, _ = self._e_step(X)
+            resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+            self.lower_bound_ = self._semisupervised_log_likelihood(X, is_labeled, block_mask)
+            ll_history.append(self.lower_bound_)
+
+            if self.verbose and (n_iter % self.verbose_interval == 0):
+                print(f"[Run {run_idx+1}] Iteration {n_iter}: log-likelihood={self.lower_bound_:.5f}")
+
+        if self.converged_:
+            resp, _ = self._e_step(X)
+            resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+            if self.algorithm == 'cem':
+                hard = self._c_step(resp)
+                resp = torch.where(is_labeled.unsqueeze(1), resp, hard)
+            self.lower_bound_ = self._semisupervised_log_likelihood(X, is_labeled, block_mask)
+        else:
+            warnings.warn(
+                f"Run {run_idx+1}: semi-supervised EM did not converge after {max_iter} iterations.",
+                UserWarning
+            )
+
+        self.n_iter_ = n_iter
+        self.log_likelihood_history_ = torch.tensor(ll_history)
+
+    def _fit_semisupervised(self, X: torch.Tensor, labels: torch.Tensor, max_iter: int, tol: float):
+        r"""
+        Partially-labeled (some `-1`) fit: semi-supervised EM, with labeled
+        rows' responsibilities clamped to their class's component block
+        each E-step (`_clamp_responsibilities`) and unlabeled rows'
+        responsibilities scaled by `self.unlabeled_weight` before the
+        M-step. See the design doc for the `algorithm`/`step_size` scope
+        restriction below.
+        """
+        import warnings
+
+        if self.algorithm not in ('em', 'cem'):
+            raise NotImplementedError(
+                f"Semi-supervised fitting (labels containing -1) with algorithm="
+                f"{self.algorithm!r} is not implemented in this release -- only "
+                f"'em' and 'cem' are supported for partially-labeled fits. See "
+                f"docs/superpowers/specs/2026-10-14-phase5-semi-supervised-pu-design.md."
+            )
+        if self.step_size is not None:
+            raise NotImplementedError(
+                "Semi-supervised fitting (labels containing -1) with online/"
+                "mini-batch EM (step_size set) is not implemented in this release. "
+                "See docs/superpowers/specs/2026-10-14-phase5-semi-supervised-pu-design.md."
+            )
+
+        classes, class_of_component = self._resolve_classes_and_blocks(labels)
+        self.classes_ = classes
+        self.class_of_component_ = class_of_component
+
+        is_labeled = labels != -1
+        safe_labels = torch.where(is_labeled, labels, classes[0])
+        label_class_idx = torch.searchsorted(classes, safe_labels)
+        label_class_idx = torch.where(is_labeled, label_class_idx, torch.full_like(label_class_idx, -1))
+
+        best_lower_bound = -float("inf")
+        best_snapshot = None
+        best_random_state = None
+
+        if self.random_state is not None and self.n_init > 1:
+            warnings.warn(
+                f"With n_init={self.n_init} and random_state={self.random_state}, "
+                f"initializations will use random states [{self.random_state}, "
+                f"{self.random_state + 1}, ..., {self.random_state + self.n_init - 1}]. "
+                f"The best initialization's random state will be stored in best_random_state_.",
+                UserWarning
+            )
+
+        for init_idx in range(self.n_init):
+            if self.random_state is not None:
+                current_random_state = self.random_state + init_idx
+                torch.manual_seed(current_random_state)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(current_random_state)
+
+            self._allocate_parameters(X, set_random_state=False)
+            if self._post_mstep_hook is not None:
+                self._post_mstep_hook(X, None)
+            self._fit_single_run_semisupervised(X, is_labeled, label_class_idx, max_iter, tol, run_idx=init_idx)
+
+            if self.lower_bound_ > best_lower_bound:
+                best_lower_bound = self.lower_bound_
+                best_random_state = (self.random_state + init_idx
+                                     if self.random_state is not None else None)
+                best_snapshot = self._get_fit_snapshot()
+
+            self.fitted_ = True
+
+        if best_snapshot is not None:
+            self._apply_snapshot(best_snapshot)
+            self.best_random_state_ = best_random_state
+
+        self.n_components_ = self.n_components
+        self.active_ = torch.ones(self.n_components, dtype=torch.bool, device=self.device)
+
+        if best_random_state is not None and self.n_init > 1:
+            warnings.warn(
+                f"Best result from random_state={best_random_state}. "
+                f"To reproduce this specific result: use random_state={best_random_state} with n_init=1.",
+                UserWarning
+            )
+
+        if not self.converged_:
+            warnings.warn(
+                "Semi-supervised EM did not converge. Consider increasing max_iter or adjusting tol.",
+                UserWarning
+            )
+
+        return self
+
+    # ===================================================================
     # Prediction and scoring
     # ===================================================================
     def predict(self, X: torch.Tensor) -> torch.Tensor:
@@ -747,6 +1210,31 @@ class BaseMixture(nn.Module, ABC):
             warnings.warn("Model did not converge. Results may be unreliable.", UserWarning)
         resp, _ = self._e_step(X.to(self.device))
         return resp
+
+    def predict_class(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Predicted *class* label for each sample, after a (semi-)supervised
+        `fit(X, labels=...)` (Phase 5): sums responsibility over each
+        class's component block and returns the class with the highest
+        total, mapped back through `classes_` to the original label
+        values. `predict` still returns raw component indices.
+
+        Raises
+        ------
+        RuntimeError
+            If this model wasn't fit with `labels=...` (`classes_` is `None`).
+        """
+        if self.classes_ is None:
+            raise RuntimeError(
+                "predict_class requires a model fit with labels=... (classes_ is None); "
+                "use predict for the raw component assignment instead."
+            )
+        resp = self.predict_proba(X)
+        n_classes = self.classes_.numel()
+        class_resp = torch.zeros(resp.shape[0], n_classes, device=resp.device, dtype=resp.dtype)
+        class_resp.index_add_(1, self.class_of_component_, resp)
+        class_idx = torch.argmax(class_resp, dim=1)
+        return self.classes_[class_idx]
 
     def score_samples(self, X: torch.Tensor) -> torch.Tensor:
         r"""Per-sample log-likelihood `log p(x_i | theta)`."""
