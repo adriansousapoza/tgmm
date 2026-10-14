@@ -211,27 +211,118 @@ gmm = GaussianMixture(
 )
 ```
 
-## Classification EM (CEM)
+## Fitting Algorithms
 
-Standard EM uses soft assignments. CEM uses hard assignments:
+`algorithm` selects which EM variant drives `fit()`. One sentence each on
+when to reach for them:
+
+| `algorithm` | When to use it |
+| --- | --- |
+| `'em'` (default) | Standard soft-assignment EM -- the right default for most fits. |
+| `'cem'` | Classification EM (hard assignments between the E- and M-steps) -- converges faster and gives a crisper partition, at the cost of being more prone to local minima than soft EM. |
+| `'sem'` | Stochastic EM -- samples a hard assignment from the responsibilities each iteration instead of taking the argmax; use it to escape poor local optima, or to detect an overspecified `n_components` via `n_empty_components_`. |
+| `'saem'` | Stochastic Approximation EM -- SEM with a decaying step size blended across iterations, so it *does* converge pointwise (unlike plain SEM); use it when you want SEM's exploration with a convergent stopping point. |
+
+`temperature` (deterministic annealing) and `step_size` (online/mini-batch
+EM) are independent knobs layered on top of these -- see below.
+
+### Classification EM (CEM)
 
 ```python
-gmm = GaussianMixture(
-    n_components=3,
-    n_features=2,
-    algorithm='cem'  # Enable Classification EM
-)
+gmm = GaussianMixture(n_components=3, n_features=2, algorithm='cem')
 gmm.fit(X)
 ```
-
-CEM tends to converge faster but may be more prone to local minima.
 
 !!! note "`cem=True` is deprecated"
     The older `cem=True` keyword still works (it's treated as
     `algorithm='cem'`), but emits a `DeprecationWarning` -- prefer
-    `algorithm='cem'` in new code. `algorithm` also accepts `'em'` (the
-    default); `'sem'` (Stochastic EM) is reserved for a future release and
-    raises `NotImplementedError` if used today.
+    `algorithm='cem'` in new code.
+
+### Stochastic EM (SEM)
+
+```python
+gmm = GaussianMixture(n_components=3, n_features=2, algorithm='sem', max_iter=200)
+gmm.fit(X)
+
+print(gmm.log_likelihood_history_)   # per-sweep log-likelihood trace
+print(gmm.n_empty_components_)       # > 0 re-seeds suggest n_components is too large
+```
+
+SEM never checks convergence -- it always runs the full `max_iter` sweeps
+(same convention as Gibbs mode), since the sampled hard assignment keeps
+the iterate moving even near a mode. The final parameters come from
+`sem_estimate` applied to the sweeps at or after `sem_burn_in` (default
+`max_iter // 5`): `'best'` (default) keeps the highest-log-likelihood
+post-burn-in sweep; `'mean'` averages parameters across all of them, which
+assumes no label switching between sweeps -- prefer `'best'` whenever
+`n_components` might be overspecified.
+
+### Stochastic Approximation EM (SAEM)
+
+```python
+gmm = GaussianMixture(n_components=3, n_features=2, algorithm='saem', max_iter=200)
+gmm.fit(X)
+print(gmm.converged_)
+```
+
+SAEM blends each sweep's sampled-assignment statistics into a running
+average with a decaying step size (`step_size`, defaulting to `'auto'`
+for this algorithm), so `tol`-based convergence applies exactly as in
+ordinary EM/CEM -- the "SEM that converges."
+
+### Deterministic Annealing (DAEM)
+
+```python
+gmm = GaussianMixture(
+    n_components=3, n_features=2,
+    temperature=(0.1, 30),  # (beta_0, n_anneal)
+)
+gmm.fit(X)
+print(gmm.annealing_schedule_)  # beta actually used at each E-step
+```
+
+Works with `algorithm` in `{'em', 'cem', 'sem'}`. Tempers the E-step's
+joint log-density by a `beta` that rises geometrically from `beta_0` to
+`1.0` over the first `n_anneal` iterations (then holds at `1.0`);
+convergence checks are suspended while `beta < 1.0`. Use this when
+initialization is unreliable, e.g. several components starting out close
+together -- annealing smooths the likelihood surface early on, when
+standard EM would otherwise settle into the first nearby local optimum.
+It is a heuristic, not a guarantee: an initialization that is *exactly*
+symmetric (e.g. every mean identical to machine precision) stays
+symmetric under annealing too, since tempering a perfectly symmetric
+responsibility distribution is still perfectly symmetric -- some
+real-world asymmetry in the starting point, even a small one, is what
+annealing needs to amplify.
+
+### Mini-Batch and Online EM
+
+```python
+gmm = GaussianMixture(
+    n_components=3, n_features=2,
+    batch_size=256, step_size='auto',  # or a float, or a callable t -> gamma_t
+    max_iter=10,  # epochs
+)
+gmm.fit(X)  # shuffles X into batch_size-sized mini-batches each epoch
+print(gmm.log_likelihood_history_)  # one entry per epoch
+```
+
+For streaming data, `partial_fit` continues training after an initial
+`fit()` call (or explicit parameter initialization):
+
+```python
+gmm = GaussianMixture(n_components=3, n_features=2, batch_size=256, step_size='auto')
+gmm.fit(first_batch)
+for batch in stream_of_batches:
+    gmm.partial_fit(batch)
+```
+
+`step_size=None` (the default) keeps `batch_size` as a pure memory
+optimization (exact EM, see [Large Datasets](#large-datasets-batch_size)
+above) -- setting `step_size` is what switches to online EM. `partial_fit`
+assumes a roughly constant batch size across calls; unlike `fit()`'s own
+epoch loop, it does not rescale each batch against a known total dataset
+size (there isn't one in a true streaming setting).
 
 ## Supervised Fitting
 

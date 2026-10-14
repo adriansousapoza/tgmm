@@ -139,7 +139,6 @@ def test_compute_stats_chunked_matches_unchunked(covariance_type, batch_size):
 @pytest.mark.parametrize("covariance_type", COVARIANCE_TYPES)
 @pytest.mark.parametrize("mode", MODES)
 def test_matches_pre_refactor_fixture(covariance_type, mode):
-    torch.set_default_dtype(torch.float64)
     fixtures = torch.load(FIXTURE_PATH, weights_only=False)
     key = f"{covariance_type}__{mode}"
     fixture = fixtures[key]
@@ -253,12 +252,12 @@ def test_algorithm_rejects_unknown_value():
         GaussianMixture(n_components=2, n_features=2, algorithm="not-a-real-algorithm")
 
 
-def test_algorithm_accepts_sem_but_fit_raises_until_phase2():
+def test_algorithm_accepts_sem():
+    # 'sem' was accepted-but-NotImplementedError at construction time in
+    # Phase 0 (this test's own history); Phase 2 implements it for real --
+    # see tests/test_phase2.py for SEM's actual behavior.
     gmm = GaussianMixture(n_components=2, n_features=2, algorithm="sem")
     assert gmm.algorithm == "sem"
-    X = torch.randn(20, 2)
-    with pytest.raises(NotImplementedError):
-        gmm.fit(X)
 
 
 def test_cem_true_warns_deprecation_and_sets_algorithm():
