@@ -77,7 +77,9 @@ with priors, Classification EM, constrained sampling, save/load, and more.
 
 The core `GaussianMixture` class supports:
 
-- **Covariance Types**: `'full'`, `'diag'`, `'spherical'`, `'tied_full'`, `'tied_diag'`, `'tied_spherical'`
+- **Covariance Types**: `'full'`, `'diag'`, `'spherical'`, `'tied_full'`, `'tied_diag'`, `'tied_spherical'`,
+  or any of the 14 Celeux & Govaert GPCM models via their mclust codes (`'VEI'`, `'EVI'`, `'VEE'`,
+  `'EVE'`, `'EEV'`, `'VVE'`, `'VEV'`, `'EVV'`, plus mclust aliases for the 6 above)
 - **Estimation Methods**: MLE (Maximum Likelihood) or MAP (Maximum A Posteriori) with priors
 - **Algorithms**: `algorithm='em'` (standard), `'cem'` (Classification EM), `'sem'` (Stochastic
   EM), or `'saem'` (Stochastic Approximation EM); `temperature` for deterministic annealing EM

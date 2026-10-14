@@ -863,9 +863,7 @@ def get_covariance_matrix(gmm, component_idx):
     cov_type = gmm.covariance_type
         
     # Get the covariance matrix
-    if cov_type == 'full':
-        cov_matrix = covariances[component_idx]
-    elif cov_type == 'diag':
+    if cov_type == 'diag':
         cov_matrix = torch.diag(covariances[component_idx])
     elif cov_type == 'spherical':
         # plot_gmm only ever renders 2D ellipses, so the identity is always 2x2
@@ -881,6 +879,13 @@ def get_covariance_matrix(gmm, component_idx):
         var_val = covariances
         cov_matrix = torch.eye(2) * var_val
     else:
-        raise ValueError(f"Unsupported covariance_type: {cov_type}")
-    
+        # 'full', plus every GPCM mclust code without its own tgmm name
+        # (the 6 pre-existing E/V-volume codes resolve to one of the tgmm
+        # names handled above regardless of which spelling the caller
+        # used; the 8 new ones -- 'VEI', 'EVI', 'VEE', 'EVE', 'EEV',
+        # 'VVE', 'VEV', 'EVV' -- are always stored as assembled,
+        # per-component dense (K, d, d) matrices, exactly like 'full' --
+        # see docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md).
+        cov_matrix = covariances[component_idx]
+
     return cov_matrix

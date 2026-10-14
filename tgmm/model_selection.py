@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .gmm import GaussianMixture
+from .covariance.gpcm import GPCM_CODES
 
 _VALID_CRITERIA = ('bic', 'aic', 'icl')
 
@@ -50,7 +51,7 @@ class ModelSelectionResult:
 def select_model(
     X,
     n_components: Iterable[int] = range(1, 11),
-    covariance_types: Iterable[str] = ('full', 'diag', 'spherical', 'tied_full'),
+    covariance_types: Iterable[str] = GPCM_CODES,
     criterion: str = 'bic',
     n_init: int = 1,
     random_state: Optional[int] = None,
@@ -68,9 +69,11 @@ def select_model(
     n_components : iterable of int, optional
         Component counts to try. (default: `range(1, 11)`)
     covariance_types : iterable of str, optional
-        Covariance types to try. (default: the four most common of the six
-        existing types -- `select_model`'s default will become the 14 GPCM
-        codes once Phase 3 adds them.)
+        Covariance types to try, as tgmm names or mclust GPCM codes
+        (case-insensitive) -- see `GaussianMixture`'s `covariance_type`.
+        (default: all 14 mclust GPCM codes, i.e. the full
+        `tgmm.covariance.gpcm.GPCM_CODES`; this is the mclust-style
+        model-selection workflow the plan describes)
     criterion : str, optional
         Which score to minimise when choosing `best_`: `'bic'`, `'aic'`,
         or `'icl'`. (default: `'bic'`)

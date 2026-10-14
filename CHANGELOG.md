@@ -5,6 +5,38 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] -- v0.4.0 in progress
 
+### Added (Phase 3: the 14 GPCM covariance models)
+
+- `GaussianMixture(covariance_type=...)` now accepts all 14 Celeux &
+  Govaert (1995) GPCM mclust codes (`EII`, `VII`, `EEI`, `VEI`, `EVI`,
+  `VVI`, `EEE`, `VEE`, `EVE`, `EEV`, `VVE`, `VEV`, `EVV`, `VVV`,
+  case-insensitive), alongside the 6 existing tgmm names (which are
+  aliases for `EII`/`VII`/`EEI`/`VVI`/`EEE`/`VVV`). New
+  `covariance_type_` attribute always holds the canonical mclust code.
+  M-steps for the 8 new codes live in `tgmm.covariance.gpcm.mstep_gpcm`,
+  derived from the Celeux & Govaert (1995) equations directly (tgmm is
+  MIT; `mclust`/`mixture` are GPL and were not read or ported -- see the
+  design doc). 5 of the 8 (`VEI`, `VEE`, `VEV`, `EVE`, `VVE`) are
+  iterative, warm-started each EM iteration from the previous iteration's
+  decomposition; `EVE`/`VVE` additionally solve a small
+  orthogonal-manifold (Stiefel) optimization each inner iteration for the
+  shared orientation, since no closed form exists once that orientation
+  must jointly serve every component's own differently-shaped scatter.
+- `volume_`/`shape_`/`orientation_`: the fitted decomposition
+  `Sigma_k = volume_k * orientation_k @ diag(shape_k) @ orientation_k^T`
+  for the 8 new codes (`None` for the 6 pre-existing ones).
+- `gpcm_tol`/`gpcm_max_iter` constructor args controlling the 5 iterative
+  codes' inner-loop stopping rule.
+- `select_model`'s default `covariance_types` is now all 14 GPCM codes
+  (previously 4 of the 6 pre-existing types) -- the mclust-style
+  model-selection workflow the plan describes.
+- MAP/NIW priors (`mean_prior`/`covariance_prior`) and Gibbs mode
+  (`n_components=None`) both raise `NotImplementedError` for the 8 new
+  codes (a conjugate-prior derivation per parameterization, and a
+  per-component-factored Gibbs sampler for a covariance that couples
+  components, are both out of scope); `weight_concentration_prior` works
+  with all 14, since it doesn't depend on the covariance parameterization.
+
 ### Added (Phase 2: Stochastic EM, deterministic annealing, SAEM, mini-batch EM)
 
 - `algorithm='sem'` (Stochastic EM, Celeux & Diebolt 1985): samples a hard

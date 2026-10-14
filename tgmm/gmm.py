@@ -7,7 +7,55 @@ import warnings
 import math
 from .gmm_init import GMMInitializer
 from .stats import SufficientStats
+from .covariance.gpcm import mstep_gpcm, GPCMResult
 from scipy.stats import chi2
+
+
+# ===========================================================================
+# GPCM (Celeux & Govaert 1995) covariance-type naming: the 14 mclust codes
+# and their tgmm aliases for the 6 pre-existing covariance types. See
+# docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md.
+# ===========================================================================
+_MCLUST_TO_TGMM_NAME = {
+    'EII': 'tied_spherical',
+    'VII': 'spherical',
+    'EEI': 'tied_diag',
+    'VVI': 'diag',
+    'EEE': 'tied_full',
+    'VVV': 'full',
+}
+_TGMM_NAME_TO_MCLUST = {v: k for k, v in _MCLUST_TO_TGMM_NAME.items()}
+_NEW_GPCM_CODES = ('VEI', 'EVI', 'VEE', 'EVE', 'EEV', 'VVE', 'VEV', 'EVV')
+_ALL_MCLUST_CODES = tuple(_MCLUST_TO_TGMM_NAME.keys()) + _NEW_GPCM_CODES
+
+
+def _resolve_covariance_type(covariance_type: str):
+    r"""
+    Resolve a user-supplied `covariance_type` (a tgmm name, an mclust code,
+    or the legacy `'tied'`/`'isotropic'` aliases, all case-insensitive for
+    the mclust codes) into `(covariance_type, covariance_type_)`:
+    `covariance_type` is the tgmm name for the 6 pre-existing types (for
+    backward compatibility -- existing code reading `self.covariance_type`
+    keeps working) or the mclust code for the 8 new types (no tgmm name
+    exists for those); `covariance_type_` is always the canonical mclust
+    code.
+    """
+    if covariance_type == "tied":
+        covariance_type = "tied_full"
+    elif covariance_type == "isotropic":
+        covariance_type = "spherical"
+
+    if covariance_type in _TGMM_NAME_TO_MCLUST:
+        return covariance_type, _TGMM_NAME_TO_MCLUST[covariance_type]
+
+    code = covariance_type.upper() if isinstance(covariance_type, str) else covariance_type
+    if code in _ALL_MCLUST_CODES:
+        if code in _MCLUST_TO_TGMM_NAME:
+            return _MCLUST_TO_TGMM_NAME[code], code
+        return code, code
+
+    valid = ("full", "diag", "spherical", "tied_full", "tied_diag", "tied_spherical") + _ALL_MCLUST_CODES
+    raise ValueError(f"covariance_type must be one of {valid}, got {covariance_type!r}")
 
 
 
@@ -35,9 +83,16 @@ class GaussianMixture(nn.Module):
     n_features : int, optional
         Dimensionality of the input data (number of features). If None, inferred from data. (default: None)
     covariance_type : str, optional
-        Type of covariance parameters to use. Must be one of:
-        'full', 'diag', 'spherical', 'tied_full', 'tied_diag', 'tied_spherical'.
-        Aliases: 'tied' → 'tied_full', 'isotropic' → 'spherical'. (default: 'full')
+        Type of covariance parameters to use. Either a tgmm name --
+        'full', 'diag', 'spherical', 'tied_full', 'tied_diag',
+        'tied_spherical' -- or any of the 14 Celeux & Govaert (1995) GPCM
+        mclust codes (case-insensitive): 'EII', 'VII', 'EEI', 'VEI', 'EVI',
+        'VVI', 'EEE', 'VEE', 'EVE', 'EEV', 'VVE', 'VEV', 'EVV', 'VVV' (the
+        six tgmm names are aliases for 'EII'/'VII'/'EEI'/'VVI'/'EEE'/'VVV'
+        respectively -- see `covariance_type_`, and the "GPCM Covariance
+        Models" user-guide page for the 8 codes without a tgmm name).
+        Aliases: 'tied' → 'tied_full', 'isotropic' → 'spherical'.
+        (default: 'full')
     max_iter : int, optional
         EM mode: maximum number of EM iterations to perform; EM stops
         early once the relative log-likelihood improvement drops below
@@ -276,6 +331,24 @@ class GaussianMixture(nn.Module):
         every sweep of the most recent fit (a component emptying out is
         evidence `n_components` may be too large for the data). `0` for
         every other algorithm.
+    covariance_type_ : str
+        The canonical mclust GPCM code for `covariance_type` (e.g. `'VVV'`
+        for `covariance_type='full'`), always set regardless of which
+        name/code was passed to the constructor.
+    volume_ : torch.Tensor or None
+        GPCM decomposition `Sigma_k = volume_k * orientation_k @
+        diag(shape_k) @ orientation_k^T`: scalar (E-volume models) or
+        shape `(n_components,)` (V-volume models). Set after the first fit
+        for the 8 new GPCM covariance types (`'VEI'`, `'EVI'`, `'VEE'`,
+        `'EVE'`, `'EEV'`, `'VVE'`, `'VEV'`, `'EVV'`); `None` for the 6
+        pre-existing types.
+    shape_ : torch.Tensor or None
+        See `volume_`: shape `(n_features,)` (E-shape models) or
+        `(n_components, n_features)` (V-shape models), determinant 1.
+    orientation_ : torch.Tensor or None
+        See `volume_`: shape `(n_features, n_features)` (E- or
+        I-orientation models) or `(n_components, n_features, n_features)`
+        (V-orientation models).
     """
 
     def __init__(
@@ -290,6 +363,8 @@ class GaussianMixture(nn.Module):
         tol: float = 1e-4,
         reg_covar: float = 1e-6,
         n_init: int = 1,
+        gpcm_tol: float = 1e-6,
+        gpcm_max_iter: int = 20,
 
         # Initialization parameters (accepts str method or torch.Tensor values)
         init_means='kmeans',
@@ -363,27 +438,26 @@ class GaussianMixture(nn.Module):
         self.n_components = n_components
         self.n_features = n_features
 
-        # Handle covariance type aliases
-        if covariance_type == "tied":
-            covariance_type = "tied_full"
-        elif covariance_type == "isotropic":
-            covariance_type = "spherical"
-
-        # Validate covariance type
-        valid_covariance_types = ("full", "diag", "spherical", "tied_full", "tied_diag", "tied_spherical")
-        if covariance_type not in valid_covariance_types:
-            raise ValueError(
-                f"covariance_type must be one of {valid_covariance_types}, got {covariance_type!r}"
-            )
-
+        # Resolve covariance type: tgmm names, the legacy 'tied'/'isotropic'
+        # aliases, and all 14 mclust GPCM codes (case-insensitive) are
+        # accepted. self.covariance_type is the tgmm name for the 6
+        # pre-existing types (backward compatible) or the mclust code for
+        # the 8 new ones; self.covariance_type_ is always the canonical
+        # mclust code. See _resolve_covariance_type.
+        covariance_type, covariance_type_ = _resolve_covariance_type(covariance_type)
         self.covariance_type = covariance_type
+        self.covariance_type_ = covariance_type_
 
-        # Gibbs mode (n_components=None): tied_* covariance is rejected
-        # immediately -- a shared covariance couples every component's
+        # Gibbs mode (n_components=None): tied_* and the 8 new GPCM
+        # covariance types are rejected immediately -- a shared/
+        # cross-component-coupled covariance couples every component's
         # residuals together, so Neal's Algorithm 3 (fully-collapsed Gibbs)
         # does not factor per component. See
         # docs/superpowers/specs/2026-07-28-dpgmm-design.md.
-        if n_components is None and covariance_type in ("tied_full", "tied_diag", "tied_spherical"):
+        if n_components is None and (
+            covariance_type in ("tied_full", "tied_diag", "tied_spherical")
+            or covariance_type_ in _NEW_GPCM_CODES
+        ):
             raise NotImplementedError(
                 f"Gibbs sampling does not support covariance_type={covariance_type!r}. "
                 "A shared/tied covariance couples every component's residuals together, so "
@@ -401,6 +475,12 @@ class GaussianMixture(nn.Module):
         self.tol = tol
         self.reg_covar = reg_covar
         self.n_init = n_init
+        if gpcm_tol <= 0:
+            raise ValueError(f"Invalid gpcm_tol: {gpcm_tol} (must be > 0).")
+        if gpcm_max_iter <= 0:
+            raise ValueError(f"Invalid gpcm_max_iter: {gpcm_max_iter} (must be > 0).")
+        self.gpcm_tol = gpcm_tol
+        self.gpcm_max_iter = gpcm_max_iter
 
         # ===================================================================
         # 4. Store initialization parameters
@@ -568,6 +648,14 @@ class GaussianMixture(nn.Module):
             self.weight_concentration_prior = None
             self.use_weight_prior = False
         else:
+            if covariance_type_ in _NEW_GPCM_CODES and (
+                mean_prior is not None or covariance_prior is not None
+            ):
+                raise NotImplementedError(
+                    f"MAP estimation is not implemented for GPCM model {covariance_type_}; "
+                    "use 'full', 'diag', 'spherical', or one of the 'tied_*' types for MAP/NIW "
+                    "fitting."
+                )
             self._init_priors(
                 weight_concentration_prior,
                 mean_prior,
@@ -597,6 +685,10 @@ class GaussianMixture(nn.Module):
         self.n_empty_components_ = 0
         self._online_running_stats_ = None
         self._online_step_count_ = 0
+        self.volume_ = None
+        self.shape_ = None
+        self.orientation_ = None
+        self._gpcm_state_ = None
 
     @staticmethod
     def suggest_priors(X: torch.Tensor, n_components: int, covariance_type: str = "full", random_state: int = None):
@@ -873,6 +965,11 @@ class GaussianMixture(nn.Module):
             return (self.n_features,)
         elif self.covariance_type == 'tied_spherical':
             return ()  # Single scalar for entire dataset
+        elif self.covariance_type_ in _NEW_GPCM_CODES:
+            # Always stored assembled as full (K, d, d) matrices, regardless
+            # of whether the code is axis-aligned -- see
+            # docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md.
+            return (self.n_components, self.n_features, self.n_features)
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
@@ -1057,6 +1154,20 @@ class GaussianMixture(nn.Module):
                         f"init_covariances tensor must be of shape {expected_shape} or a scalar "
                         f"for 'spherical' covariance type. Got {init_cov.shape}."
                     )
+            elif self.covariance_type_ in _NEW_GPCM_CODES:
+                # Same broadcasting convention as 'full': a single
+                # (n_features, n_features) matrix broadcasts to all
+                # components.
+                if init_cov.shape == (self.n_features, self.n_features):
+                    init_cov = init_cov.unsqueeze(0).expand(
+                        self.n_components, self.n_features, self.n_features
+                    ).clone()
+                elif init_cov.shape != expected_shape:
+                    raise ValueError(
+                        f"init_covariances tensor must be of shape {expected_shape} or "
+                        f"({self.n_features}, {self.n_features}) for "
+                        f"'{self.covariance_type_}' covariance type. Got {init_cov.shape}."
+                    )
             else:
                 # For tied types, no broadcasting needed
                 if init_cov.shape != expected_shape:
@@ -1064,13 +1175,64 @@ class GaussianMixture(nn.Module):
                         f"init_covariances tensor must be of shape {expected_shape} for "
                         f"'{self.covariance_type}' covariance type. Got {init_cov.shape}."
                     )
-            
+
             self.covariances_ = init_cov.to(device=self.device, dtype=self.dtype)
         elif isinstance(self.init_covariances, str):
             # Use initialization method from GMMInitializer
             init_method = self.init_covariances.lower()
 
-            if init_method == 'eye':
+            if self.covariance_type_ in _NEW_GPCM_CODES:
+                # 'eye'/'random' don't need a GPCM projection (there's
+                # nothing fit yet to project) -- just build plain full
+                # matrices directly, same as the 'full' type; volume_/
+                # shape_/orientation_ populate from the first real M-step.
+                # 'empirical'/'global' do need the projection (the plan's
+                # own instruction): compute per-component scatter from a
+                # hard nearest-mean assignment ('empirical') or from the
+                # whole dataset around its own mean ('global'), then one
+                # mstep_gpcm call.
+                if init_method == 'eye':
+                    self.covariances_ = GMMInitializer.init_covariances_eye(
+                        self.n_components, self.n_features,
+                        'full', self.reg_covar, self.device, dtype=self.dtype
+                    )
+                elif init_method == 'random':
+                    self.covariances_ = GMMInitializer.init_covariances_random(
+                        self.n_components, self.n_features,
+                        'full', self.reg_covar, self.device, dtype=self.dtype
+                    )
+                elif init_method == 'global':
+                    if X is None:
+                        warnings.warn(
+                            "Global covariance initialization requires data. "
+                            "Falling back to identity initialization.",
+                            UserWarning
+                        )
+                        self.covariances_ = GMMInitializer.init_covariances_eye(
+                            self.n_components, self.n_features,
+                            'full', self.reg_covar, self.device, dtype=self.dtype
+                        )
+                    else:
+                        self.covariances_ = self._init_covariances_gpcm_global(X.to(self.device))
+                elif init_method == 'empirical':
+                    if X is None:
+                        warnings.warn(
+                            "Empirical covariance initialization requires data. "
+                            "Falling back to identity initialization.",
+                            UserWarning
+                        )
+                        self.covariances_ = GMMInitializer.init_covariances_eye(
+                            self.n_components, self.n_features,
+                            'full', self.reg_covar, self.device, dtype=self.dtype
+                        )
+                    else:
+                        self.covariances_ = self._init_covariances_gpcm_empirical(X.to(self.means_.device))
+                else:
+                    raise ValueError(
+                        f"Unsupported init_covariances method: '{init_method}'. "
+                        f"Supported methods: 'eye', 'random', 'global', 'empirical'."
+                    )
+            elif init_method == 'eye':
                 self.covariances_ = GMMInitializer.init_covariances_eye(
                     self.n_components, self.n_features,
                     self.covariance_type, self.reg_covar, self.device, dtype=self.dtype
@@ -1132,11 +1294,71 @@ class GaussianMixture(nn.Module):
         # Store the initial covariances for later access
         self.initial_covariances_ = self.covariances_.clone().detach()
 
+        # A fresh allocation starts a fresh GPCM warm-start state (stale
+        # state from a previous fit() call would warm-start the iterative
+        # codes' inner loop from an unrelated decomposition).
+        self._gpcm_state_ = None
+
         # Mark that we've allocated
         self.fitted_ = False
         self.converged_ = False
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
+
+    def _init_covariances_gpcm_empirical(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        `init_covariances='empirical'` for the 8 new GPCM codes: assign
+        each point to its nearest current mean (hard, k-means-style),
+        build the per-component scatter from that assignment, and project
+        it onto the requested GPCM parameterization with one `mstep_gpcm`
+        call -- the plan's own instruction (projecting the *constrained*
+        MLE of that starting point, not the raw unconstrained empirical
+        covariance, which wouldn't satisfy the code's constraints).
+        """
+        distances = torch.cdist(X, self.means_)
+        labels = torch.argmin(distances, dim=1)
+        nk = torch.zeros(self.n_components, dtype=self.dtype, device=self.device)
+        W = torch.zeros(self.n_components, self.n_features, self.n_features, dtype=self.dtype, device=self.device)
+        for k in range(self.n_components):
+            mask = labels == k
+            count = int(mask.sum().item())
+            if count > 0:
+                diff = X[mask] - self.means_[k]
+                W[k] = diff.t() @ diff
+                nk[k] = count
+            else:
+                W[k] = torch.eye(self.n_features, dtype=self.dtype, device=self.device)
+                nk[k] = 1.0
+
+        result = mstep_gpcm(
+            self.covariance_type_, W, nk, self.n_features,
+            reg_covar=self.reg_covar, gpcm_tol=self.gpcm_tol, gpcm_max_iter=self.gpcm_max_iter,
+        )
+        self.volume_, self.shape_, self.orientation_ = result.volume, result.shape, result.orientation
+        self._gpcm_state_ = result
+        return result.cov_full
+
+    def _init_covariances_gpcm_global(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        `init_covariances='global'` for the 8 new GPCM codes: the whole
+        dataset's own scatter (around its overall mean, not per-component),
+        projected onto the requested GPCM parameterization once, then
+        broadcast to every component as a starting point.
+        """
+        overall_mean = X.mean(dim=0)
+        diff = X - overall_mean
+        W_global = diff.t() @ diff
+        n = X.shape[0]
+        nk = torch.full((self.n_components,), float(n), dtype=self.dtype, device=self.device)
+        W = W_global.unsqueeze(0).expand(self.n_components, self.n_features, self.n_features).clone()
+
+        result = mstep_gpcm(
+            self.covariance_type_, W, nk, self.n_features,
+            reg_covar=self.reg_covar, gpcm_tol=self.gpcm_tol, gpcm_max_iter=self.gpcm_max_iter,
+        )
+        self.volume_, self.shape_, self.orientation_ = result.volume, result.shape, result.orientation
+        self._gpcm_state_ = result
+        return result.cov_full
 
 
     def fit(
@@ -2186,6 +2408,10 @@ class GaussianMixture(nn.Module):
             log_prob = self._estimate_log_gaussian_tied_diag(X)
         elif self.covariance_type == 'tied_spherical':
             log_prob = self._estimate_log_gaussian_tied_spherical(X)
+        elif self.covariance_type_ in _NEW_GPCM_CODES:
+            # Always stored assembled as full (K, d, d) matrices -- see
+            # docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md.
+            log_prob = self._estimate_log_gaussian_full(X)
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
@@ -2545,7 +2771,12 @@ class GaussianMixture(nn.Module):
         SufficientStats
         """
         n_samples, n_features = X.shape
-        base_type = self.covariance_type.replace('tied_', '', 1)
+        # GPCM covariance types (Phase 3) always store/need a full (K, d, d)
+        # second moment, regardless of whether the parameterization itself
+        # is axis-aligned -- see
+        # docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md.
+        base_type = 'full' if self.covariance_type_ in _NEW_GPCM_CODES \
+            else self.covariance_type.replace('tied_', '', 1)
 
         if batch_size is None or batch_size >= n_samples:
             nk = resp.sum(dim=0)
@@ -2695,7 +2926,11 @@ class GaussianMixture(nn.Module):
                 self.means_ = ybar
 
             # Update covariances
-            if self.use_covariance_prior:
+            if self.covariance_type_ in _NEW_GPCM_CODES:
+                # GPCM covariance types have no MAP path (validated at
+                # __init__; use_covariance_prior is guaranteed False here).
+                self._update_covariances_gpcm(stats, nk)
+            elif self.use_covariance_prior:
                 # MAP update with Wishart/Inverse-Wishart prior
                 self._update_covariances_map(stats, nk, ybar)
             else:
@@ -3007,6 +3242,30 @@ class GaussianMixture(nn.Module):
         self.covariances_ = (
             self.covariance_prior + sum_diff + prior_term_total + self.reg_covar
         ) / (nu_n * self.n_features)
+
+    # ===================================================================
+    # GPCM (Celeux & Govaert 1995) Covariance Updates -- the 8 new types
+    # ===================================================================
+    def _update_covariances_gpcm(self, stats: SufficientStats, nk: torch.Tensor):
+        r"""
+        M-step for the 8 new GPCM covariance types, via
+        `tgmm.covariance.gpcm.mstep_gpcm`. `stats.s2` is already `W_k =
+        sum_i r_ik (x_i - ybar_k)(x_i - ybar_k)^T` (Phase 0's convention
+        for `full`-shaped second moments), exactly `mstep_gpcm`'s `W`
+        argument -- no further computation from `X` needed. Warm-starts
+        the 5 iterative codes from `self._gpcm_state_` (the previous
+        M-step's result; `None` on the first M-step of a run).
+        """
+        result = mstep_gpcm(
+            self.covariance_type_, stats.s2, nk, self.n_features,
+            state=self._gpcm_state_, reg_covar=self.reg_covar,
+            gpcm_tol=self.gpcm_tol, gpcm_max_iter=self.gpcm_max_iter,
+        )
+        self.covariances_ = result.cov_full
+        self.volume_ = result.volume
+        self.shape_ = result.shape
+        self.orientation_ = result.orientation
+        self._gpcm_state_ = result
 
     # ===================================================================
     # MLE (Maximum Likelihood Estimation) Covariance Updates
@@ -3742,6 +4001,18 @@ class GaussianMixture(nn.Module):
             cov_params = n_features
         elif self.covariance_type == 'tied_spherical':
             cov_params = 1
+        elif self.covariance_type_ in _NEW_GPCM_CODES:
+            K, d = n_components, n_features
+            cov_params = {
+                'VEI': d + K - 1,
+                'EVI': 1 + K * (d - 1),
+                'VEE': K - 1 + d * (d + 1) / 2.0,
+                'EVE': 1 + K * (d - 1) + d * (d - 1) / 2.0,
+                'EEV': d + K * d * (d - 1) / 2.0,
+                'VVE': K * d + d * (d - 1) / 2.0,
+                'VEV': K + d - 1 + K * d * (d - 1) / 2.0,
+                'EVV': 1 + K * (d - 1) + K * d * (d - 1) / 2.0,
+            }[self.covariance_type_]
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
@@ -4493,6 +4764,9 @@ class GaussianMixture(nn.Module):
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
+            'volume_': self.volume_,
+            'shape_': self.shape_,
+            'orientation_': self.orientation_,
             
             # ===============================================================
             # Initial parameters (for reproducibility)
@@ -4507,8 +4781,11 @@ class GaussianMixture(nn.Module):
             'n_components': self.n_components,
             'n_features': self.n_features,
             'covariance_type': self.covariance_type,
+            'covariance_type_': self.covariance_type_,
             'tol': self.tol,
             'reg_covar': self.reg_covar,
+            'gpcm_tol': self.gpcm_tol,
+            'gpcm_max_iter': self.gpcm_max_iter,
             'max_iter': self.max_iter,
             'init_means': self.init_means,
             'init_weights': self.init_weights,
@@ -4615,6 +4892,8 @@ class GaussianMixture(nn.Module):
             covariance_type=state_dict['covariance_type'],
             tol=state_dict['tol'],
             reg_covar=state_dict['reg_covar'],
+            gpcm_tol=state_dict.get('gpcm_tol', 1e-6),
+            gpcm_max_iter=state_dict.get('gpcm_max_iter', 20),
             max_iter=state_dict['max_iter'],
             init_means=state_dict['init_means'],
             init_weights=state_dict['init_weights'],
@@ -4657,6 +4936,9 @@ class GaussianMixture(nn.Module):
         model.weights_ = state_dict['weights_']
         model.means_ = state_dict['means_']
         model.covariances_ = state_dict['covariances_']
+        model.volume_ = state_dict.get('volume_')
+        model.shape_ = state_dict.get('shape_')
+        model.orientation_ = state_dict.get('orientation_')
         model.dtype = model.means_.dtype
         model.initial_weights_ = state_dict['initial_weights_']
         model.initial_means_ = state_dict['initial_means_']
@@ -4705,6 +4987,9 @@ class GaussianMixture(nn.Module):
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
+            'volume_': self.volume_,
+            'shape_': self.shape_,
+            'orientation_': self.orientation_,
             
             # ===============================================================
             # Initial parameters
@@ -4719,8 +5004,11 @@ class GaussianMixture(nn.Module):
             'n_components': self.n_components,
             'n_features': self.n_features,
             'covariance_type': self.covariance_type,
+            'covariance_type_': self.covariance_type_,
             'tol': self.tol,
             'reg_covar': self.reg_covar,
+            'gpcm_tol': self.gpcm_tol,
+            'gpcm_max_iter': self.gpcm_max_iter,
             'max_iter': self.max_iter,
             'init_means': self.init_means,
             'init_weights': self.init_weights,
@@ -4819,8 +5107,13 @@ class GaussianMixture(nn.Module):
         self.n_components = state_dict['n_components']
         self.n_features = state_dict['n_features']
         self.covariance_type = state_dict['covariance_type']
+        self.covariance_type_ = state_dict.get(
+            'covariance_type_', _resolve_covariance_type(state_dict['covariance_type'])[1]
+        )
         self.tol = state_dict['tol']
         self.reg_covar = state_dict['reg_covar']
+        self.gpcm_tol = state_dict.get('gpcm_tol', 1e-6)
+        self.gpcm_max_iter = state_dict.get('gpcm_max_iter', 20)
         self.max_iter = state_dict['max_iter']
         self.init_means = state_dict['init_means']
         self.init_weights = state_dict['init_weights']
@@ -4852,6 +5145,10 @@ class GaussianMixture(nn.Module):
         self.weights_ = state_dict['weights_']
         self.means_ = state_dict['means_']
         self.covariances_ = state_dict['covariances_']
+        self.volume_ = state_dict.get('volume_')
+        self.shape_ = state_dict.get('shape_')
+        self.orientation_ = state_dict.get('orientation_')
+        self._gpcm_state_ = None  # not persisted; re-derived from scratch on the next M-step if continued
         self.dtype = self.means_.dtype
         self.initial_weights_ = state_dict['initial_weights_']
         self.initial_means_ = state_dict['initial_means_']
