@@ -139,6 +139,7 @@ nav:
       - Gaussian Mixture Model: user-guide/gaussian-mixture.md
       - GPCM Covariance Models: user-guide/gpcm-covariance-models.md
       - Other Mixture Families: user-guide/other-mixture-families.md
+      - Semi-Supervised and Positive-Unlabeled Fitting: user-guide/semi-supervised-pu.md
       - GMM Initializer: user-guide/gmm-initializer.md
       - Clustering Metrics: user-guide/clustering-metrics.md
       - Plotting & Visualization: user-guide/plotting.md
@@ -160,12 +161,14 @@ nav:
       - 14. Stochastic EM, Annealing & SAEM: notebooks/14_stochastic_em.ipynb
       - 15. GPCM Covariance Models: notebooks/15_gpcm_models.ipynb
       - 16. Student-t and von Mises-Fisher Mixtures: notebooks/16_student_t_and_vmf.ipynb
+      - 17. Semi-Supervised and Positive-Unlabeled Fitting: notebooks/17_semi_supervised_pu.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - GPCM Covariance: api/covariance-gpcm.md
       - tgmm.BaseMixture: api/base-mixture.md
       - tgmm.StudentTMixture: api/student-t-mixture.md
       - tgmm.VonMisesFisherMixture: api/vmf-mixture.md
+      - tgmm.PositiveUnlabeledMixture: api/positive-unlabeled-mixture.md
       - tgmm.GMMInitializer: api/gmm-initializer.md
       - tgmm.ClusteringMetrics: api/clustering-metrics.md
       - tgmm.plotting: api/plotting.md

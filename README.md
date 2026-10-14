@@ -140,6 +140,20 @@ Flexible plotting utilities in `tgmm.plotting`:
 
 See the [Other Mixture Families](https://adriansousapoza.github.io/tgmm/user-guide/other-mixture-families/) guide.
 
+### 6. Semi-Supervised and Positive-Unlabeled Fitting
+
+Every mixture family supports `fit(X, labels=...)` with `-1` for unknown rows -- fully labeled
+runs a single closed-form fit (optionally with `components_per_class` for a multi-component
+class); any `-1` present runs semi-supervised EM (`unlabeled_weight`, `label_confidence`).
+`predict_class(X)` returns class labels, as opposed to `predict(X)`'s raw component indices.
+
+`PositiveUnlabeledMixture` wraps this for positive-unlabeled (PU) learning (Elkan & Noto,
+2008): a labeled positive subset, everything else unlabeled. Estimates the class prior and a
+per-row positive probability under the SCAR assumption, for `family in ('gaussian',
+'student_t', 'vmf')`, with `anchor in ('fixed', 'prior', 'free')` controlling identifiability.
+
+See the [Semi-Supervised and Positive-Unlabeled Fitting](https://adriansousapoza.github.io/tgmm/user-guide/semi-supervised-pu/) guide.
+
 ## Citation
 
 TBA

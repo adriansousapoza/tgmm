@@ -3,7 +3,55 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] -- v0.4.0 in progress
+## [0.4.0] -- 2026-10-14
+
+### Added (Phase 5: semi-supervised and positive-unlabeled fitting)
+
+- `fit(X, labels=...)` is generalized from `GaussianMixture`-only into
+  `BaseMixture`, so `StudentTMixture` and `VonMisesFisherMixture` get it
+  too. With every row labeled (no `-1`), behavior is unchanged from
+  before for the default `components_per_class=1`; `-1` for an unknown
+  label now triggers **semi-supervised EM** instead of requiring every
+  row to be labeled.
+- `components_per_class` (`int` or `dict`, default `1`): a class can own
+  more than one component (MclustDA-style), e.g.
+  `components_per_class={0: 2, 1: 1}` for a bimodal class 0. Not
+  supported together with a tied covariance type
+  (`tied_full`/`tied_diag`/`tied_spherical`) when any block is `> 1`.
+- `unlabeled_weight` (default `1.0`) and `label_confidence` (default
+  `1.0`): control how strongly unlabeled rows and (possibly noisy)
+  labeled rows, respectively, influence a semi-supervised fit.
+  `unlabeled_weight=0` recovers a fit using only the labeled rows.
+- `predict_class(X)`: class labels (via `classes_`), as opposed to
+  `predict(X)`'s raw component indices.
+- Semi-supervised fitting (partial labels) supports `algorithm` `'em'`/
+  `'cem'` only in this release; `'sem'`/`'saem'`/online EM
+  (`step_size` set) raise `NotImplementedError`.
+- **Behavior note**: `classes_`/`class_of_component_` are now always
+  present and `None` when not applicable, rather than sometimes absent
+  (`hasattr(model, 'classes_')` used to be the way to check; now check
+  `model.classes_ is None`). This also makes them available on
+  `StudentTMixture`/`VonMisesFisherMixture`, which never had a supervised
+  fit at all before this release.
+- `tgmm.PositiveUnlabeledMixture` (`tgmm/semi_supervised.py`): positive-
+  unlabeled (PU) learning (Elkan & Noto, 2008) under the SCAR assumption.
+  Models `pi * f_P(x) + (1-pi) * f_N(x)` for `family in ('gaussian',
+  'student_t', 'vmf')`, with `anchor` controlling how tightly the positive
+  block stays tied to the labeled positives for identifiability:
+  `'fixed'` (freeze it after an initial labeled-only fit), `'prior'`
+  (default; NIW-blend it toward that fit each M-step, Gaussian-only), or
+  `'free'` (no special treatment beyond initialization). Exposes
+  `class_prior_`, `predict_proba_positive(X)`, `predict_positive(X,
+  threshold=0.5)`, and transparently forwards any other attribute/method
+  to the underlying fitted mixture. `n_components_negative=None`
+  (unbounded Gibbs sampler for the negative block) is out of scope for
+  this release and raises `NotImplementedError`.
+- Fixed a real pre-existing bug: `StudentTMixture`/
+  `VonMisesFisherMixture`'s `_allocate_parameters` never reset
+  `converged_`/`fitted_`/`n_iter_`/`lower_bound_` between `n_init` runs,
+  so a converged run's bookkeeping could leak onto a later run that never
+  actually converged. `GaussianMixture`'s own `_allocate_parameters`
+  already did this reset; the other two families now match it.
 
 ### Added (Phase 4: `BaseMixture`, `StudentTMixture`, `VonMisesFisherMixture`)
 
