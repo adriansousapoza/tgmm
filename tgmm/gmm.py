@@ -8,6 +8,7 @@ import math
 from .gmm_init import GMMInitializer
 from .stats import SufficientStats
 from .covariance.gpcm import mstep_gpcm, GPCMResult
+from .mixtures.base import BaseMixture
 from scipy.stats import chi2
 
 
@@ -59,7 +60,7 @@ def _resolve_covariance_type(covariance_type: str):
 
 
 
-class GaussianMixture(nn.Module):
+class GaussianMixture(BaseMixture):
     r"""
     A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch.
 
@@ -1584,309 +1585,13 @@ class GaussianMixture(nn.Module):
             del self.classes_
 
         # ===============================================================
-        # 4. Run multiple initializations (if n_init > 1)
+        # 4-5. Run multiple initializations and keep the best: shared with
+        # every other mixture family, see BaseMixture.fit. X/max_iter/tol/
+        # random_state/warm_start are already fully resolved above, so
+        # this re-does X/parameter validation idempotently and nothing
+        # about the result changes.
         # ===============================================================
-        best_lower_bound = -float("inf")
-        best_params = None
-        best_random_state = None
-
-        # Warn about random state usage with multiple initializations
-        if self.random_state is not None and self.n_init > 1:
-            warnings.warn(
-                f"With n_init={self.n_init} and random_state={self.random_state}, "
-                f"initializations will use random states [{self.random_state}, "
-                f"{self.random_state + 1}, ..., {self.random_state + self.n_init - 1}]. "
-                f"The best initialization's random state will be stored in best_random_state_.",
-                UserWarning
-            )
-        
-        for init_idx in range(self.n_init):
-            # Validate warm_start usage
-            if warm_start and self.n_init > 1:
-                warnings.warn(
-                    "warm_start=True with n_init > 1 will not re-initialize parameters "
-                    "for each run, which may lead to identical results.",
-                    UserWarning
-                )
-
-            # Set different random state for each initialization
-            # This ensures diversity while maintaining reproducibility
-            if self.random_state is not None:
-                current_random_state = self.random_state + init_idx
-                torch.manual_seed(current_random_state)
-                if torch.cuda.is_available():
-                    torch.cuda.manual_seed_all(current_random_state)
-
-            # Initialize parameters if needed
-            if not warm_start or not self.fitted_ or init_idx > 0:
-                self._allocate_parameters(X, set_random_state=False)
-
-            # Run single EM optimization
-            self._fit_single_run(X, max_iter, tol, run_idx=init_idx)
-
-            # Warn about degenerate clusters
-            if torch.any(self.weights_ < 1e-8):
-                warnings.warn(
-                    "Some cluster(s) have near-zero weight. This may indicate degenerate solutions.",
-                    UserWarning
-                )
-
-            # Track best solution
-            if self.lower_bound_ > best_lower_bound:
-                best_lower_bound = self.lower_bound_
-                best_random_state = (self.random_state + init_idx
-                                   if self.random_state is not None else None)
-                best_params = (
-                    self.weights_.clone(),
-                    self.means_.clone(),
-                    self.covariances_.clone(),
-                    self.converged_,
-                    self.n_iter_,
-                    self.lower_bound_,
-                    self.log_likelihood_history_,
-                    self.annealing_schedule_,
-                    self.n_empty_components_,
-                    self._online_running_stats_,
-                    self._online_step_count_,
-                )
-
-            self.fitted_ = True
-
-        # ===============================================================
-        # 5. Save best result
-        # ===============================================================
-        if best_params is not None:
-            (self.weights_, self.means_, self.covariances_,
-             self.converged_, self.n_iter_, self.lower_bound_,
-             self.log_likelihood_history_, self.annealing_schedule_,
-             self.n_empty_components_, self._online_running_stats_,
-             self._online_step_count_) = best_params
-            self.best_random_state_ = best_random_state
-
-        self.n_components_ = self.n_components
-        self.active_ = torch.ones(self.n_components, dtype=torch.bool, device=self.device)
-
-        # Report which random state produced the best result
-        if best_random_state is not None and self.n_init > 1:
-            warnings.warn(
-                f"Best result from random_state={best_random_state}. "
-                f"To reproduce this specific result: use random_state={best_random_state} with n_init=1.",
-                UserWarning
-            )
-        
-        # Warn if convergence failed
-        if not self.converged_:
-            warnings.warn(
-                "EM did not converge. Consider increasing max_iter or adjusting tol.",
-                UserWarning
-            )
-
-        return self
-
-    def _fit_single_run(
-        self,
-        X: torch.Tensor,
-        max_iter: int,
-        tol: float,
-        run_idx: int = 0
-    ):
-        r"""
-        Perform one complete EM or CEM optimization run.
-
-        Standard EM: E-step → M-step → repeat
-        CEM (Classification EM): E-step → C-step (hard assignment) → M-step → repeat
-
-        Parameters
-        ----------
-        X : torch.Tensor
-            Input data of shape (n_samples, n_features).
-        max_iter : int
-            Maximum number of iterations for this run.
-        tol : float
-            Convergence tolerance, interpreted per `self.convergence`
-            ('relative': relative improvement in mean log-likelihood;
-            'aitken': gap to the Aitken-extrapolated asymptotic value --
-            see `_check_convergence`).
-        run_idx : int, optional
-            Initialization index (for logging purposes). (default: 0)
-        """
-        # ===============================================================
-        # Prepare data
-        # ===============================================================
-        X = X.to(self.device)
-        if X.dim() == 1:
-            X = X.unsqueeze(1)
-        if X.shape[1] != self.n_features:
-            raise ValueError(f"X has {X.shape[1]} features, expected {self.n_features}.")
-
-        # ===============================================================
-        # Dispatch to the algorithm-specific loop. 'em'/'cem' share the
-        # loop below (with DAEM annealing wired in); 'sem', 'saem', and
-        # online EM (step_size set) each have different enough convergence
-        # semantics (no early stopping and post-burn-in iterate tracking
-        # for SEM; a running-statistics blend for SAEM/online EM) to need
-        # their own loop rather than more branches bolted onto this one.
-        # ===============================================================
-        if self.algorithm == 'sem':
-            self._fit_single_run_sem(X, max_iter, run_idx)
-            return
-        if self.algorithm == 'saem':
-            self._fit_single_run_saem(X, max_iter, tol, run_idx)
-            return
-        if self.step_size is not None:
-            self._fit_single_run_online(X, max_iter, run_idx)
-            return
-
-        # ===============================================================
-        # Initialize tracking variables
-        # ===============================================================
-        prev_lower_bound = -float("inf")
-        prev_prev_lower_bound = None
-
-        # Initial E-step to compute responsibilities
-        beta = self._beta_for_iteration(0)
-        betas_used = [beta]
-        resp, log_prob_norm = self._e_step(X, beta=beta)
-        self.lower_bound_ = log_prob_norm.mean().item()
-        ll_history = [self.lower_bound_]
-
-        # ===============================================================
-        # EM/CEM iteration loop
-        # ===============================================================
-        for n_iter in range(max_iter):
-            # Classification step (only for CEM)
-            if self.algorithm == 'cem':
-                resp = self._c_step(resp)
-
-            # Maximization step
-            self._m_step(X, resp)
-
-            # Check convergence (suspended while annealing, beta < 1.0)
-            if beta >= 1.0 and self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
-                self.converged_ = True
-                if self.verbose:
-                    print(f"[Run {run_idx+1}] Iteration {n_iter}: "
-                          f"log-likelihood={self.lower_bound_:.5f}, Converged!")
-                break
-
-            # Update for next iteration
-            prev_prev_lower_bound = prev_lower_bound
-            prev_lower_bound = self.lower_bound_
-            beta = self._beta_for_iteration(n_iter + 1)
-            betas_used.append(beta)
-            resp, log_prob_norm = self._e_step(X, beta=beta)
-            self.lower_bound_ = log_prob_norm.mean().item()
-            ll_history.append(self.lower_bound_)
-
-            # Verbose output
-            if self.verbose and (n_iter % self.verbose_interval == 0):
-                print(f"[Run {run_idx+1}] Iteration {n_iter}: "
-                      f"log-likelihood={self.lower_bound_:.5f}")
-
-        # ===============================================================
-        # Final E-step after convergence
-        # ===============================================================
-        if self.converged_:
-            resp, log_prob_norm = self._e_step(X, beta=beta)
-            if self.algorithm == 'cem':
-                resp = self._c_step(resp)
-            self.lower_bound_ = log_prob_norm.mean().item()
-        else:
-            warnings.warn(
-                f"Run {run_idx+1}: EM did not converge after {max_iter} iterations.",
-                UserWarning
-            )
-
-        self.n_iter_ = n_iter
-        self.log_likelihood_history_ = torch.tensor(ll_history)
-        if self.temperature is not None:
-            self.annealing_schedule_ = betas_used
-
-    def _beta_for_iteration(self, n_iter: int) -> float:
-        r"""
-        Deterministic-annealing temperature for E-step iteration `n_iter`
-        (Ueda & Nakano, 1998). `1.0` (no annealing) unless `self.temperature
-        = (beta_0, n_anneal)` is set, in which case it increases
-        geometrically from `beta_0` at `n_iter=0` to `1.0` at
-        `n_iter=n_anneal`, held at `1.0` after.
-        """
-        if self.temperature is None:
-            return 1.0
-        beta0, n_anneal = self.temperature
-        if n_iter >= n_anneal:
-            return 1.0
-        return beta0 ** (1.0 - n_iter / n_anneal)
-
-    def _s_step(self, resp: torch.Tensor) -> torch.Tensor:
-        r"""
-        S-step (Stochastic): sample one hard assignment per row from its
-        responsibility distribution, instead of `_c_step`'s `argmax`.
-
-        Used by `algorithm='sem'`/`'saem'`. Draws from the global
-        PyTorch RNG stream, which `fit()`'s n_init loop already seeds via
-        `torch.manual_seed(...)` before `_fit_single_run` runs -- so this
-        is reproducible per `random_state` without any extra generator
-        plumbing.
-
-        Parameters
-        ----------
-        resp : torch.Tensor
-            Responsibilities from the E-step, shape (n_samples, n_components).
-
-        Returns
-        -------
-        torch.Tensor
-            One-hot sampled assignments, same shape and dtype as `resp`.
-        """
-        z = torch.multinomial(resp, 1).squeeze(1)
-        return F.one_hot(z, resp.shape[1]).to(resp.dtype)
-
-    def _check_convergence(self, current: float, previous: float, previous2: Optional[float], tol: float) -> bool:
-        r"""
-        Whether the EM/CEM loop should stop, per `self.convergence`.
-
-        'relative' (default): ``abs(current - previous) / (abs(previous) +
-        1e-20) < tol`` -- identical to the only rule this method ever used
-        pre-Phase-0, so the default path is unchanged.
-
-        'aitken': Aitken-accelerated extrapolation of the asymptotic
-        log-likelihood,
-
-        .. math::
-            a^{(t)} = \frac{l^{(t)} - l^{(t-1)}}{l^{(t-1)} - l^{(t-2)}}, \qquad
-            l_\infty^{(t)} = l^{(t-1)} + \frac{l^{(t)} - l^{(t-1)}}{1 - a^{(t)}}
-
-        converging when :math:`l_\infty^{(t)} - l^{(t)} < \mathrm{tol}`.
-        Falls back to the relative rule for this iteration when
-        `previous2` isn't available yet, the denominator is ~0, or
-        `a >= 1` (all cases where the extrapolation is undefined or
-        diverges).
-
-        Parameters
-        ----------
-        current : float
-            :math:`l^{(t)}`, the lower bound just computed this iteration.
-        previous : float
-            :math:`l^{(t-1)}`.
-        previous2 : float or None
-            :math:`l^{(t-2)}`, or None if fewer than two prior values are
-            available yet.
-        tol : float
-
-        Returns
-        -------
-        bool
-        """
-        if self.convergence == 'aitken' and previous2 is not None and previous2 != -float('inf'):
-            denom = previous - previous2
-            if abs(denom) > 1e-300:
-                a = (current - previous) / denom
-                if a < 1.0:
-                    l_inf = previous + (current - previous) / (1.0 - a)
-                    return (l_inf - current) < tol
-            # denom ~ 0 or a >= 1: fall through to the relative rule below.
-
-        return abs(current - previous) / (abs(previous) + 1e-20) < tol
+        return super().fit(X, max_iter=max_iter, tol=tol, random_state=random_state, warm_start=warm_start)
 
     def _validate_labels(self, labels, X: torch.Tensor) -> torch.Tensor:
         r"""
@@ -1940,84 +1645,6 @@ class GaussianMixture(nn.Module):
     # ===================================================================
     # SEM (algorithm='sem')
     # ===================================================================
-    def _fit_single_run_sem(self, X: torch.Tensor, max_iter: int, run_idx: int = 0):
-        r"""
-        One Stochastic EM (Celeux & Diebolt, 1985) run: E-step -> S-step ->
-        M-step, for exactly `max_iter` sweeps. SEM does not converge
-        pointwise (the sampled hard assignment keeps the iterate moving
-        even near a mode), so there is no early stopping here -- same
-        documented convention as Gibbs mode, including `converged_` being
-        unconditionally `True` afterward.
-
-        The final `weights_`/`means_`/`covariances_` come from
-        `self.sem_estimate` applied to the sweeps at or after
-        `self.sem_burn_in` (resolved to `max_iter // 5` if `None`); both
-        `'best'` and `'mean'` restrict to that post-burn-in window (see
-        the class docstring's `sem_estimate` entry).
-        """
-        sem_burn_in = self.sem_burn_in if self.sem_burn_in is not None else max(1, max_iter // 5)
-
-        ll_history = []
-        betas_used = []
-        post_burn_in = []  # list of (weights_, means_, covariances_, ll)
-        n_empty_total = 0
-
-        beta = self._beta_for_iteration(0)
-        betas_used.append(beta)
-        resp, log_prob_norm = self._e_step(X, beta=beta)
-        ll = log_prob_norm.mean().item()
-        ll_history.append(ll)
-
-        for n_iter in range(max_iter):
-            z_onehot = self._s_step(resp)
-
-            nk = z_onehot.sum(dim=0)
-            empty_mask = nk < 1
-            if torch.any(empty_mask):
-                n_empty_this_sweep = self._reseed_empty_components(X, log_prob_norm, empty_mask)
-                n_empty_total += n_empty_this_sweep
-                warnings.warn(
-                    f"[Run {run_idx + 1}] Sweep {n_iter}: {n_empty_this_sweep} component(s) "
-                    "emptied during SEM and were re-seeded; n_components may be too large "
-                    "for this data.",
-                    UserWarning
-                )
-
-            self._m_step(X, z_onehot)
-
-            beta = self._beta_for_iteration(n_iter + 1)
-            betas_used.append(beta)
-            resp, log_prob_norm = self._e_step(X, beta=beta)
-            ll = log_prob_norm.mean().item()
-            ll_history.append(ll)
-
-            if n_iter >= sem_burn_in:
-                post_burn_in.append((self.weights_.clone(), self.means_.clone(), self.covariances_.clone(), ll))
-
-            if self.verbose and (n_iter % self.verbose_interval == 0):
-                print(f"[Run {run_idx + 1}] Sweep {n_iter}: log-likelihood={ll:.5f}")
-
-        if not post_burn_in:
-            # sem_burn_in >= max_iter: fall back to the single last iterate.
-            post_burn_in = [(self.weights_.clone(), self.means_.clone(), self.covariances_.clone(), ll)]
-
-        if self.sem_estimate == 'best':
-            best = max(post_burn_in, key=lambda p: p[3])
-            self.weights_, self.means_, self.covariances_ = best[0], best[1], best[2]
-        else:  # 'mean'
-            self.weights_ = torch.stack([p[0] for p in post_burn_in]).mean(dim=0)
-            self.means_ = torch.stack([p[1] for p in post_burn_in]).mean(dim=0)
-            self.covariances_ = torch.stack([p[2] for p in post_burn_in]).mean(dim=0)
-
-        _, log_prob_norm = self._e_step(X)
-        self.lower_bound_ = log_prob_norm.mean().item()
-        self.converged_ = True
-        self.n_iter_ = max_iter
-        self.log_likelihood_history_ = torch.tensor(ll_history)
-        self.n_empty_components_ = n_empty_total
-        if self.temperature is not None:
-            self.annealing_schedule_ = betas_used
-
     def _reseed_empty_components(
         self, X: torch.Tensor, log_prob_norm: torch.Tensor, empty_mask: torch.Tensor
     ) -> int:
@@ -2068,369 +1695,37 @@ class GaussianMixture(nn.Module):
             raise ValueError(f"_global_covariance is not defined for covariance_type={self.covariance_type!r}")
 
     # ===================================================================
-    # Mini-batch / online EM and SAEM (step_size, algorithm='saem')
+    # Component log-probability: BaseMixture._e_step_chunk's abstract hook
     # ===================================================================
-    @staticmethod
-    def _blend_stats(
-        running: SufficientStats, new: SufficientStats, gamma: float, n_samples: int,
-        new_scale: float = 1.0,
-    ) -> SufficientStats:
+    def _component_log_prob(self, X: torch.Tensor) -> torch.Tensor:
         r"""
-        Online-EM/SAEM running-statistics blend (Cappé & Moulines, 2009):
-        `(1 - gamma) * running + gamma * new_scale * new`, with `n_samples`
-        fixed at the given nominal size afterward -- `SufficientStats.__add__`
-        would otherwise sum `running`'s and `new`'s own `n_samples` fields,
-        growing without bound across repeated blend steps. See the Phase 2
-        design doc.
+        Per-component Gaussian log-density log p(x|z_k, theta_k), shape
+        (n_samples, n_components), dispatching on `self.covariance_type`.
+        GPCM covariance types new in Phase 3 always use the full-matrix
+        density, since they're stored assembled as full (K, d, d) matrices
+        -- see
+        docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md.
+
+        This is `BaseMixture._e_step_chunk`'s abstract hook: the mixing-
+        weight term and deterministic-annealing tempering are applied
+        uniformly there, not here. See `BaseMixture._e_step`/`_e_step_chunk`.
         """
-        blended = running.scale(1.0 - gamma) + new.scale(gamma * new_scale)
-        blended.n_samples = n_samples
-        return blended
-
-    def _resolve_step_size_fn(self) -> Callable[[int], float]:
-        r"""
-        `self.step_size` (a float, `'auto'`, a callable, or `None`) as a
-        callable `t -> gamma_t`. `None` resolves to `'auto'` -- the only
-        caller that reaches this with `step_size=None` is SAEM, whose
-        convergence depends on a decaying step size by construction (see
-        the class docstring's `step_size` entry).
-        """
-        step_size = self.step_size if self.step_size is not None else 'auto'
-        if callable(step_size):
-            return step_size
-        if step_size == 'auto':
-            return lambda t: (t + 2) ** -0.7
-        value = float(step_size)
-        return lambda t: value
-
-    def _fit_single_run_online(self, X: torch.Tensor, max_iter: int, run_idx: int = 0):
-        r"""
-        Mini-batch / online EM (Cappé & Moulines, 2009): `algorithm='em'`
-        with `step_size` set. `max_iter` counts epochs; each epoch shuffles
-        `X` (via the already-seeded global RNG, same mechanism as
-        `_s_step`) into `self.batch_size`-sized mini-batches, and each
-        mini-batch does one E-step, blends its sufficient statistics into
-        a running accumulator (`_blend_stats`, rescaled by `n / b` so the
-        accumulator stays at full-dataset scale), and one M-step on the
-        blended result.
-
-        No early stopping -- the plan specifies "epochs = max_iter" and
-        nothing else for this path; `converged_` is set unconditionally
-        `True`, the same "nothing to fail at" convention as Gibbs mode and
-        SEM. Each run starts a fresh running accumulator (not continued
-        from a previous `n_init` attempt); `partial_fit` is what continues
-        the accumulator this method leaves behind, after `fit()` as a
-        whole has picked its best run.
-        """
-        if self.batch_size is None:
-            raise ValueError(
-                "step_size requires batch_size to also be set -- there is no "
-                "mini-batch size to use for online EM otherwise."
-            )
-        n_samples = X.shape[0]
-        gamma_fn = self._resolve_step_size_fn()
-
-        running_stats = None
-        t = 0
-        ll_history = []
-
-        for epoch in range(max_iter):
-            perm = torch.randperm(n_samples, device=self.device)
-            for start in range(0, n_samples, self.batch_size):
-                batch_idx = perm[start:start + self.batch_size]
-                X_batch = X[batch_idx]
-                resp_batch, _ = self._e_step(X_batch)
-                batch_stats = self._compute_stats(X_batch, resp_batch)
-                gamma = gamma_fn(t)
-
-                if running_stats is None:
-                    running_stats = batch_stats.scale(n_samples / batch_stats.n_samples)
-                    running_stats.n_samples = n_samples
-                else:
-                    running_stats = self._blend_stats(
-                        running_stats, batch_stats, gamma, n_samples,
-                        new_scale=n_samples / batch_stats.n_samples,
-                    )
-
-                self._m_step_from_stats(running_stats)
-                t += 1
-
-            _, log_prob_norm = self._e_step(X)
-            ll = log_prob_norm.mean().item()
-            ll_history.append(ll)
-            self.lower_bound_ = ll
-
-            if self.verbose and (epoch % self.verbose_interval == 0):
-                print(f"[Run {run_idx + 1}] Epoch {epoch}: log-likelihood={ll:.5f}")
-
-        self.converged_ = True
-        self.n_iter_ = max_iter
-        self.log_likelihood_history_ = torch.tensor(ll_history)
-        self._online_running_stats_ = running_stats
-        self._online_step_count_ = t
-
-    def _fit_single_run_saem(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
-        r"""
-        SAEM (Delyon, Lavielle & Moulines, 1999): SEM's E-step/S-step on
-        the *whole* dataset every iteration (no mini-batching -- `self.batch_size`
-        here is purely Phase 0's memory-chunking optimization, orthogonal
-        to SAEM's own stochasticity), blended into a running accumulator
-        via `_blend_stats` with `new_scale=1.0` (the "batch" is the full
-        dataset, so `n / b = 1`), then one M-step on the blended result.
-        Because `gamma_t -> 0`, this converges pointwise and `tol` applies
-        exactly as in the EM/CEM loop.
-        """
-        n_samples = X.shape[0]
-        gamma_fn = self._resolve_step_size_fn()
-
-        prev_lower_bound = -float("inf")
-        prev_prev_lower_bound = None
-        running_stats = None
-
-        resp, log_prob_norm = self._e_step(X)
-        self.lower_bound_ = log_prob_norm.mean().item()
-        ll_history = [self.lower_bound_]
-
-        for n_iter in range(max_iter):
-            z_onehot = self._s_step(resp)
-            batch_stats = self._compute_stats(X, z_onehot, batch_size=self.batch_size)
-            gamma = gamma_fn(n_iter)
-
-            if running_stats is None:
-                running_stats = batch_stats
-            else:
-                running_stats = self._blend_stats(running_stats, batch_stats, gamma, n_samples, new_scale=1.0)
-
-            self._m_step_from_stats(running_stats)
-
-            if self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
-                self.converged_ = True
-                if self.verbose:
-                    print(f"[Run {run_idx + 1}] Iteration {n_iter}: "
-                          f"log-likelihood={self.lower_bound_:.5f}, Converged!")
-                break
-
-            prev_prev_lower_bound = prev_lower_bound
-            prev_lower_bound = self.lower_bound_
-            resp, log_prob_norm = self._e_step(X)
-            self.lower_bound_ = log_prob_norm.mean().item()
-            ll_history.append(self.lower_bound_)
-
-            if self.verbose and (n_iter % self.verbose_interval == 0):
-                print(f"[Run {run_idx + 1}] Iteration {n_iter}: log-likelihood={self.lower_bound_:.5f}")
-
-        self.log_likelihood_history_ = torch.tensor(ll_history)
-
-        if self.converged_:
-            resp, log_prob_norm = self._e_step(X)
-            self.lower_bound_ = log_prob_norm.mean().item()
-        else:
-            warnings.warn(
-                f"Run {run_idx + 1}: SAEM did not converge after {max_iter} iterations.",
-                UserWarning
-            )
-
-        self.n_iter_ = n_iter
-
-    def partial_fit(self, X_batch: torch.Tensor) -> "GaussianMixture":
-        r"""
-        One streaming online-EM update (Cappé & Moulines, 2009): one
-        E-step, sufficient-statistics blend, and M-step on `X_batch`,
-        continuing the running accumulator `fit()`'s online-EM path built
-        (or that a previous `partial_fit` call left behind).
-
-        Requires the model to already be initialized: call `fit()` on a
-        first batch (with `step_size` set, so it uses the online-EM path),
-        or set `weights_`/`means_`/`covariances_` explicitly, before the
-        first `partial_fit` call.
-
-        Unlike `fit()`'s own epoch loop, `partial_fit` does **not** rescale
-        each batch's statistics by `n / b` against a known total dataset
-        size -- there isn't one in a true streaming setting. Each call's
-        batch is blended as a complete update in its own right
-        (`new_scale=1.0`), which assumes a roughly constant batch size
-        across calls (varying it changes the effective weight each call
-        carries in the running average). This is a deliberate difference
-        from `fit()`'s behaviour, not a bug -- the two calling patterns
-        answer different questions (fit a fixed, known-size dataset with
-        mini-batches, vs. update indefinitely as data arrives).
-
-        Parameters
-        ----------
-        X_batch : torch.Tensor
-            A batch of new data, shape (batch_size, n_features).
-
-        Returns
-        -------
-        self
-        """
-        if not self.fitted_ or self.weights_ is None:
-            raise RuntimeError(
-                "partial_fit requires the model to already be initialized -- call "
-                "fit() on a first batch, or set weights_/means_/covariances_ "
-                "explicitly, before the first partial_fit call."
-            )
-        X_batch = X_batch.to(self.device)
-        if X_batch.dim() == 1:
-            X_batch = X_batch.unsqueeze(1)
-
-        gamma_fn = self._resolve_step_size_fn()
-        resp, _ = self._e_step(X_batch)
-        batch_stats = self._compute_stats(X_batch, resp)
-        gamma = gamma_fn(self._online_step_count_)
-
-        if self._online_running_stats_ is None:
-            self._online_running_stats_ = batch_stats
-        else:
-            self._online_running_stats_ = self._blend_stats(
-                self._online_running_stats_, batch_stats, gamma,
-                batch_stats.n_samples, new_scale=1.0,
-            )
-
-        self._m_step_from_stats(self._online_running_stats_)
-        self._online_step_count_ += 1
-
-        _, log_prob_norm = self._e_step(X_batch)
-        self.lower_bound_ = log_prob_norm.mean().item()
-        return self
-
-    def _c_step(self, resp: torch.Tensor) -> torch.Tensor:
-        r"""
-        C-step (Classification): Convert soft responsibilities to hard assignments.
-        
-        Used in CEM (Classification EM) algorithm to assign each sample to exactly
-        one component (the one with highest responsibility).
-        
-        Parameters
-        ----------
-        resp : torch.Tensor
-            Soft responsibilities from E-step, shape (n_samples, n_components).
-            Each row sums to 1.0 and represents posterior probabilities.
-            
-        Returns
-        -------
-        hard_resp : torch.Tensor
-            Hard assignments (one-hot encoding), shape (n_samples, n_components).
-            Each row has exactly one 1.0 and rest 0.0.
-            
-        Notes
-        -----
-        This converts the probabilistic assignments from E-step into deterministic
-        assignments, making CEM a "hard" version of EM that can converge faster
-        but may get stuck in local optima more easily.
-        """
-        # ===============================================================
-        # Find best component for each sample
-        # ===============================================================
-        max_resp_indices = torch.argmax(resp, dim=1)  # (n_samples,)
-        
-        # ===============================================================
-        # Create one-hot encoding for hard assignments
-        # ===============================================================
-        n_samples = resp.size(0)
-        hard_resp = torch.zeros_like(resp)
-        hard_resp[torch.arange(n_samples, device=resp.device), max_resp_indices] = 1.0
-        
-        return hard_resp
-
-    # ===================================================================
-    # E-step: Expectation
-    # ===================================================================
-    def _e_step(self, X: torch.Tensor, beta: float = 1.0) -> Tuple[torch.Tensor, torch.Tensor]:
-        r"""
-        E-step: compute responsibilities (posterior probabilities) for each
-        component, chunked over rows when `self.batch_size` is set.
-
-        Chunking is exact, not approximate: `_e_step_chunk`'s softmax
-        normalization is per-row, so splitting rows into chunks changes
-        nothing about any individual row's result -- it only bounds peak
-        memory to roughly `O(batch_size * n_components * n_features)`.
-
-        Parameters
-        ----------
-        X : torch.Tensor
-            Input data, shape (n_samples, n_features).
-        beta : float, optional
-            Deterministic-annealing temperature (Ueda & Nakano, 1998):
-            tempers the joint log-density `log(pi_k) + log N(x|mu_k,
-            Sigma_k)` by this exponent before normalizing, so `beta < 1`
-            flattens the responsibilities toward uniform and `beta = 1`
-            (default) recovers the ordinary E-step. See `self.temperature`
-            and `_beta_for_iteration`.
-
-        Returns
-        -------
-        resp : torch.Tensor
-            Responsibilities for each sample w.r.t. each component,
-            shape (n_samples, n_components). Each row sums to 1.0.
-        log_prob_norm : torch.Tensor
-            Log-likelihood for each sample (normalizing constant),
-            shape (n_samples,). These are log p(x_i) when `beta == 1.0`;
-            a tempered pseudo-likelihood otherwise (not meaningful for
-            convergence checks -- see `_beta_for_iteration`).
-        """
-        if self.batch_size is None or self.batch_size >= X.shape[0]:
-            return self._e_step_chunk(X, beta=beta)
-
-        resp_chunks = []
-        log_prob_norm_chunks = []
-        for start in range(0, X.shape[0], self.batch_size):
-            end = min(start + self.batch_size, X.shape[0])
-            resp_chunk, log_prob_norm_chunk = self._e_step_chunk(X[start:end], beta=beta)
-            resp_chunks.append(resp_chunk)
-            log_prob_norm_chunks.append(log_prob_norm_chunk)
-        return torch.cat(resp_chunks, dim=0), torch.cat(log_prob_norm_chunks, dim=0)
-
-    def _e_step_chunk(self, X: torch.Tensor, beta: float = 1.0) -> Tuple[torch.Tensor, torch.Tensor]:
-        r"""
-        The actual E-step computation for one chunk (or all) of `X`. See
-        `_e_step`'s docstring for the public, chunking-aware entry point
-        and for what `beta` does.
-
-        .. math::
-            γ(z_{ik}) \propto \left[π_k N(x_i | μ_k, Σ_k)\right]^\beta
-
-        Computation is done in log-space for numerical stability using the
-        log-sum-exp trick.
-        """
-        # ===============================================================
-        # 1. Compute log p(x|z) for each component
-        # ===============================================================
         if self.covariance_type == 'full':
-            log_prob = self._estimate_log_gaussian_full(X)
+            return self._estimate_log_gaussian_full(X)
         elif self.covariance_type == 'diag':
-            log_prob = self._estimate_log_gaussian_diag(X)
+            return self._estimate_log_gaussian_diag(X)
         elif self.covariance_type == 'spherical':
-            log_prob = self._estimate_log_gaussian_spherical(X)
+            return self._estimate_log_gaussian_spherical(X)
         elif self.covariance_type == 'tied_full':
-            log_prob = self._estimate_log_gaussian_tied_full(X)
+            return self._estimate_log_gaussian_tied_full(X)
         elif self.covariance_type == 'tied_diag':
-            log_prob = self._estimate_log_gaussian_tied_diag(X)
+            return self._estimate_log_gaussian_tied_diag(X)
         elif self.covariance_type == 'tied_spherical':
-            log_prob = self._estimate_log_gaussian_tied_spherical(X)
+            return self._estimate_log_gaussian_tied_spherical(X)
         elif self.covariance_type_ in _NEW_GPCM_CODES:
-            # Always stored assembled as full (K, d, d) matrices -- see
-            # docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md.
-            log_prob = self._estimate_log_gaussian_full(X)
+            return self._estimate_log_gaussian_full(X)
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
-
-        # ===============================================================
-        # 2. Add log π_k (log of mixing weights), then temper by beta
-        # ===============================================================
-        log_weights = torch.log(self.weights_ + 1e-20)
-        log_prob = log_prob + log_weights.unsqueeze(0)  # (n_samples, n_components)
-        if beta != 1.0:
-            log_prob = beta * log_prob
-
-        # ===============================================================
-        # 3. Normalize to get responsibilities (log-sum-exp trick)
-        # ===============================================================
-        log_prob_norm = torch.logsumexp(log_prob, dim=1)  # (n_samples,)
-        log_resp = log_prob - log_prob_norm.unsqueeze(1)
-        resp = torch.exp(log_resp)  # (n_samples, n_components)
-
-        return resp, log_prob_norm
 
     # ===================================================================
     # Log-Gaussian Probability Estimation
@@ -2840,25 +2135,6 @@ class GaussianMixture(nn.Module):
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
         return stats.s2 + mismatch
-
-    def _m_step(self, X: torch.Tensor, resp: torch.Tensor):
-        r"""
-        M-step: update model parameters given current responsibilities.
-
-        Thin wrapper over :meth:`_compute_stats` and
-        :meth:`_m_step_from_stats` -- kept as a single entry point because
-        the supervised-fit path in :meth:`fit` calls it directly with a
-        one-hot ``resp`` instead of going through the EM/CEM/SEM loop.
-
-        Parameters
-        ----------
-        X : torch.Tensor
-            Input data, shape (n_samples, n_features).
-        resp : torch.Tensor
-            Current responsibilities for each sample w.r.t. each component,
-            shape (n_samples, n_components). From E-step or C-step.
-        """
-        self._m_step_from_stats(self._compute_stats(X, resp, batch_size=self.batch_size))
 
     def _m_step_from_stats(self, stats: SufficientStats):
         r"""
@@ -3838,133 +3114,6 @@ class GaussianMixture(nn.Module):
         self._finalize_active_components(n_samples)
         self.n_components_history_ = k_history
 
-    # ===================================================================
-    # Prediction and Scoring Methods
-    # ===================================================================
-    
-    def predict(self, X: torch.Tensor) -> torch.Tensor:
-        r"""
-        Predict cluster labels for samples (hard assignment).
-
-        Assigns each sample to the component with maximum posterior probability.
-        
-        Parameters
-        ----------
-        X : torch.Tensor
-            Input data, shape (n_samples, n_features).
-
-        Returns
-        -------
-        labels : torch.Tensor
-            Cluster labels for each sample, shape (n_samples,).
-            Each label is an integer in [0, n_components-1].
-            
-        Warnings
-        --------
-        Issues warning if model hasn't been fitted or didn't converge.
-        
-        See Also
-        --------
-        predict_proba : Get soft assignments (posterior probabilities).
-        """
-        if not self.fitted_:
-            warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
-        elif not self.converged_:
-            warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
-            
-        resp, _ = self._e_step(X.to(self.device))
-        return torch.argmax(resp, dim=1)
-
-    def predict_proba(self, X: torch.Tensor) -> torch.Tensor:
-        r"""
-        Get posterior probabilities for each component (soft assignment).
-
-        Returns the responsibility of each component for each sample:
-        γ(z_{ik}) = p(z_k | x_i, θ)
-        
-        Parameters
-        ----------
-        X : torch.Tensor
-            Input data, shape (n_samples, n_features).
-
-        Returns
-        -------
-        resp : torch.Tensor
-            Posterior probabilities (responsibilities), shape (n_samples, n_components).
-            Each row sums to 1.0.
-            
-        Warnings
-        --------
-        Issues warning if model hasn't been fitted or didn't converge.
-        
-        See Also
-        --------
-        predict : Get hard assignments (argmax of probabilities).
-        """
-        if not self.fitted_:
-            warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
-        elif not self.converged_:
-            warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
-            
-        resp, _ = self._e_step(X.to(self.device))
-        return resp
-
-    def score_samples(self, X: torch.Tensor) -> torch.Tensor:
-        r"""
-        Compute log-likelihood for each sample.
-
-        Returns log p(x_i | θ) for each sample under the fitted GMM.
-        
-        Parameters
-        ----------
-        X : torch.Tensor
-            Input data, shape (n_samples, n_features).
-
-        Returns
-        -------
-        log_prob : torch.Tensor
-            Log-likelihood for each sample, shape (n_samples,).
-            Higher values indicate better fit to the model.
-            
-        Warnings
-        --------
-        Issues warning if model hasn't been fitted or didn't converge.
-        
-        See Also
-        --------
-        score : Get average log-likelihood across all samples.
-        """
-        if not self.fitted_:
-            warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
-        elif not self.converged_:
-            warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
-            
-        _, log_prob_norm = self._e_step(X.to(self.device))
-        return log_prob_norm
-
-    def score(self, X: torch.Tensor) -> float:
-        r"""
-        Compute average log-likelihood of data.
-
-        Useful for model selection and comparison.
-        
-        Parameters
-        ----------
-        X : torch.Tensor
-            Input data, shape (n_samples, n_features).
-
-        Returns
-        -------
-        score : float
-            Mean log-likelihood: (1/n) Σᵢ log p(xᵢ | θ).
-            Higher values indicate better fit.
-            
-        See Also
-        --------
-        score_samples : Get per-sample log-likelihoods.
-        """
-        return self.score_samples(X).mean().item()
-
     def _n_parameters(self) -> int:
         r"""
         Number of free parameters in the fitted model.
@@ -4126,137 +3275,6 @@ class GaussianMixture(nn.Module):
             return resp
         resp, _ = self._e_step(X.to(self.device))
         return resp
-
-    def bic(self, X: torch.Tensor) -> float:
-        r"""
-        Bayesian Information Criterion for this model on `X`.
-
-        $$ \text{BIC} = n_{\text{params}} \ln(n_{\text{samples}}) - 2 \times \text{log\_likelihood} $$
-
-        Lower is better. Matches `sklearn.mixture.GaussianMixture.bic` for
-        the covariance types shared with sklearn (`full`, `diag`,
-        `spherical`, and `tied_full` <-> sklearn's `tied`).
-
-        Gibbs-mode nuance: when components have been pruned
-        (`n_components_ < weights_.shape[0]`, e.g. after unbounded Gibbs
-        sampling leaves a small-but-nonzero-weight component below
-        `weight_threshold`), the log-likelihood term uses only the
-        *active* components (renormalized), not the full fitted mixture
-        `score(X)` would return -- otherwise this method would charge
-        `_n_parameters()` for a smaller component set than the
-        likelihood it's paired with actually reflects, silently
-        understating the complexity penalty. `score`/`score_samples`
-        are unaffected by this and continue to reflect the full fitted
-        mixture, which remains the right default for general-purpose
-        scoring. See `_active_score`.
-
-        Parameters
-        ----------
-        X : torch.Tensor
-            Data to score, shape (n_samples, n_features).
-
-        Returns
-        -------
-        float
-            The BIC score (lower is better).
-
-        See Also
-        --------
-        aic : Akaike Information Criterion (weaker complexity penalty).
-        """
-        n_samples = X.shape[0]
-        ll = self._score_for_information_criterion(X)
-        return -2.0 * ll * n_samples + self._n_parameters() * math.log(n_samples)
-
-    def aic(self, X: torch.Tensor) -> float:
-        r"""
-        Akaike Information Criterion for this model on `X`.
-
-        $$ \text{AIC} = 2 \times n_{\text{params}} - 2 \times \text{log\_likelihood} $$
-
-        Lower is better. Matches `sklearn.mixture.GaussianMixture.aic` for
-        the covariance types shared with sklearn (see `bic`).
-
-        Gibbs-mode nuance: see `bic` -- the same active-components-only
-        likelihood is used here when components have been pruned, for
-        the same reason (staying consistent with what `_n_parameters()`
-        charges for).
-
-        Parameters
-        ----------
-        X : torch.Tensor
-            Data to score, shape (n_samples, n_features).
-
-        Returns
-        -------
-        float
-            The AIC score (lower is better).
-
-        See Also
-        --------
-        bic : Bayesian Information Criterion (stronger complexity penalty).
-        """
-        ll = self._score_for_information_criterion(X)
-        return -2.0 * ll * X.shape[0] + 2.0 * self._n_parameters()
-
-    def icl(self, X: torch.Tensor, mode: str = 'hard') -> float:
-        r"""
-        Integrated Completed Likelihood (Biernacki, Celeux & Govaert, 2000)
-        for this model on `X`.
-
-        $$ \text{ICL}_{\text{hard}} = \text{BIC} - 2 \sum_{i=1}^{n} \log \hat\tau_{i,\hat z_i},
-           \qquad \hat z_i = \arg\max_k \hat\tau_{ik} $$
-
-        `mode='soft'` replaces the sum with the entropy form
-        $\sum_i \sum_k \hat\tau_{ik} \log \hat\tau_{ik}$ (same `-2`
-        prefactor). Both forms are identically `BIC` when every
-        responsibility is one-hot (hard: $\log 1 = 0$; soft: $1 \log 1 + 0
-        \log 0 = 0$ under the usual $x \log x \to 0$ convention), and
-        `ICL >= BIC` always, since both penalty terms are non-negative
-        (`log` of a probability in $(0, 1]$ is $\le 0$). Where BIC
-        penalises model complexity alone, ICL adds a penalty for
-        overlapping, ambiguous components -- it tends to prefer fewer,
-        better-separated clusters than BIC on the same data.
-
-        Lower is better, same convention as `bic`.
-
-        Gibbs-mode nuance: see `bic` -- the same active-only mixture is
-        used for both the BIC term and the responsibilities when
-        components have been pruned, for the same reason (staying
-        consistent with what `_n_parameters()` charges for).
-
-        Parameters
-        ----------
-        X : torch.Tensor
-            Data to score, shape (n_samples, n_features).
-        mode : str, optional
-            'hard' (default) or 'soft' -- which entropy penalty to use,
-            as above.
-
-        Returns
-        -------
-        float
-            The ICL score (lower is better).
-
-        See Also
-        --------
-        bic : Bayesian Information Criterion (ICL without the entropy penalty).
-        """
-        valid_modes = ('hard', 'soft')
-        if mode not in valid_modes:
-            raise ValueError(f"mode must be one of {valid_modes}, got {mode!r}")
-
-        bic_value = self.bic(X)
-        resp = self._resp_for_information_criterion(X)
-
-        if mode == 'hard':
-            z_hat = torch.argmax(resp, dim=1)
-            tau_hat = resp[torch.arange(resp.shape[0], device=resp.device), z_hat]
-            penalty = -2.0 * torch.log(tau_hat).sum().item()
-        else:
-            penalty = -2.0 * torch.special.xlogy(resp, resp).sum().item()
-
-        return bic_value + penalty
 
     # ===================================================================
     # Sampling Method
@@ -4635,6 +3653,36 @@ class GaussianMixture(nn.Module):
 
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
+
+    def _sample_component(self, k: int, n: int) -> torch.Tensor:
+        r"""
+        Draw `n` samples from component `k` alone -- the abstract-method
+        contract `BaseMixture.sample()` needs. `GaussianMixture.sample()`
+        does not call this (its own implementation is far richer --
+        confidence regions, rejection sampling, `std_range`, etc. -- see
+        `sample`'s own docstring); this exists only so the abstract
+        contract is satisfiable for a `GaussianMixture` instance used
+        generically.
+        """
+        mean = self.means_[k]
+        if self.covariance_type == 'full' or self.covariance_type_ in _NEW_GPCM_CODES:
+            cov = self.covariances_[k]
+        elif self.covariance_type == 'diag':
+            cov = torch.diag_embed(self.covariances_[k])
+        elif self.covariance_type == 'spherical':
+            cov = torch.eye(self.n_features, device=self.device, dtype=self.dtype) * self.covariances_[k]
+        elif self.covariance_type == 'tied_full':
+            cov = self.covariances_
+        elif self.covariance_type == 'tied_diag':
+            cov = torch.diag_embed(self.covariances_)
+        elif self.covariance_type == 'tied_spherical':
+            cov = torch.eye(self.n_features, device=self.device, dtype=self.dtype) * self.covariances_
+        else:
+            raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
+
+        L = torch.linalg.cholesky(cov)
+        z = torch.randn(n, self.n_features, device=self.device, dtype=self.dtype)
+        return mean.unsqueeze(0) + z @ L.T
 
     def _confidence_to_std_radius(self, confidence: float) -> float:
         r"""
