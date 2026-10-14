@@ -3247,6 +3247,32 @@ class GaussianMixture(nn.Module):
             Mean log-likelihood under the active-only, renormalized
             mixture.
         """
+        resp, log_prob_norm = self._active_e_step(X)
+        return log_prob_norm.mean().item()
+
+    def _active_e_step(self, X: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        r"""
+        `_e_step(X)` restricted to the active components (`self.active_`),
+        with their weights renormalized to sum to 1 over just that subset.
+        Shared by `_active_score` (needs only the log-likelihood) and
+        `icl` (also needs the responsibilities) so the active-components
+        swap-and-restore logic lives in exactly one place. See
+        `_active_score`'s docstring for why this restriction exists.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data to score, shape (n_samples, n_features).
+
+        Returns
+        -------
+        resp : torch.Tensor
+            Responsibilities under the active-only, renormalized mixture,
+            shape (n_samples, n_active_components).
+        log_prob_norm : torch.Tensor
+            Per-sample log-likelihood under that same mixture, shape
+            (n_samples,).
+        """
         active_weights = self.weights_[self.active_]
         active_weights = active_weights / active_weights.sum()
         orig_weights, orig_means, orig_covariances = self.weights_, self.means_, self.covariances_
@@ -3254,25 +3280,46 @@ class GaussianMixture(nn.Module):
             self.weights_ = active_weights
             self.means_ = self.means_[self.active_]
             self.covariances_ = self.covariances_[self.active_]
-            _, log_prob_norm = self._e_step(X.to(self.device))
+            return self._e_step(X.to(self.device))
         finally:
             self.weights_, self.means_, self.covariances_ = orig_weights, orig_means, orig_covariances
-        return log_prob_norm.mean().item()
+
+    def _is_pruned_gibbs_fit(self) -> bool:
+        r"""
+        Whether this is a Gibbs-mode fit with components pruned below
+        `self.weights_.shape[0]` -- the condition under which `bic`/`aic`/
+        `icl` must use the active-only mixture instead of the full fitted
+        one, to stay consistent with what `_n_parameters()` charges for.
+        """
+        return (self.n_components is None and self.active_ is not None
+                and self.n_components_ is not None
+                and self.n_components_ != self.weights_.shape[0])
 
     def _score_for_information_criterion(self, X: torch.Tensor) -> float:
         r"""
         The log-likelihood `bic`/`aic` should use: plain `score(X)` in
         every case except a Gibbs-mode fit where some components have
-        been pruned (`self.n_components_ != self.weights_.shape[0]`), in
-        which case `_active_score(X)` is used instead so the likelihood
-        term is charged against the same component set `_n_parameters()`
-        counts. See `_active_score` and `bic`'s docstring.
+        been pruned, in which case `_active_score(X)` is used instead so
+        the likelihood term is charged against the same component set
+        `_n_parameters()` counts. See `_active_score`, `_is_pruned_gibbs_fit`,
+        and `bic`'s docstring.
         """
-        if (self.n_components is None and self.active_ is not None
-                and self.n_components_ is not None
-                and self.n_components_ != self.weights_.shape[0]):
+        if self._is_pruned_gibbs_fit():
             return self._active_score(X)
         return self.score(X)
+
+    def _resp_for_information_criterion(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        The responsibilities `icl` should use: mirrors
+        `_score_for_information_criterion`, but returns `resp` instead of
+        the scalar log-likelihood, for the same active-components-only
+        reason in Gibbs mode.
+        """
+        if self._is_pruned_gibbs_fit():
+            resp, _ = self._active_e_step(X)
+            return resp
+        resp, _ = self._e_step(X.to(self.device))
+        return resp
 
     def bic(self, X: torch.Tensor) -> float:
         r"""
@@ -3345,6 +3392,65 @@ class GaussianMixture(nn.Module):
         """
         ll = self._score_for_information_criterion(X)
         return -2.0 * ll * X.shape[0] + 2.0 * self._n_parameters()
+
+    def icl(self, X: torch.Tensor, mode: str = 'hard') -> float:
+        r"""
+        Integrated Completed Likelihood (Biernacki, Celeux & Govaert, 2000)
+        for this model on `X`.
+
+        $$ \text{ICL}_{\text{hard}} = \text{BIC} - 2 \sum_{i=1}^{n} \log \hat\tau_{i,\hat z_i},
+           \qquad \hat z_i = \arg\max_k \hat\tau_{ik} $$
+
+        `mode='soft'` replaces the sum with the entropy form
+        $\sum_i \sum_k \hat\tau_{ik} \log \hat\tau_{ik}$ (same `-2`
+        prefactor). Both forms are identically `BIC` when every
+        responsibility is one-hot (hard: $\log 1 = 0$; soft: $1 \log 1 + 0
+        \log 0 = 0$ under the usual $x \log x \to 0$ convention), and
+        `ICL >= BIC` always, since both penalty terms are non-negative
+        (`log` of a probability in $(0, 1]$ is $\le 0$). Where BIC
+        penalises model complexity alone, ICL adds a penalty for
+        overlapping, ambiguous components -- it tends to prefer fewer,
+        better-separated clusters than BIC on the same data.
+
+        Lower is better, same convention as `bic`.
+
+        Gibbs-mode nuance: see `bic` -- the same active-only mixture is
+        used for both the BIC term and the responsibilities when
+        components have been pruned, for the same reason (staying
+        consistent with what `_n_parameters()` charges for).
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data to score, shape (n_samples, n_features).
+        mode : str, optional
+            'hard' (default) or 'soft' -- which entropy penalty to use,
+            as above.
+
+        Returns
+        -------
+        float
+            The ICL score (lower is better).
+
+        See Also
+        --------
+        bic : Bayesian Information Criterion (ICL without the entropy penalty).
+        """
+        valid_modes = ('hard', 'soft')
+        if mode not in valid_modes:
+            raise ValueError(f"mode must be one of {valid_modes}, got {mode!r}")
+
+        bic_value = self.bic(X)
+        resp = self._resp_for_information_criterion(X)
+
+        if mode == 'hard':
+            z_hat = torch.argmax(resp, dim=1)
+            tau_hat = resp[torch.arange(resp.shape[0], device=resp.device), z_hat]
+            penalty = -2.0 * torch.log(tau_hat).sum().item()
+        else:
+            penalty = -2.0 * torch.special.xlogy(resp, resp).sum().item()
+
+        return bic_value + penalty
 
     # ===================================================================
     # Sampling Method

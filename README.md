@@ -84,7 +84,8 @@ The core `GaussianMixture` class supports:
   accumulation over rows, bounding peak memory on large datasets; optional Aitken-accelerated
   stopping rule via `convergence='aitken'`
 - **Initialization**: Multiple strategies via `GMMInitializer`
-- **Model Selection**: `bic`/`aic` methods for comparing fits at different `n_components`
+- **Model Selection**: `bic`/`aic`/`icl` methods for comparing fits at different `n_components`,
+  or sweep a grid automatically with `select_model`
 
 ### 2. Bayesian Inference with Priors
 
@@ -99,12 +100,16 @@ Support for conjugate priors enables proper Bayesian inference:
 
 Comprehensive evaluation with `ClusteringMetrics`:
 
-**Unsupervised Metrics** (no ground truth needed):
+**Unsupervised Metrics** (no ground truth needed; `metric`, `noise_label`, and optional
+`n_components` shared across all of them):
 - Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index, Dunn Index
-  (BIC/AIC are `bic`/`aic` methods on `GaussianMixture` directly -- including `GaussianMixture(n_components=None, ...)` -- not `ClusteringMetrics`)
+- WB-Index, Wemmert-Gancarski Index, DBCV -- top performers in the Simpson, Campello &
+  Stojanovski (2025) clustering-validity benchmark
+  (BIC/AIC/ICL are `bic`/`aic`/`icl` methods on `GaussianMixture` directly -- including `GaussianMixture(n_components=None, ...)` -- not `ClusteringMetrics`)
 
 **Supervised Metrics** (with ground truth labels):
 - Adjusted Rand Index (ARI), Normalized/Adjusted Mutual Information, Purity
+- Homogeneity, Completeness, V-Measure (weighted via `beta`), Normalized Information Distance
 - Confusion Matrix and per-class Classification Report (precision, recall, F1, ROC-AUC)
 
 ### 4. Visualization Tools
