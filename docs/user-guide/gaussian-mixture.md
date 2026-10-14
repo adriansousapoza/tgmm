@@ -219,12 +219,19 @@ Standard EM uses soft assignments. CEM uses hard assignments:
 gmm = GaussianMixture(
     n_components=3,
     n_features=2,
-    cem=True  # Enable Classification EM
+    algorithm='cem'  # Enable Classification EM
 )
 gmm.fit(X)
 ```
 
 CEM tends to converge faster but may be more prone to local minima.
+
+!!! note "`cem=True` is deprecated"
+    The older `cem=True` keyword still works (it's treated as
+    `algorithm='cem'`), but emits a `DeprecationWarning` -- prefer
+    `algorithm='cem'` in new code. `algorithm` also accepts `'em'` (the
+    default); `'sem'` (Stochastic EM) is reserved for a future release and
+    raises `NotImplementedError` if used today.
 
 ## Supervised Fitting
 
@@ -338,6 +345,32 @@ print(f"Converged: {gmm.converged_}")
 print(f"Iterations: {gmm.n_iter_}")
 print(f"Final log-likelihood: {gmm.lower_bound_:.2f}")
 ```
+
+By default, `tol` is checked against the *relative* change in log-likelihood
+between iterations (`convergence='relative'`). `convergence='aitken'` uses an
+Aitken-accelerated extrapolation of the asymptotic log-likelihood instead,
+which can detect convergence earlier on fits that improve slowly but
+steadily:
+
+```python
+gmm = GaussianMixture(n_components=3, n_features=2, convergence='aitken')
+gmm.fit(X)
+```
+
+## Large Datasets: `batch_size`
+
+For datasets too large to comfortably fit the E-step/M-step in memory at
+once, `batch_size` processes `X` in row chunks instead of all at once:
+
+```python
+gmm = GaussianMixture(n_components=10, n_features=64, batch_size=4096)
+gmm.fit(X)  # same result as batch_size=None, bounded peak memory
+```
+
+This changes nothing about the result (up to ordinary floating-point
+summation-order differences) -- it's purely a memory/speed knob. Peak memory
+is roughly `O(batch_size * n_components * n_features)` regardless of how
+many rows `X` has.
 
 ## Sampling from the Model
 

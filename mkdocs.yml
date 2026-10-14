@@ -159,4 +159,5 @@ nav:
       - tgmm.GMMInitializer: api/gmm-initializer.md
       - tgmm.ClusteringMetrics: api/clustering-metrics.md
       - tgmm.plotting: api/plotting.md
+      - tgmm.SufficientStats: api/sufficient-stats.md
   - Contributing: contributing.md

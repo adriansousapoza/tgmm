@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 import warnings
 import math
 from .gmm_init import GMMInitializer
+from .stats import SufficientStats
 from scipy.stats import chi2
 
 
@@ -85,9 +86,34 @@ class GaussianMixture(nn.Module):
     warm_start : bool, optional
         If True, reuse the solution of the previous call to `fit` as initialization.
         (default: False)
+    algorithm : str, optional
+        Which EM variant to run: 'em' (standard), 'cem' (Classification EM,
+        hard assignment between the E- and M-steps), or 'sem' (Stochastic
+        EM -- accepted here for forward compatibility but not runnable
+        until it ships in a later release; `fit` raises
+        `NotImplementedError` if used before then). (default: 'em')
     cem : bool, optional
-        If True, use the Classification EM (hard assignment) algorithm instead of standard EM.
-        (default: False)
+        Deprecated; use `algorithm='cem'` instead. If True, raises a
+        `DeprecationWarning` and is treated as `algorithm='cem'`. Passing
+        `cem=True` together with an explicit `algorithm` other than 'em'
+        or 'cem' raises `ValueError`. (default: False)
+    batch_size : int or None, optional
+        If set, the E-step and sufficient-statistics accumulation process
+        `X` in row chunks of this size instead of all at once, bounding
+        peak memory to roughly `O(batch_size * n_components * n_features)`
+        regardless of `n_samples`. Purely a memory/speed trade-off: results
+        are the same (up to ordinary floating-point summation-order
+        differences) as `batch_size=None`, which processes everything in
+        one shot. (default: None)
+    convergence : str, optional
+        Stopping rule used by the EM/CEM loop: 'relative' (stop when the
+        relative change in mean log-likelihood drops below `tol`, as
+        before) or 'aitken' (stop once the Aitken-accelerated estimate of
+        the asymptotic log-likelihood is within `tol` of the current
+        value, which can detect convergence earlier on slowly-crawling
+        fits; falls back to the relative rule for any iteration where the
+        Aitken acceleration factor is undefined or >= 1). (default:
+        'relative')
     weight_concentration_prior : torch.Tensor or None, optional
         Dirichlet concentration prior for the mixture weights (MAP estimation).
         Shape: (n_components,) or scalar to broadcast. (default: None)
@@ -213,7 +239,10 @@ class GaussianMixture(nn.Module):
         warm_start: bool = False,
 
         # Algorithm options
+        algorithm: str = 'em',
         cem: bool = False,
+        batch_size: Optional[int] = None,
+        convergence: str = 'relative',
 
         # Prior parameters for MAP estimation (EM mode) / required NIW prior (Gibbs mode)
         weight_concentration_prior: torch.Tensor = None,
@@ -323,7 +352,36 @@ class GaussianMixture(nn.Module):
         # ===================================================================
         # 6. Store algorithm options
         # ===================================================================
-        self.cem = cem
+        valid_algorithms = ('em', 'cem', 'sem')
+        if cem:
+            warnings.warn(
+                "cem=True is deprecated; use algorithm='cem' instead.",
+                DeprecationWarning
+            )
+            if algorithm not in ('em', 'cem'):
+                raise ValueError(
+                    f"cem=True conflicts with algorithm={algorithm!r}; pass only one of them."
+                )
+            algorithm = 'cem'
+
+        if algorithm not in valid_algorithms:
+            raise ValueError(
+                f"algorithm must be one of {valid_algorithms}, got {algorithm!r}"
+            )
+
+        self.algorithm = algorithm
+        self.cem = (algorithm == 'cem')
+
+        if batch_size is not None and batch_size <= 0:
+            raise ValueError(f"Invalid batch_size: {batch_size} (must be > 0).")
+        self.batch_size = batch_size
+
+        valid_convergence = ('relative', 'aitken')
+        if convergence not in valid_convergence:
+            raise ValueError(
+                f"convergence must be one of {valid_convergence}, got {convergence!r}"
+            )
+        self.convergence = convergence
 
         # ===================================================================
         # 6b. Store Gibbs-mode parameters (ignored in EM mode)
@@ -1081,6 +1139,13 @@ class GaussianMixture(nn.Module):
             raise ValueError(f"Invalid tol: {tol} (must be > 0).")
         if max_iter is not None and max_iter <= 0:
             raise ValueError(f"Invalid max_iter: {max_iter} (must be > 0).")
+        if self.algorithm == 'sem':
+            raise NotImplementedError(
+                "algorithm='sem' (Stochastic EM) is not implemented yet; "
+                "it is accepted at construction for forward compatibility "
+                "but cannot be fit until a later release. Use algorithm="
+                "'em' or 'cem' for now."
+            )
 
         # ===============================================================
         # 2. Set up parameters (use overrides or defaults)
@@ -1316,7 +1381,10 @@ class GaussianMixture(nn.Module):
         max_iter : int
             Maximum number of iterations for this run.
         tol : float
-            Convergence tolerance based on relative improvement in log-likelihood.
+            Convergence tolerance, interpreted per `self.convergence`
+            ('relative': relative improvement in mean log-likelihood;
+            'aitken': gap to the Aitken-extrapolated asymptotic value --
+            see `_check_convergence`).
         run_idx : int, optional
             Initialization index (for logging purposes). (default: 0)
         """
@@ -1333,32 +1401,33 @@ class GaussianMixture(nn.Module):
         # Initialize tracking variables
         # ===============================================================
         prev_lower_bound = -float("inf")
-        
+        prev_prev_lower_bound = None
+
         # Initial E-step to compute responsibilities
         resp, log_prob_norm = self._e_step(X)
         self.lower_bound_ = log_prob_norm.mean().item()
-        
+
         # ===============================================================
         # EM/CEM iteration loop
         # ===============================================================
         for n_iter in range(max_iter):
             # Classification step (only for CEM)
-            if self.cem:
+            if self.algorithm == 'cem':
                 resp = self._c_step(resp)
-                
+
             # Maximization step
             self._m_step(X, resp)
 
             # Check convergence
-            rel_change = abs(self.lower_bound_ - prev_lower_bound) / (abs(prev_lower_bound) + 1e-20)
-            if rel_change < tol:
+            if self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
                 self.converged_ = True
                 if self.verbose:
                     print(f"[Run {run_idx+1}] Iteration {n_iter}: "
                           f"log-likelihood={self.lower_bound_:.5f}, Converged!")
                 break
-                
+
             # Update for next iteration
+            prev_prev_lower_bound = prev_lower_bound
             prev_lower_bound = self.lower_bound_
             resp, log_prob_norm = self._e_step(X)
             self.lower_bound_ = log_prob_norm.mean().item()
@@ -1373,7 +1442,7 @@ class GaussianMixture(nn.Module):
         # ===============================================================
         if self.converged_:
             resp, log_prob_norm = self._e_step(X)
-            if self.cem:
+            if self.algorithm == 'cem':
                 resp = self._c_step(resp)
             self.lower_bound_ = log_prob_norm.mean().item()
         else:
@@ -1383,6 +1452,53 @@ class GaussianMixture(nn.Module):
             )
 
         self.n_iter_ = n_iter
+
+    def _check_convergence(self, current: float, previous: float, previous2: Optional[float], tol: float) -> bool:
+        r"""
+        Whether the EM/CEM loop should stop, per `self.convergence`.
+
+        'relative' (default): ``abs(current - previous) / (abs(previous) +
+        1e-20) < tol`` -- identical to the only rule this method ever used
+        pre-Phase-0, so the default path is unchanged.
+
+        'aitken': Aitken-accelerated extrapolation of the asymptotic
+        log-likelihood,
+
+        .. math::
+            a^{(t)} = \frac{l^{(t)} - l^{(t-1)}}{l^{(t-1)} - l^{(t-2)}}, \qquad
+            l_\infty^{(t)} = l^{(t-1)} + \frac{l^{(t)} - l^{(t-1)}}{1 - a^{(t)}}
+
+        converging when :math:`l_\infty^{(t)} - l^{(t)} < \mathrm{tol}`.
+        Falls back to the relative rule for this iteration when
+        `previous2` isn't available yet, the denominator is ~0, or
+        `a >= 1` (all cases where the extrapolation is undefined or
+        diverges).
+
+        Parameters
+        ----------
+        current : float
+            :math:`l^{(t)}`, the lower bound just computed this iteration.
+        previous : float
+            :math:`l^{(t-1)}`.
+        previous2 : float or None
+            :math:`l^{(t-2)}`, or None if fewer than two prior values are
+            available yet.
+        tol : float
+
+        Returns
+        -------
+        bool
+        """
+        if self.convergence == 'aitken' and previous2 is not None and previous2 != -float('inf'):
+            denom = previous - previous2
+            if abs(denom) > 1e-300:
+                a = (current - previous) / denom
+                if a < 1.0:
+                    l_inf = previous + (current - previous) / (1.0 - a)
+                    return (l_inf - current) < tol
+            # denom ~ 0 or a >= 1: fall through to the relative rule below.
+
+        return abs(current - previous) / (abs(previous) + 1e-20) < tol
 
     def _validate_labels(self, labels, X: torch.Tensor) -> torch.Tensor:
         r"""
@@ -1477,14 +1593,14 @@ class GaussianMixture(nn.Module):
     # ===================================================================
     def _e_step(self, X: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
-        E-step: Compute responsibilities (posterior probabilities) for each component.
+        E-step: compute responsibilities (posterior probabilities) for each
+        component, chunked over rows when `self.batch_size` is set.
 
-        For each sample, compute the posterior probability that it belongs to each
-        component using Bayes' rule:
-        
-        .. math::
-            γ(z_{ik}) = \frac{π_k N(x_i | μ_k, Σ_k)}{\sum_j π_j N(x_i | μ_j, Σ_j)}
-        
+        Chunking is exact, not approximate: `_e_step_chunk`'s softmax
+        normalization is per-row, so splitting rows into chunks changes
+        nothing about any individual row's result -- it only bounds peak
+        memory to roughly `O(batch_size * n_components * n_features)`.
+
         Parameters
         ----------
         X : torch.Tensor
@@ -1498,10 +1614,29 @@ class GaussianMixture(nn.Module):
         log_prob_norm : torch.Tensor
             Log-likelihood for each sample (normalizing constant),
             shape (n_samples,). These are log p(x_i).
-            
-        Notes
-        -----
-        Computation is done in log-space for numerical stability using log-sum-exp trick.
+        """
+        if self.batch_size is None or self.batch_size >= X.shape[0]:
+            return self._e_step_chunk(X)
+
+        resp_chunks = []
+        log_prob_norm_chunks = []
+        for start in range(0, X.shape[0], self.batch_size):
+            end = min(start + self.batch_size, X.shape[0])
+            resp_chunk, log_prob_norm_chunk = self._e_step_chunk(X[start:end])
+            resp_chunks.append(resp_chunk)
+            log_prob_norm_chunks.append(log_prob_norm_chunk)
+        return torch.cat(resp_chunks, dim=0), torch.cat(log_prob_norm_chunks, dim=0)
+
+    def _e_step_chunk(self, X: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        r"""
+        The actual E-step computation for one chunk (or all) of `X`. See
+        `_e_step`'s docstring for the public, chunking-aware entry point.
+
+        .. math::
+            γ(z_{ik}) = \frac{π_k N(x_i | μ_k, Σ_k)}{\sum_j π_j N(x_i | μ_j, Σ_j)}
+
+        Computation is done in log-space for numerical stability using the
+        log-sum-exp trick.
         """
         # ===============================================================
         # 1. Compute log p(x|z) for each component
@@ -1590,10 +1725,25 @@ class GaussianMixture(nn.Module):
         
         # ===============================================================
         # Compute Mahalanobis distance: (x-μ)ᵀΣ⁻¹(x-μ)
+        #
+        # diff is reshaped to (n_components, n_features, n_samples) --
+        # samples as the right-hand-side *columns* of each component's
+        # triangular solve, rather than diff.unsqueeze(-1)'s (n_samples,
+        # n_components, n_features, 1), which puts n_samples on its own
+        # broadcast batch axis. cholesky_solve/solve_triangular need equal
+        # batch shapes between the two operands; broadcasting chol's
+        # (n_components, d, d) up against a (n_samples, n_components) batch
+        # forces an actual (n_samples, n_components, d, d) materialisation
+        # internally (observed directly: ~3.3 GB for n=20000, K=10, d=64 in
+        # float32, the same blow-up Phase 0.2 fixed in the M-step). With
+        # samples folded into the solve's right-hand side instead, both
+        # operands share the same (n_components,) batch shape and no
+        # broadcast-driven copy happens -- peak memory back to
+        # O(n_samples * n_components * n_features).
         # ===============================================================
-        diff_ = diff.unsqueeze(-1)  # (n_samples, n_components, n_features, 1)
-        solve = torch.cholesky_solve(diff_, chol)  # Σ⁻¹(x-μ)
-        mahal = (diff_ * solve).sum(dim=(2, 3))  # (n_samples, n_components)
+        diff_t = diff.permute(1, 2, 0).contiguous()  # (n_components, n_features, n_samples)
+        solve = torch.cholesky_solve(diff_t, chol)  # Σ⁻¹(x-μ), same shape
+        mahal = (diff_t * solve).sum(dim=1).t()  # (n_samples, n_components)
 
         # ===============================================================
         # Combine into log-probability
@@ -1709,11 +1859,17 @@ class GaussianMixture(nn.Module):
         log_det = 2.0 * torch.log(torch.diagonal(chol)).sum()  # scalar
         
         # ===============================================================
-        # Mahalanobis distance for all samples and components
+        # Mahalanobis distance for all samples and components. `chol` has
+        # no batch dimension here (one shared covariance), so every
+        # (sample, component) deviation can be solved as a single system
+        # with (n_samples * n_components) right-hand-side columns -- no
+        # broadcasting (and hence no implicit (n_samples, n_components, d,
+        # d) materialisation, see `_estimate_log_gaussian_full`) needed at
+        # all.
         # ===============================================================
-        diff_ = diff.unsqueeze(-1)  # (n_samples, n_components, n_features, 1)
-        solve = torch.cholesky_solve(diff_, chol)
-        mahal = (diff_ * solve).sum(dim=(2, 3))  # (n_samples, n_components)
+        diff_flat = diff.reshape(-1, self.n_features).t()  # (n_features, n_samples * n_components)
+        solve = torch.cholesky_solve(diff_flat, chol)
+        mahal = (diff_flat * solve).sum(dim=0).view(diff.shape[0], diff.shape[1])  # (n_samples, n_components)
 
         # ===============================================================
         # Combine into log-probability
@@ -1802,14 +1958,131 @@ class GaussianMixture(nn.Module):
     # ===================================================================
     # M-step: Maximization
     # ===================================================================
+    def _second_moment(self, resp: torch.Tensor, diff: torch.Tensor, base_type: str) -> torch.Tensor:
+        r"""
+        Covariance-type-specific second moment
+        :math:`\sum_i r_{ik} \mathrm{diff}_{ik} \mathrm{diff}_{ik}^T`
+        (or its diag/spherical contraction), computed without ever
+        materialising an ``(n, K, d, d)`` tensor -- see
+        docs/superpowers/specs/2026-10-14-phase0-sufficient-stats-design.md
+        for why the pre-refactor elementwise-broadcast version of this did.
+
+        Parameters
+        ----------
+        resp : torch.Tensor, shape (n, K)
+        diff : torch.Tensor, shape (n, K, d)
+            Deviations from whatever center point the caller used.
+        base_type : str
+            One of 'full', 'diag', 'spherical' (tied_* types pass their
+            non-tied base type; pooling across K happens in the caller).
+        """
+        if base_type == 'full':
+            return torch.einsum('nk,nkd,nke->kde', resp, diff, diff)
+        elif base_type == 'diag':
+            return torch.einsum('nk,nkd->kd', resp, diff.pow(2))
+        elif base_type == 'spherical':
+            return torch.einsum('nk,nk->k', resp, diff.pow(2).sum(dim=2))
+        else:
+            raise ValueError(f"Unsupported covariance type: {base_type}")
+
+    def _compute_stats(self, X: torch.Tensor, resp: torch.Tensor, batch_size: Optional[int] = None) -> SufficientStats:
+        r"""
+        Build a :class:`~tgmm.stats.SufficientStats` from ``(X, resp)``.
+
+        ``s2`` is centered on each component's own empirical mean for this
+        E-step, :math:`\bar y_k = s1_k / n_k` -- not on ``self.means_`` --
+        which is what makes chunked accumulation exact (see the design doc).
+        When ``batch_size`` is set, this runs as two passes over row chunks
+        (first ``nk``/``s1``, then, once :math:`\bar y_k` is known, ``s2``)
+        so peak memory stays ``O(batch_size * K * d)`` regardless of
+        ``n_samples``.
+
+        Parameters
+        ----------
+        X : torch.Tensor, shape (n_samples, n_features)
+        resp : torch.Tensor, shape (n_samples, n_components)
+        batch_size : int, optional
+            Row-chunk size. ``None`` (default) processes all of ``X`` in
+            one shot.
+
+        Returns
+        -------
+        SufficientStats
+        """
+        n_samples, n_features = X.shape
+        base_type = self.covariance_type.replace('tied_', '', 1)
+
+        if batch_size is None or batch_size >= n_samples:
+            nk = resp.sum(dim=0)
+            s1 = resp.t() @ X
+            ybar = s1 / (nk + 1e-20).unsqueeze(1)
+            diff = X.unsqueeze(1) - ybar.unsqueeze(0)
+            s2 = self._second_moment(resp, diff, base_type)
+            return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples)
+
+        n_components = resp.shape[1]
+        nk = torch.zeros(n_components, device=X.device, dtype=X.dtype)
+        s1 = torch.zeros(n_components, n_features, device=X.device, dtype=X.dtype)
+        for start in range(0, n_samples, batch_size):
+            end = min(start + batch_size, n_samples)
+            nk += resp[start:end].sum(dim=0)
+            s1 += resp[start:end].t() @ X[start:end]
+
+        ybar = s1 / (nk + 1e-20).unsqueeze(1)
+        s2 = None
+        for start in range(0, n_samples, batch_size):
+            end = min(start + batch_size, n_samples)
+            diff_chunk = X[start:end].unsqueeze(1) - ybar.unsqueeze(0)
+            chunk_s2 = self._second_moment(resp[start:end], diff_chunk, base_type)
+            s2 = chunk_s2 if s2 is None else s2 + chunk_s2
+
+        return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples)
+
+    def _scatter_about_means(self, stats: SufficientStats, nk: torch.Tensor, ybar: torch.Tensor) -> torch.Tensor:
+        r"""
+        :math:`\sum_i r_{ik} (x_i - \mu_k)(x_i - \mu_k)^T` (or its
+        diag/spherical form) with :math:`\mu_k` = ``self.means_``,
+        reconstructed from ``stats.s2`` (centered on
+        :math:`\bar y_k` = ``ybar``, not necessarily ``self.means_``) via
+        the parallel-axis identity
+
+        .. math::
+            \sum_i r_{ik} (x_i - \mu_k)(x_i - \mu_k)^T
+                = s2_k + n_k (\bar y_k - \mu_k)(\bar y_k - \mu_k)^T
+
+        (the cross term vanishes because
+        :math:`\sum_i r_{ik}(x_i - \bar y_k) = 0` by definition of
+        :math:`\bar y_k`). Used by the MLE and independent-MAP covariance
+        updates, both of which need the scatter centered on whatever
+        ``self.means_`` currently holds (which equals ``ybar`` only when
+        there is no mean prior). The NIW branch needs no such correction --
+        its scatter term is defined directly in terms of ``ybar``, so it
+        uses ``stats.s2`` as-is.
+
+        Returns a per-component result (``full``/``diag``/``spherical``
+        shape matching ``stats.s2``); callers for ``tied_*`` types pool it
+        across components themselves.
+        """
+        base_type = self.covariance_type.replace('tied_', '', 1)
+        delta = ybar - self.means_  # (K, d)
+        if base_type == 'full':
+            mismatch = nk.view(-1, 1, 1) * torch.einsum('kd,ke->kde', delta, delta)
+        elif base_type == 'diag':
+            mismatch = nk.unsqueeze(-1) * delta.pow(2)
+        elif base_type == 'spherical':
+            mismatch = nk * delta.pow(2).sum(dim=1)
+        else:
+            raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
+        return stats.s2 + mismatch
+
     def _m_step(self, X: torch.Tensor, resp: torch.Tensor):
         r"""
-        M-step: Update model parameters given current responsibilities.
+        M-step: update model parameters given current responsibilities.
 
-        Updates weights, means, and covariances using either:
-        - MLE (Maximum Likelihood Estimation) if no priors
-        - MAP (Maximum A Posteriori) if priors are specified
-        - NIW (Normal-Inverse-Wishart) conjugate updates if both mean and covariance priors
+        Thin wrapper over :meth:`_compute_stats` and
+        :meth:`_m_step_from_stats` -- kept as a single entry point because
+        the supervised-fit path in :meth:`fit` calls it directly with a
+        one-hot ``resp`` instead of going through the EM/CEM/SEM loop.
 
         Parameters
         ----------
@@ -1818,26 +2091,39 @@ class GaussianMixture(nn.Module):
         resp : torch.Tensor
             Current responsibilities for each sample w.r.t. each component,
             shape (n_samples, n_components). From E-step or C-step.
-            
+        """
+        self._m_step_from_stats(self._compute_stats(X, resp, batch_size=self.batch_size))
+
+    def _m_step_from_stats(self, stats: SufficientStats):
+        r"""
+        M-step: update model parameters from accumulated sufficient
+        statistics.
+
+        Updates weights, means, and covariances using either:
+        - MLE (Maximum Likelihood Estimation) if no priors
+        - MAP (Maximum a Posteriori) if priors are specified
+        - NIW (Normal-Inverse-Wishart) conjugate updates if both mean and
+          covariance priors are given
+
+        Parameters
+        ----------
+        stats : SufficientStats
+            Accumulated statistics for the current E-step's
+            responsibilities (see :meth:`_compute_stats`).
+
         Notes
         -----
-        The update strategy depends on which priors are specified:
-        
-        1. NIW conjugate (use_mean_prior=True AND use_covariance_prior=True):
-           Joint update of means and covariances using conjugate prior formulas
-           
-        2. Independent priors:
-           - Means: MAP if use_mean_prior=True, else MLE
-           - Covariances: MAP if use_covariance_prior=True, else MLE
-           
-        3. Weights: Always MAP if use_weight_prior=True, else MLE
+        Behaviourally identical to the pre-Phase-0 ``_m_step(X, resp)``
+        (see docs/superpowers/specs/2026-10-14-phase0-sufficient-stats-design.md
+        for the derivation showing why reading from ``stats`` instead of
+        re-touching ``X``/``resp`` changes nothing about the result).
         """
-        n_samples = X.size(0)
-        
+        n_samples = stats.n_samples
+
         # ===============================================================
         # 1. Compute effective sample counts per component
         # ===============================================================
-        nk = resp.sum(dim=0) + 1e-20  # (n_components,)
+        nk = stats.nk + 1e-20  # (n_components,)
 
         # ===============================================================
         # 2. Update mixing weights
@@ -1850,80 +2136,76 @@ class GaussianMixture(nn.Module):
         else:
             # MLE update
             self.weights_ = nk / n_samples
-        
+
         self.weights_.clamp_(min=1e-20)  # Ensure numerical stability
 
         # ===============================================================
         # 3. Update means and covariances
         # ===============================================================
-        # Check if we're using NIW conjugate priors (both mean and covariance priors)
         use_niw = self.use_mean_prior and self.use_covariance_prior
-        
+
         if use_niw:
             # NIW conjugate updates: joint update for means and covariances
-            self._update_niw_conjugate(X, resp, nk)
+            self._update_niw_conjugate(stats, nk)
         else:
-            # Independent updates
+            ybar = stats.s1 / nk.unsqueeze(1)
+
             # Update means
             if self.use_mean_prior:
                 # MAP update with Gaussian prior
                 kappa0 = self.mean_precision_prior
-                numerator = resp.t() @ X + kappa0 * self.mean_prior
-                denom = nk.unsqueeze(1) + kappa0
-                self.means_ = numerator / denom
+                self.means_ = (stats.s1 + kappa0 * self.mean_prior) / (nk + kappa0).unsqueeze(1)
             else:
                 # MLE update
-                self.means_ = (resp.t() @ X) / nk.unsqueeze(1)
+                self.means_ = ybar
 
             # Update covariances
             if self.use_covariance_prior:
                 # MAP update with Wishart/Inverse-Wishart prior
-                self._update_covariances_map(X, resp, nk)
+                self._update_covariances_map(stats, nk, ybar)
             else:
                 # MLE update
-                self._update_covariances_mle(X, resp, nk)
+                self._update_covariances_mle(stats, nk, ybar)
 
     # ===================================================================
     # NIW (Normal-Inverse-Wishart) Conjugate Prior Updates
     # ===================================================================
-    def _update_niw_conjugate(self, X: torch.Tensor, resp: torch.Tensor, nk: torch.Tensor):
+    def _update_niw_conjugate(self, stats: SufficientStats, nk: torch.Tensor):
         r"""
-        Update means and covariances jointly using Normal-Inverse-Wishart (NIW) conjugate priors.
-        
-        The NIW prior is the conjugate prior for a multivariate normal with unknown
-        mean and covariance. The posterior updates are:
-        
+        Update means and covariances jointly using Normal-Inverse-Wishart
+        (NIW) conjugate priors.
+
         .. math::
-            μₙ = \frac{λ μ₀ + n ȳ}{λ + n}
-            
-            λₙ = λ + n
-            
-            νₙ = ν + n
-            
-            Ψₙ = Ψ + S + \frac{λ n}{λ + n} (ȳ - μ₀)(ȳ - μ₀)^T
-        
-        where ȳ is the empirical mean, S is the scatter matrix, and (μ₀, λ, Ψ, ν)
-        are the NIW hyperparameters.
-        
+            \mu_n = \frac{\lambda \mu_0 + n \bar y}{\lambda + n}
+
+            \lambda_n = \lambda + n
+
+            \nu_n = \nu + n
+
+            \Psi_n = \Psi + S + \frac{\lambda n}{\lambda + n} (\bar y - \mu_0)(\bar y - \mu_0)^T
+
+        where :math:`\bar y` is the empirical mean, :math:`S` is the
+        scatter matrix, and :math:`(\mu_0, \lambda, \Psi, \nu)` are the NIW
+        hyperparameters.
+
         Parameters
         ----------
-        X : torch.Tensor
-            Input data, shape (n_samples, n_features).
-        resp : torch.Tensor
-            Responsibilities, shape (n_samples, n_components).
+        stats : SufficientStats
         nk : torch.Tensor
-            Effective sample count per component, shape (n_components,).
-            
+            Effective sample count per component (already epsilon-guarded),
+            shape (n_components,).
+
         Notes
         -----
-        This method routes to the appropriate covariance-type-specific NIW update.
-        The covariance point estimate used throughout this module (both here
-        and in `_update_covariances_map`) is Σ = Ψₙ / νₙ, *not* the
-        textbook Inverse-Wishart posterior mean E[Σ] = Ψₙ / (νₙ - n_features - 1).
-        Ψₙ / νₙ is used deliberately: unlike the textbook mean, it stays
-        finite and positive for every νₙ > 0 (the mean formula is undefined
-        once νₙ <= n_features + 1, which a near-empty component can reach),
-        and the two agree closely whenever νₙ >> n_features anyway.
+        This method routes to the appropriate covariance-type-specific NIW
+        update. The covariance point estimate used throughout this module
+        (both here and in `_update_covariances_map`) is Σ = Ψₙ / νₙ, *not*
+        the textbook Inverse-Wishart posterior mean
+        E[Σ] = Ψₙ / (νₙ - n_features - 1). Ψₙ / νₙ is used deliberately:
+        unlike the textbook mean, it stays finite and positive for every
+        νₙ > 0 (the mean formula is undefined once νₙ <= n_features + 1,
+        which a near-empty component can reach), and the two agree closely
+        whenever νₙ >> n_features anyway.
         """
         # ===============================================================
         # Extract NIW prior parameters
@@ -1932,105 +2214,164 @@ class GaussianMixture(nn.Module):
         lambda0 = self.mean_precision_prior  # scalar
         psi0 = self.covariance_prior  # shape depends on covariance_type
         nu0 = self.degrees_of_freedom_prior  # scalar
-        
+
         # ===============================================================
-        # Compute empirical means (ȳ) for each component
+        # Empirical mean ȳ_k for each component -- the same quantity
+        # stats.s2 is already centered on, so the covariance branches
+        # below need no recentring correction.
         # ===============================================================
-        empirical_means = (resp.t() @ X) / nk.unsqueeze(1)  # (n_components, n_features)
-        
+        ybar = stats.s1 / nk.unsqueeze(1)  # (n_components, n_features)
+
         # ===============================================================
         # Compute NIW posterior parameters
         # ===============================================================
         lambda_n = lambda0 + nk  # (n_components,)
         nu_n = nu0 + nk  # (n_components,)
-        
+
         # Update means using NIW posterior mean
-        mu_n = (lambda0 * mu0 + nk.unsqueeze(1) * empirical_means) / lambda_n.unsqueeze(1)
+        mu_n = (lambda0 * mu0 + nk.unsqueeze(1) * ybar) / lambda_n.unsqueeze(1)
         self.means_ = mu_n
-        
+
         # ===============================================================
         # Update covariances (route to covariance-type-specific method)
         # ===============================================================
         if self.covariance_type == 'full':
-            self._update_niw_full(X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0)
+            self._update_niw_full(stats, nk, ybar, lambda0, lambda_n, nu_n, psi0)
         elif self.covariance_type == 'diag':
-            self._update_niw_diag(X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0)
+            self._update_niw_diag(stats, nk, ybar, lambda0, lambda_n, nu_n, psi0)
         elif self.covariance_type == 'spherical':
-            self._update_niw_spherical(X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0)
+            self._update_niw_spherical(stats, nk, ybar, lambda0, lambda_n, nu_n, psi0)
         elif self.covariance_type == 'tied_full':
-            self._update_niw_tied_full(X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0)
+            self._update_niw_tied_full(stats, nk, ybar, lambda0, lambda_n, nu_n, psi0)
         elif self.covariance_type == 'tied_diag':
-            self._update_niw_tied_diag(X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0)
+            self._update_niw_tied_diag(stats, nk, ybar, lambda0, lambda_n, nu_n, psi0)
         elif self.covariance_type == 'tied_spherical':
-            self._update_niw_tied_spherical(X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0)
+            self._update_niw_tied_spherical(stats, nk, ybar, lambda0, lambda_n, nu_n, psi0)
         else:
             raise ValueError(f"Unsupported covariance_type: {self.covariance_type}")
+
+    def _update_niw_full(self, stats, nk, ybar, lambda0, lambda_n, nu_n, psi0):
+        r"""
+        NIW posterior update for full covariance matrices.
+
+        Computes: Ψₙ = Ψ₀ + S + (λ₀n/(λ₀+n))(ȳ - μ₀)(ȳ - μ₀)ᵀ
+        Then: Σₖ = Ψₙ / νₙ
+        """
+        S = stats.s2  # already centered on ȳ_k
+
+        mean_diff = ybar - self.mean_prior  # (n_components, n_features)
+        cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
+        cross_term = cross_term_coeff.view(-1, 1, 1) * torch.einsum('kd,ke->kde', mean_diff, mean_diff)
+
+        psi_n = psi0 + S + cross_term
+        psi_n = psi_n + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
+
+        self.covariances_ = psi_n / nu_n.view(-1, 1, 1)
+
+    def _update_niw_diag(self, stats, nk, ybar, lambda0, lambda_n, nu_n, psi0):
+        r"""NIW posterior update for diagonal covariance matrices."""
+        S = stats.s2  # (n_components, n_features)
+
+        mean_diff_sq = (ybar - self.mean_prior).pow(2)
+        cross_term_coeff = (lambda0 * nk) / lambda_n
+        cross_term = cross_term_coeff.unsqueeze(-1) * mean_diff_sq
+
+        psi_n = psi0 + S + cross_term
+        psi_n = psi_n + self.reg_covar
+
+        self.covariances_ = psi_n / nu_n.unsqueeze(-1)
+
+    def _update_niw_spherical(self, stats, nk, ybar, lambda0, lambda_n, nu_n, psi0):
+        r"""NIW posterior update for spherical covariances."""
+        S = stats.s2  # (n_components,)
+
+        mean_diff_norm_sq = (ybar - self.mean_prior).pow(2).sum(dim=1)
+        cross_term_coeff = (lambda0 * nk) / lambda_n
+        cross_term = cross_term_coeff * mean_diff_norm_sq
+
+        psi_n = psi0 + S + cross_term
+        psi_n = psi_n + self.reg_covar * self.n_features
+
+        self.covariances_ = psi_n / (nu_n * self.n_features)
+
+    def _update_niw_tied_full(self, stats, nk, ybar, lambda0, lambda_n, nu_n, psi0):
+        r"""NIW posterior update for tied full covariance."""
+        S = stats.s2.sum(dim=0)  # (n_features, n_features)
+
+        mean_diff = ybar - self.mean_prior
+        cross_term_coeff = (lambda0 * nk) / lambda_n
+        cross_term = torch.einsum('k,kd,ke->de', cross_term_coeff, mean_diff, mean_diff)
+
+        psi_n = psi0 + S + cross_term
+        psi_n = psi_n + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
+
+        total_nu_n = self.degrees_of_freedom_prior + nk.sum()
+        self.covariances_ = psi_n / total_nu_n
+
+    def _update_niw_tied_diag(self, stats, nk, ybar, lambda0, lambda_n, nu_n, psi0):
+        r"""NIW posterior update for tied diagonal covariance."""
+        S = stats.s2.sum(dim=0)  # (n_features,)
+
+        mean_diff_sq = (ybar - self.mean_prior).pow(2)
+        cross_term_coeff = (lambda0 * nk) / lambda_n
+        cross_term = torch.einsum('k,kd->d', cross_term_coeff, mean_diff_sq)
+
+        psi_n = psi0 + S + cross_term
+        psi_n = psi_n + self.reg_covar
+
+        total_nu_n = self.degrees_of_freedom_prior + nk.sum()
+        self.covariances_ = psi_n / total_nu_n
+
+    def _update_niw_tied_spherical(self, stats, nk, ybar, lambda0, lambda_n, nu_n, psi0):
+        r"""NIW posterior update for tied spherical covariance."""
+        S = stats.s2.sum()  # scalar
+
+        mean_diff_norm_sq = (ybar - self.mean_prior).pow(2).sum(dim=1)
+        cross_term_coeff = (lambda0 * nk) / lambda_n
+        cross_term = (cross_term_coeff * mean_diff_norm_sq).sum()
+
+        psi_n = psi0 + S + cross_term
+        psi_n = psi_n + self.reg_covar * nk.sum() * self.n_features
+
+        total_nu_n = self.degrees_of_freedom_prior + nk.sum()
+        self.covariances_ = psi_n / (total_nu_n * self.n_features)
 
     # ===================================================================
     # MAP (Maximum A Posteriori) Covariance Updates
     # ===================================================================
-    def _update_covariances_map(self, X, resp, nk):
-        r"""
-        Update covariances using MAP estimation with prior.
-
-        Routes to appropriate covariance-type-specific MAP update method.
-        
-        Parameters
-        ----------
-        X : torch.Tensor
-            Data, shape (n_samples, n_features).
-        resp : torch.Tensor
-            Responsibilities, shape (n_samples, n_components).
-        nk : torch.Tensor
-            Effective sample counts, shape (n_components,).
-        """
+    def _update_covariances_map(self, stats: SufficientStats, nk: torch.Tensor, ybar: torch.Tensor):
+        r"""Route to the appropriate covariance-type-specific MAP update."""
         if self.covariance_type == 'full':
-            self._update_map_full(X, resp, nk)
+            self._update_map_full(stats, nk, ybar)
         elif self.covariance_type == 'diag':
-            self._update_map_diag(X, resp, nk)
+            self._update_map_diag(stats, nk, ybar)
         elif self.covariance_type == 'spherical':
-            self._update_map_spherical(X, resp, nk)
+            self._update_map_spherical(stats, nk, ybar)
         elif self.covariance_type == 'tied_full':
-            self._update_map_tied_full(X, resp, nk)
+            self._update_map_tied_full(stats, nk, ybar)
         elif self.covariance_type == 'tied_diag':
-            self._update_map_tied_diag(X, resp, nk)
+            self._update_map_tied_diag(stats, nk, ybar)
         elif self.covariance_type == 'tied_spherical':
-            self._update_map_tied_spherical(X, resp, nk)
+            self._update_map_tied_spherical(stats, nk, ybar)
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
-    def _update_map_full(self, X, resp, nk):
+    def _update_map_full(self, stats, nk, ybar):
         r"""
         MAP update for full covariance matrices.
-        
+
         Uses Inverse-Wishart prior: Σₖ ~ IW(Ψ, ν).
         Posterior: Σₖ = (Ψ + S_k + prior_mean_term) / (ν + n_k + d)
-        
-        where S_k is the weighted scatter matrix and prior_mean_term accounts
-        for the difference between empirical mean and prior mean when using
-        mean priors.
         """
-        # ===============================================================
-        # Compute weighted scatter matrix S_k for each component
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
-        weighted_diff = resp.unsqueeze(-1).unsqueeze(-1) * diff.unsqueeze(3) * diff.unsqueeze(2)
-        sum_diff = weighted_diff.sum(dim=0)  # (n_components, n_features, n_features)
+        sum_diff = self._scatter_about_means(stats, nk, ybar)  # (K, d, d)
 
-        # ===============================================================
-        # Add mean prior term if using Gaussian prior on means
-        # ===============================================================
         if self.use_mean_prior:
-            mean_diff = (self.means_ - self.mean_prior).unsqueeze(-1)  # (n_components, n_features, 1)
+            mean_diff = (self.means_ - self.mean_prior).unsqueeze(-1)  # (K, d, 1)
             prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1).unsqueeze(-1) \
                          * mean_diff @ mean_diff.transpose(-1, -2)
         else:
             prior_term = torch.zeros_like(sum_diff)
 
-        # ===============================================================
-        # Compute posterior covariance (nu_n = nu0 + n_k, matching
-        # _update_niw_full's convention -- see that method's docstring)
-        # ===============================================================
         nu_n = self.degrees_of_freedom_prior + nk.unsqueeze(-1).unsqueeze(-1)
 
         self.covariances_ = (
@@ -2040,101 +2381,52 @@ class GaussianMixture(nn.Module):
             + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
         ) / nu_n
 
-    def _update_map_diag(self, X, resp, nk):
-        r"""
-        MAP update for diagonal covariance matrices.
-        
-        Each dimension updated independently using Inverse-Gamma priors.
-        """
-        # ===============================================================
-        # Compute weighted scatter (per dimension)
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
-        sum_diff = (resp.unsqueeze(-1) * diff.pow(2)).sum(dim=0)  # (n_components, n_features)
+    def _update_map_diag(self, stats, nk, ybar):
+        r"""MAP update for diagonal covariance matrices."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar)  # (K, d)
 
-        # ===============================================================
-        # Add mean prior term if using Gaussian prior on means
-        # ===============================================================
         if self.use_mean_prior:
             mean_diff2 = (self.means_ - self.mean_prior).pow(2)
             prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1) * mean_diff2
         else:
             prior_term = torch.zeros_like(sum_diff)
-            
-        # ===============================================================
-        # Compute posterior covariance (nu_n = nu0 + n_k, matching
-        # _update_niw_diag's convention)
-        # ===============================================================
+
         nu_n = self.degrees_of_freedom_prior + nk.unsqueeze(-1)
 
         self.covariances_ = (
-            self.covariance_prior
-            + sum_diff
-            + prior_term
-            + self.reg_covar
+            self.covariance_prior + sum_diff + prior_term + self.reg_covar
         ) / nu_n
 
-    def _update_map_spherical(self, X, resp, nk):
-        r"""
-        MAP update for spherical covariance (single variance per component).
-        
-        Uses Inverse-Gamma prior on the shared variance.
-        """
-        # ===============================================================
-        # Compute total weighted scatter
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        diff2 = diff.pow(2).sum(dim=2)  # (n_samples, n_components)
-        sum_diff = (resp * diff2).sum(dim=0)  # (n_components,)
+    def _update_map_spherical(self, stats, nk, ybar):
+        r"""MAP update for spherical covariance (single variance per component)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar)  # (K,)
 
-        # ===============================================================
-        # Add mean prior term if using Gaussian prior on means
-        # ===============================================================
         if self.use_mean_prior:
             mean_diff2 = (self.means_ - self.mean_prior).pow(2).sum(dim=1)
             prior_term = (nk / (nk + self.mean_precision_prior)) * mean_diff2
         else:
             prior_term = torch.zeros_like(sum_diff)
-            
-        # ===============================================================
-        # Compute posterior covariance (averaged over dimensions; nu_n =
-        # nu0 + n_k, matching _update_niw_spherical's convention)
-        # ===============================================================
+
         nu_n = self.degrees_of_freedom_prior + nk
 
         self.covariances_ = (
             self.covariance_prior + sum_diff + prior_term + self.reg_covar
         ) / (nu_n * self.n_features)
 
-    def _update_map_tied_full(self, X, resp, nk):
-        r"""
-        MAP update for tied full covariance (shared across all components).
-        
-        Pooled scatter matrix across all components with shared Inverse-Wishart prior.
-        """
-        # ===============================================================
-        # Compute pooled scatter matrix across all components
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd,nke->de', resp, diff, diff)  # (n_features, n_features)
+    def _update_map_tied_full(self, stats, nk, ybar):
+        r"""MAP update for tied full covariance (shared across all components)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar).sum(dim=0)  # (d, d)
 
-        # ===============================================================
-        # Add mean prior term (pooled across components)
-        # ===============================================================
         if self.use_mean_prior:
             mean_diff = (self.means_ - self.mean_prior).unsqueeze(-1)
             prior_term = (
                 (nk / (nk + self.mean_precision_prior)).unsqueeze(-1).unsqueeze(-1)
                 * torch.matmul(mean_diff, mean_diff.transpose(-1, -2))
             )
-            prior_term = prior_term.sum(dim=0)  # Sum across components
+            prior_term = prior_term.sum(dim=0)
         else:
             prior_term = torch.zeros_like(sum_diff)
-            
-        # ===============================================================
-        # Compute posterior covariance (nu_n = nu0 + sum_k n_k, matching
-        # _update_niw_tied_full's convention)
-        # ===============================================================
+
         nu_n = self.degrees_of_freedom_prior + nk.sum()
 
         self.covariances_ = (
@@ -2144,32 +2436,17 @@ class GaussianMixture(nn.Module):
             + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
         ) / nu_n
 
-    def _update_map_tied_diag(self, X, resp, nk):
-        r"""
-        MAP update for tied diagonal covariance (shared across components).
-        
-        Per-dimension variance shared across all components.
-        """
-        # ===============================================================
-        # Compute pooled scatter (per dimension)
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd->d', resp, diff.pow(2))  # (n_features,)
+    def _update_map_tied_diag(self, stats, nk, ybar):
+        r"""MAP update for tied diagonal covariance (shared across components)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar).sum(dim=0)  # (d,)
 
-        # ===============================================================
-        # Add mean prior term (pooled across components)
-        # ===============================================================
         if self.use_mean_prior:
-            mean_diff2 = (self.means_ - self.mean_prior).pow(2)  # (n_components, n_features)
+            mean_diff2 = (self.means_ - self.mean_prior).pow(2)
             prior_term = (nk / (nk + self.mean_precision_prior)).unsqueeze(-1) * mean_diff2
-            prior_term = prior_term.sum(dim=0)  # (n_features,)
+            prior_term = prior_term.sum(dim=0)
         else:
             prior_term = torch.zeros_like(sum_diff)
 
-        # ===============================================================
-        # Compute posterior covariance (nu_n = nu0 + sum_k n_k, matching
-        # _update_niw_tied_diag's convention)
-        # ===============================================================
         nu_n = self.degrees_of_freedom_prior + nk.sum()
 
         self.covariances_ = (
@@ -2179,33 +2456,17 @@ class GaussianMixture(nn.Module):
             + self.reg_covar
         ) / nu_n
 
-    def _update_map_tied_spherical(self, X, resp, nk):
-        r"""
-        MAP update for tied spherical covariance (single variance for all).
-        
-        Single shared variance across all components and dimensions.
-        """
-        # ===============================================================
-        # Compute total pooled scatter
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        diff2 = diff.pow(2).sum(dim=2)  # (n_samples, n_components)
-        sum_diff = torch.einsum('nk,nk->', resp, diff2)  # scalar
+    def _update_map_tied_spherical(self, stats, nk, ybar):
+        r"""MAP update for tied spherical covariance (single variance for all)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar).sum()  # scalar
 
-        # ===============================================================
-        # Add mean prior term (pooled across components)
-        # ===============================================================
         if self.use_mean_prior:
-            mean_diff2 = (self.means_ - self.mean_prior).pow(2).sum(dim=1)  # (n_components,)
+            mean_diff2 = (self.means_ - self.mean_prior).pow(2).sum(dim=1)
             prior_term = (nk / (nk + self.mean_precision_prior)) * mean_diff2
             prior_term_total = prior_term.sum()
         else:
             prior_term_total = 0.0
 
-        # ===============================================================
-        # Compute posterior covariance (nu_n = nu0 + sum_k n_k, matching
-        # _update_niw_tied_spherical's convention)
-        # ===============================================================
         nu_n = self.degrees_of_freedom_prior + nk.sum()
 
         self.covariances_ = (
@@ -2215,354 +2476,71 @@ class GaussianMixture(nn.Module):
     # ===================================================================
     # MLE (Maximum Likelihood Estimation) Covariance Updates
     # ===================================================================
-    def _update_covariances_mle(self, X, resp, nk):
-        r"""
-        Update covariances using MLE (no prior).
-
-        Routes to appropriate covariance-type-specific MLE update method.
-        
-        Parameters
-        ----------
-        X : torch.Tensor
-            Data, shape (n_samples, n_features).
-        resp : torch.Tensor
-            Responsibilities, shape (n_samples, n_components).
-        nk : torch.Tensor
-            Effective sample counts, shape (n_components,).
-        """
+    def _update_covariances_mle(self, stats: SufficientStats, nk: torch.Tensor, ybar: torch.Tensor):
+        r"""Route to the appropriate covariance-type-specific MLE update."""
         if self.covariance_type == 'full':
-            self._update_mle_full(X, resp, nk)
+            self._update_mle_full(stats, nk, ybar)
         elif self.covariance_type == 'diag':
-            self._update_mle_diag(X, resp, nk)
+            self._update_mle_diag(stats, nk, ybar)
         elif self.covariance_type == 'spherical':
-            self._update_mle_spherical(X, resp, nk)
+            self._update_mle_spherical(stats, nk, ybar)
         elif self.covariance_type == 'tied_full':
-            self._update_mle_tied_full(X, resp, nk)
+            self._update_mle_tied_full(stats, nk, ybar)
         elif self.covariance_type == 'tied_diag':
-            self._update_mle_tied_diag(X, resp, nk)
+            self._update_mle_tied_diag(stats, nk, ybar)
         elif self.covariance_type == 'tied_spherical':
-            self._update_mle_tied_spherical(X, resp, nk)
+            self._update_mle_tied_spherical(stats, nk, ybar)
         else:
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
 
-    def _update_mle_full(self, X, resp, nk):
+    def _update_mle_full(self, stats, nk, ybar):
         r"""
         MLE update for full covariance matrices.
-        
+
         Σₖ = (1/n_k) Σᵢ γᵢₖ(xᵢ - μₖ)(xᵢ - μₖ)ᵀ + reg·I
+
+        (``self.means_`` equals ``ybar`` unless a mean prior shrank it
+        elsewhere in this same M-step -- see `_scatter_about_means`.)
         """
-        # ===============================================================
-        # Compute weighted scatter matrix for each component
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        weighted_diff = resp.unsqueeze(-1).unsqueeze(-1) * diff.unsqueeze(3) * diff.unsqueeze(2)
-        sum_diff = weighted_diff.sum(dim=0)  # (n_components, n_features, n_features)
-        
-        # ===============================================================
-        # Normalize and add regularization
-        # ===============================================================
+        sum_diff = self._scatter_about_means(stats, nk, ybar)
         covs = sum_diff / nk.unsqueeze(-1).unsqueeze(-1)
-        covs += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
+        covs = covs + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
         self.covariances_ = covs
 
-    def _update_mle_diag(self, X, resp, nk):
-        r"""
-        MLE update for diagonal covariance matrices.
-        
-        σ²ₖd = (1/n_k) Σᵢ γᵢₖ(xᵢd - μₖd)² + reg
-        """
-        # ===============================================================
-        # Compute weighted scatter per dimension
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = (resp.unsqueeze(-1) * diff.pow(2)).sum(dim=0)  # (n_components, n_features)
-        
-        # ===============================================================
-        # Normalize and add regularization
-        # ===============================================================
+    def _update_mle_diag(self, stats, nk, ybar):
+        r"""MLE update for diagonal covariance matrices."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar)
         cov_diag = sum_diff / nk.unsqueeze(-1)
-        cov_diag += self.reg_covar
+        cov_diag = cov_diag + self.reg_covar
         self.covariances_ = cov_diag
 
-    def _update_mle_spherical(self, X, resp, nk):
-        r"""
-        MLE update for spherical covariance (single variance per component).
-        
-        σ²ₖ = (1/(n_k·d)) Σᵢ γᵢₖ||xᵢ - μₖ||² + reg
-        """
-        # ===============================================================
-        # Compute total weighted scatter
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        diff2 = diff.pow(2).sum(dim=2)  # (n_samples, n_components)
-        sum_diff2 = (resp * diff2).sum(dim=0)  # (n_components,)
-        
-        # ===============================================================
-        # Normalize by n_k * d and add regularization
-        # ===============================================================
-        cov_spherical = sum_diff2 / (nk * self.n_features)
-        cov_spherical += self.reg_covar
+    def _update_mle_spherical(self, stats, nk, ybar):
+        r"""MLE update for spherical covariance (single variance per component)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar)
+        cov_spherical = sum_diff / (nk * self.n_features)
+        cov_spherical = cov_spherical + self.reg_covar
         self.covariances_ = cov_spherical
 
-    def _update_mle_tied_full(self, X, resp, nk):
-        r"""
-        MLE update for tied full covariance (shared across components).
-        
-        Σ = (1/N) Σₖ Σᵢ γᵢₖ(xᵢ - μₖ)(xᵢ - μₖ)ᵀ + reg·I
-        """
-        # ===============================================================
-        # Compute pooled scatter matrix
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd,nke->de', resp, diff, diff)  # (n_features, n_features)
-        
-        # ===============================================================
-        # Normalize and add regularization
-        # ===============================================================
+    def _update_mle_tied_full(self, stats, nk, ybar):
+        r"""MLE update for tied full covariance (shared across components)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar).sum(dim=0)
         cov_tied = sum_diff / nk.sum()
-        cov_tied += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
+        cov_tied = cov_tied + self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
         self.covariances_ = cov_tied
 
-    def _update_mle_tied_diag(self, X, resp, nk):
-        r"""
-        MLE update for tied diagonal covariance (shared across components).
-        
-        σ²d = (1/N) Σₖ Σᵢ γᵢₖ(xᵢd - μₖd)² + reg
-        """
-        # ===============================================================
-        # Compute pooled scatter per dimension
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd->d', resp, diff.pow(2))  # (n_features,)
-        
-        # ===============================================================
-        # Normalize and add regularization
-        # ===============================================================
+    def _update_mle_tied_diag(self, stats, nk, ybar):
+        r"""MLE update for tied diagonal covariance (shared across components)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar).sum(dim=0)
         cov_tied_diag = sum_diff / nk.sum()
-        cov_tied_diag += self.reg_covar
+        cov_tied_diag = cov_tied_diag + self.reg_covar
         self.covariances_ = cov_tied_diag
 
-    def _update_mle_tied_spherical(self, X, resp, nk):
-        r"""
-        MLE update for tied spherical covariance (single variance for all).
-        
-        σ² = (1/(N·d)) Σₖ Σᵢ γᵢₖ||xᵢ - μₖ||² + reg
-        """
-        # ===============================================================
-        # Compute total pooled scatter
-        # ===============================================================
-        diff = X.unsqueeze(1) - self.means_.unsqueeze(0)
-        sum_diff = torch.einsum('nk,nkd->', resp, diff.pow(2))  # scalar
-        
-        # ===============================================================
-        # Normalize by N * d and add regularization
-        # ===============================================================
+    def _update_mle_tied_spherical(self, stats, nk, ybar):
+        r"""MLE update for tied spherical covariance (single variance for all)."""
+        sum_diff = self._scatter_about_means(stats, nk, ybar).sum()
         cov_tied_spherical = sum_diff / (nk.sum() * self.n_features)
-        cov_tied_spherical += self.reg_covar
+        cov_tied_spherical = cov_tied_spherical + self.reg_covar
         self.covariances_ = cov_tied_spherical
-
-
-    # ===================================================================
-    # NIW (Normal-Inverse-Wishart) Specific Covariance Updates
-    # ===================================================================
-    # These methods implement the covariance component of the NIW posterior.
-    # The mean component is handled in _update_niw_conjugate().
-    # ===================================================================
-    
-    def _update_niw_full(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""
-        NIW posterior update for full covariance matrices.
-        
-        Computes: Ψₙ = Ψ₀ + S + (λ₀n/(λ₀+n))(ȳ - μ₀)(ȳ - μ₀)ᵀ
-        Then: Σₖ = Ψₙ / νₙ
-        
-        Parameters
-        ----------
-        All parameters come from _update_niw_conjugate().
-        """
-        # ===============================================================
-        # Compute scatter matrix S for each component
-        # ===============================================================
-        diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
-        weighted_diff = resp.unsqueeze(-1).unsqueeze(-1) * diff.unsqueeze(3) * diff.unsqueeze(2)
-        S = weighted_diff.sum(dim=0)  # (n_components, n_features, n_features)
-        
-        # ===============================================================
-        # Compute cross-term: (λ₀n/(λ₀+n)) (ȳ - μ₀)(ȳ - μ₀)ᵀ
-        # ===============================================================
-        mean_diff = empirical_means - self.mean_prior  # (n_components, n_features)
-        cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
-        cross_term = cross_term_coeff.unsqueeze(-1).unsqueeze(-1) * (
-            mean_diff.unsqueeze(-1) @ mean_diff.unsqueeze(-2)
-        )  # (n_components, n_features, n_features)
-        
-        # ===============================================================
-        # NIW posterior scale matrix and regularization
-        # ===============================================================
-        psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype).unsqueeze(0)
-        
-        # ===============================================================
-        # Final covariance: E[Σ] = Ψₙ / νₙ
-        # ===============================================================
-        self.covariances_ = psi_n / nu_n.unsqueeze(-1).unsqueeze(-1)
-
-    def _update_niw_diag(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""
-        NIW posterior update for diagonal covariance matrices.
-        
-        Each dimension updated independently using NIW formula.
-        """
-        # ===============================================================
-        # Compute scatter matrix S (diagonal)
-        # ===============================================================
-        diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
-        weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
-        S = weighted_diff_sq.sum(dim=0)  # (n_components, n_features)
-        
-        # ===============================================================
-        # Compute cross-term (per dimension)
-        # ===============================================================
-        mean_diff_sq = (empirical_means - self.mean_prior).pow(2)  # (n_components, n_features)
-        cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
-        cross_term = cross_term_coeff.unsqueeze(-1) * mean_diff_sq  # (n_components, n_features)
-        
-        # ===============================================================
-        # NIW posterior and regularization
-        # ===============================================================
-        psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar
-        
-        # ===============================================================
-        # Final covariance
-        # ===============================================================
-        self.covariances_ = psi_n / nu_n.unsqueeze(-1)
-
-    def _update_niw_spherical(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""
-        NIW posterior update for spherical covariances.
-        
-        Single variance per component (isotropic).
-        """
-        # ===============================================================
-        # Compute total scatter (sum over features)
-        # ===============================================================
-        diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
-        weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
-        S = weighted_diff_sq.sum(dim=(0, 2))  # (n_components,)
-        
-        # ===============================================================
-        # Compute cross-term (total squared distance)
-        # ===============================================================
-        mean_diff_norm_sq = (empirical_means - self.mean_prior).pow(2).sum(dim=1)  # (n_components,)
-        cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
-        cross_term = cross_term_coeff * mean_diff_norm_sq  # (n_components,)
-        
-        # ===============================================================
-        # NIW posterior and regularization
-        # ===============================================================
-        psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar * self.n_features
-        
-        # ===============================================================
-        # Final covariance (averaged over dimensions)
-        # ===============================================================
-        self.covariances_ = psi_n / (nu_n * self.n_features)
-
-    def _update_niw_tied_full(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""
-        NIW posterior update for tied full covariance.
-        
-        Single shared full covariance matrix across all components.
-        """
-        # ===============================================================
-        # Compute pooled scatter matrix
-        # ===============================================================
-        diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
-        S = torch.einsum('nk,nkd,nke->de', resp, diff, diff)  # (n_features, n_features)
-        
-        # ===============================================================
-        # Compute pooled cross-term
-        # ===============================================================
-        mean_diff = empirical_means - self.mean_prior  # (n_components, n_features)
-        cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
-        cross_term = torch.einsum('k,kd,ke->de', cross_term_coeff, mean_diff, mean_diff)  # (n_features, n_features)
-        
-        # ===============================================================
-        # NIW posterior and regularization
-        # ===============================================================
-        psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar * torch.eye(self.n_features, device=self.device, dtype=self.dtype)
-        
-        # ===============================================================
-        # Final covariance (total degrees of freedom)
-        # ===============================================================
-        total_nu_n = self.degrees_of_freedom_prior + nk.sum()
-        self.covariances_ = psi_n / total_nu_n
-
-    def _update_niw_tied_diag(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""
-        NIW posterior update for tied diagonal covariance.
-        
-        Shared diagonal covariance across all components.
-        """
-        # ===============================================================
-        # Compute pooled scatter (per dimension)
-        # ===============================================================
-        diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
-        weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
-        S = weighted_diff_sq.sum(dim=(0, 1))  # (n_features,)
-        
-        # ===============================================================
-        # Compute pooled cross-term
-        # ===============================================================
-        mean_diff_sq = (empirical_means - self.mean_prior).pow(2)  # (n_components, n_features)
-        cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
-        cross_term = torch.einsum('k,kd->d', cross_term_coeff, mean_diff_sq)  # (n_features,)
-        
-        # ===============================================================
-        # NIW posterior and regularization
-        # ===============================================================
-        psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar
-        
-        # ===============================================================
-        # Final covariance
-        # ===============================================================
-        total_nu_n = self.degrees_of_freedom_prior + nk.sum()
-        self.covariances_ = psi_n / total_nu_n
-
-    def _update_niw_tied_spherical(self, X, resp, nk, empirical_means, lambda0, lambda_n, nu_n, psi0):
-        r"""
-        NIW posterior update for tied spherical covariance.
-        
-        Single shared variance across all components and dimensions.
-        """
-        # ===============================================================
-        # Compute total pooled scatter
-        # ===============================================================
-        diff = X.unsqueeze(1) - empirical_means.unsqueeze(0)  # (n_samples, n_components, n_features)
-        weighted_diff_sq = resp.unsqueeze(-1) * diff.pow(2)
-        S = weighted_diff_sq.sum()  # scalar
-        
-        # ===============================================================
-        # Compute pooled cross-term
-        # ===============================================================
-        mean_diff_norm_sq = (empirical_means - self.mean_prior).pow(2).sum(dim=1)  # (n_components,)
-        cross_term_coeff = (lambda0 * nk) / lambda_n  # (n_components,)
-        cross_term = (cross_term_coeff * mean_diff_norm_sq).sum()  # scalar
-        
-        # ===============================================================
-        # NIW posterior and regularization
-        # ===============================================================
-        psi_n = psi0 + S + cross_term
-        psi_n += self.reg_covar * nk.sum() * self.n_features
-        
-        # ===============================================================
-        # Final covariance (total samples and features)
-        # ===============================================================
-        total_nu_n = self.degrees_of_freedom_prior + nk.sum()
-        self.covariances_ = psi_n / (total_nu_n * self.n_features)
 
     # ===================================================================
     # Gibbs sampling (collapsed, Neal's Algorithm 3) -- n_components=None
@@ -3900,6 +3878,9 @@ class GaussianMixture(nn.Module):
             'verbose': self.verbose,
             'verbose_interval': self.verbose_interval,
             'cem': self.cem,
+            'algorithm': self.algorithm,
+            'batch_size': self.batch_size,
+            'convergence': self.convergence,
             'max_components': self.max_components,
             'alpha': self.alpha,
             'burn_in': self.burn_in,
@@ -4004,7 +3985,16 @@ class GaussianMixture(nn.Module):
             mean_precision_prior=state_dict['mean_precision_prior'],
             covariance_prior=state_dict['covariance_prior'],
             degrees_of_freedom_prior=state_dict['degrees_of_freedom_prior'],
-            cem=state_dict['cem'],
+            # Prefer the new 'algorithm' key when present; fall back to
+            # deriving it from the legacy 'cem' boolean for files saved
+            # before Phase 0. Passing `algorithm=` directly (rather than
+            # `cem=`) avoids re-raising the cem=True DeprecationWarning on
+            # every load of an already-cem model.
+            algorithm=state_dict.get(
+                'algorithm', 'cem' if state_dict.get('cem', False) else 'em'
+            ),
+            batch_size=state_dict.get('batch_size'),
+            convergence=state_dict.get('convergence', 'relative'),
             max_components=state_dict.get('max_components', 20),
             alpha=state_dict.get('alpha', 1.0),
             burn_in=state_dict.get('burn_in'),
@@ -4092,6 +4082,9 @@ class GaussianMixture(nn.Module):
             'verbose': self.verbose,
             'verbose_interval': self.verbose_interval,
             'cem': self.cem,
+            'algorithm': self.algorithm,
+            'batch_size': self.batch_size,
+            'convergence': self.convergence,
             'max_components': self.max_components,
             'alpha': self.alpha,
             'burn_in': self.burn_in,
@@ -4185,6 +4178,11 @@ class GaussianMixture(nn.Module):
         self.verbose = state_dict['verbose']
         self.verbose_interval = state_dict['verbose_interval']
         self.cem = state_dict['cem']
+        self.algorithm = state_dict.get(
+            'algorithm', 'cem' if state_dict.get('cem', False) else 'em'
+        )
+        self.batch_size = state_dict.get('batch_size')
+        self.convergence = state_dict.get('convergence', 'relative')
         self.max_components = state_dict.get('max_components', 20)
         self.alpha = state_dict.get('alpha', 1.0)
         self.burn_in = state_dict.get('burn_in')
