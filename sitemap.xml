@@ -9,6 +9,10 @@
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
+         <loc>https://adriansousapoza.github.io/tgmm/api/base-mixture/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/clustering-metrics/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
@@ -33,7 +37,15 @@
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
+         <loc>https://adriansousapoza.github.io/tgmm/api/student-t-mixture/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/sufficient-stats/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/api/vmf-mixture/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
@@ -113,6 +125,10 @@
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/16_student_t_and_vmf/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
          <loc>https://adriansousapoza.github.io/tgmm/tutorials/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
@@ -130,6 +146,10 @@
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/gpcm-covariance-models/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/user-guide/other-mixture-families/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
