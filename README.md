@@ -125,6 +125,21 @@ Flexible plotting utilities in `tgmm.plotting`:
 - Cluster coloring, ground-truth comparison, and log-likelihood coloring
 - Initial vs. final mean trajectories and weight-scaled markers
 
+### 5. Other Mixture Families
+
+`StudentTMixture` and `VonMisesFisherMixture` share `GaussianMixture`'s entire EM toolkit
+(`algorithm`, `temperature`, `step_size`, `n_init`, `bic`/`aic`/`icl`, ...) via a common
+`BaseMixture` base class:
+
+- **`StudentTMixture`**: a robust alternative to `GaussianMixture` (Peel & McLachlan, 2000) --
+  heavier-tailed components that downweight outliers instead of letting them drag the fit.
+  `sample_weights(X)` flags which points were treated as outliers.
+- **`VonMisesFisherMixture`**: for L2-normalized / cosine-similarity data (text and image
+  embeddings, typically) -- components are directions on the unit hypersphere with a
+  concentration parameter, fit per Banerjee, Dhillon, Ghosh & Sra (2005).
+
+See the [Other Mixture Families](https://adriansousapoza.github.io/tgmm/user-guide/other-mixture-families/) guide.
+
 ## Citation
 
 TBA

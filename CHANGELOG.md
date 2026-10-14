@@ -5,6 +5,58 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] -- v0.4.0 in progress
 
+### Added (Phase 4: `BaseMixture`, `StudentTMixture`, `VonMisesFisherMixture`)
+
+- New `tgmm.mixtures` package with `BaseMixture`, the shared base class
+  every mixture family now builds on: the EM/CEM/SEM/SAEM/online-EM loop,
+  `n_init` best-run selection, `predict`/`predict_proba`/`score`/
+  `score_samples`/`bic`/`aic`/`icl`, and a generic `sample()` shell, all
+  behind a small abstract-method contract
+  (`_component_log_prob`/`_compute_stats`/`_m_step_from_stats`/
+  `_allocate_parameters`/`_n_parameters`/`_sample_component`).
+  `GaussianMixture` is rebased onto `BaseMixture` with **zero behavior
+  change**: it keeps its own `fit()` (Gibbs-sampling and supervised-fit
+  dispatch), `sample()` (confidence regions, rejection sampling), and
+  `save`/`load`/`save_state_dict`/`load_state_dict` exactly as they were,
+  overriding `BaseMixture`'s versions where its existing behavior doesn't
+  generalize. Verified: the full pre-existing test suite passes unchanged,
+  and seeded fits are bit-identical pre/post-rebase across every algorithm
+  (EM/CEM/SEM/SAEM/online/DAEM/Aitken/supervised/Gibbs) and covariance
+  type tested.
+- `tgmm.StudentTMixture`: a robust alternative to `GaussianMixture` (Peel
+  & McLachlan, 2000). Each component is a multivariate Student-t with
+  mean, scale matrix (`covariances_`), and degrees of freedom (`dof_`,
+  `'per_component'`/`'shared'`/a fixed float, found each M-step by
+  bisection+Newton on the digamma equation). `covariance_type` supports
+  `'full'`/`'diag'`/`'spherical'`/`'tied_full'`; `scale_update='ecm'`
+  (default) or `'ecme'`. `sample_weights(X)` returns each point's
+  robustness weight at its predicted component, for flagging outliers.
+  Verified against `scipy.stats.multivariate_t.logpdf` (~1e-6 agreement),
+  parity with `GaussianMixture` at a large fixed `dof`, and real
+  robustness gains over `GaussianMixture` under 5% uniform contamination.
+- `tgmm.VonMisesFisherMixture`: a mixture of von Mises-Fisher
+  distributions (Banerjee, Dhillon, Ghosh & Sra, 2005) for L2-normalized
+  (directional) data, e.g. cosine-similarity embeddings. Each component
+  has a unit-norm mean direction and a concentration (`kappa_`,
+  `'per_component'` or `'shared'`, fit via the Banerjee closed-form
+  approximation refined by two Newton steps, Sra 2012). `init_means=
+  'kmeans'` runs spherical k-means (cosine similarity) with cosine-
+  distance k-means++ seeding. `fit`/`predict`/`predict_proba`/
+  `score_samples`/`score`/`partial_fit` all auto-normalize non-unit-norm
+  input with a one-time warning. `sample()` uses Wood's (1994) rejection
+  sampler. `_log_bessel_iv` (the log Bessel-I term in the normalizing
+  constant) verified against `mpmath.besseli` at `d` in
+  `{2, 10, 128, 768}`.
+- `SufficientStats` gains an optional `aux: dict[str, Tensor]` field for
+  family-specific accumulators that don't fit the `nk`/`s1`/`s2` shape
+  (used by `StudentTMixture`'s u-weighted sums); fully backward
+  compatible -- `GaussianMixture` never sets it, and `__add__`/`scale`
+  are no-ops on it when absent.
+- New user guide page "Other Mixture Families" and notebook
+  `16_student_t_and_vmf.ipynb` (t-mixture vs Gaussian under contamination
+  with the outlier-weight map; vMF vs `GaussianMixture(covariance_type=
+  'diag')` on simulated 768-d unit-norm embeddings).
+
 ### Added (Phase 3: the 14 GPCM covariance models)
 
 - `GaussianMixture(covariance_type=...)` now accepts all 14 Celeux &
