@@ -37,6 +37,10 @@
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
+         <loc>https://adriansousapoza.github.io/tgmm/api/positive-unlabeled-mixture/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/student-t-mixture/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
@@ -129,6 +133,10 @@
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/17_semi_supervised_pu/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
          <loc>https://adriansousapoza.github.io/tgmm/tutorials/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
@@ -154,6 +162,10 @@
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/plotting/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/user-guide/semi-supervised-pu/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
 </urlset>
