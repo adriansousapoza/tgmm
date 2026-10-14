@@ -1,4 +1,4 @@
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from .gmm import GaussianMixture
 from .gmm_init import GMMInitializer
@@ -6,6 +6,7 @@ from .hdbscan import HDBSCAN
 from .metrics import ClusteringMetrics
 from .mixtures import BaseMixture, StudentTMixture, VonMisesFisherMixture
 from .model_selection import ModelSelectionResult, select_model
+from .semi_supervised import PositiveUnlabeledMixture
 from .stats import SufficientStats
 from .plotting import (
     plot_gmm, dynamic_figsize, match_predicted_to_true_labels,

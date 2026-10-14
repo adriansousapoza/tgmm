@@ -110,7 +110,7 @@ def read_test_requirements():
 
 setup(
     name="tgmm",
-    version="0.3.0",
+    version="0.4.0",
     author="Adrián A. Sousa-Poza",
     author_email="adrian.sousapoza@gmail.com",
     description="A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch",

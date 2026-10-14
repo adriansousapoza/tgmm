@@ -172,6 +172,9 @@ class StudentTMixture(BaseMixture):
         step_size=None,
         sem_burn_in: Optional[int] = None,
         sem_estimate: str = 'best',
+        components_per_class=1,
+        unlabeled_weight: float = 1.0,
+        label_confidence: float = 1.0,
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -182,6 +185,8 @@ class StudentTMixture(BaseMixture):
             random_state=random_state, warm_start=warm_start, algorithm=algorithm,
             batch_size=batch_size, temperature=temperature, convergence=convergence,
             step_size=step_size, sem_burn_in=sem_burn_in, sem_estimate=sem_estimate,
+            components_per_class=components_per_class, unlabeled_weight=unlabeled_weight,
+            label_confidence=label_confidence,
             verbose=verbose, verbose_interval=verbose_interval, device=device,
         )
 
@@ -307,6 +312,15 @@ class StudentTMixture(BaseMixture):
             dof_value = float(self.dof_init)
         self.dof_ = torch.full((self.n_components,), dof_value, device=self.device, dtype=self.dtype)
 
+        # A fresh allocation starts a fresh fit's bookkeeping -- without
+        # this, n_init > 1 could leak a prior run's converged_=True onto a
+        # later run that never actually converged (see GaussianMixture's
+        # own _allocate_parameters, which does the same reset).
+        self.fitted_ = False
+        self.converged_ = False
+        self.n_iter_ = 0
+        self.lower_bound_ = -float("inf")
+
     # ===================================================================
     # Snapshotting: dof_ is the one extra fitted tensor beyond
     # weights_/means_/covariances_ -- see BaseMixture._get_param_snapshot.
@@ -315,6 +329,9 @@ class StudentTMixture(BaseMixture):
         snapshot = super()._get_param_snapshot()
         snapshot['dof_'] = self.dof_.clone()
         return snapshot
+
+    def _is_tied_covariance(self) -> bool:
+        return self.covariance_type == 'tied_full'
 
     # ===================================================================
     # E-step hook

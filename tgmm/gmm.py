@@ -314,11 +314,17 @@ class GaussianMixture(BaseMixture):
         Gibbs mode only: boolean/index mask of which of the tracked
         `max_components` slots are active in the fitted result. None in EM
         mode and before the first fit.
-    classes_ : torch.Tensor
-        Sorted distinct label values seen by the most recent supervised
-        `fit(X, labels=...)` call; `classes_[k]` is the original label for
-        component `k`. Only set after a supervised fit — absent otherwise.
-        Not persisted by `save`/`load` or `save_state_dict`/`load_state_dict`.
+    classes_ : torch.Tensor or None
+        Sorted distinct non-`-1` label values seen by the most recent
+        `fit(X, labels=...)` call (supervised or semi-supervised);
+        `class_of_component_[k]` indexes into `classes_` for component
+        `k`'s class. `None` after an unsupervised fit (no `labels`) or
+        before the first fit. Not persisted by `save`/`load` or
+        `save_state_dict`/`load_state_dict`.
+    class_of_component_ : torch.Tensor or None
+        Shape `(n_components,)`: which class (an index into `classes_`)
+        each component belongs to, per `components_per_class`. `None`
+        after an unsupervised fit or before the first fit.
     log_likelihood_history_ : torch.Tensor or None
         Per-iteration/sweep/epoch mean log-likelihood trace from the most
         recent EM-mode fit (every `algorithm`, including online EM). `None`
@@ -385,6 +391,12 @@ class GaussianMixture(BaseMixture):
         step_size: Optional[Union[float, str, Callable[[int], float]]] = None,
         sem_burn_in: Optional[int] = None,
         sem_estimate: str = 'best',
+
+        # Semi-supervised / positive-unlabeled fitting (Phase 5; see fit()'s
+        # labels= parameter)
+        components_per_class: Union[int, dict] = 1,
+        unlabeled_weight: float = 1.0,
+        label_confidence: float = 1.0,
 
         # Prior parameters for MAP estimation (EM mode) / required NIW prior (Gibbs mode)
         weight_concentration_prior: torch.Tensor = None,
@@ -557,6 +569,23 @@ class GaussianMixture(BaseMixture):
         if sem_estimate not in valid_sem_estimates:
             raise ValueError(f"sem_estimate must be one of {valid_sem_estimates}, got {sem_estimate!r}")
         self.sem_estimate = sem_estimate
+
+        if not isinstance(components_per_class, (int, dict)):
+            raise TypeError(f"components_per_class must be an int or dict, got {type(components_per_class)}")
+        if isinstance(components_per_class, int) and components_per_class <= 0:
+            raise ValueError(f"components_per_class must be > 0, got {components_per_class}.")
+        self.components_per_class = components_per_class
+
+        if unlabeled_weight < 0:
+            raise ValueError(f"unlabeled_weight must be >= 0, got {unlabeled_weight}.")
+        self.unlabeled_weight = unlabeled_weight
+
+        if not (0.0 <= label_confidence <= 1.0):
+            raise ValueError(f"label_confidence must be in [0, 1], got {label_confidence}.")
+        self.label_confidence = label_confidence
+
+        self.classes_ = None
+        self.class_of_component_ = None
 
         # ===================================================================
         # 6b. Store Gibbs-mode parameters (ignored in EM mode)
@@ -1503,144 +1532,44 @@ class GaussianMixture(BaseMixture):
             )
 
         # ===============================================================
-        # 3b. Supervised fit: bypass EM/CEM entirely when labels are given
-        # ===============================================================
-        if labels is not None:
-            component_idx = self._validate_labels(labels, X)
-
-            # _allocate_parameters is only called here to give
-            # weights_/means_/covariances_ (and initial_*_) the right
-            # shape/device/dtype -- their *values* are immediately
-            # overwritten by _m_step below. Running the instance's
-            # configured init strategy (kmeans + empirical covariance by
-            # default) would compute a full clustering and covariance
-            # estimate that's thrown away one line later, making
-            # supervised fitting far slower than the single closed-form
-            # pass it's supposed to be. Swap to cheap placeholder methods
-            # for just this call, restoring the originals afterward even
-            # if the call raises. Only string method names are swapped --
-            # a user-provided init tensor still gets its normal shape
-            # validation and is used as given.
-            orig_init_means = self.init_means
-            orig_init_covariances = self.init_covariances
-            try:
-                if isinstance(self.init_means, str):
-                    self.init_means = 'random'
-                if isinstance(self.init_covariances, str):
-                    self.init_covariances = 'eye'
-                self._allocate_parameters(X)
-            finally:
-                self.init_means = orig_init_means
-                self.init_covariances = orig_init_covariances
-
-            n_samples = X.size(0)
-            resp = torch.zeros(n_samples, self.n_components, device=self.device, dtype=self.dtype)
-            resp[torch.arange(n_samples, device=self.device), component_idx] = 1.0
-
-            self._m_step(X, resp)
-
-            _, log_prob_norm = self._e_step(X)
-            self.lower_bound_ = log_prob_norm.mean().item()
-            self.converged_ = True
-            self.n_iter_ = 1
-            self.best_random_state_ = None
-            self.fitted_ = True
-
-            # Supervised weights are n_c / n with n_c >= 1 for every class
-            # (torch.unique guarantees each distinct label appears at least
-            # once), so a weight-based degeneracy check would need n > 1e8
-            # to ever fire -- it's dead code. What actually goes degenerate
-            # is a per-component covariance estimated from too few of that
-            # class's own points (rank-deficient for 'full', a zero real
-            # variance propped up only by reg_covar for 'diag'/'spherical').
-            # Tied covariance types pool residuals across *all* classes, so
-            # a single small class doesn't by itself make the shared
-            # estimate degenerate -- no separate check for those.
-            if self.covariance_type in ('full', 'diag', 'spherical'):
-                component_counts = torch.bincount(component_idx, minlength=self.n_components)
-                min_required = self.n_features + 1 if self.covariance_type == 'full' else 2
-                sparse_mask = component_counts < min_required
-                if torch.any(sparse_mask):
-                    sparse_classes = self.classes_[sparse_mask].tolist()
-                    warnings.warn(
-                        f"Class(es) {sparse_classes} have too few samples "
-                        f"(need > {min_required - 1}) to reliably estimate a "
-                        f"'{self.covariance_type}' covariance from that class's "
-                        "own data alone. The resulting covariance may be "
-                        "rank-deficient or dominated entirely by reg_covar.",
-                        UserWarning
-                    )
-
-            self.n_components_ = self.n_components
-            self.active_ = torch.ones(self.n_components, dtype=torch.bool, device=self.device)
-            return self
-
-        # An unsupervised fit means classes_ genuinely doesn't exist (see
-        # its docstring: "Only set after a supervised fit -- absent
-        # otherwise"), not that it exists holding a stale mapping from a
-        # previous supervised fit on this same instance. Without this, a
-        # later predict()/classes_ lookup would silently mis-map the new,
-        # unrelated cluster indices through the old label table.
-        if hasattr(self, 'classes_'):
-            del self.classes_
-
-        # ===============================================================
-        # 4-5. Run multiple initializations and keep the best: shared with
-        # every other mixture family, see BaseMixture.fit. X/max_iter/tol/
+        # 3b-5. (Semi-)supervised fitting (labels given) and the ordinary
+        # unsupervised n_init loop are both handled generically by
+        # BaseMixture now (Phase 5) -- see the design doc. X/max_iter/tol/
         # random_state/warm_start are already fully resolved above, so
         # this re-does X/parameter validation idempotently and nothing
         # about the result changes.
         # ===============================================================
-        return super().fit(X, max_iter=max_iter, tol=tol, random_state=random_state, warm_start=warm_start)
+        return super().fit(X, labels=labels, max_iter=max_iter, tol=tol, random_state=random_state, warm_start=warm_start)
 
-    def _validate_labels(self, labels, X: torch.Tensor) -> torch.Tensor:
+    def _is_tied_covariance(self) -> bool:
+        return self.covariance_type in ('tied_full', 'tied_diag', 'tied_spherical')
+
+    def _post_supervised_fit_warnings(self, component_counts: torch.Tensor):
         r"""
-        Validate and map user-provided class labels to contiguous component
-        indices for supervised fitting.
-
-        Parameters
-        ----------
-        labels : array-like
-            Per-sample class labels, shape (n_samples,). Values do not need
-            to already be contiguous or zero-indexed; the mapping used is
-            recorded in `self.classes_`.
-        X : torch.Tensor
-            The data being fit, used only to check `labels` has a matching
-            length.
-
-        Returns
-        -------
-        component_idx : torch.Tensor
-            Long tensor of shape (n_samples,) with values in
-            [0, n_components), where component `k` corresponds to the
-            original label `self.classes_[k]`.
-
-        Raises
-        ------
-        ValueError
-            If `labels` isn't 1D of length `n_samples`, or if the number of
-            distinct labels doesn't equal `self.n_components`.
+        Warn if any class has too few samples to reliably estimate a
+        per-component `'full'`/`'diag'`/`'spherical'` covariance from that
+        class's own data alone (rank-deficient for `'full'`, a zero real
+        variance propped up only by `reg_covar` for `'diag'`/`'spherical'`).
+        Tied covariance types pool residuals across *all* classes, so a
+        single small class doesn't by itself make the shared estimate
+        degenerate -- no check for those. A weight-based degeneracy check
+        isn't needed either: supervised/semi-supervised weights are
+        `n_c / n` with `n_c >= 1` for every class actually present in
+        `labels`, so that would need `n > 1e8` to ever fire.
         """
-        if not torch.is_tensor(labels):
-            labels = torch.as_tensor(labels)
-        labels = labels.to(device=self.device)
-
-        if labels.dim() != 1 or labels.size(0) != X.size(0):
-            raise ValueError(
-                f"labels must be a 1D array of length n_samples={X.size(0)}, "
-                f"got shape {tuple(labels.shape)}."
-            )
-
-        classes = torch.unique(labels, sorted=True)
-        if classes.numel() != self.n_components:
-            raise ValueError(
-                f"Supervised fit requires exactly one Gaussian component per "
-                f"distinct label: found {classes.numel()} unique label(s) in "
-                f"`labels` but n_components={self.n_components}."
-            )
-
-        self.classes_ = classes
-        return torch.searchsorted(classes, labels).long()
+        if self.covariance_type in ('full', 'diag', 'spherical'):
+            min_required = self.n_features + 1 if self.covariance_type == 'full' else 2
+            sparse_mask = component_counts < min_required
+            if torch.any(sparse_mask):
+                sparse_classes = self.classes_[self.class_of_component_[sparse_mask]].tolist()
+                warnings.warn(
+                    f"Component(s) belonging to class(es) {sparse_classes} have too "
+                    f"few samples (need > {min_required - 1}) to reliably estimate a "
+                    f"'{self.covariance_type}' covariance from that class's own data "
+                    "alone. The resulting covariance may be rank-deficient or "
+                    "dominated entirely by reg_covar.",
+                    UserWarning
+                )
 
     # ===================================================================
     # SEM (algorithm='sem')
