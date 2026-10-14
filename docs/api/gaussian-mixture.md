@@ -15,6 +15,7 @@
         - score_samples
         - bic
         - aic
+        - icl
         - sample
         - save
         - load

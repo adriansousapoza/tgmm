@@ -1,5 +1,9 @@
 import torch
-from typing import Optional, List, Dict, Union
+import torch.nn.functional as F
+from typing import Optional, List, Dict, Tuple, Union
+
+from .hdbscan import prim_mst
+
 
 class ClusteringMetrics:
     r"""
@@ -38,11 +42,204 @@ class ClusteringMetrics:
         print("ARI =", ari)
     """
 
+    # ========================================================================
+    # Shared internal-index infrastructure
+    #
+    # See docs/superpowers/specs/2026-10-14-phase1-metrics-model-selection-design.md
+    # for the design rationale, in particular why 'precomputed' is only
+    # supported by the purely-pairwise indexes (silhouette_score, dunn_index,
+    # dbcv) and not the centroid-based ones (davies_bouldin_index,
+    # calinski_harabasz_score, wb_index, wemmert_gancarski_index).
+    # ========================================================================
+
+    @staticmethod
+    def _pairwise_distances(
+        X: torch.Tensor, Y: torch.Tensor, metric: str = 'euclidean',
+        VI: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        r"""
+        `(n_x, n_y)` distances between rows of `X` and rows of `Y`.
+
+        `metric` is one of `'euclidean'`, `'manhattan'`, `'mahalanobis'`
+        (requires `VI`, a `(d, d)` precision matrix), or `'cosine'`.
+        `'precomputed'` is not handled here -- callers that accept it treat
+        the input as already *being* the distance matrix rather than
+        points to measure between.
+
+        `'mahalanobis'` is computed by whitening both `X` and `Y`
+        (`L = cholesky(VI)`, `X @ L`, `Y @ L`) and taking the Euclidean
+        distance in that space: for `VI = L L^T`,
+        `(x-y)^T VI (x-y) = ||L^T(x-y)||^2 = ||x@L - y@L||^2`, so this is
+        exact, not an approximation.
+
+        `'cosine'` is computed directly as `1 - cosine_similarity`, *not*
+        via the same whitening trick -- Euclidean distance between
+        L2-normalised vectors is `sqrt(2 * cosine_distance)`, a monotonic
+        but non-linear rescaling that would corrupt any index taking a
+        *ratio* of distances (e.g. Davies-Bouldin, WB).
+        """
+        if metric == 'euclidean':
+            return torch.cdist(X, Y, p=2)
+        elif metric == 'manhattan':
+            return torch.cdist(X, Y, p=1)
+        elif metric == 'mahalanobis':
+            if VI is None:
+                raise ValueError("metric='mahalanobis' requires VI (a (d, d) precision matrix).")
+            L = torch.linalg.cholesky(VI.to(dtype=X.dtype, device=X.device))
+            return torch.cdist(X @ L, Y @ L, p=2)
+        elif metric == 'cosine':
+            Xn = X / X.norm(dim=1, keepdim=True).clamp_min(1e-12)
+            Yn = Y / Y.norm(dim=1, keepdim=True).clamp_min(1e-12)
+            return 1.0 - Xn @ Yn.t()
+        else:
+            raise ValueError(
+                f"Unsupported metric: {metric!r}. Expected one of 'euclidean', "
+                "'manhattan', 'mahalanobis', 'cosine' (or 'precomputed', where "
+                "applicable -- see the calling method's docstring)."
+            )
+
+    @classmethod
+    def _require_coordinate_metric(cls, metric: str, index_name: str):
+        r"""
+        Raise a clear error if `metric='precomputed'` is passed to a
+        centroid-based index -- there is no coordinate space to average
+        points in when all that's given is a distance matrix.
+        """
+        if metric == 'precomputed':
+            raise ValueError(
+                f"metric='precomputed' is not supported by {index_name} (it needs "
+                "to compute a cluster centroid in coordinate space, which a "
+                "precomputed distance matrix doesn't provide). Use "
+                "silhouette_score, dunn_index, or dbcv for a precomputed-distance "
+                "workflow instead."
+            )
+
+    @staticmethod
+    def _pairwise_chunked(
+        X: torch.Tensor, metric: str = 'euclidean', chunk_size: int = 4096,
+        VI: Optional[torch.Tensor] = None,
+    ):
+        r"""
+        Yield `(chunk, n)` distance blocks, row-chunked over `X`.
+
+        When `metric='precomputed'`, `X` is itself the `(n, n)` distance
+        matrix, and chunks are row-slices of it directly (no distance
+        computation). Otherwise each chunk is
+        `_pairwise_distances(X[start:end], X, metric, VI)`.
+        """
+        n = X.shape[0]
+        if metric == 'precomputed':
+            if X.shape[0] != X.shape[1]:
+                raise ValueError("metric='precomputed' requires a square (n, n) distance matrix.")
+            for start in range(0, n, chunk_size):
+                yield X[start:start + chunk_size]
+            return
+
+        for start in range(0, n, chunk_size):
+            yield ClusteringMetrics._pairwise_distances(X[start:start + chunk_size], X, metric, VI)
+
+    @staticmethod
+    def _resolve_labels(
+        labels: torch.Tensor, n_components: Optional[int] = None,
+        noise_label: Optional[int] = None,
+    ) -> Tuple[torch.Tensor, int, torch.Tensor]:
+        r"""
+        Resolve `labels` into `(dense_labels, n_clusters, keep_mask)`.
+
+        `noise_label`, if given, marks rows to exclude (`keep_mask =
+        labels != noise_label`); `dense_labels`/`n_clusters` only describe
+        the kept rows.
+
+        `n_components`, if given, is trusted as-is for full backward
+        compatibility: every pre-Phase-1 call site already passes
+        contiguous `0..n_components-1` labels, so no remapping happens in
+        that case. `n_components=None` (new) infers the cluster count from
+        `torch.unique` and dense-remaps via `torch.searchsorted`, so labels
+        need not be contiguous or start at 0.
+        """
+        labels = labels.to(torch.long)
+        if noise_label is not None:
+            keep_mask = labels != noise_label
+        else:
+            keep_mask = torch.ones_like(labels, dtype=torch.bool)
+
+        kept = labels[keep_mask]
+        if n_components is not None:
+            return kept, int(n_components), keep_mask
+
+        uniq = torch.unique(kept, sorted=True)
+        dense = torch.searchsorted(uniq, kept)
+        return dense, int(uniq.numel()), keep_mask
+
+    @staticmethod
+    def _apply_noise_scaling(
+        value: float, original_labels: torch.Tensor, noise_label: Optional[int],
+        maximize: bool,
+    ) -> float:
+        r"""
+        Scale `value` by `f = (n - n_noise) / n` when `noise_label` is set
+        -- multiply for maximise-is-better indexes, divide for
+        minimise-is-better ones. A no-op when `noise_label` is `None`.
+        """
+        if noise_label is None:
+            return value
+        n = original_labels.shape[0]
+        n_noise = int((original_labels == noise_label).sum().item())
+        if n_noise == 0:
+            return value
+        f = (n - n_noise) / n
+        return value * f if maximize else value / f
+
+    @staticmethod
+    def _cluster_centroids(
+        X: torch.Tensor, labels: torch.Tensor, n_clusters: int,
+    ) -> torch.Tensor:
+        r"""Per-cluster coordinate-wise mean, shape `(n_clusters, n_features)`."""
+        return torch.stack([X[labels == k].mean(dim=0) for k in range(n_clusters)])
+
+    @staticmethod
+    def _ssw_ssb(
+        X: torch.Tensor, labels: torch.Tensor, n_clusters: int,
+        metric: str = 'euclidean', VI: Optional[torch.Tensor] = None,
+    ):
+        r"""
+        Within-cluster (SSW) and between-cluster (SSB) sum of squared
+        distances-to-centroid, shared by `calinski_harabasz_score` and
+        `wb_index`. Also returns `centroids` and the full `(n, K)`
+        distance-to-every-centroid matrix, since `wemmert_gancarski_index`
+        needs the latter too and it's already computed here.
+
+        Returns
+        -------
+        ssw, ssb : torch.Tensor (scalar)
+        centroids : torch.Tensor, shape (n_clusters, n_features)
+        D : torch.Tensor, shape (n_samples, n_clusters)
+            Distance from each point to every centroid (own-cluster column
+            included).
+        """
+        centroids = ClusteringMetrics._cluster_centroids(X, labels, n_clusters)
+        overall = X.mean(dim=0, keepdim=True)
+
+        D = ClusteringMetrics._pairwise_distances(X, centroids, metric, VI)  # (n, K)
+        idx = torch.arange(X.shape[0], device=X.device)
+        own_dist = D[idx, labels]
+        ssw = own_dist.pow(2).sum()
+
+        D_overall = ClusteringMetrics._pairwise_distances(centroids, overall, metric, VI).squeeze(1)  # (K,)
+        counts = torch.bincount(labels, minlength=n_clusters).to(X.dtype)
+        ssb = (counts * D_overall.pow(2)).sum()
+
+        return ssw, ssb, centroids, D
+
     @staticmethod
     def silhouette_score(
         X: torch.Tensor,
         labels: torch.Tensor,
-        n_components: int
+        n_components: Optional[int] = None,
+        metric: str = 'euclidean',
+        noise_label: Optional[int] = None,
+        chunk_size: int = 4096,
+        VI: Optional[torch.Tensor] = None,
     ) -> float:
         r"""
         Compute the silhouette score for a partition of the data.
@@ -53,14 +250,37 @@ class ClusteringMetrics:
         - $a_i$ is the mean distance to points in the same cluster.
         - $b_i$ is the minimum mean distance to points in a different cluster.
 
+        Points in a singleton cluster (the only member of their cluster)
+        get silhouette `0` by convention (sklearn's own rule -- $a_i$ is
+        undefined with no other same-cluster point to average over).
+
         Parameters
         ----------
         X : torch.Tensor
-            Data, shape (n_samples, n_features).
+            Data, shape (n_samples, n_features), or an (n, n) precomputed
+            distance matrix when `metric='precomputed'`.
         labels : torch.Tensor
-            Cluster labels, shape (n_samples,).
-        n_components : int
-            Number of clusters (must be >= 2).
+            Cluster labels, shape (n_samples,). Need not be contiguous or
+            0-indexed when `n_components` is left `None`.
+        n_components : int, optional
+            Number of clusters. If `None` (default), inferred from the
+            distinct values in `labels`.
+        metric : str, optional
+            One of 'euclidean', 'manhattan', 'cosine', 'mahalanobis'
+            (requires `VI`), or 'precomputed'. (default: 'euclidean')
+        noise_label : int, optional
+            Label value marking noise points (e.g. -1 for HDBSCAN output).
+            Noise rows are dropped before computing the index, and the
+            result is scaled by `(n - n_noise) / n`. (default: None)
+        chunk_size : int, optional
+            Row-chunk size for the pairwise-distance computation, bounding
+            peak memory to `O(chunk_size * n_samples)` regardless of
+            `n_samples`. (default: 4096)
+        VI : torch.Tensor, optional
+            `(d, d)` precision matrix for `metric='mahalanobis'`. Passing
+            the pooled precision of a fitted `GaussianMixture`
+            (`torch.linalg.inv` of the weighted average of `covariances_`)
+            gives the GMM-matched silhouette.
 
         Returns
         -------
@@ -68,39 +288,47 @@ class ClusteringMetrics:
             The mean silhouette score over all samples (range is typically [-1, 1],
             though it’s seldom negative in practice if distances are Euclidean).
         """
-        assert n_components > 1, "Silhouette score is only defined when there are at least 2 clusters."
-        
-        labels = labels.to(X.device)
-        distances = torch.cdist(X, X)  # (n_samples, n_samples)
-        
-        A = torch.zeros(labels.size(0), dtype=X.dtype, device=X.device)
-        B = torch.full((labels.size(0),), float('inf'), dtype=X.dtype, device=X.device)
+        original_labels = labels
+        dense_labels, n_clusters, keep_mask = ClusteringMetrics._resolve_labels(
+            labels, n_components, noise_label
+        )
+        assert n_clusters > 1, "Silhouette score is only defined when there are at least 2 clusters."
 
-        # For each cluster i, compute intra-cluster distances and inter-cluster distances
-        for i in range(n_components):
-            mask_i = (labels == i)
-            if mask_i.sum() <= 1:
-                continue
+        X_eff = X[keep_mask][:, keep_mask] if metric == 'precomputed' else X[keep_mask]
+        dense_labels = dense_labels.to(X_eff.device)
+        n = X_eff.shape[0]
 
-            intra_cluster_distances = distances[mask_i][:, mask_i]
-            # a_i: average distance within the same cluster
-            A[mask_i] = intra_cluster_distances.sum(dim=1) / (mask_i.sum() - 1)
+        one_hot = F.one_hot(dense_labels, n_clusters).to(X_eff.dtype)  # (n, K)
+        counts = one_hot.sum(dim=0)  # (K,) = n_k
 
-            # b_i: minimum distance to any other cluster
-            for j in range(n_components):
-                if i == j:
-                    continue
-                mask_j = (labels == j)
-                if mask_j.sum() == 0:
-                    continue
-                inter_cluster_distances = distances[mask_i][:, mask_j]
-                B[mask_i] = torch.min(B[mask_i], inter_cluster_distances.mean(dim=1))
+        sums = torch.zeros(n, n_clusters, dtype=X_eff.dtype, device=X_eff.device)
+        start = 0
+        for D_chunk in ClusteringMetrics._pairwise_chunked(X_eff, metric, chunk_size, VI):
+            end = start + D_chunk.shape[0]
+            sums[start:end] = D_chunk @ one_hot
+            start = end
 
-        silhouette_scores = (B - A) / torch.max(A, B)
-        return silhouette_scores.mean().item()
+        idx = torch.arange(n, device=X_eff.device)
+        own_count = counts[dense_labels]
+        own_sum = sums[idx, dense_labels]
+        a = own_sum / (own_count - 1).clamp_min(1)
+
+        mean_dists = sums / counts.unsqueeze(0)
+        mean_dists[idx, dense_labels] = float('inf')
+        b = mean_dists.min(dim=1).values
+
+        silhouette = (b - a) / torch.max(a, b)
+        silhouette = torch.where(own_count <= 1, torch.zeros_like(silhouette), silhouette)
+
+        value = silhouette.mean().item()
+        return ClusteringMetrics._apply_noise_scaling(value, original_labels, noise_label, maximize=True)
 
     @staticmethod
-    def davies_bouldin_index(X: torch.Tensor, labels: torch.Tensor, n_components: int) -> float:
+    def davies_bouldin_index(
+        X: torch.Tensor, labels: torch.Tensor, n_components: Optional[int] = None,
+        metric: str = 'euclidean', noise_label: Optional[int] = None,
+        VI: Optional[torch.Tensor] = None,
+    ) -> float:
         r"""
         Compute the Davies-Bouldin index (lower is better).
 
@@ -113,45 +341,61 @@ class ClusteringMetrics:
         Parameters
         ----------
         X : torch.Tensor
-            Data, shape (n_samples, n_features).
+            Data, shape (n_samples, n_features). `metric='precomputed'` is
+            not supported (no coordinate space to average a centroid in).
         labels : torch.Tensor
-            Cluster labels, shape (n_samples,).
-        n_components : int
-            Number of clusters (must be >= 2).
+            Cluster labels, shape (n_samples,). Need not be contiguous or
+            0-indexed when `n_components` is left `None`.
+        n_components : int, optional
+            Number of clusters (must be >= 2). If `None` (default),
+            inferred from the distinct values in `labels`.
+        metric : str, optional
+            One of 'euclidean', 'manhattan', 'cosine', 'mahalanobis'
+            (requires `VI`). (default: 'euclidean')
+        noise_label : int, optional
+            Label value marking noise points; dropped before computing the
+            index, result scaled by `(n - n_noise) / n`. (default: None)
+        VI : torch.Tensor, optional
+            `(d, d)` precision matrix for `metric='mahalanobis'`.
 
         Returns
         -------
         float
             Davies-Bouldin index.
         """
-        assert n_components > 1, "Davies-Bouldin index is only defined when >= 2 clusters."
-        labels = labels.to(X.device)
+        ClusteringMetrics._require_coordinate_metric(metric, 'davies_bouldin_index')
+        original_labels = labels
+        dense_labels, n_clusters, keep_mask = ClusteringMetrics._resolve_labels(
+            labels, n_components, noise_label
+        )
+        assert n_clusters > 1, "Davies-Bouldin index is only defined when >= 2 clusters."
 
-        # Compute cluster centroids
-        centroids = [X[labels == i].mean(dim=0) for i in range(n_components)]
-        centroids = torch.stack(centroids, dim=0)
+        X_eff = X[keep_mask]
+        dense_labels = dense_labels.to(X_eff.device)
+        counts = torch.bincount(dense_labels, minlength=n_clusters)
 
-        # Distance matrix among centroids
-        cluster_distances = torch.cdist(centroids, centroids)
+        centroids = ClusteringMetrics._cluster_centroids(X_eff, dense_labels, n_clusters)
+        D_own = ClusteringMetrics._pairwise_distances(X_eff, centroids, metric, VI)  # (n, K)
+        idx = torch.arange(X_eff.shape[0], device=X_eff.device)
+        own_dist = D_own[idx, dense_labels]
 
-        similarities = torch.zeros((n_components, n_components), device=X.device)
+        S = torch.zeros(n_clusters, dtype=X_eff.dtype, device=X_eff.device)
+        S.scatter_add_(0, dense_labels, own_dist)
+        S = S / counts.clamp_min(1).to(S.dtype)
 
-        for i in range(n_components):
-            mask_i = (labels == i)
-            dist_i = torch.norm(X[mask_i] - centroids[i], dim=1).mean()
+        M = ClusteringMetrics._pairwise_distances(centroids, centroids, metric, VI)  # (K, K)
+        ratio = (S.unsqueeze(1) + S.unsqueeze(0)) / M
+        ratio.fill_diagonal_(float('-inf'))
 
-            for j in range(n_components):
-                if i == j:
-                    continue
-                mask_j = (labels == j)
-                dist_j = torch.norm(X[mask_j] - centroids[j], dim=1).mean()
-                similarities[i, j] = (dist_i + dist_j) / cluster_distances[i, j]
-
-        db_index = torch.max(similarities, dim=1).values.mean()
-        return db_index.item()
+        value = ratio.max(dim=1).values.mean().item()
+        return ClusteringMetrics._apply_noise_scaling(value, original_labels, noise_label, maximize=False)
 
     @staticmethod
-    def calinski_harabasz_score(X: torch.Tensor, labels: torch.Tensor, n_components: int) -> float:
+    def calinski_harabasz_score(
+        X: torch.Tensor, labels: torch.Tensor, n_components: Optional[int] = None,
+        metric: str = 'euclidean', noise_label: Optional[int] = None,
+        VI: Optional[torch.Tensor] = None,
+    ) -> float:
         r"""
         Compute the Calinski-Harabasz index (a ratio of between-cluster dispersion
         to within-cluster dispersion).
@@ -159,36 +403,169 @@ class ClusteringMetrics:
         Parameters
         ----------
         X : torch.Tensor
-            Data, shape (n_samples, n_features).
+            Data, shape (n_samples, n_features). `metric='precomputed'` is
+            not supported (no coordinate space to average a centroid in).
         labels : torch.Tensor
-            Cluster labels.
-        n_components : int
-            Number of clusters.
+            Cluster labels. Need not be contiguous or 0-indexed when
+            `n_components` is left `None`.
+        n_components : int, optional
+            Number of clusters. If `None` (default), inferred from the
+            distinct values in `labels`.
+        metric : str, optional
+            One of 'euclidean', 'manhattan', 'cosine', 'mahalanobis'
+            (requires `VI`). (default: 'euclidean')
+        noise_label : int, optional
+            Label value marking noise points; dropped before computing the
+            index, result scaled by `(n - n_noise) / n`. (default: None)
+        VI : torch.Tensor, optional
+            `(d, d)` precision matrix for `metric='mahalanobis'`.
 
         Returns
         -------
         float
             Calinski-Harabasz index (higher is better).
         """
-        labels = labels.to(X.device)
-        centroid_overall = X.mean(dim=0)
-        
-        # Cluster centroids
-        centroids = [X[labels == i].mean(dim=0) for i in range(n_components)]
-        centroids = torch.stack(centroids)
+        ClusteringMetrics._require_coordinate_metric(metric, 'calinski_harabasz_score')
+        original_labels = labels
+        dense_labels, n_clusters, keep_mask = ClusteringMetrics._resolve_labels(
+            labels, n_components, noise_label
+        )
+        X_eff = X[keep_mask]
+        dense_labels = dense_labels.to(X_eff.device)
+        n_samples = X_eff.shape[0]
 
-        # Between-cluster dispersion (SSB) & within-cluster (SSW)
-        SSB = sum((labels == i).sum() * torch.norm(centroids[i] - centroid_overall).pow(2)
-                  for i in range(n_components))
-        SSW = sum(torch.norm(X[labels == i] - centroids[i], dim=1).pow(2).sum()
-                  for i in range(n_components))
+        ssw, ssb, _, _ = ClusteringMetrics._ssw_ssb(X_eff, dense_labels, n_clusters, metric, VI)
+        CH = (ssb / (n_clusters - 1)) / (ssw / (n_samples - n_clusters))
 
-        n_samples = X.shape[0]
-        CH = (SSB / (n_components - 1)) / (SSW / (n_samples - n_components))
-        return CH.item()
+        value = CH.item()
+        return ClusteringMetrics._apply_noise_scaling(value, original_labels, noise_label, maximize=True)
 
     @staticmethod
-    def dunn_index(X: torch.Tensor, labels: torch.Tensor, n_components: int) -> float:
+    def wb_index(
+        X: torch.Tensor, labels: torch.Tensor, n_components: Optional[int] = None,
+        metric: str = 'euclidean', noise_label: Optional[int] = None,
+        VI: Optional[torch.Tensor] = None,
+    ) -> float:
+        r"""
+        WB-index (Zhao & Fr\"anti, 2014): lower is better.
+
+        $$ \text{WB} = K \cdot \frac{\text{SSW}}{\text{SSB}} $$
+
+        with SSW/SSB defined exactly as in `calinski_harabasz_score` (same
+        shared helper -- ranked among the best-performing internal indexes
+        in the Simpson, Campello & Stojanovski (2025) benchmark).
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features). `metric='precomputed'` is
+            not supported (no coordinate space to average a centroid in).
+        labels : torch.Tensor
+            Cluster labels. Need not be contiguous or 0-indexed when
+            `n_components` is left `None`.
+        n_components : int, optional
+            Number of clusters. If `None` (default), inferred from the
+            distinct values in `labels`.
+        metric : str, optional
+            One of 'euclidean', 'manhattan', 'cosine', 'mahalanobis'
+            (requires `VI`). (default: 'euclidean')
+        noise_label : int, optional
+            Label value marking noise points; dropped before computing the
+            index, result scaled by `(n - n_noise) / n`. (default: None)
+        VI : torch.Tensor, optional
+            `(d, d)` precision matrix for `metric='mahalanobis'`.
+
+        Returns
+        -------
+        float
+            WB-index (lower is better).
+        """
+        ClusteringMetrics._require_coordinate_metric(metric, 'wb_index')
+        original_labels = labels
+        dense_labels, n_clusters, keep_mask = ClusteringMetrics._resolve_labels(
+            labels, n_components, noise_label
+        )
+        X_eff = X[keep_mask]
+        dense_labels = dense_labels.to(X_eff.device)
+
+        ssw, ssb, _, _ = ClusteringMetrics._ssw_ssb(X_eff, dense_labels, n_clusters, metric, VI)
+        value = (n_clusters * ssw / ssb).item()
+        return ClusteringMetrics._apply_noise_scaling(value, original_labels, noise_label, maximize=False)
+
+    @staticmethod
+    def wemmert_gancarski_index(
+        X: torch.Tensor, labels: torch.Tensor, n_components: Optional[int] = None,
+        metric: str = 'euclidean', noise_label: Optional[int] = None,
+        VI: Optional[torch.Tensor] = None,
+    ) -> float:
+        r"""
+        Wemmert-Gancarski index: higher is better.
+
+        $$ R(x) = \frac{d(x, c_{\text{own}})}{\min_{j \neq \text{own}} d(x, c_j)},
+           \qquad J_k = \max\left(0, 1 - \overline{R(x)}_{x \in C_k}\right),
+           \qquad \text{WG} = \frac{1}{n}\sum_k n_k J_k $$
+
+        Ranked among the best-performing internal indexes in the Simpson,
+        Campello & Stojanovski (2025) benchmark.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features). `metric='precomputed'` is
+            not supported (no coordinate space to average a centroid in).
+        labels : torch.Tensor
+            Cluster labels. Need not be contiguous or 0-indexed when
+            `n_components` is left `None`.
+        n_components : int, optional
+            Number of clusters. If `None` (default), inferred from the
+            distinct values in `labels`.
+        metric : str, optional
+            One of 'euclidean', 'manhattan', 'cosine', 'mahalanobis'
+            (requires `VI`). (default: 'euclidean')
+        noise_label : int, optional
+            Label value marking noise points; dropped before computing the
+            index, result scaled by `(n - n_noise) / n`. (default: None)
+        VI : torch.Tensor, optional
+            `(d, d)` precision matrix for `metric='mahalanobis'`.
+
+        Returns
+        -------
+        float
+            Wemmert-Gancarski index (higher is better).
+        """
+        ClusteringMetrics._require_coordinate_metric(metric, 'wemmert_gancarski_index')
+        original_labels = labels
+        dense_labels, n_clusters, keep_mask = ClusteringMetrics._resolve_labels(
+            labels, n_components, noise_label
+        )
+        X_eff = X[keep_mask]
+        dense_labels = dense_labels.to(X_eff.device)
+        n = X_eff.shape[0]
+
+        centroids = ClusteringMetrics._cluster_centroids(X_eff, dense_labels, n_clusters)
+        D = ClusteringMetrics._pairwise_distances(X_eff, centroids, metric, VI)  # (n, K)
+        idx = torch.arange(n, device=X_eff.device)
+        own_dist = D[idx, dense_labels]
+        D_others = D.clone()
+        D_others[idx, dense_labels] = float('inf')
+        min_other = D_others.min(dim=1).values
+
+        R = own_dist / min_other.clamp_min(1e-300)
+        counts = torch.bincount(dense_labels, minlength=n_clusters).to(X_eff.dtype)
+        sum_R = torch.zeros(n_clusters, dtype=X_eff.dtype, device=X_eff.device)
+        sum_R.scatter_add_(0, dense_labels, R)
+        mean_R = sum_R / counts.clamp_min(1)
+        J = torch.clamp(1.0 - mean_R, min=0.0)
+
+        value = ((counts * J).sum() / n).item()
+        return ClusteringMetrics._apply_noise_scaling(value, original_labels, noise_label, maximize=True)
+
+    @staticmethod
+    def dunn_index(
+        X: torch.Tensor, labels: torch.Tensor, n_components: Optional[int] = None,
+        metric: str = 'euclidean', noise_label: Optional[int] = None,
+        chunk_size: int = 4096, VI: Optional[torch.Tensor] = None,
+    ) -> float:
         r"""
         Compute the Dunn index:
 
@@ -200,45 +577,220 @@ class ClusteringMetrics:
 
         Higher Dunn index indicates better cluster separation.
 
+        .. note::
+           Ranked 25th of 26 indexes on partition ranking in the Simpson,
+           Campello & Stojanovski (2025) clustering-validity benchmark --
+           kept here for completeness/familiarity, not as a recommended
+           choice. Prefer `wb_index`, `wemmert_gancarski_index`, or `dbcv`,
+           which ranked at the top of that benchmark.
+
         Parameters
         ----------
         X : torch.Tensor
-            Data, shape (n_samples, n_features).
+            Data, shape (n_samples, n_features), or an (n, n) precomputed
+            distance matrix when `metric='precomputed'`.
         labels : torch.Tensor
-            Cluster labels.
-        n_components : int
-            Number of clusters.
+            Cluster labels. Need not be contiguous or 0-indexed when
+            `n_components` is left `None`.
+        n_components : int, optional
+            Number of clusters. If `None` (default), inferred from the
+            distinct values in `labels`.
+        metric : str, optional
+            One of 'euclidean', 'manhattan', 'cosine', 'mahalanobis'
+            (requires `VI`), or 'precomputed'. (default: 'euclidean')
+        noise_label : int, optional
+            Label value marking noise points; dropped before computing the
+            index, result scaled by `(n - n_noise) / n`. (default: None)
+        chunk_size : int, optional
+            Row-chunk size for the pairwise-distance computation. (default: 4096)
+        VI : torch.Tensor, optional
+            `(d, d)` precision matrix for `metric='mahalanobis'`.
 
         Returns
         -------
         float
             Dunn index (higher is better).
         """
-        labels = labels.to(X.device)
-        distances = torch.cdist(X, X)
+        original_labels = labels
+        dense_labels, n_clusters, keep_mask = ClusteringMetrics._resolve_labels(
+            labels, n_components, noise_label
+        )
+        X_eff = X[keep_mask][:, keep_mask] if metric == 'precomputed' else X[keep_mask]
+        dense_labels = dense_labels.to(X_eff.device)
 
-        min_intercluster_dist = float('inf')
-        max_intracluster_dist = 0.0
+        max_intra = 0.0
+        min_inter = float('inf')
+        start = 0
+        for D_chunk in ClusteringMetrics._pairwise_chunked(X_eff, metric, chunk_size, VI):
+            end = start + D_chunk.shape[0]
+            row_labels = dense_labels[start:end]
+            same = row_labels.unsqueeze(1) == dense_labels.unsqueeze(0)
+            diff = ~same
+            if same.any():
+                max_intra = max(max_intra, D_chunk[same].max().item())
+            if diff.any():
+                min_inter = min(min_inter, D_chunk[diff].min().item())
+            start = end
 
-        for i in range(n_components):
-            mask_i = (labels == i)
-            if mask_i.sum() <= 1:
+        value = (min_inter / max_intra) if max_intra > 0 else 0.0
+        return ClusteringMetrics._apply_noise_scaling(value, original_labels, noise_label, maximize=True)
+
+    @staticmethod
+    def dbcv(
+        X: torch.Tensor, labels: torch.Tensor, metric: str = 'euclidean',
+        noise_label: Optional[int] = -1, VI: Optional[torch.Tensor] = None,
+    ) -> float:
+        r"""
+        Density-Based Clustering Validation (Moulavi, Jaskowiak, Campello,
+        Zimek & Sander, 2014). Higher is better, range `[-1, 1]`.
+
+        For each cluster :math:`C`, the **all-points core distance** of a
+        point :math:`x \in C` (not the k-NN core distance HDBSCAN itself
+        uses) is
+
+        .. math::
+            a_{\text{coredist}}(x) = \left( \frac{1}{|C| - 1}
+                \sum_{y \in C, y \neq x} d(x, y)^{-d_{\text{features}}}
+            \right)^{-1 / d_{\text{features}}}
+
+        and the mutual-reachability distance within :math:`C` is
+        :math:`d_{\text{mreach}}(x, y) = \max(a_{\text{coredist}}(x),
+        a_{\text{coredist}}(y), d(x, y))`. A minimum spanning tree is built
+        over each cluster's own mutual-reachability graph (reusing
+        `tgmm.hdbscan.prim_mst`, the same Prim's-algorithm implementation
+        `HDBSCAN` itself uses). **Density Sparseness of a Cluster** (DSC)
+        is the maximum edge weight in that MST; **Density Separation
+        between a Pair of Clusters** (DSPC) is the minimum
+        mutual-reachability distance between an *internal* node (MST
+        degree >= 2 -- excludes boundary/leaf points) of one cluster's MST
+        and an internal node of the other's.
+
+        .. note::
+           For a tree with >= 3 nodes, every edge has at least one
+           endpoint of degree >= 2 (an edge between two degree-1 nodes
+           would disconnect the rest of the tree) -- so restricting DSC to
+           "edges incident to an internal node" is equivalent to no
+           restriction at all for any cluster with >= 3 points, which is
+           why DSC below is simply the MST's maximum edge weight. The
+           `internal`/leaf distinction is only load-bearing for DSPC,
+           which compares nodes *across* two different clusters.
+
+        .. math::
+            V(C_i) = \frac{\min_j \text{DSPC}_{ij} - \text{DSC}_i}
+                           {\max(\min_j \text{DSPC}_{ij}, \text{DSC}_i)},
+            \qquad \text{DBCV} = \sum_i \frac{n_i}{n} V(C_i)
+
+        with `n` counting noise points in the denominator (not the
+        numerator) -- this *is* `dbcv`'s noise handling, which is why it
+        does not go through `_apply_noise_scaling` the way the other
+        internal indexes do.
+
+        Clusters with fewer than 2 points contribute 0 (the all-points
+        core distance needs at least one other point in the cluster to
+        average over); a cluster whose MST has no internal nodes at all
+        (every node is a leaf -- only possible for 2-point clusters) falls
+        back to treating every node as internal for DSPC purposes, the
+        standard practical fallback.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Data, shape (n_samples, n_features).
+        labels : torch.Tensor
+            Cluster labels, shape (n_samples,). Need not be contiguous.
+        metric : str, optional
+            One of 'euclidean', 'manhattan', 'cosine', 'mahalanobis'
+            (requires `VI`). (default: 'euclidean')
+        noise_label : int, optional
+            Label value marking noise points (HDBSCAN's convention is
+            -1). Pass `None` if there is no noise label in `labels`.
+            (default: -1)
+        VI : torch.Tensor, optional
+            `(d, d)` precision matrix for `metric='mahalanobis'`.
+
+        Returns
+        -------
+        float
+            DBCV score in `[-1, 1]` (higher is better).
+        """
+        labels = labels.to(torch.long)
+        n = labels.shape[0]
+        d_features = X.shape[1]
+
+        if noise_label is not None:
+            keep_mask = labels != noise_label
+        else:
+            keep_mask = torch.ones_like(labels, dtype=torch.bool)
+        cluster_ids = torch.unique(labels[keep_mask], sorted=True).tolist()
+        if len(cluster_ids) < 1:
+            return 0.0
+
+        per_cluster = {}
+        for cid in cluster_ids:
+            Xc = X[labels == cid]
+            nc = Xc.shape[0]
+            if nc < 2:
+                per_cluster[cid] = dict(Xc=Xc, nc=nc, core_dist=None, internal_mask=None, dsc=0.0)
                 continue
 
-            intra_distances = distances[mask_i][:, mask_i]
-            max_intracluster_dist = max(max_intracluster_dist, intra_distances.max().item())
+            D_full = ClusteringMetrics._pairwise_distances(Xc, Xc, metric, VI)
+            D_safe = D_full.clone()
+            D_safe.fill_diagonal_(float('inf'))
+            D_safe = D_safe.clamp_min(1e-12)
 
-            for j in range(i + 1, n_components):
-                mask_j = (labels == j)
-                if mask_j.sum() == 0:
+            mean_inv_pow = D_safe.pow(-float(d_features)).sum(dim=1) / (nc - 1)
+            core_dist = mean_inv_pow.pow(-1.0 / d_features)
+
+            mreach = torch.maximum(torch.maximum(core_dist.unsqueeze(1), core_dist.unsqueeze(0)), D_full)
+            mreach.fill_diagonal_(0.0)
+
+            mst_edges = prim_mst(mreach)  # (nc - 1, 3): [u, v, weight], unsorted
+            degree = torch.zeros(nc, dtype=torch.long)
+            for u, v, _w in mst_edges:
+                degree[int(u)] += 1
+                degree[int(v)] += 1
+            internal_mask = degree >= 2
+            if not bool(internal_mask.any()):
+                internal_mask = torch.ones(nc, dtype=torch.bool)
+
+            dsc = float(mst_edges[:, 2].max())
+
+            per_cluster[cid] = dict(Xc=Xc, nc=nc, core_dist=core_dist, internal_mask=internal_mask, dsc=dsc)
+
+        total = 0.0
+        for cid in cluster_ids:
+            info_i = per_cluster[cid]
+            if info_i['nc'] < 2:
+                continue
+
+            min_dspc = float('inf')
+            Xi_int = info_i['Xc'][info_i['internal_mask']]
+            core_i_int = info_i['core_dist'][info_i['internal_mask']]
+            for other_id in cluster_ids:
+                if other_id == cid:
                     continue
-                inter_distances = distances[mask_i][:, mask_j]
-                current_min = inter_distances.min().item()
-                if current_min < min_intercluster_dist:
-                    min_intercluster_dist = current_min
+                info_j = per_cluster[other_id]
+                if info_j['nc'] < 2:
+                    continue
+                Xj_int = info_j['Xc'][info_j['internal_mask']]
+                core_j_int = info_j['core_dist'][info_j['internal_mask']]
 
-        dunn_index = (min_intercluster_dist / max_intracluster_dist) if max_intracluster_dist > 0 else 0.0
-        return dunn_index
+                D_cross = ClusteringMetrics._pairwise_distances(Xi_int, Xj_int, metric, VI)
+                mreach_cross = torch.maximum(
+                    torch.maximum(core_i_int.unsqueeze(1), core_j_int.unsqueeze(0)), D_cross
+                )
+                min_dspc = min(min_dspc, float(mreach_cross.min()))
+
+            dsc_i = info_i['dsc']
+            if min_dspc == float('inf'):
+                v_i = 0.0  # no other non-trivial cluster to compare against
+            else:
+                denom = max(min_dspc, dsc_i)
+                v_i = (min_dspc - dsc_i) / denom if denom > 0 else 0.0
+
+            total += (info_i['nc'] / n) * v_i
+
+        return total
 
     # --------------------------
     # Supervised Metrics
@@ -459,99 +1011,182 @@ class ClusteringMetrics:
         return fm.item()
 
     @staticmethod
-    def completeness_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
+    def _contingency_matrix(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> torch.Tensor:
         r"""
-        Completeness score measures how much each cluster contains only samples
-        of a single class.
-
-        Parameters
-        ----------
-        labels_true : torch.Tensor
-            Ground-truth labels.
-        labels_pred : torch.Tensor
-            Predicted labels.
-
-        Returns
-        -------
-        float
-            Completeness in [0, 1].
+        `(n_true_classes, n_pred_clusters)` contingency counts, in
+        `float64` regardless of input dtype, built via `scatter_add_`
+        rather than a Python loop over samples. Assumes contiguous
+        0-indexed labels (matching every other contingency-based method in
+        this class); shared by `homogeneity_score`, `completeness_score`,
+        and `normalized_information_distance`.
         """
         device = labels_true.device
-        n_samples = labels_true.size(0)
-        contingency = torch.zeros(
-            (labels_true.max() + 1, labels_pred.max() + 1),
-            dtype=torch.float, device=device
-        )
-        for i in range(n_samples):
-            contingency[labels_true[i], labels_pred[i]] += 1
+        lt = labels_true.to(torch.long)
+        lp = labels_pred.to(torch.long)
+        n_true = int(lt.max().item()) + 1
+        n_pred = int(lp.max().item()) + 1
+        contingency = torch.zeros((n_true, n_pred), dtype=torch.float64, device=device)
+        flat_idx = lt * n_pred + lp
+        contingency.view(-1).scatter_add_(0, flat_idx, torch.ones_like(flat_idx, dtype=torch.float64))
+        return contingency
 
-        entropy_true = -torch.sum(labels_true.bincount().float() / n_samples *
-                                  torch.log(labels_true.bincount().float() / n_samples + 1e-10))
-
-        # H(C | K) (conditional entropy)
-        entropy_cond = -torch.sum(contingency / n_samples *
-                                  torch.log((contingency + 1e-10) /
-                                            contingency.sum(dim=1, keepdim=True)))
-
-        comp_score = 1 - entropy_cond / entropy_true
-        return comp_score.item()
+    @staticmethod
+    def _entropy_from_counts(counts: torch.Tensor, n_samples: int) -> torch.Tensor:
+        r"""
+        Shannon entropy (nats) of the distribution given by `counts / n_samples`.
+        Uses `torch.special.xlogy` (defined as exactly `0` at `x=0`,
+        regardless of `y`) instead of an `epsilon`-smoothed `log`, which is
+        what made the pre-Phase-1 `homogeneity_score`/`completeness_score`
+        fail sklearn parity -- see the design doc.
+        """
+        p = counts.to(torch.float64) / n_samples
+        return -torch.special.xlogy(p, p).sum()
 
     @staticmethod
     def homogeneity_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
         r"""
-        Homogeneity score measures if each cluster contains samples of only one class.
+        Homogeneity: each cluster contains only members of a single class.
+
+        $$ h = 1 - \frac{H(C \mid K)}{H(C)} $$
+
+        (Rosenberg & Hirschberg, 2007), `H(C)` the entropy of the true
+        class distribution, `H(C \mid K)` the entropy of the true class
+        conditional on the predicted cluster. `h = 1.0` by convention when
+        `H(C) = 0` (every point has the same true class, trivially
+        homogeneous regardless of partition).
 
         Parameters
         ----------
         labels_true : torch.Tensor
+            Ground-truth labels, contiguous 0-indexed integers.
         labels_pred : torch.Tensor
+            Predicted labels, contiguous 0-indexed integers.
 
         Returns
         -------
         float
             Homogeneity in [0, 1].
         """
-        device = labels_true.device
         n_samples = labels_true.size(0)
-        contingency = torch.zeros(
-            (labels_true.max() + 1, labels_pred.max() + 1),
-            dtype=torch.float, device=device
-        )
-        for i in range(n_samples):
-            contingency[labels_true[i], labels_pred[i]] += 1
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        class_counts = contingency.sum(dim=1)    # n_c
+        cluster_counts = contingency.sum(dim=0)  # n_k
 
-        entropy_pred = -torch.sum(labels_pred.bincount().float() / n_samples *
-                                  torch.log(labels_pred.bincount().float() / n_samples + 1e-10))
+        h_c = ClusteringMetrics._entropy_from_counts(class_counts, n_samples)
+        if h_c == 0:
+            return 1.0
 
-        # H(K | C)
-        entropy_cond = -torch.sum(contingency / n_samples *
-                                  torch.log((contingency + 1e-10) /
-                                            contingency.sum(dim=0, keepdim=True)))
+        p_joint = contingency / n_samples
+        p_c_given_k = contingency / cluster_counts.clamp_min(1).unsqueeze(0)
+        h_c_given_k = -torch.special.xlogy(p_joint, p_c_given_k).sum()
 
-        hom_score = 1 - entropy_cond / entropy_pred
-        return hom_score.item()
+        return (1.0 - h_c_given_k / h_c).item()
 
     @staticmethod
-    def v_measure_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
+    def completeness_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
         r"""
-        V-measure = $ \frac{2 \times (\text{homogeneity} \times \text{completeness})}
-                           {\text{homogeneity} + \text{completeness}} $.
+        Completeness: all members of a given class are assigned to the
+        same cluster.
+
+        $$ c = 1 - \frac{H(K \mid C)}{H(K)} $$
+
+        (Rosenberg & Hirschberg, 2007), `H(K)` the entropy of the
+        predicted cluster distribution, `H(K \mid C)` the entropy of the
+        predicted cluster conditional on the true class. `c = 1.0` by
+        convention when `H(K) = 0` (everything in one cluster, trivially
+        complete regardless of the true classes).
+
+        Parameters
+        ----------
+        labels_true : torch.Tensor
+            Ground-truth labels, contiguous 0-indexed integers.
+        labels_pred : torch.Tensor
+            Predicted labels, contiguous 0-indexed integers.
+
+        Returns
+        -------
+        float
+            Completeness in [0, 1].
+        """
+        n_samples = labels_true.size(0)
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        class_counts = contingency.sum(dim=1)    # n_c
+        cluster_counts = contingency.sum(dim=0)  # n_k
+
+        h_k = ClusteringMetrics._entropy_from_counts(cluster_counts, n_samples)
+        if h_k == 0:
+            return 1.0
+
+        p_joint = contingency / n_samples
+        p_k_given_c = contingency / class_counts.clamp_min(1).unsqueeze(1)
+        h_k_given_c = -torch.special.xlogy(p_joint, p_k_given_c).sum()
+
+        return (1.0 - h_k_given_c / h_k).item()
+
+    @staticmethod
+    def v_measure_score(labels_true: torch.Tensor, labels_pred: torch.Tensor, beta: float = 1.0) -> float:
+        r"""
+        V-measure: the weighted harmonic mean of homogeneity and completeness.
+
+        $$ V_\beta = \frac{(1 + \beta) \cdot h \cdot c}{\beta \cdot h + c} $$
+
+        `beta=1.0` (default) weighs homogeneity and completeness equally
+        and recovers the familiar `2hc / (h + c)` form; `beta > 1` weighs
+        completeness more, `beta < 1` weighs homogeneity more.
 
         Parameters
         ----------
         labels_true : torch.Tensor
         labels_pred : torch.Tensor
+        beta : float, optional
+            Completeness/homogeneity weighting. (default: 1.0)
 
         Returns
         -------
         float
             V-measure in [0, 1].
         """
-        homogeneity = ClusteringMetrics.homogeneity_score(labels_true, labels_pred)
-        completeness = ClusteringMetrics.completeness_score(labels_true, labels_pred)
-        if (homogeneity + completeness) == 0:
+        h = ClusteringMetrics.homogeneity_score(labels_true, labels_pred)
+        c = ClusteringMetrics.completeness_score(labels_true, labels_pred)
+        denom = beta * h + c
+        if denom == 0:
             return 0.0
-        return 2.0 * (homogeneity * completeness) / (homogeneity + completeness)
+        return (1.0 + beta) * h * c / denom
+
+    @staticmethod
+    def normalized_information_distance(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
+        r"""
+        Normalized Information Distance (Vinh, Epps & Bailey, 2010):
+
+        $$ \text{NID} = 1 - \frac{I(U; V)}{\max(H(U), H(V))} $$
+
+        a metric (satisfies the triangle inequality, unlike `1 - \text{NMI}`
+        under some normalizations) in `[0, 1]`, `0` for identical
+        partitions. Reuses `mutual_info_score` for `I(U; V)`.
+
+        Parameters
+        ----------
+        labels_true : torch.Tensor
+            Contiguous 0-indexed integers.
+        labels_pred : torch.Tensor
+            Contiguous 0-indexed integers.
+
+        Returns
+        -------
+        float
+            NID in [0, 1] (0 = identical partitions).
+        """
+        n_samples = labels_true.size(0)
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        h_true = ClusteringMetrics._entropy_from_counts(contingency.sum(dim=1), n_samples)
+        h_pred = ClusteringMetrics._entropy_from_counts(contingency.sum(dim=0), n_samples)
+        max_h = torch.max(h_true, h_pred)
+
+        if max_h == 0:
+            return 0.0
+
+        mi = ClusteringMetrics.mutual_info_score(labels_true, labels_pred)
+        return (1.0 - mi / max_h.item())
 
     @staticmethod
     def purity_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:

@@ -9,22 +9,26 @@ call the methods directly on the class.
 
 Metrics are divided into two categories:
 
-**Unsupervised** (no ground truth labels needed, but require `n_components`):
-- Silhouette Score
-- Davies-Bouldin Index
-- Calinski-Harabasz Index
-- Dunn Index
+**Unsupervised** (no ground truth labels needed; `n_components` is optional
+-- see [Shared options](#shared-options-for-unsupervised-indexes) below):
+- Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index, Dunn Index
+- WB-Index, Wemmert-Gancarski Index, DBCV -- three indexes that ranked at the
+  top of the Simpson, Campello & Stojanovski (2025) clustering-validity
+  benchmark; prefer these over Dunn Index (ranked 25th of 26 in that same
+  benchmark, kept only for completeness)
 
-BIC/AIC aren't here -- they only need a model's own log-likelihood and
-parameter count, so they're `bic`/`aic` methods on `GaussianMixture` directly
-(`gmm.bic(X)`, `gmm.aic(X)`) -- including when constructed with
-`n_components=None` for Gibbs-sampling mode -- not `ClusteringMetrics` calls.
+BIC/AIC/ICL aren't here -- they only need a model's own log-likelihood and
+parameter count, so they're `bic`/`aic`/`icl` methods on `GaussianMixture`
+directly (`gmm.bic(X)`, `gmm.aic(X)`, `gmm.icl(X)`) -- including when
+constructed with `n_components=None` for Gibbs-sampling mode -- not
+`ClusteringMetrics` calls. See [Model Selection](#model-selection) below.
 
 **Supervised** (requires ground truth labels):
 - Rand Index / Adjusted Rand Index (ARI)
 - Mutual Information / Normalized / Adjusted Mutual Information (NMI)
 - Purity
-- Fowlkes-Mallows, Homogeneity, Completeness, V-Measure
+- Fowlkes-Mallows, Homogeneity, Completeness, V-Measure (weighted via `beta`)
+- Normalized Information Distance (NID)
 - Confusion Matrix
 - Classification Report (precision, recall, F1, Jaccard, ROC-AUC per class)
 
@@ -60,7 +64,35 @@ print(f"Purity: {purity:.3f}")
 
 ## Unsupervised Metrics
 
-These all take the number of clusters (`n_components`) in addition to the data and labels.
+### Shared options for unsupervised indexes
+
+`silhouette_score`, `davies_bouldin_index`, `calinski_harabasz_score`,
+`dunn_index`, `wb_index`, and `wemmert_gancarski_index` all share the same
+extra keyword arguments:
+
+- `n_components`: optional now -- if omitted, it's inferred from the
+  distinct values in `labels`, which no longer need to be contiguous or
+  0-indexed. Passing it explicitly (the historical required argument)
+  keeps working exactly as before.
+- `metric`: `'euclidean'` (default), `'manhattan'`, `'cosine'`,
+  `'mahalanobis'` (pass the precision matrix as `VI`), or -- for
+  `silhouette_score` and `dunn_index` only -- `'precomputed'` (pass an
+  `(n, n)` distance matrix as `X`). The other four indexes need to average
+  points into a cluster centroid, which a precomputed distance matrix
+  doesn't support, and raise a clear `ValueError` if asked to.
+  Passing the pooled precision of a fitted `GaussianMixture`
+  (`torch.linalg.inv` of the weighted average of `covariances_`) as `VI`
+  with `metric='mahalanobis'` gives the GMM-matched version of the index.
+- `noise_label`: a label value (e.g. `-1` for `HDBSCAN` output) marking
+  noise points. Noise rows are dropped before computing the index, and the
+  result is scaled by `(n - n_noise) / n`.
+- `chunk_size` (silhouette/Dunn only): row-chunk size for the pairwise
+  distance computation, bounding peak memory regardless of `n_samples`
+  (default `4096`). Chunking is exact, not an approximation.
+
+`dbcv` has its own, simpler signature (`metric`, `noise_label=-1`) -- its
+noise handling is built into the index's own weighting formula rather than
+the generic rescaling above.
 
 ### Silhouette Score
 
@@ -109,6 +141,50 @@ Ratio of the smallest inter-cluster distance to the largest intra-cluster distan
 dunn = ClusteringMetrics.dunn_index(X, labels, n_components=3)
 ```
 
+> Ranked 25th of 26 indexes on partition ranking in the Simpson, Campello &
+> Stojanovski (2025) benchmark -- kept for completeness/familiarity, not as
+> a recommended choice. Prefer WB-Index, Wemmert-Gancarski, or DBCV below.
+
+### WB-Index
+
+`K * SSW / SSB` (Zhao & Fränti, 2014) -- same SSW/SSB as Calinski-Harabasz.
+
+**Range**: [0, ∞)
+**Interpretation**: Lower is better
+
+```python
+wb = ClusteringMetrics.wb_index(X, labels, n_components=3)
+```
+
+### Wemmert-Gancarski Index
+
+Compares each point's distance to its own centroid against its distance to
+the *nearest other* centroid; penalises clusters where points sit closer to
+another cluster's centroid than their own.
+
+**Range**: [0, ∞)
+**Interpretation**: Higher is better
+
+```python
+wg = ClusteringMetrics.wemmert_gancarski_index(X, labels, n_components=3)
+```
+
+### DBCV (Density-Based Clustering Validation)
+
+Moulavi, Jaskowiak, Campello, Zimek & Sander (2014). Built on an "all-points
+core distance" and per-cluster minimum spanning trees over the
+mutual-reachability graph -- the natural validity index for density-based
+partitions (e.g. `HDBSCAN` output, including noise points), where
+centroid-based indexes like Davies-Bouldin don't make sense for
+non-convex clusters.
+
+**Range**: [-1, 1]
+**Interpretation**: Higher is better
+
+```python
+score = ClusteringMetrics.dbcv(X, labels, noise_label=-1)  # -1 is HDBSCAN's noise label
+```
+
 ## Supervised Metrics
 
 ### Adjusted Rand Index (ARI)
@@ -136,6 +212,34 @@ Measures mutual information normalized to [0, 1].
 
 ```python
 nmi = ClusteringMetrics.normalized_mutual_info_score(true_labels, pred_labels)
+```
+
+### Homogeneity, Completeness, V-Measure
+
+Homogeneity asks "does each cluster contain only one true class?";
+completeness asks "is each true class kept in one cluster?" (Rosenberg &
+Hirschberg, 2007). V-measure is their weighted harmonic mean, via `beta`
+(`beta=1.0`, the default, weighs them equally; `beta > 1` favours
+completeness, `beta < 1` favours homogeneity).
+
+**Range**: [0, 1] each. **Interpretation**: Higher is better.
+
+```python
+h = ClusteringMetrics.homogeneity_score(true_labels, pred_labels)
+c = ClusteringMetrics.completeness_score(true_labels, pred_labels)
+v = ClusteringMetrics.v_measure_score(true_labels, pred_labels, beta=1.0)
+```
+
+### Normalized Information Distance (NID)
+
+`1 - I(U; V) / max(H(U), H(V))` (Vinh, Epps & Bailey, 2010) -- an
+information-theoretic *distance* between two partitions.
+
+**Range**: [0, 1]
+**Interpretation**: Lower is better; 0 for identical partitions.
+
+```python
+nid = ClusteringMetrics.normalized_information_distance(true_labels, pred_labels)
 ```
 
 ### Purity
@@ -202,6 +306,53 @@ for result in results:
           f"BIC: {result['bic']:.2f}, "
           f"AIC: {result['aic']:.2f}")
 ```
+
+## Model Selection
+
+### ICL (Integrated Completed Likelihood)
+
+`icl(X, mode='hard')` on a fitted `GaussianMixture` adds an entropy penalty
+to `bic` for ambiguous, overlapping-cluster assignments (Biernacki, Celeux &
+Govaert, 2000). Lower is better, same convention as `bic`; `ICL >= BIC`
+always, and the two are identical when responsibilities are one-hot
+(perfectly separated clusters).
+
+```python
+gmm = GaussianMixture(n_components=3, n_features=2, random_state=0)
+gmm.fit(X)
+print(gmm.bic(X), gmm.icl(X))       # icl(X) >= bic(X)
+print(gmm.icl(X, mode='soft'))      # entropy-form penalty instead of hard-argmax
+```
+
+ICL tends to prefer *fewer, better-separated* components than BIC on data
+with overlapping clusters -- see the
+[Model Selection notebook](../notebooks/13_model_selection.ipynb) for a
+worked BIC-vs-ICL comparison where they pick different `K`.
+
+### `select_model`: sweeping `n_components` and `covariance_type`
+
+```python
+from tgmm import select_model
+
+result = select_model(
+    X,
+    n_components=range(1, 11),
+    covariance_types=('full', 'diag', 'spherical', 'tied_full'),
+    criterion='bic',   # or 'aic', 'icl'
+    n_init=3,
+    random_state=0,
+)
+
+print(result.best_.n_components, result.best_.covariance_type)
+df = result.to_dataframe()  # lazy pandas import
+```
+
+`result.table` has one row per `(n_components, covariance_type)` combination
+(`bic`, `aic`, `icl`, `log_likelihood`, `converged`); a combination whose fit
+raises (e.g. a singular covariance at a large `K`) gets `None` scores
+instead of aborting the whole sweep. `result.models_[(K, covariance_type)]`
+gives the fitted model for any successful combination. See the
+[API reference](../api/model-selection.md) for the full signature.
 
 ## Complete API Reference
 

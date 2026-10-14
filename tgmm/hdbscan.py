@@ -12,6 +12,67 @@ from typing import Optional, Tuple
 from tqdm import tqdm
 
 
+def prim_mst(distance_matrix: torch.Tensor) -> np.ndarray:
+    r"""
+    Minimum spanning tree over a dense `(n, n)` distance matrix, via Prim's
+    algorithm starting from node 0.
+
+    Factored out of `HDBSCAN._build_linkage_tree` (same algorithm, same
+    code, zero behaviour change there) so
+    `tgmm.metrics.ClusteringMetrics.dbcv` can reuse it for its per-cluster
+    minimum spanning trees (Moulavi et al. 2014) without duplicating a
+    Prim's-algorithm implementation.
+
+    Parameters
+    ----------
+    distance_matrix : torch.Tensor
+        Dense pairwise distances, shape (n, n).
+
+    Returns
+    -------
+    mst_edges : numpy.ndarray
+        Shape `(n - 1, 3)`, each row `[node_a, node_b, weight]`, in the
+        order Prim's algorithm added them (**not** sorted by weight --
+        callers that need a sorted MST, like `_build_linkage_tree`, sort
+        it themselves).
+    """
+    device = distance_matrix.device
+    n_samples = distance_matrix.shape[0]
+    if n_samples < 2:
+        return np.zeros((0, 3), dtype=np.float64)
+
+    in_tree = torch.zeros(n_samples, dtype=torch.bool, device=device)
+    min_distances = torch.full((n_samples,), float('inf'), dtype=distance_matrix.dtype, device=device)
+    predecessors = torch.zeros(n_samples, dtype=torch.long, device=device)
+
+    current_node = 0
+    in_tree[0] = True
+
+    mst_edges = []
+
+    for _ in range(n_samples - 1):
+        distances_from_current = distance_matrix[current_node]
+        mask = ~in_tree
+        update_mask = mask & (distances_from_current < min_distances)
+        min_distances[update_mask] = distances_from_current[update_mask]
+        predecessors[update_mask] = current_node
+
+        temp_distances = min_distances.clone()
+        temp_distances[in_tree] = float('inf')
+        next_node = torch.argmin(temp_distances).item()
+
+        mst_edges.append([
+            predecessors[next_node].item(),
+            next_node,
+            min_distances[next_node].item()
+        ])
+
+        in_tree[next_node] = True
+        current_node = next_node
+
+    return np.array(mst_edges, dtype=np.float64)
+
+
 class HDBSCAN:
     """
     HDBSCAN - Hierarchical Density-Based Spatial Clustering of Applications with Noise.
@@ -177,45 +238,13 @@ class HDBSCAN:
     def _build_linkage_tree(self, distance_matrix: torch.Tensor) -> np.ndarray:
         """Build minimum spanning tree and convert to linkage format."""
         n_samples = distance_matrix.shape[0]
-        
-        # Prim's algorithm for MST
-        in_tree = torch.zeros(n_samples, dtype=torch.bool, device=self.device)
-        min_distances = torch.full((n_samples,), float('inf'), device=self.device)
-        predecessors = torch.zeros(n_samples, dtype=torch.long, device=self.device)
-        
-        current_node = 0
-        in_tree[0] = True
-        
-        mst_edges = []
-        
-        for _ in range(n_samples - 1):
-            distances_from_current = distance_matrix[current_node]
-            mask = ~in_tree
-            update_mask = mask & (distances_from_current < min_distances)
-            min_distances[update_mask] = distances_from_current[update_mask]
-            predecessors[update_mask] = current_node
-            
-            temp_distances = min_distances.clone()
-            temp_distances[in_tree] = float('inf')
-            next_node = torch.argmin(temp_distances).item()
-            
-            mst_edges.append([
-                predecessors[next_node].item(),
-                next_node,
-                min_distances[next_node].item()
-            ])
-            
-            in_tree[next_node] = True
-            current_node = next_node
-        
-        mst = np.array(mst_edges, dtype=np.float64)
-        
-        # Sort by distance
+
+        mst = prim_mst(distance_matrix)
         mst = mst[np.argsort(mst[:, 2])]
-        
+
         # Convert to linkage tree using Union-Find
         linkage_tree = self._mst_to_linkage(mst, n_samples)
-        
+
         return linkage_tree
     
     def _mst_to_linkage(self, mst: np.ndarray, n_samples: int) -> np.ndarray:
