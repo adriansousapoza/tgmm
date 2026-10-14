@@ -9,6 +9,7 @@
         - __init__
         - suggest_priors
         - fit
+        - partial_fit
         - predict
         - predict_proba
         - score

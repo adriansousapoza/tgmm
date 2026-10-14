@@ -5,6 +5,36 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] -- v0.4.0 in progress
 
+### Added (Phase 2: Stochastic EM, deterministic annealing, SAEM, mini-batch EM)
+
+- `algorithm='sem'` (Stochastic EM, Celeux & Diebolt 1985): samples a hard
+  assignment from the responsibilities each iteration instead of taking
+  the argmax. Always runs the full `max_iter` sweeps (no pointwise
+  convergence; `converged_` is unconditionally `True`, same convention as
+  Gibbs mode). New `sem_burn_in`/`sem_estimate` ('best'/'mean', both
+  restricted to post-burn-in sweeps) control the final estimate;
+  `n_empty_components_` counts component re-seeds (mean -> worst-explained
+  point, covariance -> dataset's own covariance for non-tied types).
+- `algorithm='saem'` (Stochastic Approximation EM, Delyon, Lavielle &
+  Moulines 1999): SEM blended into a running statistics accumulator with a
+  decaying step size, so it *does* converge pointwise and `tol` applies.
+- `temperature=(beta_0, n_anneal)` (Deterministic Annealing EM, Ueda &
+  Nakano 1998): tempers the E-step's joint log-density by a `beta` rising
+  geometrically from `beta_0` to `1.0`; convergence checks suspended while
+  `beta < 1.0`. Works with `algorithm in ('em', 'cem', 'sem')`. Schedule
+  actually used recorded in `annealing_schedule_`.
+- `step_size` + existing `batch_size` (Phase 0): mini-batch/online EM for
+  `algorithm='em'` (`fit()` shuffles into mini-batches per epoch, blending
+  each batch's sufficient statistics into a running accumulator) and
+  `partial_fit(X_batch)` for streaming continuation after an initial fit.
+- `log_likelihood_history_`: per-iteration/sweep/epoch log-likelihood
+  trace, now recorded for every EM-mode algorithm (not just SEM/online EM
+  -- extended during this phase so the comparison notebook could plot all
+  four algorithms' traces together).
+- Gibbs mode (`n_components=None`) now rejects any `algorithm` but `'em'`
+  at construction, with a clear error (previously silently ignored, like
+  `cem`).
+
 ### Added (Phase 1: clustering metrics and model selection)
 
 - `GaussianMixture.icl(X, mode='hard'|'soft')`: Integrated Completed

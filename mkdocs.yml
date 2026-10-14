@@ -155,6 +155,7 @@ nav:
       - 11. Dirichlet Process Mixtures (Stick-Breaking & Gibbs Sampling): notebooks/11_dpgmm.ipynb
       - 12. HDBSCAN Clustering: notebooks/12_hdbscan.ipynb
       - 13. Model Selection (BIC, AIC, ICL): notebooks/13_model_selection.ipynb
+      - 14. Stochastic EM, Annealing & SAEM: notebooks/14_stochastic_em.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - tgmm.GMMInitializer: api/gmm-initializer.md

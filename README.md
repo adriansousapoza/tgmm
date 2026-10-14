@@ -79,9 +79,12 @@ The core `GaussianMixture` class supports:
 
 - **Covariance Types**: `'full'`, `'diag'`, `'spherical'`, `'tied_full'`, `'tied_diag'`, `'tied_spherical'`
 - **Estimation Methods**: MLE (Maximum Likelihood) or MAP (Maximum A Posteriori) with priors
-- **Algorithms**: `algorithm='em'` (standard) or `'cem'` (Classification EM, hard assignments)
+- **Algorithms**: `algorithm='em'` (standard), `'cem'` (Classification EM), `'sem'` (Stochastic
+  EM), or `'saem'` (Stochastic Approximation EM); `temperature` for deterministic annealing EM
+  on top of any of those
 - **Scalable fitting**: optional `batch_size` chunks the E-step and sufficient-statistics
-  accumulation over rows, bounding peak memory on large datasets; optional Aitken-accelerated
+  accumulation over rows, bounding peak memory on large datasets; `step_size` switches to
+  mini-batch/online EM (plus `partial_fit` for streaming); optional Aitken-accelerated
   stopping rule via `convergence='aitken'`
 - **Initialization**: Multiple strategies via `GMMInitializer`
 - **Model Selection**: `bic`/`aic`/`icl` methods for comparing fits at different `n_components`,
