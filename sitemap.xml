@@ -13,6 +13,10 @@
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
+         <loc>https://adriansousapoza.github.io/tgmm/api/covariance-gpcm/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/gaussian-mixture/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
@@ -105,6 +109,10 @@
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/15_gpcm_models/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
          <loc>https://adriansousapoza.github.io/tgmm/tutorials/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
@@ -118,6 +126,10 @@
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/gmm-initializer/</loc>
+         <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/user-guide/gpcm-covariance-models/</loc>
          <lastmod>2026-10-14</lastmod>
     </url>
     <url>

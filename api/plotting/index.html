@@ -625,6 +625,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../user-guide/gpcm-covariance-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../user-guide/gmm-initializer/" class="md-nav__link">
         
   
@@ -1183,6 +1211,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/15_gpcm_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    15. GPCM Covariance Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1262,6 +1318,34 @@
     
   
     tgmm.GaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../covariance-gpcm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance
   
 
     
@@ -4178,7 +4262,12 @@ math needs.</p>
 <span class="normal"><a href="#__codelineno-0-883">883</a></span>
 <span class="normal"><a href="#__codelineno-0-884">884</a></span>
 <span class="normal"><a href="#__codelineno-0-885">885</a></span>
-<span class="normal"><a href="#__codelineno-0-886">886</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-839"><a id="__codelineno-0-839" name="__codelineno-0-839"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_covariance_matrix</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">component_idx</span><span class="p">):</span>
+<span class="normal"><a href="#__codelineno-0-886">886</a></span>
+<span class="normal"><a href="#__codelineno-0-887">887</a></span>
+<span class="normal"><a href="#__codelineno-0-888">888</a></span>
+<span class="normal"><a href="#__codelineno-0-889">889</a></span>
+<span class="normal"><a href="#__codelineno-0-890">890</a></span>
+<span class="normal"><a href="#__codelineno-0-891">891</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-839"><a id="__codelineno-0-839" name="__codelineno-0-839"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_covariance_matrix</span><span class="p">(</span><span class="n">gmm</span><span class="p">,</span> <span class="n">component_idx</span><span class="p">):</span>
 </span><span id="__span-0-840"><a id="__codelineno-0-840" name="__codelineno-0-840"></a><span class="w">    </span><span class="sd">"""</span>
 </span><span id="__span-0-841"><a id="__codelineno-0-841" name="__codelineno-0-841"></a><span class="sd">    Extract the full 2x2 covariance matrix for one GMM component, expanding</span>
 </span><span id="__span-0-842"><a id="__codelineno-0-842" name="__codelineno-0-842"></a><span class="sd">    whatever `gmm.covariance_type` shorthand it's stored in ('diag',</span>
@@ -4205,27 +4294,32 @@ math needs.</p>
 </span><span id="__span-0-863"><a id="__codelineno-0-863" name="__codelineno-0-863"></a>    <span class="n">cov_type</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">covariance_type</span>
 </span><span id="__span-0-864"><a id="__codelineno-0-864" name="__codelineno-0-864"></a>
 </span><span id="__span-0-865"><a id="__codelineno-0-865" name="__codelineno-0-865"></a>    <span class="c1"># Get the covariance matrix</span>
-</span><span id="__span-0-866"><a id="__codelineno-0-866" name="__codelineno-0-866"></a>    <span class="k">if</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'full'</span><span class="p">:</span>
-</span><span id="__span-0-867"><a id="__codelineno-0-867" name="__codelineno-0-867"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">]</span>
-</span><span id="__span-0-868"><a id="__codelineno-0-868" name="__codelineno-0-868"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'diag'</span><span class="p">:</span>
-</span><span id="__span-0-869"><a id="__codelineno-0-869" name="__codelineno-0-869"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">])</span>
-</span><span id="__span-0-870"><a id="__codelineno-0-870" name="__codelineno-0-870"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'spherical'</span><span class="p">:</span>
-</span><span id="__span-0-871"><a id="__codelineno-0-871" name="__codelineno-0-871"></a>        <span class="c1"># plot_gmm only ever renders 2D ellipses, so the identity is always 2x2</span>
-</span><span id="__span-0-872"><a id="__codelineno-0-872" name="__codelineno-0-872"></a>        <span class="c1"># regardless of n_components (covariances here has shape (n_components,))</span>
-</span><span id="__span-0-873"><a id="__codelineno-0-873" name="__codelineno-0-873"></a>        <span class="n">var_val</span> <span class="o">=</span> <span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">]</span>
-</span><span id="__span-0-874"><a id="__codelineno-0-874" name="__codelineno-0-874"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">var_val</span>
-</span><span id="__span-0-875"><a id="__codelineno-0-875" name="__codelineno-0-875"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'tied_full'</span><span class="p">:</span>
-</span><span id="__span-0-876"><a id="__codelineno-0-876" name="__codelineno-0-876"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">covariances</span>
-</span><span id="__span-0-877"><a id="__codelineno-0-877" name="__codelineno-0-877"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'tied_diag'</span><span class="p">:</span>
-</span><span id="__span-0-878"><a id="__codelineno-0-878" name="__codelineno-0-878"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">covariances</span><span class="p">)</span>
-</span><span id="__span-0-879"><a id="__codelineno-0-879" name="__codelineno-0-879"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'tied_spherical'</span><span class="p">:</span>
-</span><span id="__span-0-880"><a id="__codelineno-0-880" name="__codelineno-0-880"></a>        <span class="c1"># covariances is a 0-dim scalar tensor here, so there is no shape to derive a size from</span>
-</span><span id="__span-0-881"><a id="__codelineno-0-881" name="__codelineno-0-881"></a>        <span class="n">var_val</span> <span class="o">=</span> <span class="n">covariances</span>
-</span><span id="__span-0-882"><a id="__codelineno-0-882" name="__codelineno-0-882"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">var_val</span>
-</span><span id="__span-0-883"><a id="__codelineno-0-883" name="__codelineno-0-883"></a>    <span class="k">else</span><span class="p">:</span>
-</span><span id="__span-0-884"><a id="__codelineno-0-884" name="__codelineno-0-884"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported covariance_type: </span><span class="si">{</span><span class="n">cov_type</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-</span><span id="__span-0-885"><a id="__codelineno-0-885" name="__codelineno-0-885"></a>
-</span><span id="__span-0-886"><a id="__codelineno-0-886" name="__codelineno-0-886"></a>    <span class="k">return</span> <span class="n">cov_matrix</span>
+</span><span id="__span-0-866"><a id="__codelineno-0-866" name="__codelineno-0-866"></a>    <span class="k">if</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'diag'</span><span class="p">:</span>
+</span><span id="__span-0-867"><a id="__codelineno-0-867" name="__codelineno-0-867"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">])</span>
+</span><span id="__span-0-868"><a id="__codelineno-0-868" name="__codelineno-0-868"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'spherical'</span><span class="p">:</span>
+</span><span id="__span-0-869"><a id="__codelineno-0-869" name="__codelineno-0-869"></a>        <span class="c1"># plot_gmm only ever renders 2D ellipses, so the identity is always 2x2</span>
+</span><span id="__span-0-870"><a id="__codelineno-0-870" name="__codelineno-0-870"></a>        <span class="c1"># regardless of n_components (covariances here has shape (n_components,))</span>
+</span><span id="__span-0-871"><a id="__codelineno-0-871" name="__codelineno-0-871"></a>        <span class="n">var_val</span> <span class="o">=</span> <span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">]</span>
+</span><span id="__span-0-872"><a id="__codelineno-0-872" name="__codelineno-0-872"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">var_val</span>
+</span><span id="__span-0-873"><a id="__codelineno-0-873" name="__codelineno-0-873"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'tied_full'</span><span class="p">:</span>
+</span><span id="__span-0-874"><a id="__codelineno-0-874" name="__codelineno-0-874"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">covariances</span>
+</span><span id="__span-0-875"><a id="__codelineno-0-875" name="__codelineno-0-875"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'tied_diag'</span><span class="p">:</span>
+</span><span id="__span-0-876"><a id="__codelineno-0-876" name="__codelineno-0-876"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">covariances</span><span class="p">)</span>
+</span><span id="__span-0-877"><a id="__codelineno-0-877" name="__codelineno-0-877"></a>    <span class="k">elif</span> <span class="n">cov_type</span> <span class="o">==</span> <span class="s1">'tied_spherical'</span><span class="p">:</span>
+</span><span id="__span-0-878"><a id="__codelineno-0-878" name="__codelineno-0-878"></a>        <span class="c1"># covariances is a 0-dim scalar tensor here, so there is no shape to derive a size from</span>
+</span><span id="__span-0-879"><a id="__codelineno-0-879" name="__codelineno-0-879"></a>        <span class="n">var_val</span> <span class="o">=</span> <span class="n">covariances</span>
+</span><span id="__span-0-880"><a id="__codelineno-0-880" name="__codelineno-0-880"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">var_val</span>
+</span><span id="__span-0-881"><a id="__codelineno-0-881" name="__codelineno-0-881"></a>    <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-0-882"><a id="__codelineno-0-882" name="__codelineno-0-882"></a>        <span class="c1"># 'full', plus every GPCM mclust code without its own tgmm name</span>
+</span><span id="__span-0-883"><a id="__codelineno-0-883" name="__codelineno-0-883"></a>        <span class="c1"># (the 6 pre-existing E/V-volume codes resolve to one of the tgmm</span>
+</span><span id="__span-0-884"><a id="__codelineno-0-884" name="__codelineno-0-884"></a>        <span class="c1"># names handled above regardless of which spelling the caller</span>
+</span><span id="__span-0-885"><a id="__codelineno-0-885" name="__codelineno-0-885"></a>        <span class="c1"># used; the 8 new ones -- 'VEI', 'EVI', 'VEE', 'EVE', 'EEV',</span>
+</span><span id="__span-0-886"><a id="__codelineno-0-886" name="__codelineno-0-886"></a>        <span class="c1"># 'VVE', 'VEV', 'EVV' -- are always stored as assembled,</span>
+</span><span id="__span-0-887"><a id="__codelineno-0-887" name="__codelineno-0-887"></a>        <span class="c1"># per-component dense (K, d, d) matrices, exactly like 'full' --</span>
+</span><span id="__span-0-888"><a id="__codelineno-0-888" name="__codelineno-0-888"></a>        <span class="c1"># see docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md).</span>
+</span><span id="__span-0-889"><a id="__codelineno-0-889" name="__codelineno-0-889"></a>        <span class="n">cov_matrix</span> <span class="o">=</span> <span class="n">covariances</span><span class="p">[</span><span class="n">component_idx</span><span class="p">]</span>
+</span><span id="__span-0-890"><a id="__codelineno-0-890" name="__codelineno-0-890"></a>
+</span><span id="__span-0-891"><a id="__codelineno-0-891" name="__codelineno-0-891"></a>    <span class="k">return</span> <span class="n">cov_matrix</span>
 </span></code></pre></div></td></tr></table></div>
             </details>
     </div>
