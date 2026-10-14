@@ -4,6 +4,7 @@ from .gmm import GaussianMixture
 from .gmm_init import GMMInitializer
 from .hdbscan import HDBSCAN
 from .metrics import ClusteringMetrics
+from .stats import SufficientStats
 from .plotting import (
     plot_gmm, dynamic_figsize, match_predicted_to_true_labels,
     confidence_ellipse_std_devs, gmm_proxy,
