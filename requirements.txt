@@ -21,3 +21,4 @@ pymdown-extensions>=10.0
 
 # Testing dependencies
 pytest>=7.0.0
+mpmath>=1.3.0       # Reference Bessel function values for VonMisesFisherMixture tests
