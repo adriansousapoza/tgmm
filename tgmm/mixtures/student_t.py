@@ -21,6 +21,7 @@ from ..gmm_init import GMMInitializer
 from ..stats import SufficientStats
 from .base import BaseMixture
 from . import missing as _missing
+from .conditional import _validate_dims
 
 _VALID_COVARIANCE_TYPES = ('full', 'diag', 'spherical', 'tied_full')
 _VALID_SCALE_UPDATES = ('ecm', 'ecme')
@@ -697,6 +698,77 @@ class StudentTMixture(BaseMixture):
         gamma = torch.distributions.Gamma(nu / 2, nu / 2)
         g = gamma.sample((n,)).to(device=self.device, dtype=self.dtype)
         return mean.unsqueeze(0) + z / torch.sqrt(g).unsqueeze(-1)
+
+    # ===================================================================
+    # Marginalising and conditioning (v0.5 item 1.3)
+    # ===================================================================
+    def marginal(self, dims) -> "StudentTMixture":
+        r"""
+        The marginal mixture over a subset of the coordinates. Exact: a
+        multivariate t marginal has the same degrees of freedom
+        :math:`\nu_k` and the restricted scale matrix
+        :math:`\Sigma_k[\text{dims},\text{dims}]`; weights, means and `dof_` are
+        carried over.
+
+        Parameters
+        ----------
+        dims : sequence of int
+            Distinct coordinates in ``[0, n_features)``; output coordinate
+            ``j`` is input coordinate ``dims[j]``.
+
+        Returns
+        -------
+        StudentTMixture
+            A new fitted model with the same `covariance_type`.
+        """
+        if self.noise:
+            raise NotImplementedError(
+                "marginal is not supported for noise=True models: the uniform noise component has no "
+                "counterpart after marginalising."
+            )
+        if not self.fitted_ or self.means_ is None:
+            raise RuntimeError("marginal requires a fitted model: call fit() first.")
+        K, d = self.means_.shape
+        dims = _validate_dims(dims, d, 'dims')
+        idx = torch.tensor(dims, dtype=torch.long, device=self.means_.device)
+        cov, t = self.covariances_, self.covariance_type
+        if t == 'full':
+            new_cov = cov[:, idx][:, :, idx]
+        elif t == 'diag':
+            new_cov = cov[:, idx]
+        elif t == 'spherical':
+            new_cov = cov.clone()
+        else:  # 'tied_full'
+            new_cov = cov[idx][:, idx]
+        model = StudentTMixture(
+            n_components=K, n_features=len(dims), covariance_type=t, dof=self.dof, dof_init=self.dof_init,
+            dof_bounds=self.dof_bounds, scale_update=self.scale_update, reg_covar=self.reg_covar,
+            missing=self.missing, device=self.device,
+        )
+        model.dtype = self.dtype
+        model.weights_ = self.weights_.clone()
+        model.means_ = self.means_[:, idx].clone()
+        model.covariances_ = new_cov.clone()
+        model.dof_ = self.dof_.clone()
+        model.fitted_ = True
+        model.converged_ = True
+        model.n_components_ = K
+        model.n_iter_ = 0
+        model.lower_bound_ = float('nan')
+        return model
+
+    def condition(self, x_obs, obs_dims):
+        r"""
+        Not implemented: the conditional of a multivariate t given observed
+        coordinates is a t with :math:`\nu_k + d_o` degrees of freedom and a
+        scale inflated by :math:`(\nu_k + \delta_o)/(\nu_k + d_o)` that depends
+        on the sample, so it is not a member of `ConditionalGaussianMixture`.
+        """
+        raise NotImplementedError(
+            "condition is not implemented for StudentTMixture: the conditional t needs adjusted degrees of freedom "
+            "(nu + d_obs) and a per-sample scale ((nu + delta_obs)/(nu + d_obs)). Use marginal(), or "
+            "a GaussianMixture for Gaussian mixture regression."
+        )
 
     def sample_weights(self, X: torch.Tensor) -> torch.Tensor:
         r"""

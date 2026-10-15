@@ -37,6 +37,18 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   parameters. Fits on finite data are bit-identical to before, and `missing='em'` on data without `NaN` is identical
   to `'error'`.
 
+### Added (v0.5 Phase 1.3: `marginal` and `condition`)
+
+- `GaussianMixture.marginal(dims)`: the marginal mixture over a subset of coordinates (a new fitted
+  `GaussianMixture`; `diag`/`spherical`/`tied_*` keep their type, `full` and the GPCM codes give `full`).
+  `GaussianMixture.condition(x_obs, obs_dims)`: Gaussian conditioning component by component, returning the new
+  `ConditionalGaussianMixture` with per-sample weights `weights_ (n, K)`, conditional means `means_ (n, K, d_m)`,
+  sample-independent conditional covariances `covariances_ (K, d_m, d_m)` and `mean()` (Gaussian mixture
+  regression), `log_prob(Y)`, `sample(n_draws)`, `as_gmm(i)`. Works for every covariance type and GPCM code;
+  `StudentTMixture.marginal` is exact, `StudentTMixture.condition` raises `NotImplementedError` (the conditional t
+  needs a sample-dependent scale and `nu + d_obs` degrees of freedom). Gibbs-mode and `noise=True` models raise.
+  Design: `docs/superpowers/specs/2026-10-15-v05-marginal-condition-design.md`.
+
 ### Changed (tutorials are marimo notebooks)
 
 - The 18 tutorials are now [marimo](https://marimo.io) notebooks, `notebooks/NN_name.py` (the only committed form);

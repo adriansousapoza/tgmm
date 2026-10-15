@@ -10,6 +10,7 @@ from .stats import SufficientStats
 from .covariance.gpcm import mstep_gpcm, GPCMResult
 from .mixtures.base import BaseMixture
 from .mixtures import missing as _missing
+from .mixtures.conditional import ConditionalGaussianMixture, _validate_dims
 from scipy.stats import chi2
 
 
@@ -3350,6 +3351,173 @@ class GaussianMixture(BaseMixture):
     # Sampling Method
     # ===================================================================
     
+    # ===================================================================
+    # Marginalising and conditioning (v0.5 item 1.3)
+    # ===================================================================
+    def _require_derivable(self, what: str):
+        r"""Common guard for `marginal` / `condition`: not Gibbs, not noise, fitted."""
+        if self.n_components is None:
+            raise NotImplementedError(
+                f"{what} is not supported for Gibbs-mode fits (n_components=None): the active-component "
+                "bookkeeping has no meaning for a derived model. Fit with a fixed n_components instead."
+            )
+        if self.noise:
+            raise NotImplementedError(
+                f"{what} is not supported for noise=True models: the uniform noise component has no "
+                "Gaussian-mixture representation after marginalising or conditioning."
+            )
+        if not self.fitted_ or self.means_ is None:
+            raise RuntimeError(f"{what} requires a fitted model: call fit() first.")
+
+    def _dense_covariances(self) -> torch.Tensor:
+        r"""Assembled `(K, d, d)` covariance matrices for every covariance type."""
+        K, d = self.means_.shape
+        cov = self.covariances_
+        eye = torch.eye(d, dtype=cov.dtype, device=cov.device)
+        t = self.covariance_type
+        if t == 'diag':
+            return torch.diag_embed(cov)
+        if t == 'spherical':
+            return cov.view(K, 1, 1) * eye
+        if t == 'tied_full':
+            return cov.unsqueeze(0).expand(K, d, d)
+        if t == 'tied_diag':
+            return torch.diag_embed(cov).unsqueeze(0).expand(K, d, d)
+        if t == 'tied_spherical':
+            return (cov * eye).unsqueeze(0).expand(K, d, d)
+        return cov  # 'full' and the 8 GPCM codes without a classic name are stored assembled
+
+    def marginal(self, dims) -> "GaussianMixture":
+        r"""
+        The marginal mixture over a subset of the coordinates.
+
+        Component :math:`k` becomes
+        :math:`\mathcal N(\mu_k[\text{dims}],\ \Sigma_k[\text{dims},\text{dims}])` with
+        the same weights.
+
+        Parameters
+        ----------
+        dims : sequence of int
+            Distinct coordinates in ``[0, n_features)``; output coordinate
+            ``j`` is input coordinate ``dims[j]`` (order is kept).
+
+        Returns
+        -------
+        GaussianMixture
+            A new fitted model (no priors are copied). `diag`, `spherical`
+            and the `tied_*` types keep their type; `full` and the 8 GPCM
+            codes without a classic name give `covariance_type='full'` (the
+            volume/shape/orientation decomposition does not survive
+            restriction).
+
+        Raises
+        ------
+        NotImplementedError
+            For Gibbs-mode (`n_components=None`) and `noise=True` models.
+        """
+        self._require_derivable('marginal')
+        K, d = self.means_.shape
+        dims = _validate_dims(dims, d, 'dims')
+        idx = torch.tensor(dims, dtype=torch.long, device=self.means_.device)
+        cov, t = self.covariances_, self.covariance_type
+        new_type = t
+        if t == 'diag' or t == 'tied_diag':
+            new_cov = cov[..., idx]
+        elif t == 'spherical' or t == 'tied_spherical':
+            new_cov = cov.clone()
+        elif t == 'tied_full':
+            new_cov = cov[idx][:, idx]
+        else:  # 'full' and the 8 GPCM codes without a classic name
+            new_cov = cov[:, idx][:, :, idx]
+            new_type = 'full'
+        model = GaussianMixture(
+            n_components=K, n_features=len(dims), covariance_type=new_type,
+            reg_covar=self.reg_covar, missing=self.missing, device=self.device,
+        )
+        model.dtype = self.dtype
+        model.weights_ = self.weights_.clone()
+        model.means_ = self.means_[:, idx].clone()
+        model.covariances_ = new_cov.clone()
+        model.fitted_ = True
+        model.converged_ = True
+        model.n_components_ = K
+        model.n_iter_ = 0
+        model.lower_bound_ = float('nan')
+        return model
+
+    def condition(self, x_obs, obs_dims) -> ConditionalGaussianMixture:
+        r"""
+        Condition the mixture on observed coordinates (Gaussian mixture
+        regression when `mean()` is taken).
+
+        For each component, with observed block :math:`o` and unobserved
+        block :math:`m`,
+
+        .. math::
+            A_k = \Sigma_{k,mo}\Sigma_{k,oo}^{-1},\quad
+            m_{ik} = \mu_{k,m} + A_k(x_{o,i} - \mu_{k,o}),\quad
+            C_k = \Sigma_{k,mm} - A_k\Sigma_{k,om},
+
+        and the weights are :math:`w_{ik}\propto\pi_k\mathcal N(x_{o,i}\mid\mu_{k,o},\Sigma_{k,oo})`.
+
+        Parameters
+        ----------
+        x_obs : torch.Tensor, shape (n, len(obs_dims)) or (len(obs_dims),)
+            Observed values; column ``j`` is coordinate ``obs_dims[j]``. A
+            1-D vector is one row.
+        obs_dims : sequence of int
+            Distinct observed coordinates; at least one coordinate must stay
+            unobserved. The conditional is over the sorted complement.
+
+        Returns
+        -------
+        ConditionalGaussianMixture
+            With ``weights_ (n, K)``, ``means_ (n, K, d_m)``,
+            ``covariances_ (K, d_m, d_m)``, `mean`, `log_prob`, `sample`,
+            `as_gmm`.
+
+        Raises
+        ------
+        NotImplementedError
+            For Gibbs-mode (`n_components=None`) and `noise=True` models.
+        """
+        self._require_derivable('condition')
+        K, d = self.means_.shape
+        obs = _validate_dims(obs_dims, d, 'obs_dims')
+        if len(obs) == d:
+            raise ValueError("obs_dims must leave at least one coordinate unobserved")
+        miss = [j for j in range(d) if j not in set(obs)]
+        dev, dt = self.means_.device, self.means_.dtype
+        x = torch.as_tensor(x_obs, dtype=dt, device=dev)
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
+        if x.dim() != 2 or x.shape[1] != len(obs):
+            raise ValueError(f"x_obs must have shape (n, {len(obs)}) for obs_dims={obs}, got {tuple(x.shape)}")
+        o = torch.tensor(obs, dtype=torch.long, device=dev)
+        m = torch.tensor(miss, dtype=torch.long, device=dev)
+
+        S = self._dense_covariances()
+        S_oo = S[:, o][:, :, o]
+        S_mo = S[:, m][:, :, o]
+        S_mm = S[:, m][:, :, m]
+
+        L = torch.linalg.cholesky(S_oo)                                               # (K, do, do)
+        eye = torch.eye(len(obs), dtype=dt, device=dev)
+        L_inv = torch.linalg.solve_triangular(L, eye.expand_as(L), upper=False)
+        diff = x.unsqueeze(1) - self.means_[:, o].unsqueeze(0)                         # (n, K, do)
+        z = torch.einsum('kde,nke->nkd', L_inv, diff)
+        maha = z.pow(2).sum(-1)                                                       # (n, K)
+        log_det = 2.0 * torch.log(torch.diagonal(L, dim1=-2, dim2=-1)).sum(-1)        # (K,)
+        log_w = torch.log(self.weights_.clamp_min(1e-300)).unsqueeze(0) - 0.5 * (
+            len(obs) * math.log(2.0 * math.pi) + log_det.unsqueeze(0) + maha)
+        weights = torch.softmax(log_w, dim=1)
+
+        A = S_mo @ (L_inv.transpose(-1, -2) @ L_inv)                                  # (K, dm, do)
+        means = self.means_[:, m].unsqueeze(0) + torch.einsum('kmo,nko->nkm', A, diff)  # (n, K, dm)
+        C = S_mm - A @ S_mo.transpose(-1, -2)
+        C = 0.5 * (C + C.transpose(-1, -2))
+        return ConditionalGaussianMixture(weights, means, C, obs, miss)
+
     def sample(self, n_samples: int = 1, component: int = None, std_radius: float = None, 
                std_range: Tuple[float, float] = None, confidence: float = None,
                confidence_range: Tuple[float, float] = None,
