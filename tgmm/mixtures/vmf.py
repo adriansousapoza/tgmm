@@ -185,6 +185,9 @@ class VonMisesFisherMixture(BaseMixture):
         for `GaussianMixture`/`StudentTMixture`. `'random'` draws uniform
         random points on the sphere; `'points'` picks random rows of `X`
         (already unit-norm). A tensor is normalized and used directly.
+    frozen_components : sequence of int, optional
+        Components whose mean direction and concentration are held at their initial values for the whole
+        fit (mixing weights still update). Not available with `concentration='shared'`. (default: ())
     init_weights : see `BaseMixture`.
     max_iter, tol, reg_covar, n_init, random_state, warm_start, algorithm,
     batch_size, temperature, convergence, step_size, sem_burn_in,
@@ -252,6 +255,7 @@ class VonMisesFisherMixture(BaseMixture):
         noise_prior: float = 0.05,
         noise_init=None,
         missing: str = 'error',
+        frozen_components=(),
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -265,7 +269,7 @@ class VonMisesFisherMixture(BaseMixture):
             components_per_class=components_per_class, unlabeled_weight=unlabeled_weight,
             label_confidence=label_confidence,
             noise=noise, noise_volume=noise_volume, noise_prior=noise_prior, noise_init=noise_init,
-            missing=missing,
+            missing=missing, frozen_components=frozen_components,
             verbose=verbose, verbose_interval=verbose_interval, device=device,
         )
 
@@ -274,6 +278,16 @@ class VonMisesFisherMixture(BaseMixture):
         self.concentration = concentration
         self.kappa_init = kappa_init
         self.kappa_ = None
+        self.__dict__['_frozen_ready'] = True
+        if self.frozen_components:
+            self._check_frozen_supported()
+
+    def _check_frozen_supported(self):
+        if self.concentration == 'shared':
+            raise ValueError(
+                "frozen_components is not supported with concentration='shared': one concentration is shared "
+                "by every component. Use concentration='per_component'."
+            )
 
     # ===================================================================
     # Unit-norm input handling: every public entry point that takes raw X
@@ -293,10 +307,11 @@ class VonMisesFisherMixture(BaseMixture):
             X = X / norms.clamp(min=1e-12).unsqueeze(1)
         return X
 
-    def fit(self, X: torch.Tensor, labels=None, max_iter=None, tol=None, random_state=None, warm_start=None):
+    def fit(self, X: torch.Tensor, labels=None, max_iter=None, tol=None, random_state=None, warm_start=None,
+            sample_weight=None):
         return super().fit(
             self._check_unit_norm(X), labels=labels, max_iter=max_iter, tol=tol,
-            random_state=random_state, warm_start=warm_start,
+            random_state=random_state, warm_start=warm_start, sample_weight=sample_weight,
         )
 
     def predict(self, X: torch.Tensor) -> torch.Tensor:
@@ -551,6 +566,7 @@ class VonMisesFisherMixture(BaseMixture):
             'noise_prior': self.noise_prior,
             'noise_weight_': self.noise_weight_,
             'noise_bounds_': self.noise_bounds_,
+            'frozen_components': list(self.frozen_components),
             'weights_': self.weights_,
             'means_': self.means_,
             'kappa_': self.kappa_,
@@ -584,6 +600,7 @@ class VonMisesFisherMixture(BaseMixture):
             verbose=state['verbose'], verbose_interval=state['verbose_interval'], device=device,
             noise=state.get('noise', False), noise_volume=state.get('noise_volume', 'bbox'),
             noise_prior=state.get('noise_prior', 0.05),
+            frozen_components=state.get('frozen_components', ()),
         )
         model.noise_weight_ = state.get('noise_weight_')
         model.noise_bounds_ = state.get('noise_bounds_')
@@ -606,6 +623,7 @@ class VonMisesFisherMixture(BaseMixture):
         self.noise = state_dict.get('noise', False)
         self.noise_volume = state_dict.get('noise_volume', 'bbox')
         self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.frozen_components = state_dict.get('frozen_components', ())
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
         self.weights_ = state_dict['weights_']

@@ -21,9 +21,10 @@ arguments -- its own `__init__`, unchanged by this phase, remains the
 sole source of truth for its ~90-attribute configuration.
 """
 import math
+import numbers
 import warnings
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -74,6 +75,10 @@ class BaseMixture(nn.Module, ABC):
         over the other components according to its own unclamped
         posterior -- a knob for labels that might themselves be noisy.
         `1.0` (default) fully clamps labeled rows to their class block.
+    frozen_components : sequence of int, default=()
+        Indices of components whose per-component parameters (`means_`, `covariances_`,
+        `dof_`, `kappa_`) are held at their initial values for the whole fit; their mixing
+        weights still update. See `docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md`.
     """
 
     def __init__(
@@ -103,6 +108,7 @@ class BaseMixture(nn.Module, ABC):
         noise_prior: float = 0.05,
         noise_init=None,
         missing: str = 'error',
+        frozen_components: Sequence[int] = (),
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -171,6 +177,7 @@ class BaseMixture(nn.Module, ABC):
 
         self._init_noise(noise, noise_volume, noise_prior, noise_init)
         self._init_missing(missing)
+        self._init_frozen(frozen_components)
 
         # Optional callable(X, resp_or_None), called once right after
         # _allocate_parameters (with resp=None) and once after every M-step
@@ -206,6 +213,170 @@ class BaseMixture(nn.Module, ABC):
         self.n_empty_components_ = 0
         self._online_running_stats_ = None
         self._online_step_count_ = 0
+
+    # ===================================================================
+    # Frozen components and sample weights (v0.5 item 1.4). See
+    # docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md.
+    # ===================================================================
+    _fit_sw = None        # row weights (n,) during a weighted fit, else None
+    _fit_fw = None        # per-feature weights (n, d) during a per-feature-weighted fit, else None
+    _fit_n_eff = None     # sum of the row weights during a weighted fit
+    _fw_cur = None        # the chunk of `_fit_fw` the current E-step chunk uses
+
+    @property
+    def frozen_components(self) -> Tuple[int, ...]:
+        r"""Sorted indices of the components held fixed (see the constructor argument)."""
+        return self.__dict__.get('_frozen_components', ())
+
+    @frozen_components.setter
+    def frozen_components(self, value):
+        self._init_frozen(value)
+
+    def _init_frozen(self, frozen_components):
+        r"""Validate (indices distinct integers in ``[0, K)``) and store `frozen_components`; then let the
+        family reject the configurations it cannot freeze (`_check_frozen_supported`)."""
+        if frozen_components is None:
+            frozen_components = ()
+        try:
+            items = list(frozen_components)
+        except TypeError:
+            raise TypeError(f"frozen_components must be a sequence of component indices, got {frozen_components!r}.")
+        for item in items:
+            is_int = isinstance(item, numbers.Integral) and not isinstance(item, bool)
+            is_int_tensor = torch.is_tensor(item) and item.dim() == 0 and not torch.is_floating_point(item)
+            if not (is_int or is_int_tensor):
+                raise ValueError(f"frozen_components must contain integers, got {item!r}.")
+        idx = tuple(sorted(int(i) for i in items))
+        if len(set(idx)) != len(idx):
+            raise ValueError(f"frozen_components must not contain duplicates, got {frozen_components!r}.")
+        if idx:
+            if self.n_components is None:
+                raise ValueError(
+                    "frozen_components requires a fixed n_components (it is not available in Gibbs mode, "
+                    "n_components=None)."
+                )
+            if idx[0] < 0 or idx[-1] >= self.n_components:
+                raise ValueError(
+                    f"frozen_components indices must lie in [0, {self.n_components}), got {frozen_components!r}."
+                )
+        self.__dict__['_frozen_components'] = idx
+        if idx and self.__dict__.get('_frozen_ready', False):
+            self._check_frozen_supported()
+
+    def _check_frozen_supported(self):
+        r"""Family hook: raise `ValueError` if the current configuration cannot hold a component fixed
+        (a parameter shared across components). Called when `frozen_components` is set and at fit time."""
+
+    def _frozen_mask(self) -> torch.Tensor:
+        mask = torch.zeros(self.n_components, dtype=torch.bool, device=self.device)
+        if self.frozen_components:
+            mask[list(self.frozen_components)] = True
+        return mask
+
+    def _frozen_param_names(self):
+        K = self.n_components
+        names = []
+        for name in ('means_', 'covariances_', 'dof_', 'kappa_'):
+            value = getattr(self, name, None)
+            if torch.is_tensor(value) and value.dim() >= 1 and value.shape[0] == K:
+                names.append(name)
+        return names
+
+    def _m_step_frozen(self, stats: SufficientStats):
+        r"""`_m_step_from_stats`, then restore the frozen components' per-component parameters (the mixing
+        weights, and the noise weight, are left as updated)."""
+        frozen = self.frozen_components
+        if not frozen:
+            self._m_step_from_stats(stats)
+            return
+        idx = torch.tensor(frozen, dtype=torch.long, device=self.device)
+        saved = {name: getattr(self, name)[idx].clone() for name in self._frozen_param_names()}
+        self._m_step_from_stats(stats)
+        for name, value in saved.items():
+            getattr(self, name)[idx] = value
+
+    # ---- sample weights -------------------------------------------------
+    def _feature_weights_supported(self) -> bool:
+        r"""Family hook: whether `sample_weight` of shape `(n, d)` is supported (per-feature factorisation)."""
+        return False
+
+    def _has_priors(self) -> bool:
+        return False
+
+    def _prepare_sample_weight(self, sample_weight, X: torch.Tensor, labels):
+        r"""Validate `sample_weight` and set the per-fit weight context. Returns the row-keep mask
+        (rows with weight > 0, for initialisation) or `None`."""
+        n, d = X.shape
+        w = torch.as_tensor(sample_weight)
+        if not torch.is_floating_point(w):
+            w = w.to(torch.get_default_dtype())
+        w = w.to(device=self.device, dtype=X.dtype)
+        if w.dim() not in (1, 2) or w.shape[0] != n or (w.dim() == 2 and w.shape[1] != d):
+            raise ValueError(
+                f"sample_weight must have shape (n_samples,) = ({n},) or (n_samples, n_features) = ({n}, {d}), "
+                f"got {tuple(w.shape)}."
+            )
+        if not bool(torch.isfinite(w).all()):
+            raise ValueError("sample_weight must be finite.")
+        if bool((w < 0).any()):
+            raise ValueError("sample_weight must be non-negative.")
+        if not bool(w.sum() > 0):
+            raise ValueError("sample_weight must have a positive sum.")
+        if labels is not None:
+            raise NotImplementedError("sample_weight is not supported together with labels=... (semi-supervised fitting).")
+        if self.algorithm in ('em', 'cem') and self.step_size is not None:
+            raise NotImplementedError("sample_weight is not supported with online EM (step_size set).")
+        if w.dim() == 2:
+            if not self._feature_weights_supported():
+                raise ValueError(
+                    f"per-feature sample_weight (shape (n_samples, n_features)) is not supported by this "
+                    f"{type(self).__name__} configuration: the statistics must factorise per feature "
+                    "(GaussianMixture / StudentTMixture with a diagonal covariance, GaussianMixture 'spherical'). "
+                    "Use sample_weight of shape (n_samples,) instead."
+                )
+            if self.noise:
+                raise NotImplementedError("per-feature sample_weight cannot be combined with noise=True.")
+            if self.missing == 'em':
+                raise NotImplementedError("per-feature sample_weight cannot be combined with missing='em'.")
+            if self._has_priors():
+                raise NotImplementedError(
+                    "per-feature sample_weight supports maximum likelihood only (no weight / mean / covariance priors)."
+                )
+        if bool((w == 1).all()):
+            return None  # all-ones is exactly the unweighted fit
+        if w.dim() == 1:
+            self._fit_sw = w
+            self._fit_n_eff = float(w.sum().item())
+            return w > 0
+        self._fit_fw = w
+        return None
+
+    def _clear_sample_weight(self):
+        self._fit_sw = None
+        self._fit_fw = None
+        self._fit_n_eff = None
+        self._fw_cur = None
+
+    def _mean_ll(self, log_prob_norm: torch.Tensor) -> float:
+        r"""Mean log-likelihood of a fit's E-step: weighted by the row weights when present."""
+        sw = self._fit_sw
+        if sw is None or sw.shape[0] != log_prob_norm.shape[0]:
+            return log_prob_norm.mean().item()
+        return ((sw * log_prob_norm).sum() / sw.sum()).item()
+
+    def _fit_stats(self, X: torch.Tensor, resp_k: torch.Tensor) -> SufficientStats:
+        r"""Sufficient statistics of the current fit: row weights scale the responsibilities and the effective
+        sample count; per-feature weights are passed to the family's `_compute_stats`."""
+        sw = self._fit_sw
+        if sw is not None:
+            resp_k = resp_k * sw.unsqueeze(1)
+        if self._fit_fw is None:
+            stats = self._compute_stats(X, resp_k, batch_size=self.batch_size)
+        else:
+            stats = self._compute_stats(X, resp_k, batch_size=self.batch_size, feature_weights=self._fit_fw)
+        if sw is not None:
+            stats.n_samples = self._fit_n_eff
+        return stats
 
     # ===================================================================
     # Missing values (v0.5 item 1.2). See
@@ -486,9 +657,13 @@ class BaseMixture(nn.Module, ABC):
         components are updated from `resp[:, :K]` and `pi_0` is the mean
         noise responsibility."""
         resp_k, resp_noise = self._split_noise(resp)
-        self._m_step_from_stats(self._compute_stats(X, resp_k, batch_size=self.batch_size))
+        self._m_step_frozen(self._fit_stats(X, resp_k))
         if resp_noise is not None:
-            self.noise_weight_ = (resp_noise.sum() / resp.shape[0]).to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
+            if self._fit_sw is not None:
+                noise_mass = (resp_noise.reshape(-1) * self._fit_sw).sum()
+                self.noise_weight_ = (noise_mass / self._fit_n_eff).to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
+            else:
+                self.noise_weight_ = (resp_noise.sum() / resp.shape[0]).to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
 
     # ===================================================================
     # E-step, C-step, S-step
@@ -511,14 +686,26 @@ class BaseMixture(nn.Module, ABC):
         log_prob_norm : torch.Tensor, shape (n_samples,)
         """
         self._check_nan_input(X)
+        fw = self._fit_fw if (self._fit_fw is not None and self._fit_fw.shape[0] == X.shape[0]) else None
         if self.batch_size is None or self.batch_size >= X.shape[0]:
-            return self._e_step_chunk(X, beta=beta)
+            if fw is None:
+                return self._e_step_chunk(X, beta=beta)
+            self._fw_cur = fw
+            try:
+                return self._e_step_chunk(X, beta=beta)
+            finally:
+                self._fw_cur = None
 
         resp_chunks = []
         log_prob_norm_chunks = []
         for start in range(0, X.shape[0], self.batch_size):
             end = min(start + self.batch_size, X.shape[0])
-            resp_chunk, log_prob_norm_chunk = self._e_step_chunk(X[start:end], beta=beta)
+            if fw is not None:
+                self._fw_cur = fw[start:end]
+            try:
+                resp_chunk, log_prob_norm_chunk = self._e_step_chunk(X[start:end], beta=beta)
+            finally:
+                self._fw_cur = None
             resp_chunks.append(resp_chunk)
             log_prob_norm_chunks.append(log_prob_norm_chunk)
         return torch.cat(resp_chunks, dim=0), torch.cat(log_prob_norm_chunks, dim=0)
@@ -622,7 +809,7 @@ class BaseMixture(nn.Module, ABC):
         beta = self._beta_for_iteration(0)
         betas_used = [beta]
         resp, log_prob_norm = self._e_step(X, beta=beta)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         ll_history = [self.lower_bound_]
 
         for n_iter in range(max_iter):
@@ -643,7 +830,7 @@ class BaseMixture(nn.Module, ABC):
             beta = self._beta_for_iteration(n_iter + 1)
             betas_used.append(beta)
             resp, log_prob_norm = self._e_step(X, beta=beta)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
             ll_history.append(self.lower_bound_)
 
             if self.verbose and (n_iter % self.verbose_interval == 0):
@@ -654,7 +841,7 @@ class BaseMixture(nn.Module, ABC):
             resp, log_prob_norm = self._e_step(X, beta=beta)
             if self.algorithm == 'cem':
                 resp = self._c_step(resp)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
         else:
             import warnings
             warnings.warn(
@@ -681,7 +868,7 @@ class BaseMixture(nn.Module, ABC):
         beta = self._beta_for_iteration(0)
         betas_used.append(beta)
         resp, log_prob_norm = self._e_step(X, beta=beta)
-        ll = log_prob_norm.mean().item()
+        ll = self._mean_ll(log_prob_norm)
         ll_history.append(ll)
 
         for n_iter in range(max_iter):
@@ -691,6 +878,8 @@ class BaseMixture(nn.Module, ABC):
             if self.noise:
                 nk = nk[:-1]  # the noise column is never "empty" in the re-seeding sense
             empty_mask = nk < 1
+            if self.frozen_components:
+                empty_mask = empty_mask & ~self._frozen_mask()
             if torch.any(empty_mask):
                 X_reseed = _missing.fill_columns_with_means(X) if self._missing_active(X) else X
                 n_empty_this_sweep = self._reseed_empty_components(X_reseed, log_prob_norm, empty_mask)
@@ -707,7 +896,7 @@ class BaseMixture(nn.Module, ABC):
             beta = self._beta_for_iteration(n_iter + 1)
             betas_used.append(beta)
             resp, log_prob_norm = self._e_step(X, beta=beta)
-            ll = log_prob_norm.mean().item()
+            ll = self._mean_ll(log_prob_norm)
             ll_history.append(ll)
 
             if n_iter >= sem_burn_in:
@@ -731,7 +920,7 @@ class BaseMixture(nn.Module, ABC):
             self._apply_snapshot(mean_snapshot)
 
         _, log_prob_norm = self._e_step(X)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         self.converged_ = True
         self.n_iter_ = max_iter
         self.log_likelihood_history_ = torch.tensor(ll_history)
@@ -786,11 +975,11 @@ class BaseMixture(nn.Module, ABC):
                         new_scale=n_samples / batch_stats.n_samples,
                     )
 
-                self._m_step_from_stats(running_stats)
+                self._m_step_frozen(running_stats)
                 t += 1
 
             _, log_prob_norm = self._e_step(X)
-            ll = log_prob_norm.mean().item()
+            ll = self._mean_ll(log_prob_norm)
             ll_history.append(ll)
             self.lower_bound_ = ll
 
@@ -806,7 +995,7 @@ class BaseMixture(nn.Module, ABC):
     def _fit_single_run_saem(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
         r"""SAEM (Delyon, Lavielle & Moulines, 1999): SEM blended into a running accumulator."""
         import warnings
-        n_samples = X.shape[0]
+        n_samples = X.shape[0] if self._fit_n_eff is None else self._fit_n_eff
         gamma_fn = self._resolve_step_size_fn()
 
         prev_lower_bound = -float("inf")
@@ -815,24 +1004,28 @@ class BaseMixture(nn.Module, ABC):
         running_noise = None
 
         resp, log_prob_norm = self._e_step(X)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         ll_history = [self.lower_bound_]
 
         for n_iter in range(max_iter):
             z_onehot = self._s_step(resp)
             z_k, z_noise = self._split_noise(z_onehot)
-            batch_stats = self._compute_stats(X, z_k, batch_size=self.batch_size)
+            batch_stats = self._fit_stats(X, z_k)
             gamma = gamma_fn(n_iter)
+            noise_frac = None
+            if z_noise is not None:
+                noise_mass = z_noise.sum() if self._fit_sw is None else (z_noise.reshape(-1) * self._fit_sw).sum()
+                noise_frac = noise_mass / n_samples
 
             if running_stats is None:
                 running_stats = batch_stats
-                running_noise = None if z_noise is None else z_noise.sum() / n_samples
+                running_noise = noise_frac
             else:
                 running_stats = self._blend_stats(running_stats, batch_stats, gamma, n_samples, new_scale=1.0)
                 if z_noise is not None:
-                    running_noise = (1.0 - gamma) * running_noise + gamma * (z_noise.sum() / n_samples)
+                    running_noise = (1.0 - gamma) * running_noise + gamma * noise_frac
 
-            self._m_step_from_stats(running_stats)
+            self._m_step_frozen(running_stats)
             if z_noise is not None:
                 self.noise_weight_ = running_noise.to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
 
@@ -846,7 +1039,7 @@ class BaseMixture(nn.Module, ABC):
             prev_prev_lower_bound = prev_lower_bound
             prev_lower_bound = self.lower_bound_
             resp, log_prob_norm = self._e_step(X)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
             ll_history.append(self.lower_bound_)
 
             if self.verbose and (n_iter % self.verbose_interval == 0):
@@ -856,7 +1049,7 @@ class BaseMixture(nn.Module, ABC):
 
         if self.converged_:
             resp, log_prob_norm = self._e_step(X)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
         else:
             warnings.warn(
                 f"Run {run_idx + 1}: SAEM did not converge after {max_iter} iterations.",
@@ -896,11 +1089,11 @@ class BaseMixture(nn.Module, ABC):
                 batch_stats.n_samples, new_scale=1.0,
             )
 
-        self._m_step_from_stats(self._online_running_stats_)
+        self._m_step_frozen(self._online_running_stats_)
         self._online_step_count_ += 1
 
         _, log_prob_norm = self._e_step(X_batch)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         return self
 
     # ===================================================================
@@ -916,9 +1109,39 @@ class BaseMixture(nn.Module, ABC):
         tol: Optional[float] = None,
         random_state: Optional[int] = None,
         warm_start: Optional[bool] = None,
+        sample_weight: Optional[torch.Tensor] = None,
     ):
+        r"""
+        Fit the mixture by EM / CEM / SEM / SAEM (see `GaussianMixture.fit` for the shared arguments).
+
+        Parameters
+        ----------
+        sample_weight : torch.Tensor, optional
+            Row weights of shape `(n_samples,)` (row `i` counts `w_i` times: integer weights equal
+            duplicating rows, weight 0 equals dropping the row, an all-ones vector is bit-identical to
+            `None`), or per-feature weights of shape `(n_samples, n_features)` for models whose statistics
+            factorise per feature (`GaussianMixture` with `'diag'`/`'spherical'` covariance and
+            `StudentTMixture` with `'diag'`; maximum likelihood only): weight 0 on entry `(i, j)` hides
+            feature `j` of row `i`. Not supported with `labels=...`, Gibbs mode or online EM. See
+            `docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md`. (default: None)
+        """
+        self._clear_sample_weight()
+        if sample_weight is None:
+            return self._fit_main(X, labels, max_iter, tol, random_state, warm_start, None)
+        Xw = X.to(self.device)
+        if Xw.dim() == 1:
+            Xw = Xw.unsqueeze(1)
+        keep = self._prepare_sample_weight(sample_weight, Xw, labels)
+        try:
+            return self._fit_main(X, labels, max_iter, tol, random_state, warm_start, keep)
+        finally:
+            self._clear_sample_weight()
+
+    def _fit_main(self, X, labels, max_iter, tol, random_state, warm_start, keep):
         import warnings
 
+        if self.frozen_components:
+            self._check_frozen_supported()
         if X.size(0) < self.n_components:
             raise ValueError(f"n_components={self.n_components} must be <= n_samples={X.size(0)}.")
         if self.n_components <= 0:
@@ -1004,6 +1227,11 @@ class BaseMixture(nn.Module, ABC):
                 X_init = X if noise_mask is None else X[~noise_mask]
                 if X_fill is not None:
                     X_init = X_fill  # k-means etc. must not see NaN (column-mean imputed copy)
+                if keep is not None:  # weight-0 rows are dropped from the initialisation
+                    if X_fill is not None or noise_mask is None:
+                        X_init = X_init[keep]
+                    else:
+                        X_init = X[~noise_mask & keep]
                 self._allocate_parameters(X_init, set_random_state=False)
                 if self.noise:
                     self._init_noise_weights(noise_mask)

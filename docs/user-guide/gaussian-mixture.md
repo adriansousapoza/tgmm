@@ -683,6 +683,29 @@ Gibbs-sampling math, a step-by-step walkthrough and a comparison against classic
 [design document](https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md)
 for the full derivation.
 
+## Frozen components and sample weights
+
+`frozen_components=(1, 3)` holds those components' parameters at their *initial* values for the whole fit
+(give them with tensor `init_means` / `init_covariances`, or with `warm_start`); their mixing weights still update,
+and MAP / NIW priors never shrink them. It is useful for anchoring known classes (a "reference" population) while the
+rest of the mixture is learned, and it is what `PositiveUnlabeledMixture(anchor='fixed')` uses. It is not available
+for the tied covariance types or the 8 GPCM codes without a classic name (one factor is shared across components).
+
+`fit(X, sample_weight=w)` fits a weighted sample. With `w` of shape `(n,)` row $i$ counts $w_i$ times: every
+responsibility is multiplied by $w_i$ before the statistics of the M-step, the mixing weights use
+$n_\mathrm{eff}=\sum_iw_i$ as the sample count, and the convergence criterion is the weighted mean
+log-likelihood. Integer weights are therefore equivalent to duplicating rows and weight $0$ to dropping the row.
+For `covariance_type='diag'` or `'spherical'` (maximum likelihood only) `w` may also have shape `(n, d)`: entry
+$w_{ij}$ then weights feature $j$ of row $i$ in both steps,
+
+$$
+\mu_{kj}=\frac{\sum_i r_{ik}w_{ij}x_{ij}}{\sum_i r_{ik}w_{ij}},\qquad
+\sigma^2_{kj}=\frac{\sum_i r_{ik}w_{ij}(x_{ij}-\mu_{kj})^2}{\sum_i r_{ik}w_{ij}},
+$$
+
+and $w_{ij}=0$ makes that entry invisible, which is exact marginalisation of an independent feature. `inertia` (as in
+pomegranate) is not provided: `step_size` (online EM / SAEM) is the same control on the sufficient statistics.
+
 ## Sampling from the model
 
 Generate new samples from the fitted mixture: pick $z\sim\operatorname{Categorical}(\pi)$, then draw

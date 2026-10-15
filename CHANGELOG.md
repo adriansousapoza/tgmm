@@ -5,6 +5,30 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (v0.5 Phase 1.4: frozen components and sample weights)
+
+- `frozen_components=(...)` on `GaussianMixture`, `StudentTMixture` and `VonMisesFisherMixture`: the listed
+  components keep their *initial* `means_` / `covariances_` (and `dof_` / `kappa_`) for the whole fit while their
+  mixing weights (and the noise weight) still update. Priors never shrink them and SEM never re-seeds them. Not
+  available for tied covariances, the 8 GPCM codes without a classic name, `dof='shared'`,
+  `concentration='shared'` or Gibbs mode (`ValueError`). Persisted by save/load.
+- `fit(X, sample_weight=...)` for every family. Shape `(n,)`: row `i` counts `w_i` times (integer weights equal
+  duplicating rows, weight 0 equals dropping the row, an all-ones vector is bit-identical to no weights;
+  `n_eff = sum w` normalises the mixing weights and MAP priors, and `lower_bound_` is the weighted mean
+  log-likelihood). Shape `(n, d)`: per-feature weights for `GaussianMixture` `'diag'`/`'spherical'` and
+  `StudentTMixture` `'diag'` (maximum likelihood only); weight 0 on an entry hides that feature for that row.
+  Works with `em`/`cem`/`sem`/`saem`, `batch_size`, `n_init`, `warm_start`, `noise` and (row weights)
+  `missing='em'`; not with `labels=`, Gibbs mode or online EM. `inertia` is deliberately not added: `step_size`
+  is the same control.
+  Design: `docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md`.
+
+### Fixed
+
+- `PositiveUnlabeledMixture(anchor='fixed')` left `weights_` unnormalised (e.g. `[0.60, 1.00]`: the positive block's
+  block-local weight was copied back after every M-step), which biased `class_prior_`. The positive block is now
+  frozen through `frozen_components`, `weights_` sums to 1 and `class_prior_` follows. `frozen_components` can no
+  longer be passed through `PositiveUnlabeledMixture`'s `**family_kwargs`.
+
 ### Added (v0.5 Phase 1.1: uniform noise component)
 
 - `noise=True` on `GaussianMixture` (all 14 covariance codes), `StudentTMixture` and `VonMisesFisherMixture`:

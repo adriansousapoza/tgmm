@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 import warnings
 import math
 from .gmm_init import GMMInitializer
@@ -279,6 +279,12 @@ class GaussianMixture(BaseMixture):
         Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
         with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
         parameters are computed from the unflagged rows. (default: None)
+    frozen_components : sequence of int, optional
+        Indices of components whose `means_` / `covariances_` are held at their *initial* values for the
+        whole fit (set them with tensor `init_means` / `init_covariances`, or `warm_start`); their mixing
+        weights still update, and priors never shrink them. Not available for the tied covariance types or
+        the 8 GPCM codes without a classic name (a factor is shared across components) and not in Gibbs
+        mode. (default: ())
     missing : {'error', 'em'}, optional
         How `NaN` entries of `X` are handled. `'error'` (default): `NaN` raises `ValueError`.
         `'em'`: `NaN` marks missing-at-random values and the likelihood of the *observed* entries
@@ -435,6 +441,9 @@ class GaussianMixture(BaseMixture):
 
         # Missing values (v0.5 item 1.2; see BaseMixture._init_missing)
         missing: str = 'error',
+
+        # Frozen components (v0.5 item 1.4; see BaseMixture._init_frozen)
+        frozen_components: Sequence[int] = (),
 
         # Prior parameters for MAP estimation (EM mode) / required NIW prior (Gibbs mode)
         weight_concentration_prior: torch.Tensor = None,
@@ -628,6 +637,10 @@ class GaussianMixture(BaseMixture):
                 "missing='em' is not supported in Gibbs mode (n_components=None); use a fixed n_components."
             )
         self._init_missing(missing)
+        self._init_frozen(frozen_components)
+        self.__dict__['_frozen_ready'] = True
+        if self.frozen_components:
+            self._check_frozen_supported()
         if self.noise and n_components is None:
             raise NotImplementedError(
                 "noise=True is not supported in Gibbs mode (n_components=None); use a fixed n_components."
@@ -1452,7 +1465,8 @@ class GaussianMixture(BaseMixture):
         max_iter: Optional[int] = None,
         tol: Optional[float] = None,
         random_state: Optional[int] = None,
-        warm_start: Optional[bool] = None
+        warm_start: Optional[bool] = None,
+        sample_weight: Optional[torch.Tensor] = None,
     ) -> "GaussianMixture":
         r"""
         Fit the GMM to the data using the Expectation-Maximization algorithm.
@@ -1488,6 +1502,11 @@ class GaussianMixture(BaseMixture):
         warm_start : bool, optional
             Whether to warm-start from previously fitted parameters. Overrides `self.warm_start`
             if provided. (default: None)
+        sample_weight : torch.Tensor, optional
+            Row weights `(n_samples,)` (integer weights equal duplicating rows, weight 0 drops a row) or,
+            for `covariance_type='diag'`/`'spherical'` without priors, per-feature weights
+            `(n_samples, n_features)` (weight 0 on an entry hides that feature for that row). Not supported
+            with `labels`, Gibbs mode or online EM. See `BaseMixture.fit`. (default: None)
 
         Returns
         -------
@@ -1507,6 +1526,8 @@ class GaussianMixture(BaseMixture):
         # assumes self.n_components is an int).
         # ===============================================================
         if self.n_components is None:
+            if sample_weight is not None:
+                raise NotImplementedError("sample_weight is not supported in Gibbs mode (n_components=None).")
             if labels is not None:
                 raise ValueError(
                     "Supervised fitting (labels=...) requires a fixed n_components; "
@@ -1593,10 +1614,30 @@ class GaussianMixture(BaseMixture):
         # this re-does X/parameter validation idempotently and nothing
         # about the result changes.
         # ===============================================================
-        return super().fit(X, labels=labels, max_iter=max_iter, tol=tol, random_state=random_state, warm_start=warm_start)
+        return super().fit(X, labels=labels, max_iter=max_iter, tol=tol, random_state=random_state,
+                           warm_start=warm_start, sample_weight=sample_weight)
 
     def _is_tied_covariance(self) -> bool:
         return self.covariance_type in ('tied_full', 'tied_diag', 'tied_spherical')
+
+    def _check_frozen_supported(self):
+        if self.covariance_type.startswith('tied_'):
+            raise ValueError(
+                f"frozen_components is not supported with covariance_type={self.covariance_type!r}: the "
+                "covariance is shared across components, so a single component cannot be held fixed."
+            )
+        if self.covariance_type_ in _NEW_GPCM_CODES:
+            raise ValueError(
+                f"frozen_components is not supported with the GPCM code {self.covariance_type_!r}: it shares "
+                "volume, shape or orientation across components, so a single component cannot be held fixed. "
+                "Use 'full', 'diag' or 'spherical'."
+            )
+
+    def _feature_weights_supported(self) -> bool:
+        return self.covariance_type in ('diag', 'spherical')
+
+    def _has_priors(self) -> bool:
+        return bool(self.use_weight_prior or self.use_mean_prior or self.use_covariance_prior)
 
     def _post_supervised_fit_warnings(self, component_counts: torch.Tensor):
         r"""
@@ -1813,7 +1854,14 @@ class GaussianMixture(BaseMixture):
         # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
         precisions = 1.0 / (self.covariances_ + 1e-20)  # (n_components, n_features)
-        
+
+        if self._fw_cur is not None:
+            # per-feature sample weights (v0.5 item 1.4): feature j of row i contributes with weight w_ij
+            fw = self._fw_cur  # (n, d)
+            log_var = torch.log(self.covariances_ + 1e-20)  # (K, d)
+            mahal_w = torch.einsum('nj,nkj,kj->nk', fw, diff.pow(2), precisions)
+            return -0.5 * (fw.sum(dim=1, keepdim=True) * math.log(2.0 * math.pi) + fw @ log_var.t() + mahal_w)
+
         # ===============================================================
         # Log determinant and Mahalanobis distance
         # ===============================================================
@@ -1846,6 +1894,13 @@ class GaussianMixture(BaseMixture):
         # Compute deviations and squared distances
         # ===============================================================
         diff = X.unsqueeze(1) - self.means_.unsqueeze(0)  # (n_samples, n_components, n_features)
+        if self._fw_cur is not None:
+            # per-feature sample weights (v0.5 item 1.4)
+            fw = self._fw_cur  # (n, d)
+            weighted_sq = torch.einsum('nj,nkj->nk', fw, diff.pow(2))
+            var = self.covariances_ + 1e-20  # (K,)
+            return -0.5 * (fw.sum(dim=1, keepdim=True) * (math.log(2.0 * math.pi) + torch.log(var).unsqueeze(0))
+                           + weighted_sq / var.unsqueeze(0))
         sq_dist = torch.sum(diff.pow(2), dim=2)  # (n_samples, n_components)
         
         # ===============================================================
@@ -2026,7 +2081,37 @@ class GaussianMixture(BaseMixture):
         else:
             raise ValueError(f"Unsupported covariance type: {base_type}")
 
-    def _compute_stats(self, X: torch.Tensor, resp: torch.Tensor, batch_size: Optional[int] = None) -> SufficientStats:
+    def _compute_stats_feature_weighted(
+        self, X: torch.Tensor, resp: torch.Tensor, batch_size: Optional[int], W: torch.Tensor,
+    ) -> SufficientStats:
+        r"""
+        Per-feature weighted statistics for `'diag'`/`'spherical'` (v0.5 item 1.4): with entry weights
+        :math:`w_{ij}`, ``s1`` is :math:`\sum_i r_{ik} w_{ij} x_{ij}`, ``s2`` the correspondingly weighted scatter
+        about :math:`\bar y_{kj} = s1_{kj}/N_{kj}` (a per-component scalar sum for `'spherical'`), and
+        ``aux['nk_feat']`` holds :math:`N_{kj} = \sum_i r_{ik} w_{ij}`.
+        """
+        n_samples, n_features = X.shape
+        n_components = resp.shape[1]
+        spherical = self.covariance_type == 'spherical'
+        chunks = [(0, n_samples)] if (batch_size is None or batch_size >= n_samples) else [
+            (a, min(a + batch_size, n_samples)) for a in range(0, n_samples, batch_size)]
+        nk = torch.zeros(n_components, device=X.device, dtype=X.dtype)
+        nkf = torch.zeros(n_components, n_features, device=X.device, dtype=X.dtype)
+        s1 = torch.zeros(n_components, n_features, device=X.device, dtype=X.dtype)
+        for a, b in chunks:
+            nk += resp[a:b].sum(dim=0)
+            nkf += resp[a:b].t() @ W[a:b]
+            s1 += resp[a:b].t() @ (W[a:b] * X[a:b])
+        ybar = s1 / (nkf + 1e-20)
+        s2 = None
+        for a, b in chunks:
+            diff2 = (X[a:b].unsqueeze(1) - ybar.unsqueeze(0)).pow(2)
+            part = torch.einsum('nk,nj,nkj->k' if spherical else 'nk,nj,nkj->kj', resp[a:b], W[a:b], diff2)
+            s2 = part if s2 is None else s2 + part
+        return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples, aux={'nk_feat': nkf})
+
+    def _compute_stats(self, X: torch.Tensor, resp: torch.Tensor, batch_size: Optional[int] = None,
+                       feature_weights: Optional[torch.Tensor] = None) -> SufficientStats:
         r"""
         Build a :class:`~tgmm.stats.SufficientStats` from ``(X, resp)``.
 
@@ -2050,6 +2135,8 @@ class GaussianMixture(BaseMixture):
         -------
         SufficientStats
         """
+        if feature_weights is not None:
+            return self._compute_stats_feature_weighted(X, resp, batch_size, feature_weights)
         if self._missing_active(X):
             return self._compute_stats_missing(X, resp, batch_size)
         n_samples, n_features = X.shape
@@ -2206,6 +2293,22 @@ class GaussianMixture(BaseMixture):
             raise ValueError(f"Unsupported covariance type: {self.covariance_type}")
         return stats.s2 + mismatch
 
+    def _m_step_feature_weighted(self, stats: SufficientStats):
+        r"""
+        Maximum-likelihood M-step with per-feature sample weights (v0.5 item 1.4, `'diag'`/`'spherical'`):
+        :math:`\pi_k = \sum_i r_{ik}/n`, :math:`\mu_{kj} = s1_{kj}/N_{kj}`, and
+        :math:`\sigma^2_{kj} = s2_{kj}/N_{kj}` (`'diag'`) or :math:`\sigma^2_k = s2_k/\sum_j N_{kj}` (`'spherical'`),
+        plus `reg_covar`.
+        """
+        nk = stats.nk + 1e-20
+        nkf = stats.aux['nk_feat'] + 1e-20
+        self.weights_ = (nk / stats.n_samples).clamp(min=1e-20)
+        self.means_ = stats.s1 / nkf
+        if self.covariance_type == 'diag':
+            self.covariances_ = stats.s2 / nkf + self.reg_covar
+        else:
+            self.covariances_ = stats.s2 / nkf.sum(dim=1) + self.reg_covar
+
     def _m_step_from_stats(self, stats: SufficientStats):
         r"""
         M-step: update model parameters from accumulated sufficient
@@ -2231,6 +2334,10 @@ class GaussianMixture(BaseMixture):
         re-touching ``X``/``resp`` changes nothing about the result).
         """
         n_samples = stats.n_samples
+
+        if stats.aux is not None and 'nk_feat' in stats.aux:
+            self._m_step_feature_weighted(stats)
+            return
 
         # ===============================================================
         # 1. Compute effective sample counts per component
@@ -4111,6 +4218,7 @@ class GaussianMixture(BaseMixture):
             'noise_weight_': self.noise_weight_,
             'noise_bounds_': self.noise_bounds_,
             'missing': self.missing,
+            'frozen_components': list(self.frozen_components),
 
             # ===============================================================
             # Training state
@@ -4235,6 +4343,7 @@ class GaussianMixture(BaseMixture):
             noise_volume=state_dict.get('noise_volume', 'bbox'),
             noise_prior=state_dict.get('noise_prior', 0.05),
             missing=state_dict.get('missing', 'error'),
+            frozen_components=state_dict.get('frozen_components', ()),
         )
         model.noise_weight_ = state_dict.get('noise_weight_')
         model.noise_bounds_ = state_dict.get('noise_bounds_')
@@ -4346,6 +4455,7 @@ class GaussianMixture(BaseMixture):
             'noise_weight_': self.noise_weight_,
             'noise_bounds_': self.noise_bounds_,
             'missing': self.missing,
+            'frozen_components': list(self.frozen_components),
 
             # ===============================================================
             # Training state
@@ -4457,6 +4567,7 @@ class GaussianMixture(BaseMixture):
         self.noise_volume = state_dict.get('noise_volume', 'bbox')
         self.noise_prior = state_dict.get('noise_prior', 0.05)
         self.missing = state_dict.get('missing', 'error')
+        self.frozen_components = state_dict.get('frozen_components', ())
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
 
