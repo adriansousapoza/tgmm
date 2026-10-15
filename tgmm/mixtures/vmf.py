@@ -189,8 +189,8 @@ class VonMisesFisherMixture(BaseMixture):
     max_iter, tol, reg_covar, n_init, random_state, warm_start, algorithm,
     batch_size, temperature, convergence, step_size, sem_burn_in,
     sem_estimate, verbose, verbose_interval, device : see `BaseMixture`.
-    `reg_covar` is accepted for interface parity but unused -- there is no
-    covariance here to regularize.
+        `reg_covar` is accepted for interface parity but unused -- there is no
+        covariance here to regularize.
 
     Attributes
     ----------
