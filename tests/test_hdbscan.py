@@ -78,7 +78,9 @@ class TestSklearnParity:
 class TestMinClusterSize:
     def test_larger_min_cluster_size_merges_or_drops_clusters(self):
         centers = [np.array([0, 0]), np.array([3, 3]), np.array([0, 3]), np.array([3, 0])]
-        covs = [0.4 * np.eye(2) for _ in range(4)]
+        # generate_gmm_data used to sample with covariance cov @ cov.T, so 0.4 * I meant a variance of 0.16;
+        # ask for 0.16 * I explicitly to keep the same (well-separated) data now that it honours `covs`.
+        covs = [0.16 * np.eye(2) for _ in range(4)]
         X, _ = generate_gmm_data(centers, covs, [150, 100, 80, 50], random_state=42)
 
         n_clusters_by_size = {}

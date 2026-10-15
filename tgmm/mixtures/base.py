@@ -480,6 +480,39 @@ class BaseMixture(nn.Module, ABC):
     # (rather than e.g. over the sphere) need `noise_bounds_` at fit time.
     _noise_uses_bbox = True
 
+    # ===================================================================
+    # Persistence helpers shared by every family's save / load / state dict
+    # ===================================================================
+    def _semisupervised_state(self) -> dict:
+        r"""Constructor arguments and fitted state that every family's `to_dict` must keep: the semi-supervised
+        options, the init-only `noise_init`, and the class bookkeeping (`classes_`, `class_of_component_`) a labeled
+        fit produces (needed by `predict_class`)."""
+        return {
+            'components_per_class': self.components_per_class,
+            'unlabeled_weight': self.unlabeled_weight,
+            'label_confidence': self.label_confidence,
+            'noise_init': self.noise_init,
+            'classes_': self.classes_,
+            'class_of_component_': self.class_of_component_,
+        }
+
+    @staticmethod
+    def _semisupervised_kwargs(state: dict) -> dict:
+        r"""Constructor keyword arguments recovered from a saved state (defaults for files written before v0.5)."""
+        return {
+            'components_per_class': state.get('components_per_class', 1),
+            'unlabeled_weight': state.get('unlabeled_weight', 1.0),
+            'label_confidence': state.get('label_confidence', 1.0),
+            'noise_init': state.get('noise_init'),
+        }
+
+    def _load_semisupervised_state(self, state: dict):
+        r"""In-place counterpart of `_semisupervised_kwargs` plus the fitted class bookkeeping."""
+        for key, value in self._semisupervised_kwargs(state).items():
+            setattr(self, key, value)
+        self.classes_ = state.get('classes_')
+        self.class_of_component_ = state.get('class_of_component_')
+
     def _init_noise(self, noise, noise_volume, noise_prior, noise_init):
         r"""Validate and store the noise arguments (see the module docs / spec)."""
         if not (0.0 < float(noise_prior) < 1.0):
@@ -1462,6 +1495,7 @@ class BaseMixture(nn.Module, ABC):
 
     def _clamp_responsibilities(
         self, resp: torch.Tensor, is_labeled: torch.Tensor, block_mask: torch.Tensor,
+        X: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         r"""
         For labeled rows, zero responsibility outside the row's class block
@@ -1470,6 +1504,14 @@ class BaseMixture(nn.Module, ABC):
         renormalized in-block posterior with `1 - label_confidence` on the
         *original* (unclamped) out-of-block posterior, rescaled to sum to
         that remainder. Unlabeled rows pass through untouched.
+
+        Rows whose in-block posterior mass is below `1e-20` (a labeled point
+        far from every component of its class block, e.g. before the class
+        blocks have moved onto their classes) cannot be renormalized from the
+        already-computed `resp` without losing their mass entirely (the old
+        `clamp(min=1e-20)` shrank such a row to ~0); when `X` is given they
+        are recomputed exactly in log space from the component log-densities.
+        All other rows use the original arithmetic, bit-for-bit.
         """
         if not bool(is_labeled.any()):
             return resp
@@ -1481,14 +1523,53 @@ class BaseMixture(nn.Module, ABC):
         clamped = torch.where(block, labeled_resp / within_mass.clamp(min=1e-20), torch.zeros_like(labeled_resp))
 
         if self.label_confidence >= 1.0:
-            resp[is_labeled] = clamped
-            return resp
+            outside_part = None
+            blended = clamped
+        else:
+            outside_mass = (1.0 - within_mass).clamp(min=1e-20)
+            outside_part = torch.where(block, torch.zeros_like(labeled_resp), labeled_resp) / outside_mass
+            blended = self.label_confidence * clamped + (1.0 - self.label_confidence) * outside_part
 
-        outside_mass = (1.0 - within_mass).clamp(min=1e-20)
-        outside_part = torch.where(block, torch.zeros_like(labeled_resp), labeled_resp) / outside_mass
-        blended = self.label_confidence * clamped + (1.0 - self.label_confidence) * outside_part
+        if X is not None:
+            degenerate = within_mass.squeeze(1) < 1e-20
+            if self.label_confidence < 1.0:
+                degenerate = degenerate | ((1.0 - within_mass).squeeze(1) < 1e-10)
+            if bool(degenerate.any()):
+                blended = blended.clone()
+                log_joint = (
+                    self._component_log_prob(X[is_labeled][degenerate])
+                    + torch.log(self.weights_ + 1e-20).unsqueeze(0)
+                )
+                blk = block[degenerate]
+                exact_in = torch.softmax(log_joint.masked_fill(~blk, float('-inf')), dim=1)
+                if self.label_confidence >= 1.0:
+                    blended[degenerate] = exact_in
+                else:
+                    has_out = (~blk).any(dim=1, keepdim=True)
+                    out_lj = torch.where(blk, torch.full_like(log_joint, float('-inf')), log_joint)
+                    out_lj = torch.where(has_out, out_lj, torch.zeros_like(out_lj))
+                    exact_out = torch.where(has_out, torch.softmax(out_lj, dim=1), torch.zeros_like(out_lj))
+                    blended[degenerate] = (
+                        self.label_confidence * exact_in + (1.0 - self.label_confidence) * exact_out
+                    )
+
         resp[is_labeled] = blended
         return resp
+
+    def _renormalise_weighted_mass(self):
+        r"""
+        After an M-step on down-weighted unlabeled responsibilities
+        (`unlabeled_weight != 1`) the plain `n_k / n` weights sum to the *weighted* mass over `n`, not to 1.
+        Rescale `weights_` (and `noise_weight_`, when present) so that the mixing proportions sum to 1:
+        :math:`\pi_k = n_k / \sum_j n_j`. With a Dirichlet weight prior the same rescaling reproduces the MAP update
+        :math:`(n_k + \alpha_k - 1) / (\sum_j n_j + \sum_j\alpha_j - K)`.
+        """
+        total = self.weights_.sum()
+        noise_w = getattr(self, 'noise_weight_', None)
+        if self.noise and noise_w is not None:
+            total = total + noise_w
+            self.noise_weight_ = noise_w / total
+        self.weights_ = self.weights_ / total
 
     def _semisupervised_log_likelihood(
         self, X: torch.Tensor, is_labeled: torch.Tensor, block_mask: torch.Tensor,
@@ -1527,7 +1608,7 @@ class BaseMixture(nn.Module, ABC):
         prev_prev_lower_bound = None
 
         resp, _ = self._e_step(X)
-        resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+        resp = self._clamp_responsibilities(resp, is_labeled, block_mask, X=X)
         self.lower_bound_ = self._semisupervised_log_likelihood(X, is_labeled, block_mask)
         ll_history = [self.lower_bound_]
 
@@ -1544,6 +1625,8 @@ class BaseMixture(nn.Module, ABC):
             self._m_step(X, resp_for_mstep)
             if self._post_mstep_hook is not None:
                 self._post_mstep_hook(X, resp_for_mstep)
+            if self.unlabeled_weight != 1.0:
+                self._renormalise_weighted_mass()
 
             if self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
                 self.converged_ = True
@@ -1555,7 +1638,7 @@ class BaseMixture(nn.Module, ABC):
             prev_prev_lower_bound = prev_lower_bound
             prev_lower_bound = self.lower_bound_
             resp, _ = self._e_step(X)
-            resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+            resp = self._clamp_responsibilities(resp, is_labeled, block_mask, X=X)
             self.lower_bound_ = self._semisupervised_log_likelihood(X, is_labeled, block_mask)
             ll_history.append(self.lower_bound_)
 
@@ -1564,7 +1647,7 @@ class BaseMixture(nn.Module, ABC):
 
         if self.converged_:
             resp, _ = self._e_step(X)
-            resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+            resp = self._clamp_responsibilities(resp, is_labeled, block_mask, X=X)
             if self.algorithm == 'cem':
                 hard = self._c_step(resp)
                 resp = torch.where(is_labeled.unsqueeze(1), resp, hard)

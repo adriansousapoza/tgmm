@@ -159,7 +159,11 @@ class GMMInitializer:
 
         for i in range(1, k):
             dist_sq = torch.cdist(data, centroids[:i]).pow(2).min(dim=1)[0]
-            probabilities = dist_sq / dist_sq.sum()
+            total = dist_sq.sum()
+            if bool(total > 0):
+                probabilities = dist_sq / total
+            else:  # every point coincides with a chosen center (k > number of distinct points): pick uniformly
+                probabilities = torch.full_like(dist_sq, 1.0 / n_samples)
             selected_idx = torch.multinomial(probabilities, 1, generator=generator)
             centroids[i] = data[selected_idx]
 
@@ -177,6 +181,7 @@ class GMMInitializer:
 
         2. **Update:**
            $\mu_i = \frac{1}{\|C_i\|} \sum_{x_j \in C_i} x_j,$ where $C_i$ is the set of points assigned to center $\mu_i$.
+           A cluster that ends up empty is re-seeded at the data point farthest from its assigned center.
 
         The algorithm stops when the centers move by less than the specified tolerance.
 
@@ -203,7 +208,23 @@ class GMMInitializer:
         for _ in range(max_iter):
             distances = torch.cdist(data, centroids)
             labels = torch.argmin(distances, dim=1)
-            new_centroids = torch.stack([data[labels == i].mean(dim=0) for i in range(k)])
+            means = []
+            empty = []
+            for i in range(k):
+                member = labels == i
+                if bool(member.any()):
+                    means.append(data[member].mean(dim=0))
+                else:  # an empty cluster has no mean (0/0 -> NaN): re-seed it below
+                    means.append(None)
+                    empty.append(i)
+            if empty:
+                # Re-seed each empty cluster at the points farthest from their assigned centroid
+                # (the standard remedy; leaves results unchanged whenever no cluster is empty).
+                assigned = distances[torch.arange(data.shape[0], device=data.device), labels]
+                order = torch.argsort(assigned, descending=True)
+                for j, i in enumerate(empty):
+                    means[i] = data[order[j % data.shape[0]]].clone()
+            new_centroids = torch.stack(means)
             if torch.allclose(centroids, new_centroids, atol=atol):
                 break
             centroids = new_centroids
@@ -528,13 +549,25 @@ class GMMInitializer:
         # Assign points to nearest mean
         distances = torch.cdist(data, means)
         labels = torch.argmin(distances, dim=1)
-        
+
+        # A singleton cluster has no sample covariance (torch.cov divides by n - 1 = 0 -> NaN); such clusters
+        # fall back to the covariance of the whole data set (clusters with >= 2 points are unchanged).
+        counts = torch.bincount(labels, minlength=n_components)
+        if bool(((counts == 1)).any()) and n_samples > 1:
+            global_cov = torch.cov(data.T)
+            if global_cov.ndim == 0:
+                global_cov = global_cov.reshape(1, 1)
+        else:
+            global_cov = None
+
         if covariance_type == 'full':
             new_covs = []
             for k in range(n_components):
                 cluster_mask = (labels == k)
                 if not torch.any(cluster_mask):
                     cov_k = torch.eye(n_features, device=device, dtype=data.dtype) * (1.0 + reg_covar)
+                elif counts[k] == 1 and global_cov is not None:
+                    cov_k = global_cov.clone() + reg_covar * torch.eye(n_features, device=device, dtype=data.dtype)
                 else:
                     cluster_data = data[cluster_mask]
                     cov_k = torch.cov(cluster_data.T)
@@ -551,6 +584,8 @@ class GMMInitializer:
                 cluster_mask = (labels == k)
                 if not torch.any(cluster_mask):
                     cov_k = torch.ones(n_features, device=device, dtype=data.dtype) * (1.0 + reg_covar)
+                elif counts[k] == 1 and global_cov is not None:
+                    cov_k = torch.diagonal(global_cov).clone() + reg_covar
                 else:
                     cluster_data = data[cluster_mask]
                     cov_mat = torch.cov(cluster_data.T)
@@ -568,6 +603,8 @@ class GMMInitializer:
                 cluster_mask = (labels == k)
                 if not torch.any(cluster_mask):
                     cov_k = 1.0 + reg_covar
+                elif counts[k] == 1 and global_cov is not None:
+                    cov_k = max(torch.mean(torch.diagonal(global_cov)).item(), reg_covar)
                 else:
                     cluster_data = data[cluster_mask]
                     cov_mat = torch.cov(cluster_data.T)

@@ -162,9 +162,11 @@ class VonMisesFisherMixture(BaseMixture):
     Shares its entire EM/CEM/SEM/SAEM/online-EM loop, `n_init` best-run
     selection, and `predict`/`predict_proba`/`score`/`bic`/`aic`/`icl` with
     every other `BaseMixture` subclass (wrapped here only to normalize `X`
-    first -- see `_check_unit_norm`). Gibbs-sampling mode and supervised
-    fitting (`fit(X, labels=...)`) are Gaussian-only, same as
-    `StudentTMixture`.
+    first -- see `_check_unit_norm`). Semi-supervised and fully supervised
+    fitting (`fit(X, labels=...)`, `components_per_class`, `unlabeled_weight`,
+    `label_confidence`) live in `BaseMixture` and work here as for
+    `GaussianMixture`; only Gibbs-sampling mode (`n_components=None`) remains
+    Gaussian-only.
 
     Parameters
     ----------
@@ -566,7 +568,9 @@ class VonMisesFisherMixture(BaseMixture):
             'noise_prior': self.noise_prior,
             'noise_weight_': self.noise_weight_,
             'noise_bounds_': self.noise_bounds_,
+            'missing': self.missing,
             'frozen_components': list(self.frozen_components),
+            **self._semisupervised_state(),
             'weights_': self.weights_,
             'means_': self.means_,
             'kappa_': self.kappa_,
@@ -599,11 +603,13 @@ class VonMisesFisherMixture(BaseMixture):
             step_size=state['step_size'], sem_burn_in=state['sem_burn_in'], sem_estimate=state['sem_estimate'],
             verbose=state['verbose'], verbose_interval=state['verbose_interval'], device=device,
             noise=state.get('noise', False), noise_volume=state.get('noise_volume', 'bbox'),
-            noise_prior=state.get('noise_prior', 0.05),
+            noise_prior=state.get('noise_prior', 0.05), missing=state.get('missing', 'error'),
             frozen_components=state.get('frozen_components', ()),
+            **cls._semisupervised_kwargs(state),
         )
         model.noise_weight_ = state.get('noise_weight_')
         model.noise_bounds_ = state.get('noise_bounds_')
+        model._load_semisupervised_state(state)
         model.weights_ = state['weights_']
         model.means_ = state['means_']
         model.kappa_ = state['kappa_']
@@ -623,7 +629,12 @@ class VonMisesFisherMixture(BaseMixture):
         self.noise = state_dict.get('noise', False)
         self.noise_volume = state_dict.get('noise_volume', 'bbox')
         self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.missing = state_dict.get('missing', 'error')
         self.frozen_components = state_dict.get('frozen_components', ())
+        self._load_semisupervised_state(state_dict)
+        for name in ('concentration', 'kappa_init', 'max_iter', 'tol', 'reg_covar', 'n_init', 'init_means', 'init_weights', 'random_state', 'warm_start', 'algorithm', 'batch_size', 'temperature', 'convergence', 'step_size', 'sem_burn_in', 'sem_estimate', 'verbose', 'verbose_interval'):
+            if name in state_dict:
+                setattr(self, name, state_dict[name])
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
         self.weights_ = state_dict['weights_']

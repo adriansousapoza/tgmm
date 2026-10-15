@@ -3,7 +3,13 @@ PyTorch implementation of HDBSCAN (Hierarchical Density-Based Spatial Clustering
 of Applications with Noise).
 
 This implementation closely follows the scikit-learn-contrib/hdbscan library
-but uses PyTorch for GPU acceleration.
+(BSD 3-Clause, https://github.com/scikit-learn-contrib/hdbscan) but uses PyTorch for
+GPU acceleration. The condensed-tree construction, the cluster selection
+(``'eom'`` and ``'leaf'``, ``cluster_selection_epsilon``, ``max_cluster_size``,
+``allow_single_cluster``) and the labelling rules are adapted from that library's
+``_hdbscan_tree.pyx`` (Copyright (c) 2015, Leland McInnes, BSD 3-Clause), re-derived
+in NumPy/PyTorch; see the notes on ``min_samples`` in :class:`HDBSCAN` for the one
+deliberate convention difference.
 """
 
 import torch
@@ -81,14 +87,22 @@ class HDBSCAN:
     
     Parameters
     ----------
-    min_cluster_size : int, default=5
+    min_cluster_size : int, default=10
         The minimum number of samples in a group for that group to be considered 
         a cluster; groupings smaller than this size will be left as noise.
         
     min_samples : int, default=None
         The number of samples in a neighborhood for a point to be considered as 
-        a core point. This includes the point itself. When None, defaults to 
+        a core point. This includes the point itself (as in Campello et al.,
+        2013), so the core distance is the distance to the ``min_samples``-th
+        nearest point counting the point itself. When None, defaults to 
         min_cluster_size.
+
+        .. note::
+            scikit-learn-contrib/hdbscan counts neighbours *excluding* the point
+            itself, so ``HDBSCAN(min_samples=k)`` here corresponds to
+            ``hdbscan.HDBSCAN(min_samples=k - 1)`` there (the reference's own
+            ``match_reference_implementation=True`` applies the same shift).
         
     metric : str, default='euclidean'
         The metric to use when calculating distance between instances.
@@ -99,13 +113,35 @@ class HDBSCAN:
         
     allow_single_cluster : bool, default=False
         By default HDBSCAN will not produce a single cluster. Setting this to 
-        True will override this and allow single cluster results.
+        True will override this and allow single cluster results. When the
+        root of the condensed tree is the only selected cluster, a point is
+        labelled with it only if it was still in the root at a density of at
+        least ``1 / cluster_selection_epsilon`` (when the epsilon is non-zero),
+        or at least the density at which the root's last member left it
+        (otherwise); the remaining points are noise. (This is the reference
+        implementation's rule.)
         
     cluster_selection_epsilon : float, default=0.0
-        A distance threshold. Clusters below this value will be merged.
+        A distance threshold below which cluster *splits* are ignored: any
+        selected cluster that was born at a distance smaller than this value
+        is replaced by its first ancestor born at a distance of at least this
+        value. ``0.0`` (default) disables the post-processing, so the result
+        is the plain EOM / leaf selection. Must be ``>= 0``. When the only
+        remaining candidate is the root of the tree it is kept only if
+        ``allow_single_cluster=True``.
         
     max_cluster_size : int, default=0
-        A limit to the size of clusters returned by the 'eom' algorithm.
+        A limit to the size of clusters returned by the 'eom' algorithm
+        (``0`` = no limit). With ``allow_single_cluster=True`` the limit also
+        applies to the root, whose size is the total size of its child
+        clusters.
+
+    cluster_selection_method : {'eom', 'leaf'}, default='eom'
+        How flat clusters are selected from the condensed tree: ``'eom'``
+        (excess of mass, default) maximises total stability, ``'leaf'``
+        selects every leaf of the condensed cluster tree (finer, more
+        homogeneous clusters). ``cluster_selection_epsilon`` can be combined
+        with either.
         
     device : str, default='cpu'
         Device to use for computation ('cpu' or 'cuda').
@@ -137,7 +173,17 @@ class HDBSCAN:
         max_cluster_size: int = 0,
         device: str = 'cpu',
         p: float = 2.0,
+        cluster_selection_method: str = 'eom',
     ):
+        if cluster_selection_method not in ('eom', 'leaf'):
+            raise ValueError(
+                f"cluster_selection_method must be 'eom' or 'leaf', got {cluster_selection_method!r}"
+            )
+        if cluster_selection_epsilon < 0:
+            raise ValueError(
+                f"cluster_selection_epsilon must be >= 0, got {cluster_selection_epsilon}"
+            )
+        self.cluster_selection_method = cluster_selection_method
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples if min_samples is not None else min_cluster_size
         self.metric = metric
@@ -162,12 +208,24 @@ class HDBSCAN:
         
         X = X.to(self.device)
         n_samples = X.shape[0]
+
+        # Fewer than two points: nothing to link (and a core distance needs a neighbour)
+        if n_samples < 2:
+            self.labels_ = torch.full((n_samples,), -1, dtype=torch.long, device=self.device)
+            self.probabilities_ = torch.zeros(n_samples, dtype=torch.float32, device=self.device)
+            self.n_clusters_ = 0
+            self._single_linkage_tree = np.zeros((0, 4), dtype=np.float64)
+            self._condensed_tree = np.zeros(0, dtype=[('parent', np.intp), ('child', np.intp),
+                                                      ('lambda_val', float), ('child_size', np.intp)])
+            return self
         
         # Compute distance matrix
         distance_matrix = self._compute_distances(X)
         
         # Compute mutual reachability
-        mutual_reachability = self._mutual_reachability(distance_matrix, self.min_samples, self.alpha)
+        # min_samples counts the point itself, so it cannot exceed n (the reference clamps it the same way)
+        mutual_reachability = self._mutual_reachability(
+            distance_matrix, min(self.min_samples, n_samples), self.alpha)
         
         # Build MST and convert to linkage
         self._single_linkage_tree = self._build_linkage_tree(mutual_reachability)
@@ -184,7 +242,8 @@ class HDBSCAN:
             stability,
             self.allow_single_cluster,
             self.cluster_selection_epsilon,
-            self.max_cluster_size
+            self.max_cluster_size,
+            self.cluster_selection_method
         )
         
         # Count clusters
@@ -437,54 +496,90 @@ class HDBSCAN:
         stability: dict,
         allow_single_cluster: bool,
         epsilon: float,
-        max_cluster_size: float
+        max_cluster_size: float,
+        cluster_selection_method: str = 'eom'
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Extract clusters from condensed tree using EOM (Excess of Mass)."""
+        """
+        Select flat clusters from the condensed tree.
+
+        ``'eom'``: bottom-up excess-of-mass selection (a node is kept when it is
+        at least as stable as the sum of its children and not larger than
+        ``max_cluster_size``); ``'leaf'``: every leaf of the cluster tree. With
+        a non-zero ``epsilon`` the selection is post-processed by
+        :meth:`_epsilon_search`. Adapted from ``get_clusters`` in
+        scikit-learn-contrib/hdbscan (BSD 3-Clause).
+        """
         if len(tree) == 0:
             n_samples = len(self._single_linkage_tree) + 1
             labels = torch.full((n_samples,), -1, dtype=torch.long, device=self.device)
             probs = torch.zeros(n_samples, dtype=torch.float32, device=self.device)
             return labels, probs
-        
-        # Get node list
+
+        # Cluster ids are topologically ordered: parents have smaller ids than children
         if allow_single_cluster:
             node_list = sorted(stability.keys(), reverse=True)
         else:
             node_list = sorted(stability.keys(), reverse=True)[:-1]  # Exclude root
-        
+
         cluster_tree = tree[tree['child_size'] > 1]
         is_cluster = {cluster: True for cluster in node_list}
-        num_points = np.max(tree[tree['child_size'] == 1]['child']) + 1
-        
-        cluster_sizes = {child: child_size for child, child_size in 
-                        zip(cluster_tree['child'], cluster_tree['child_size'])}
-        
-        # EOM: Select clusters by comparing stability
-        for node in node_list:
-            child_selection = cluster_tree['parent'] == node
-            subtree_stability = sum(
-                stability[child] for child in cluster_tree['child'][child_selection]
-                if child in stability
-            )
-            
-            if (subtree_stability > stability[node] or 
-                cluster_sizes.get(node, 0) > max_cluster_size):
-                is_cluster[node] = False
-                stability[node] = subtree_stability
+        root = tree['parent'].min()
+
+        cluster_sizes = {child: child_size for child, child_size in
+                         zip(cluster_tree['child'], cluster_tree['child_size'])}
+        if allow_single_cluster:
+            # The root has no row of its own: its size is that of its child clusters.
+            cluster_sizes[node_list[-1]] = int(np.sum(
+                cluster_tree[cluster_tree['parent'] == node_list[-1]]['child_size']))
+
+        if cluster_selection_method == 'eom':
+            for node in node_list:
+                child_selection = cluster_tree['parent'] == node
+                subtree_stability = sum(
+                    stability[child] for child in cluster_tree['child'][child_selection]
+                    if child in stability
+                )
+
+                if (subtree_stability > stability[node] or
+                        cluster_sizes.get(node, 0) > max_cluster_size):
+                    is_cluster[node] = False
+                    stability[node] = subtree_stability
+                else:
+                    # Mark all descendants as not clusters
+                    for sub_node in self._bfs_from_cluster_tree(cluster_tree, node):
+                        if sub_node != node:
+                            is_cluster[sub_node] = False
+
+            if epsilon != 0.0 and cluster_tree.shape[0] > 0:
+                eom_clusters = [c for c in is_cluster if is_cluster[c]]
+                if len(eom_clusters) == 1 and eom_clusters[0] == root:
+                    # Only the root survived: it skips the epsilon check
+                    selected = set(eom_clusters) if allow_single_cluster else set()
+                else:
+                    selected = self._epsilon_search(
+                        set(eom_clusters), cluster_tree, epsilon, allow_single_cluster)
+                is_cluster = {c: (c in selected) for c in is_cluster}
+
+        else:  # 'leaf'
+            leaves = set(self._cluster_tree_leaves(cluster_tree))
+            if len(leaves) == 0:
+                # The root has no child clusters: it is the only candidate (the reference
+                # implementation marks it and then un-marks it again, returning all noise).
+                selected = {root} if allow_single_cluster else set()
+            elif epsilon != 0.0:
+                selected = self._epsilon_search(leaves, cluster_tree, epsilon, allow_single_cluster)
             else:
-                # Mark all descendants as not clusters
-                for sub_node in self._bfs_from_cluster_tree(cluster_tree, node):
-                    if sub_node != node:
-                        is_cluster[sub_node] = False
-        
+                selected = leaves
+            is_cluster = {c: (c in selected) for c in set(is_cluster) | selected}
+
         clusters = set(c for c in is_cluster if is_cluster[c])
         cluster_map = {c: n for n, c in enumerate(sorted(clusters))}
-        
-        labels = self._do_labelling(tree, clusters, cluster_map, allow_single_cluster)
+
+        labels = self._do_labelling(tree, clusters, cluster_map, allow_single_cluster, epsilon)
         probs = self._get_probabilities(tree, cluster_map, labels)
-        
+
         return labels, probs
-    
+
     def _bfs_from_cluster_tree(self, cluster_tree: np.ndarray, bfs_root: int) -> list:
         """BFS from cluster tree."""
         result = []
@@ -495,13 +590,61 @@ class HDBSCAN:
             to_process = cluster_tree['child'][np.isin(cluster_tree['parent'], to_process)].tolist()
         
         return result
-    
+
+    def _cluster_tree_leaves(self, cluster_tree: np.ndarray) -> list:
+        """Leaves (clusters without child clusters) of the condensed cluster tree."""
+        if cluster_tree.shape[0] == 0:
+            return []
+        parents = set(cluster_tree['parent'].tolist())
+        return [int(c) for c in cluster_tree['child'] if int(c) not in parents]
+
+    def _traverse_upwards(
+        self, cluster_tree: np.ndarray, epsilon: float, leaf: int, allow_single_cluster: bool
+    ) -> int:
+        """
+        First ancestor of ``leaf`` that was born at a distance of at least
+        ``epsilon`` (``1 / lambda_birth >= epsilon`` is what "born at distance"
+        means); stops below the root unless ``allow_single_cluster``.
+        """
+        root = cluster_tree['parent'].min()
+        parent = cluster_tree['parent'][cluster_tree['child'] == leaf][0]
+        if parent == root:
+            return int(parent) if allow_single_cluster else int(leaf)
+        parent_eps = 1.0 / cluster_tree['lambda_val'][cluster_tree['child'] == parent][0]
+        if parent_eps > epsilon:
+            return int(parent)
+        return self._traverse_upwards(cluster_tree, epsilon, int(parent), allow_single_cluster)
+
+    def _epsilon_search(
+        self, leaves: set, cluster_tree: np.ndarray, epsilon: float, allow_single_cluster: bool
+    ) -> set:
+        """
+        Replace every cluster in ``leaves`` that was born at a distance below
+        ``epsilon`` by its ancestor from :meth:`_traverse_upwards`; clusters born
+        at or above ``epsilon`` are kept.
+        """
+        selected = []
+        processed = set()
+        for leaf in sorted(leaves):
+            eps = 1.0 / cluster_tree['lambda_val'][cluster_tree['child'] == leaf][0]
+            if eps < epsilon:
+                if leaf not in processed:
+                    epsilon_child = self._traverse_upwards(cluster_tree, epsilon, leaf, allow_single_cluster)
+                    selected.append(epsilon_child)
+                    for sub_node in self._bfs_from_cluster_tree(cluster_tree, epsilon_child):
+                        if sub_node != epsilon_child:
+                            processed.add(sub_node)
+            else:
+                selected.append(leaf)
+        return set(selected)
+
     def _do_labelling(
         self,
         tree: np.ndarray,
         clusters: set,
         cluster_map: dict,
-        allow_single_cluster: bool
+        allow_single_cluster: bool,
+        epsilon: float = 0.0
     ) -> torch.Tensor:
         """Assign labels based on selected clusters."""
         root_cluster = tree['parent'].min()
@@ -515,6 +658,9 @@ class HDBSCAN:
             parent_node = tree['parent'][i]
             if child not in clusters:
                 parent[child] = parent_node
+
+        lambda_of_child = tree['lambda_val']
+        child_of = tree['child']
         
         # Find clusters for each point
         for n in range(root_cluster):
@@ -525,6 +671,18 @@ class HDBSCAN:
             
             if cluster < root_cluster:
                 result[n] = -1
+            elif cluster == root_cluster:
+                # Single-cluster result: only points that stayed in the root until a
+                # high enough density are members (reference implementation's rule).
+                if len(clusters) == 1 and allow_single_cluster and cluster in cluster_map:
+                    point_lambda = lambda_of_child[child_of == n][0]
+                    if epsilon != 0.0:
+                        member = point_lambda >= 1.0 / epsilon
+                    else:
+                        member = point_lambda >= lambda_of_child[tree['parent'] == cluster].max()
+                    result[n] = cluster_map[cluster] if member else -1
+                else:
+                    result[n] = -1
             elif cluster in cluster_map:
                 result[n] = cluster_map[cluster]
             else:

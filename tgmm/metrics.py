@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from typing import Optional, List, Dict, Tuple, Union
+from typing import Optional, List, Dict, Sequence, Tuple, Union
 
 from .hdbscan import prim_mst
 
@@ -430,7 +430,10 @@ class ClusteringMetrics:
         dense_labels, n_clusters, keep_mask = ClusteringMetrics._resolve_labels(
             labels, n_components, noise_label
         )
-        X_eff = X[keep_mask]
+        # float64 internally: in float32 the sums of squares lose ~1e-8 relative accuracy against
+        # scikit-learn (which promotes to float64); the result is a Python float either way.
+        X_eff = X[keep_mask].to(torch.float64)
+        VI = None if VI is None else VI.to(torch.float64)
         dense_labels = dense_labels.to(X_eff.device)
         n_samples = X_eff.shape[0]
 
@@ -803,6 +806,9 @@ class ClusteringMetrics:
 
         $ \text{RI} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}} $
 
+        Computed in float64 from the contingency table; labels need not be contiguous. Equal to
+        `sklearn.metrics.rand_score` (RI is 1.0 when there are fewer than two samples).
+
         Parameters
         ----------
         labels_true : torch.Tensor
@@ -815,28 +821,21 @@ class ClusteringMetrics:
         float
             Rand Index in [0, 1].
         """
-        device = labels_true.device
         n_samples = labels_true.size(0)
-
-        # Build contingency matrix
-        contingency = torch.zeros(
-            (labels_true.max() + 1, labels_pred.max() + 1),
-            dtype=torch.float, device=device
-        )
-        for i in range(n_samples):
-            contingency[labels_true[i], labels_pred[i]] += 1
-
-        sum_comb_c = torch.sum(contingency.pow(2) - contingency) / 2
-        sum_comb = torch.sum(contingency.sum(dim=1).pow(2) - contingency.sum(dim=1)) / 2
-        sum_comb_pred = torch.sum(contingency.sum(dim=0).pow(2) - contingency.sum(dim=0)) / 2
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        n_pairs = n_samples * (n_samples - 1) / 2
+        if n_pairs == 0:
+            return 1.0
+        sum_comb_c = (contingency.pow(2) - contingency).sum() / 2
+        rows, cols = contingency.sum(dim=1), contingency.sum(dim=0)
+        sum_comb = (rows.pow(2) - rows).sum() / 2
+        sum_comb_pred = (cols.pow(2) - cols).sum() / 2
 
         tp = sum_comb_c
         fp = sum_comb_pred - tp
         fn = sum_comb - tp
-        tn = n_samples * (n_samples - 1) / 2 - tp - fp - fn
-
-        ri = (tp + tn) / (tp + fp + fn + tn)
-        return ri.item()
+        tn = n_pairs - tp - fp - fn
+        return ((tp + tn) / (tp + fp + fn + tn)).item()
 
     @staticmethod
     def adjusted_rand_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
@@ -844,6 +843,10 @@ class ClusteringMetrics:
         Adjusted Rand Index (ARI), which adjusts RI for chance.
 
         $ \mathrm{ARI} = \frac{ \mathrm{RI} - \mathrm{E}[\mathrm{RI}] }{ \max(\mathrm{RI}) - \mathrm{E}[\mathrm{RI}] } $
+
+        Computed in float64; labels need not be contiguous. Follows scikit-learn's special cases
+        (ARI is 1.0 when both labelings are a single cluster, both put every sample alone, or there
+        is nothing to compare).
 
         Parameters
         ----------
@@ -857,27 +860,23 @@ class ClusteringMetrics:
         float
             ARI in [-1, 1], though it’s typically in [0, 1].
         """
-        device = labels_true.device
         n_samples = labels_true.size(0)
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        n_classes, n_clusters = contingency.shape
+        if n_classes == n_clusters == 1 or n_classes == n_clusters == 0 or n_classes == n_clusters == n_samples:
+            return 1.0
+        n_pairs = n_samples * (n_samples - 1) / 2
+        sum_comb_c = (contingency.pow(2) - contingency).sum() / 2
+        rows, cols = contingency.sum(dim=1), contingency.sum(dim=0)
+        sum_comb = (rows.pow(2) - rows).sum() / 2
+        sum_comb_pred = (cols.pow(2) - cols).sum() / 2
 
-        # Build contingency matrix
-        contingency = torch.zeros(
-            (labels_true.max() + 1, labels_pred.max() + 1),
-            dtype=torch.float, device=device
-        )
-        for i in range(n_samples):
-            contingency[labels_true[i], labels_pred[i]] += 1
-
-        sum_comb_c = torch.sum(contingency.pow(2) - contingency) / 2
-        sum_comb = torch.sum(contingency.sum(dim=1).pow(2) - contingency.sum(dim=1)) / 2
-        sum_comb_pred = torch.sum(contingency.sum(dim=0).pow(2) - contingency.sum(dim=0)) / 2
-
-        expected_index = sum_comb * sum_comb_pred / (n_samples * (n_samples - 1) / 2)
+        expected_index = sum_comb * sum_comb_pred / n_pairs
         max_index = (sum_comb + sum_comb_pred) / 2
-        rand_index = sum_comb_c
-
-        ari = (rand_index - expected_index) / (max_index - expected_index)
-        return ari.item()
+        denominator = max_index - expected_index
+        if denominator == 0:
+            return 1.0 if sum_comb_c == expected_index else 0.0
+        return ((sum_comb_c - expected_index) / denominator).item()
 
     @staticmethod
     def mutual_info_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
@@ -885,6 +884,9 @@ class ClusteringMetrics:
         Mutual Information (MI) between two clusterings.
 
         $ \mathrm{MI}(U, V) = \sum_{u \in U}\sum_{v \in V} p(u, v) \log\frac{p(u,v)}{p(u)p(v)} $
+
+        Computed in float64 (natural logarithm); labels need not be contiguous. Equal to
+        `sklearn.metrics.mutual_info_score`.
 
         Parameters
         ----------
@@ -898,25 +900,88 @@ class ClusteringMetrics:
         float
             Mutual information (>= 0).
         """
-        device = labels_true.device
-        contingency = torch.zeros(
-            (labels_true.max() + 1, labels_pred.max() + 1),
-            dtype=torch.float, device=device
-        )
-        for i in range(labels_true.size(0)):
-            contingency[labels_true[i], labels_pred[i]] += 1
-
-        contingency /= contingency.sum()
-        outer = contingency.sum(dim=1, keepdim=True) * contingency.sum(dim=0, keepdim=True)
-        nonzero = contingency > 0
-        mi = (contingency[nonzero] *
-              (torch.log(contingency[nonzero]) - torch.log(outer[nonzero]))).sum()
-        return mi.item()
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        return ClusteringMetrics._mutual_info_from_contingency(contingency)
 
     @staticmethod
-    def adjusted_mutual_info_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
+    def _mutual_info_from_contingency(contingency: torch.Tensor) -> float:
+        n = contingency.sum()
+        rows, cols = contingency.sum(dim=1, keepdim=True), contingency.sum(dim=0, keepdim=True)
+        nz = contingency > 0
+        nij = contingency[nz]
+        mi = (nij / n * (torch.log(nij) + torch.log(n) - torch.log((rows * cols).expand_as(contingency)[nz]))).sum()
+        return max(mi.item(), 0.0)
+
+    @staticmethod
+    def _generalized_average(h_true: float, h_pred: float, average_method: str) -> float:
+        if average_method == 'arithmetic':
+            return 0.5 * (h_true + h_pred)
+        if average_method == 'min':
+            return min(h_true, h_pred)
+        if average_method == 'max':
+            return max(h_true, h_pred)
+        if average_method == 'geometric':
+            return float(torch.sqrt(torch.tensor(h_true * h_pred, dtype=torch.float64)))
+        raise ValueError("average_method must be one of 'arithmetic', 'min', 'max', 'geometric', "
+                         f"got {average_method!r}")
+
+    @staticmethod
+    def expected_mutual_information(contingency: torch.Tensor) -> float:
         r"""
-        Adjusted Mutual Information (AMI).
+        Exact expected mutual information :math:`E[\mathrm{MI}]` of two random labelings with the
+        given cluster sizes (the permutation / hypergeometric model; Vinh, Epps & Bailey, 2010, JMLR 11):
+
+        .. math::
+            E[\mathrm{MI}] = \sum_{i,j}\sum_{n_{ij}=\max(1,a_i+b_j-N)}^{\min(a_i,b_j)}
+              \frac{n_{ij}}{N}\log\frac{N n_{ij}}{a_i b_j}\;
+              \frac{a_i!\,b_j!\,(N-a_i)!\,(N-b_j)!}{N!\,n_{ij}!\,(a_i-n_{ij})!\,(b_j-n_{ij})!\,(N-a_i-b_j+n_{ij})!}
+
+        with row sums :math:`a_i`, column sums :math:`b_j`, :math:`N` samples. The summand depends on
+        :math:`(a_i, b_j)` only, so equal cluster sizes are grouped and each distinct pair is evaluated
+        once, vectorised over :math:`n_{ij}` with `lgamma` in float64. Adapted from scikit-learn's
+        `expected_mutual_information` (BSD-3-Clause).
+        """
+        n = int(contingency.sum().item())
+        rows = contingency.sum(dim=1).to(torch.long)
+        cols = contingency.sum(dim=0).to(torch.long)
+        ua, ca = torch.unique(rows, return_counts=True)
+        ub, cb = torch.unique(cols, return_counts=True)
+        dev = contingency.device
+        f64 = torch.float64
+        lg = torch.lgamma
+        N = torch.tensor(float(n), dtype=f64, device=dev)
+        total = torch.zeros((), dtype=f64, device=dev)
+        ub_f = ub.to(f64)
+        for a_val, a_cnt in zip(ua.tolist(), ca.tolist()):
+            a = torch.tensor(float(a_val), dtype=f64, device=dev)
+            lo = torch.clamp(a + ub_f - N, min=1.0)          # (B,) first n_ij
+            hi = torch.clamp(ub_f, max=float(a_val))          # (B,) last n_ij
+            width = int((hi - lo).max().item()) + 1
+            if width <= 0:
+                continue
+            k = lo.unsqueeze(1) + torch.arange(width, dtype=f64, device=dev).unsqueeze(0)   # (B, W)
+            valid = k <= hi.unsqueeze(1)
+            k = torch.where(valid, k, lo.unsqueeze(1))        # keep every lgamma argument in range
+            b = ub_f.unsqueeze(1)
+            log_prob = (lg(a + 1) + lg(b + 1) + lg(N - a + 1) + lg(N - b + 1) - lg(N + 1)
+                        - lg(k + 1) - lg(a - k + 1) - lg(b - k + 1) - lg(N - a - b + k + 1))
+            term = (k / N) * (torch.log(N * k) - torch.log(a * b)) * torch.exp(log_prob)
+            term = torch.where(valid, term, torch.zeros_like(term))
+            total = total + a_cnt * (term.sum(dim=1) * cb.to(f64)).sum()
+        return total.item()
+
+    @staticmethod
+    def adjusted_mutual_info_score(
+        labels_true: torch.Tensor, labels_pred: torch.Tensor, average_method: str = 'arithmetic',
+    ) -> float:
+        r"""
+        Adjusted Mutual Information (AMI; Vinh, Epps & Bailey, 2010):
+
+        $$ \mathrm{AMI} = \frac{\mathrm{MI} - E[\mathrm{MI}]}{\operatorname{avg}(H(U), H(V)) - E[\mathrm{MI}]} $$
+
+        with the **exact** expected mutual information (`expected_mutual_information`), so the value
+        equals `sklearn.metrics.adjusted_mutual_info_score` for every `average_method`. Computed in
+        float64; labels need not be contiguous.
 
         Parameters
         ----------
@@ -924,33 +989,39 @@ class ClusteringMetrics:
             Ground-truth labels.
         labels_pred : torch.Tensor
             Predicted labels.
+        average_method : str, optional
+            How to average the two entropies: 'arithmetic' (default), 'min', 'max' or 'geometric'.
 
         Returns
         -------
         float
-            AMI in [0, 1].
+            AMI (1 for identical partitions, about 0 for independent ones; can be slightly negative).
         """
-        mi = ClusteringMetrics.mutual_info_score(labels_true, labels_pred)
-        n_samples = labels_true.size(0)
-        true_counts = torch.bincount(labels_true)
-        pred_counts = torch.bincount(labels_pred)
-
-        h_true = -torch.sum((true_counts / n_samples) *
-                            torch.log(true_counts / n_samples + 1e-10))
-        h_pred = -torch.sum((pred_counts / n_samples) *
-                            torch.log(pred_counts / n_samples + 1e-10))
-
-        # This "expected_mi" here is a rough approximation
-        expected_mi = (h_true * h_pred) / n_samples
-        ami = (mi - expected_mi) / (0.5 * (h_true + h_pred) - expected_mi)
-        return ami.item()
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        n_classes, n_clusters = contingency.shape
+        if n_classes == n_clusters == 1 or n_classes == n_clusters == 0:
+            return 1.0
+        n = int(contingency.sum().item())
+        mi = ClusteringMetrics._mutual_info_from_contingency(contingency)
+        emi = ClusteringMetrics.expected_mutual_information(contingency)
+        h_true = ClusteringMetrics._entropy_from_counts(contingency.sum(dim=1), n).item()
+        h_pred = ClusteringMetrics._entropy_from_counts(contingency.sum(dim=0), n).item()
+        normalizer = ClusteringMetrics._generalized_average(h_true, h_pred, average_method)
+        denominator = normalizer - emi
+        eps = torch.finfo(torch.float64).eps
+        denominator = min(denominator, -eps) if denominator < 0 else max(denominator, eps)
+        return (mi - emi) / denominator
 
     @staticmethod
-    def normalized_mutual_info_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
+    def normalized_mutual_info_score(
+        labels_true: torch.Tensor, labels_pred: torch.Tensor, average_method: str = 'arithmetic',
+    ) -> float:
         r"""
         Normalized Mutual Information (NMI) in [0, 1].
 
-        $ \text{NMI} = \frac{2 \times \mathrm{MI}}{H(\text{true}) + H(\text{pred})} $
+        $ \text{NMI} = \frac{\mathrm{MI}}{\operatorname{avg}(H(U), H(V))} $, with the arithmetic mean
+        by default, i.e. $2\,\mathrm{MI}/(H(U)+H(V))$. Computed in float64 with exact entropies
+        (no epsilon smoothing); equals `sklearn.metrics.normalized_mutual_info_score`.
 
         Parameters
         ----------
@@ -958,29 +1029,35 @@ class ClusteringMetrics:
             Ground-truth labels.
         labels_pred : torch.Tensor
             Predicted labels.
+        average_method : str, optional
+            'arithmetic' (default), 'min', 'max' or 'geometric'.
 
         Returns
         -------
         float
             NMI.
         """
-        mi = ClusteringMetrics.mutual_info_score(labels_true, labels_pred)
-        n_samples = labels_true.size(0)
-        true_counts = torch.bincount(labels_true).float()
-        pred_counts = torch.bincount(labels_pred).float()
-
-        h_true = -torch.sum((true_counts / n_samples) *
-                            torch.log(true_counts / n_samples + 1e-10))
-        h_pred = -torch.sum((pred_counts / n_samples) *
-                            torch.log(pred_counts / n_samples + 1e-10))
-
-        nmi = 2.0 * mi / (h_true + h_pred)
-        return nmi.item()
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        n_classes, n_clusters = contingency.shape
+        if n_classes == n_clusters == 1 or n_classes == n_clusters == 0:
+            return 1.0
+        n = int(contingency.sum().item())
+        mi = ClusteringMetrics._mutual_info_from_contingency(contingency)
+        if mi == 0.0:
+            return 0.0
+        h_true = ClusteringMetrics._entropy_from_counts(contingency.sum(dim=1), n).item()
+        h_pred = ClusteringMetrics._entropy_from_counts(contingency.sum(dim=0), n).item()
+        normalizer = max(ClusteringMetrics._generalized_average(h_true, h_pred, average_method),
+                         torch.finfo(torch.float64).eps)
+        return mi / normalizer
 
     @staticmethod
     def fowlkes_mallows_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
         r"""
         Fowlkes-Mallows index (FM) = $ \sqrt{ \text{precision} \times \text{recall} } $.
+
+        Computed in float64; 0.0 when no pair of samples is together in both labelings (as in
+        scikit-learn) instead of `nan`.
 
         Parameters
         ----------
@@ -994,39 +1071,35 @@ class ClusteringMetrics:
         float
             FM in [0, 1].
         """
-        device = labels_true.device
         n_samples = labels_true.size(0)
-        contingency = torch.zeros(
-            (labels_true.max() + 1, labels_pred.max() + 1),
-            dtype=torch.float, device=device
-        )
-        for i in range(n_samples):
-            contingency[labels_true[i], labels_pred[i]] += 1
-
-        tp = torch.sum(contingency.pow(2)) - n_samples
-        tp_fp = torch.sum(contingency.sum(dim=0).pow(2)) - n_samples
-        tp_fn = torch.sum(contingency.sum(dim=1).pow(2)) - n_samples
-
-        fm = torch.sqrt(tp / tp_fp * tp / tp_fn)
-        return fm.item()
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
+        tp = contingency.pow(2).sum() - n_samples
+        tp_fp = contingency.sum(dim=0).pow(2).sum() - n_samples
+        tp_fn = contingency.sum(dim=1).pow(2).sum() - n_samples
+        if tp == 0:
+            return 0.0
+        return (torch.sqrt(tp / tp_fp) * torch.sqrt(tp / tp_fn)).item()
 
     @staticmethod
     def _contingency_matrix(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> torch.Tensor:
         r"""
-        `(n_true_classes, n_pred_clusters)` contingency counts, in
-        `float64` regardless of input dtype, built via `scatter_add_`
-        rather than a Python loop over samples. Assumes contiguous
-        0-indexed labels (matching every other contingency-based method in
-        this class); shared by `homogeneity_score`, `completeness_score`,
-        and `normalized_information_distance`.
+        `(n_true_classes, n_pred_clusters)` contingency counts in `float64`, built via
+        `scatter_add_` (no Python loop over samples). Labels are dense-remapped through
+        `torch.unique`, so they need not be contiguous or start at 0 (rows/columns follow the sorted
+        distinct label values; labels that never occur get no row/column). Shared by every
+        contingency-based supervised metric.
         """
         device = labels_true.device
-        lt = labels_true.to(torch.long)
-        lp = labels_pred.to(torch.long)
-        n_true = int(lt.max().item()) + 1
-        n_pred = int(lp.max().item()) + 1
+        lt = labels_true.to(torch.long).reshape(-1)
+        lp = labels_pred.to(device=device, dtype=torch.long).reshape(-1)
+        if lt.numel() == 0:
+            return torch.zeros((0, 0), dtype=torch.float64, device=device)
+        _, it = torch.unique(lt, return_inverse=True)
+        _, ip = torch.unique(lp, return_inverse=True)
+        n_true = int(it.max().item()) + 1
+        n_pred = int(ip.max().item()) + 1
         contingency = torch.zeros((n_true, n_pred), dtype=torch.float64, device=device)
-        flat_idx = lt * n_pred + lp
+        flat_idx = it * n_pred + ip
         contingency.view(-1).scatter_add_(0, flat_idx, torch.ones_like(flat_idx, dtype=torch.float64))
         return contingency
 
@@ -1205,48 +1278,72 @@ class ClusteringMetrics:
         float
             Purity in [0, 1].
         """
-        device = labels_true.device
         n_samples = labels_true.size(0)
-        contingency = torch.zeros(
-            (labels_true.max() + 1, labels_pred.max() + 1),
-            dtype=torch.float, device=device
-        )
-        for i in range(n_samples):
-            contingency[labels_true[i], labels_pred[i]] += 1
-
+        contingency = ClusteringMetrics._contingency_matrix(labels_true, labels_pred)
         purity = torch.sum(torch.max(contingency, dim=0).values) / n_samples
         return purity.item()
 
     @staticmethod
-    def confusion_matrix(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> torch.Tensor:
+    def confusion_matrix(
+        labels_true: torch.Tensor, labels_pred: torch.Tensor, labels: Optional[Sequence] = None,
+    ) -> torch.Tensor:
         r"""
-        Compute a confusion matrix.
+        Compute a confusion matrix `C` with `C[i, j]` = number of samples whose true label is the
+        i-th and whose predicted label is the j-th entry of `labels`.
+
+        By default `labels` is the sorted **union** of the true and predicted labels, so a predicted
+        label that never occurs in `labels_true` gets its own (all-zero-row) entry instead of being
+        silently dropped. If `labels` is given (as in scikit-learn) it fixes the order of rows and
+        columns and samples whose true or predicted label is not in it are ignored.
 
         Parameters
         ----------
         labels_true : torch.Tensor
         labels_pred : torch.Tensor
+        labels : sequence of int, optional
+            Labels to index the matrix by, in order. (default: sorted union)
 
         Returns
         -------
         torch.Tensor
-            A 2D (C x C) matrix, where C is the number of unique labels.
+            `(C, C)` int32 matrix, `C` the number of labels.
         """
-        unique_labels = torch.unique(labels_true)
-        num_labels = unique_labels.size(0)
-        cm = torch.zeros((num_labels, num_labels), dtype=torch.int32)
+        device = labels_true.device
+        lt = labels_true.to(torch.long).reshape(-1)
+        lp = labels_pred.to(device=device, dtype=torch.long).reshape(-1)
+        if labels is None:
+            label_vals = torch.unique(torch.cat([lt, lp]))
+        else:
+            label_vals = torch.as_tensor(list(labels), dtype=torch.long, device=device)
+        c = label_vals.numel()
+        if c == 0:
+            return torch.zeros((0, 0), dtype=torch.int32, device=device)
+        order = torch.argsort(label_vals)
+        sorted_vals = label_vals[order]
 
-        for i, label_true in enumerate(unique_labels):
-            for j, label_pred in enumerate(unique_labels):
-                cm[i, j] = ((labels_true == label_true) & (labels_pred == label_pred)).sum().item()
+        def index_of(x):
+            pos = torch.searchsorted(sorted_vals, x).clamp_(max=c - 1)
+            ok = sorted_vals[pos] == x
+            return order[pos], ok
 
-        return cm
+        it, ok_t = index_of(lt)
+        ip, ok_p = index_of(lp)
+        keep = ok_t & ok_p
+        cm = torch.zeros(c * c, dtype=torch.int32, device=device)
+        cm.scatter_add_(0, (it * c + ip)[keep], torch.ones(int(keep.sum().item()), dtype=torch.int32, device=device))
+        return cm.view(c, c)
 
     @staticmethod
     def classification_report(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> dict:
         r"""
         Compute a simple classification report for each class: precision, recall, F1,
         Jaccard index, ROC-AUC, and support.
+
+        The classes are the sorted union of the true and predicted labels; a label that is only ever
+        predicted has `support` 0, precision 0 and recall 0. The `roc_auc` entry is the one-vs-rest AUC
+        of the *hard* predictions (`roc_auc_score` on 0/1 indicators), which for hard labels equals
+        the balanced accuracy of that class; it is 1.0 by convention when the class is absent from
+        `labels_true`.
 
         Parameters
         ----------
@@ -1260,9 +1357,10 @@ class ClusteringMetrics:
             "precision", "recall", "f1-score", "support", "jaccard", "roc_auc".
         """
         device = labels_true.device
-        unique_labels = torch.unique(labels_true)
+        labels_pred = labels_pred.to(device)
+        unique_labels = torch.unique(torch.cat([labels_true.reshape(-1), labels_pred.reshape(-1)]))
         report = {}
-        
+
         for label in unique_labels:
             true_positives = ((labels_true == label) & (labels_pred == label)).sum().item()
             false_positives = ((labels_true != label) & (labels_pred == label)).sum().item()
@@ -1290,40 +1388,47 @@ class ClusteringMetrics:
                 "jaccard": jaccard_index,
                 "roc_auc": roc_auc
             }
-    
+
         return report
 
     @staticmethod
     def roc_auc_score(labels_true: torch.Tensor, labels_pred: torch.Tensor) -> float:
         r"""
-        Compute a naive ROC-AUC for binary predictions (0 or 1).
-        If all labels are the same class, returns 1.0 by definition.
+        Binary ROC-AUC, computed as the Mann-Whitney U statistic with **average ranks for ties**:
+
+        $$ \mathrm{AUC} = \frac{\sum_{i:\,y_i=1} \operatorname{rank}(s_i) - n_+(n_+ + 1)/2}{n_+\, n_-} $$
+
+        so it is independent of the order of the samples, equals `sklearn.metrics.roc_auc_score`, and
+        for hard 0/1 predictions equals the balanced accuracy (the earlier trapezoid-over-argsort
+        version depended on how ties happened to be sorted). If only one class is present it returns
+        1.0 by convention.
 
         Parameters
         ----------
         labels_true : torch.Tensor
             Binary ground-truth (0 or 1), shape (n_samples,).
         labels_pred : torch.Tensor
-            Binary predictions or real-valued probabilities, shape (n_samples,).
+            Binary predictions or real-valued scores/probabilities, shape (n_samples,).
 
         Returns
         -------
         float
             Area Under the ROC Curve (AUC).
         """
-        if labels_true.sum() == 0 or labels_true.sum() == labels_true.size(0):
-            # Degenerate case: all positives or all negatives => AUC = 1.0 or undefined
-            return 1.0
+        y = labels_true.reshape(-1).to(torch.float64) > 0
+        n_pos = int(y.sum().item())
+        n_neg = y.numel() - n_pos
+        if n_pos == 0 or n_neg == 0:
+            return 1.0  # degenerate: a single class (documented convention)
 
-        sorted_indices = torch.argsort(labels_pred, descending=True)
-        labels_true = labels_true[sorted_indices]
-
-        tpr = torch.cumsum(labels_true, dim=0) / labels_true.sum()
-        fpr = torch.cumsum(1 - labels_true, dim=0) / (labels_true.size(0) - labels_true.sum())
-
-        auc = torch.trapz(tpr, fpr)
+        scores = labels_pred.reshape(-1).to(device=y.device, dtype=torch.float64)
+        _, inverse, counts = torch.unique(scores, return_inverse=True, return_counts=True)
+        counts_f = counts.to(torch.float64)
+        avg_rank = torch.cumsum(counts_f, dim=0) - (counts_f - 1.0) / 2.0   # 1-based average rank per tie group
+        ranks = avg_rank[inverse]
+        auc = (ranks[y].sum() - n_pos * (n_pos + 1) / 2.0) / (n_pos * n_neg)
         return auc.item()
-    
+
     @staticmethod
     def kl_divergence_gmm(gmm_p, gmm_q, n_samples: int = 10000) -> float:
         r"""

@@ -376,7 +376,7 @@ def test_student_t_mcar_recovery_and_monotone():
     assert 2.4 < fit.dof_.item() < 3.8
 
 
-@pytest.mark.parametrize('covariance_type', ['diag', 'tied_full'])
+@pytest.mark.parametrize('covariance_type', ['diag', 'spherical', 'tied_full'])
 def test_student_t_mcar_each_covariance_type(covariance_type):
     X, y = make_blobs(n_per=300, seed=2, shared_cov=True)
     Xn, _ = mcar(X, 0.2, seed=3)

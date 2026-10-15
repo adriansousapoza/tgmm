@@ -1419,7 +1419,8 @@ class GaussianMixture(BaseMixture):
         for k in range(self.n_components):
             mask = labels == k
             count = int(mask.sum().item())
-            if count > 0:
+            if count > 0 and not (count == 1 and bool((X[mask] - self.means_[k]).abs().max() == 0)):
+                # (a singleton sitting exactly on its mean has zero scatter: it uses the empty-cluster default)
                 diff = X[mask] - self.means_[k]
                 W[k] = diff.t() @ diff
                 nk[k] = count
@@ -2554,7 +2555,8 @@ class GaussianMixture(BaseMixture):
         cross_term = (cross_term_coeff * mean_diff_norm_sq).sum()
 
         psi_n = psi0 + S + cross_term
-        psi_n = psi_n + self.reg_covar * nk.sum() * self.n_features
+        # reg_covar is added once to the variance-scale trace, as in `_update_niw_spherical`
+        psi_n = psi_n + self.reg_covar * self.n_features
 
         total_nu_n = self.degrees_of_freedom_prior + nk.sum()
         self.covariances_ = psi_n / (total_nu_n * self.n_features)
@@ -2583,8 +2585,15 @@ class GaussianMixture(BaseMixture):
         r"""
         MAP update for full covariance matrices.
 
-        Uses Inverse-Wishart prior: Σₖ ~ IW(Ψ, ν).
-        Posterior: Σₖ = (Ψ + S_k + prior_mean_term) / (ν + n_k + d)
+        Uses an Inverse-Wishart prior Σₖ ~ IW(Ψ, ν) and the point estimate
+
+            Σₖ = (Ψ + S_k + reg_covar·I) / (ν + n_k)
+
+        (tgmm's convention everywhere, see `_update_niw_conjugate`: divide by ν + n_k, not by the textbook
+        posterior mode ν + n_k + d + 1). S_k is the scatter about the current ``means_``. This method is
+        only called with a covariance prior but *without* a mean prior (a mean prior together with a covariance
+        prior always takes the conjugate NIW path), so the ``prior_term`` branch below, which would add a
+        mean-shrinkage correction, is unreachable in practice; it is kept for completeness.
         """
         sum_diff = self._scatter_about_means(stats, nk, ybar)  # (K, d, d)
 
@@ -2605,7 +2614,7 @@ class GaussianMixture(BaseMixture):
         ) / nu_n
 
     def _update_map_diag(self, stats, nk, ybar):
-        r"""MAP update for diagonal covariance matrices."""
+        r"""MAP update for diagonal covariances: ``(Ψ + S_k + reg_covar) / (ν + n_k)`` (see `_update_map_full`)."""
         sum_diff = self._scatter_about_means(stats, nk, ybar)  # (K, d)
 
         if self.use_mean_prior:
@@ -2621,7 +2630,7 @@ class GaussianMixture(BaseMixture):
         ) / nu_n
 
     def _update_map_spherical(self, stats, nk, ybar):
-        r"""MAP update for spherical covariance (single variance per component)."""
+        r"""MAP update for spherical covariance: ``(Ψ + S_k + reg_covar) / ((ν + n_k) d)`` (see `_update_map_full`)."""
         sum_diff = self._scatter_about_means(stats, nk, ybar)  # (K,)
 
         if self.use_mean_prior:
@@ -4219,6 +4228,7 @@ class GaussianMixture(BaseMixture):
             'noise_bounds_': self.noise_bounds_,
             'missing': self.missing,
             'frozen_components': list(self.frozen_components),
+            **self._semisupervised_state(),
 
             # ===============================================================
             # Training state
@@ -4344,9 +4354,11 @@ class GaussianMixture(BaseMixture):
             noise_prior=state_dict.get('noise_prior', 0.05),
             missing=state_dict.get('missing', 'error'),
             frozen_components=state_dict.get('frozen_components', ()),
+            **cls._semisupervised_kwargs(state_dict),
         )
         model.noise_weight_ = state_dict.get('noise_weight_')
         model.noise_bounds_ = state_dict.get('noise_bounds_')
+        model._load_semisupervised_state(state_dict)
 
         # ===============================================================
         # Load trained parameters and state
@@ -4456,6 +4468,7 @@ class GaussianMixture(BaseMixture):
             'noise_bounds_': self.noise_bounds_,
             'missing': self.missing,
             'frozen_components': list(self.frozen_components),
+            **self._semisupervised_state(),
 
             # ===============================================================
             # Training state
@@ -4568,6 +4581,7 @@ class GaussianMixture(BaseMixture):
         self.noise_prior = state_dict.get('noise_prior', 0.05)
         self.missing = state_dict.get('missing', 'error')
         self.frozen_components = state_dict.get('frozen_components', ())
+        self._load_semisupervised_state(state_dict)
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
 

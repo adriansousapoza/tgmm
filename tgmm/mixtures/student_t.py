@@ -96,9 +96,10 @@ class StudentTMixture(BaseMixture):
     Shares its entire EM/CEM/SEM/SAEM/online-EM loop, `n_init` best-run
     selection, `predict`/`predict_proba`/`score`/`bic`/`aic`/`icl`, and
     generic `sample` with every other `BaseMixture` subclass -- see that
-    class. Gibbs-sampling mode (`n_components=None`) and supervised fitting
-    (`fit(X, labels=...)`) are intentionally Gaussian-only; neither is
-    available here.
+    class. Semi-supervised and fully supervised fitting (`fit(X, labels=...)`,
+    `components_per_class`, `unlabeled_weight`, `label_confidence`) live in
+    `BaseMixture` and work here exactly as for `GaussianMixture`; only
+    Gibbs-sampling mode (`n_components=None`) remains Gaussian-only.
 
     Parameters
     ----------
@@ -124,9 +125,13 @@ class StudentTMixture(BaseMixture):
         `(lo, hi)` clamp applied to every fitted `nu_k`.
     scale_update : {'ecm', 'ecme'}, default='ecm'
         `'ecm'`: :math:`\Sigma_k = \sum_i \tau_{ik} u_{ik} (x_i-\mu_k)(x_i-\mu_k)^T / \sum_i \tau_{ik}`
-        (the standard ECM update). `'ecme'`: divide by
-        :math:`\sum_i \tau_{ik} u_{ik}` instead, which converges faster
-        (Liu & Rubin, 1995) but is a different fixed point in general.
+        (the standard ECM update; for `covariance_type='spherical'` the scatter is the squared norm and the
+        divisor carries an extra factor `d`). `'ecme'`: divide by
+        :math:`\sum_i \tau_{ik} u_{ik}` instead (Liu & Rubin, 1995). At a
+        maximum-likelihood fixed point the two coincide (stationarity gives
+        :math:`\sum_i \tau_{ik} u_{ik}\delta_{ik} = d\,n_k`, hence
+        :math:`\sum_i \tau_{ik} u_{ik} = n_k`), so both reach the same fit
+        and differ only in the path they take.
     frozen_components : sequence of int, optional
         Components whose `means_`, `covariances_` (scale matrix) and `dof_` are held at their initial values
         for the whole fit; their mixing weights still update. Not available with `covariance_type='tied_full'`
@@ -657,8 +662,8 @@ class StudentTMixture(BaseMixture):
                 cov = cov + self.reg_covar * eye
             elif base_type == 'diag':
                 cov = stats.s2 / denom.unsqueeze(1) + self.reg_covar
-            else:  # spherical
-                cov = stats.s2 / denom + self.reg_covar
+            else:  # spherical: sigma_k^2 = sum_i tau_ik u_ik ||x_i - mu_k||^2 / (d * denom_k)
+                cov = stats.s2 / (self.n_features * denom) + self.reg_covar
             self.covariances_ = cov
 
         self._update_dof(stats, nk)
@@ -927,6 +932,7 @@ class StudentTMixture(BaseMixture):
             'noise_bounds_': self.noise_bounds_,
             'missing': self.missing,
             'frozen_components': list(self.frozen_components),
+            **self._semisupervised_state(),
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
@@ -964,9 +970,11 @@ class StudentTMixture(BaseMixture):
             noise=state.get('noise', False), noise_volume=state.get('noise_volume', 'bbox'),
             noise_prior=state.get('noise_prior', 0.05), missing=state.get('missing', 'error'),
             frozen_components=state.get('frozen_components', ()),
+            **cls._semisupervised_kwargs(state),
         )
         model.noise_weight_ = state.get('noise_weight_')
         model.noise_bounds_ = state.get('noise_bounds_')
+        model._load_semisupervised_state(state)
         model.weights_ = state['weights_']
         model.means_ = state['means_']
         model.covariances_ = state['covariances_']
@@ -989,6 +997,10 @@ class StudentTMixture(BaseMixture):
         self.noise_prior = state_dict.get('noise_prior', 0.05)
         self.missing = state_dict.get('missing', 'error')
         self.frozen_components = state_dict.get('frozen_components', ())
+        self._load_semisupervised_state(state_dict)
+        for name in ('covariance_type', 'dof', 'dof_init', 'dof_bounds', 'scale_update', 'init_covariances', 'max_iter', 'tol', 'reg_covar', 'n_init', 'init_means', 'init_weights', 'random_state', 'warm_start', 'algorithm', 'batch_size', 'temperature', 'convergence', 'step_size', 'sem_burn_in', 'sem_estimate', 'verbose', 'verbose_interval'):
+            if name in state_dict:
+                setattr(self, name, state_dict[name])
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
         self.weights_ = state_dict['weights_']
