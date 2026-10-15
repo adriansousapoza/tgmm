@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (v0.5 Phase 1.5: component protocol and `GenericMixture`)
+
+- `tgmm.mixtures.protocol.Component`: a runtime-checkable `typing.Protocol` for a mixture component
+  (`log_probability(X)`, `summarize(X, sample_weight)`, `from_summaries()`; optional `sample`, `n_parameters`,
+  `frozen`, `reseed`), after the pomegranate 1.x API (credited in the module docstring; tgmm does not import
+  pomegranate).
+- `tgmm.GenericMixture(components=[...])` (also the v0.4 section 4.4 `GenericMixture`): a `BaseMixture` over
+  user-supplied components. Protocol components are updated through `summarize` per row chunk and one
+  `from_summaries` per M-step, so `batch_size` works unchanged; `nn.Module` components with `log_prob(X)` get a
+  generalised EM step (`_gem_step`, accepted only on improvement), so the log-likelihood stays monotone.
+  Supports `em`/`cem`/`sem`, `temperature`, `batch_size`, `frozen_components` (and a component-level `frozen`
+  attribute), row `sample_weight`, a noise component with an explicit `noise_volume`, the semi-supervised `labels`
+  path, `bic`/`aic`/`icl` and `save`/`load`. Not supported (clear errors): `saem` and online EM (opaque state cannot be
+  blended), `n_init > 1` (restarts would start from the same components), `missing='em'`, per-feature weights.
+  Design: `docs/superpowers/specs/2026-10-15-v05-component-protocol-design.md`.
+
 ### Added (v0.5 Phase 1.4: frozen components and sample weights)
 
 - `frozen_components=(...)` on `GaussianMixture`, `StudentTMixture` and `VonMisesFisherMixture`: the listed
