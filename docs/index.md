@@ -47,7 +47,7 @@ For GPU support, install CUDA-enabled PyTorch following the [official instructio
 - **[Getting Started](getting-started/installation.md)** - Installation and quick start guide
 - **[User Guide](user-guide/gaussian-mixture.md)** - Detailed explanations of each component
 - **Check out the [Tutorials](tutorials/index.md) to see tgmm in action!** - marimo notebooks, rendered here and runnable on molab
-- **[Explainers](explainers/gpcm-shapes.md)** - Interactive pages that run in your browser: covariance shapes, EM, annealing, metrics
+- **[Explainers](explainers/gpcm-shapes.md)** - Interactive pages that run in your browser: covariance shapes, EM, annealing, metrics, and a designer for your own mixture data
 - **[API Reference](api/gaussian-mixture.md)** - Complete API documentation
 
 ## Quick Start

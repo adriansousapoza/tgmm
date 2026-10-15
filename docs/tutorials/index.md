@@ -51,13 +51,14 @@ suggested reading order.
 
 ## Interactive explainers
 
-Four short pages teach the ideas behind tgmm with sliders and buttons that run **in your browser** (no install, no tgmm
+Five short pages teach the ideas behind tgmm with sliders and buttons that run **in your browser** (no install, no tgmm
 or PyTorch involved):
 
 - [GPCM Covariance Shapes](../explainers/gpcm-shapes.md) -- volume, shape and orientation, and the mclust code they spell
 - [EM Step by Step](../explainers/em-stepper.md) -- the E- and M-steps of EM, CEM and SEM on a 1-D mixture
 - [Deterministic Annealing](../explainers/annealing.md) -- how a temperature escapes a collapsed initialization
 - [Clustering Metrics and Model Selection](../explainers/metrics-intuition.md) -- internal indices, BIC and ICL live
+- [Design Your Own Mixture](../explainers/data-designer.md) -- move and reshape Gaussian blobs, choose how many points each has, and watch EM and BIC respond
 
 ## Running Tutorials
 

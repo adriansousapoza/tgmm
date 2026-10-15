@@ -173,6 +173,7 @@ nav:
       - EM Step by Step: explainers/em-stepper.md
       - Deterministic Annealing: explainers/annealing.md
       - Clustering Metrics and Model Selection: explainers/metrics-intuition.md
+      - Design Your Own Mixture: explainers/data-designer.md
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - GPCM Covariance: api/covariance-gpcm.md

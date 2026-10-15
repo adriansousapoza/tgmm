@@ -139,6 +139,14 @@ def _(SEED, device, generate_gmm_data, np, plot_gmm, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    Want to move the blobs and change their covariances? Try the [Design Your Own Mixture explainer](../explainers/data-designer.md) -- it runs in your browser: you choose each blob's position, spread, rotation and number of points, and watch a Gaussian mixture fit it.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Fitting the GMM
 
     Here we fit a GMM to the data. We choose the number of clusters `n_components` to be the same as the number of Gaussians we defined in the previous section. We choose a random initialisation, i.e. `init_means='random'` and fit the GMM several times (`n_init=2 * N_INIT`, ten restarts by default and one in the fast docs build) in order to make it less likely to land in local minima. We set `verbose=True` and `verbose_interval=10` to see what is happening during the fitting process.
