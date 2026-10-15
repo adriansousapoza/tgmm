@@ -18,6 +18,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `weight_concentration_prior`, constrained `sample`. Default fits are bit-identical with `noise=False`.
   Design: `docs/superpowers/specs/2026-10-15-v05-noise-component-design.md`.
 
+### Added (v0.5 Phase 1.2: missing values)
+
+- `missing='em'` on `GaussianMixture` (all six classic covariance types and the 14 GPCM codes) and
+  `StudentTMixture`: `NaN` entries of `X` are missing-at-random and EM maximises the likelihood of the observed
+  entries (Ghahramani & Jordan, 1994; Hunt & Jorgensen, 2003). Rows are grouped by missingness pattern; the E-step uses
+  the observed-block marginal and the M-step statistics the conditional mean/covariance of the missing block, so MAP/NIW
+  priors, `batch_size`, `cem`/`sem`/`saem` and `temperature` work unchanged. For `StudentTMixture` the weights use the
+  number of observed entries and the degrees of freedom are updated with the exact (textbook) conditional step.
+  `predict`, `predict_proba`, `score_samples`, `score`, `bic`/`aic`/`icl` accept incomplete rows; new `impute(X)`
+  (posterior-weighted conditional means) and `StudentTMixture.sample_weights` accept them too. Initialisation uses the
+  column-mean-imputed data. A warning is raised for more than 1000 distinct patterns.
+  Not supported (raises): `noise=True`, Gibbs mode, `labels=`, online EM / `partial_fit`,
+  `StudentTMixture(scale_update='ecme')`; rows or columns with no observed entry are rejected at fit time.
+  Design: `docs/superpowers/specs/2026-10-15-v05-missing-values-design.md`.
+- Behaviour note: with the default `missing='error'`, a `NaN` in `X` now raises `ValueError` (in `fit`, `predict`,
+  `score_samples`, ... of every family, including `VonMisesFisherMixture`) instead of silently producing `NaN`
+  parameters. Fits on finite data are bit-identical to before, and `missing='em'` on data without `NaN` is identical
+  to `'error'`.
+
 ### Changed (tutorials are marimo notebooks)
 
 - The 18 tutorials are now [marimo](https://marimo.io) notebooks, `notebooks/NN_name.py` (the only committed form);

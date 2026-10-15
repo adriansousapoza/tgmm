@@ -20,6 +20,7 @@ import torch
 from ..gmm_init import GMMInitializer
 from ..stats import SufficientStats
 from .base import BaseMixture
+from . import missing as _missing
 
 _VALID_COVARIANCE_TYPES = ('full', 'diag', 'spherical', 'tied_full')
 _VALID_SCALE_UPDATES = ('ecm', 'ecme')
@@ -152,6 +153,14 @@ class StudentTMixture(BaseMixture):
         Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
         with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
         parameters are computed from the unflagged rows. (default: None)
+    missing : {'error', 'em'}, optional
+        `'error'` (default): `NaN` in `X` raises `ValueError`. `'em'`: `NaN` marks missing-at-random
+        entries; the E-step uses the marginal t density of the observed block (`d -> p`, the number of
+        observed entries) and the ECM statistics use the conditional mean / covariance of the missing
+        block (see docs/superpowers/specs/2026-10-15-v05-missing-values-design.md). `predict`, `score`,
+        `sample_weights`, `bic`/`aic`/`icl` accept incomplete rows; `impute(X)` fills them in.
+        Requires `scale_update='ecm'`; not supported with `noise=True`, `labels=`, online EM or
+        `partial_fit`. Identical to `'error'` on data without `NaN`. (default: 'error')
 
     Attributes
     ----------
@@ -197,6 +206,7 @@ class StudentTMixture(BaseMixture):
         noise_volume='bbox',
         noise_prior: float = 0.05,
         noise_init=None,
+        missing: str = 'error',
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -210,6 +220,7 @@ class StudentTMixture(BaseMixture):
             components_per_class=components_per_class, unlabeled_weight=unlabeled_weight,
             label_confidence=label_confidence,
             noise=noise, noise_volume=noise_volume, noise_prior=noise_prior, noise_init=noise_init,
+            missing=missing,
             verbose=verbose, verbose_interval=verbose_interval, device=device,
         )
 
@@ -230,6 +241,11 @@ class StudentTMixture(BaseMixture):
 
         if scale_update not in _VALID_SCALE_UPDATES:
             raise ValueError(f"scale_update must be one of {_VALID_SCALE_UPDATES}, got {scale_update!r}")
+        if self.missing == 'em' and scale_update == 'ecme':
+            raise NotImplementedError(
+                "missing='em' requires scale_update='ecm': the 'ecme' normalisation relies on a fixed-point "
+                "identity that does not hold when rows have different numbers of observed entries."
+            )
         self.scale_update = scale_update
 
         self.dof_ = None
@@ -366,6 +382,8 @@ class StudentTMixture(BaseMixture):
                 - \ln\Gamma\!\left(\tfrac{\nu_k}{2}\right) - \tfrac{d}{2}\ln(\nu_k\pi)
                 - \tfrac12 \ln|\Sigma_k| - \tfrac{\nu_k+d}{2}\ln\!\left(1 + \tfrac{\delta_{ik}}{\nu_k}\right)
         """
+        if self._missing_active(X):
+            return self._component_log_prob_missing(X)
         delta, logdet = _mahalanobis_and_logdet(X, self.means_, self.covariances_, self.covariance_type)
         d = self.n_features
         nu = self.dof_  # (K,)
@@ -376,6 +394,109 @@ class StudentTMixture(BaseMixture):
         )  # (K,)
         tail = -((nu + d) / 2).unsqueeze(0) * torch.log1p(delta / nu.unsqueeze(0))  # (n, K)
         return const.unsqueeze(0) + tail
+
+    # ===================================================================
+    # Missing values (v0.5 item 1.2): see tgmm/mixtures/missing.py and
+    # docs/superpowers/specs/2026-10-15-v05-missing-values-design.md.
+    # ===================================================================
+    _supports_missing = True
+
+    def _missing_cov_repr(self):
+        r"""`(kind, cov)` for `missing.gaussian_blocks`: dense `(K, d, d)` or per-feature variances `(K, d)`."""
+        K, d = self.n_components, self.n_features
+        if self.covariance_type == 'full':
+            return 'dense', self.covariances_
+        if self.covariance_type == 'tied_full':
+            return 'dense', self.covariances_.unsqueeze(0).expand(K, d, d)
+        if self.covariance_type == 'diag':
+            return 'diag', self.covariances_
+        return 'diag', self.covariances_.unsqueeze(1).expand(K, d)  # spherical
+
+    def _missing_u(self, X: torch.Tensor):
+        r"""
+        Observed-block quantities for incomplete data: the blocks, per-row number of observed
+        entries `p` `(n, 1)`, and the robustness weights
+        :math:`u_{ik} = (\nu_k + p_i)/(\nu_k + \delta_{o,ik})`, shape `(n, K)`.
+        """
+        kind, cov = self._missing_cov_repr()
+        blocks = _missing.gaussian_blocks(X, self.means_, cov, kind, need_conditional=True)
+        n, K = X.shape[0], self.means_.shape[0]
+        delta = torch.empty(n, K, dtype=X.dtype, device=X.device)
+        p = torch.empty(n, 1, dtype=X.dtype, device=X.device)
+        for b in blocks:
+            delta[b.rows] = b.delta
+            p[b.rows] = float(b.obs.numel())
+        nu = self.dof_.unsqueeze(0)
+        return blocks, p, (nu + p) / (nu + delta)
+
+    def _component_log_prob_missing(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Marginal t log-density of the observed block (:math:`d \to p`, :math:`\delta \to \delta_o`):
+
+        .. math::
+            \ln\Gamma\!\left(\tfrac{\nu+p}{2}\right) - \ln\Gamma\!\left(\tfrac{\nu}{2}\right)
+            - \tfrac p2\ln(\nu\pi) - \tfrac12\ln|\Sigma_{oo}| - \tfrac{\nu+p}{2}\ln\!\left(1+\tfrac{\delta_o}{\nu}\right)
+        """
+        kind, cov = self._missing_cov_repr()
+        nu = self.dof_
+        out = torch.empty(X.shape[0], self.means_.shape[0], dtype=X.dtype, device=X.device)
+        for b in _missing.gaussian_blocks(X, self.means_, cov, kind, need_conditional=False):
+            p = float(b.obs.numel())
+            const = (
+                torch.lgamma((nu + p) / 2) - torch.lgamma(nu / 2) - (p / 2.0) * torch.log(nu * math.pi) - 0.5 * b.logdet
+            )
+            out[b.rows] = const.unsqueeze(0) - ((nu + p) / 2).unsqueeze(0) * torch.log1p(b.delta / nu.unsqueeze(0))
+        return out
+
+    def _compute_stats_missing(self, X: torch.Tensor, resp: torch.Tensor) -> SufficientStats:
+        r"""
+        ECM statistics given the observed entries (Lin, Lee & Ho 2006), at the current parameters:
+        :math:`u_{ik}=(\nu_k+p_i)/(\nu_k+\delta_{o,ik})`, :math:`s1_k=\sum_i\tau_{ik}u_{ik}\tilde x_{ik}`,
+
+        .. math::
+            s2_k = \sum_i \tau_{ik}u_{ik}(\tilde x_{ik}-\bar y_k)(\tilde x_{ik}-\bar y_k)^\top
+                   + \sum_i \tau_{ik} C_{k,\mathrm{pattern}(i)}
+
+        (the conditional covariance `C` carries **no** `u` factor because :math:`E[w\cdot 1/w]=1`), and
+        `aux['log_u_minus_u']` holds :math:`\sum_i\tau_{ik}[\psi(\tfrac{\nu_k+p_i}2)-\ln\tfrac{\nu_k+p_i}2
+        +\ln u_{ik}-u_{ik}]`, i.e. :math:`\sum\tau(E[\ln w]-E[w])`, for the exact `nu` update
+        (marked by `aux['dof_exact']`). `batch_size` does not chunk this path (as in the complete-data one).
+        """
+        n_samples, d = X.shape
+        n_components = resp.shape[1]
+        kind, _ = self._missing_cov_repr()
+        blocks, p, u = self._missing_u(X)
+        nu = self.dof_.unsqueeze(0)
+
+        tau = resp
+        tau_u = tau * u
+        nk = tau.sum(dim=0)
+        m_k = tau_u.sum(dim=0)
+        Xhat = _missing.complete_rows(X, blocks, n_components)  # (n, K, d)
+        s1 = torch.einsum('nk,nkd->kd', tau_u, Xhat)
+        ybar = s1 / (m_k + 1e-20).unsqueeze(1)
+
+        base_type = self.covariance_type.replace('tied_', '', 1)
+        diff = Xhat - ybar.unsqueeze(0)
+        if base_type == 'full':
+            s2 = torch.einsum('nk,nkd,nke->kde', tau_u, diff, diff)
+        elif base_type == 'diag':
+            s2 = torch.einsum('nk,nkd->kd', tau_u, diff.pow(2))
+        else:  # spherical
+            s2 = torch.einsum('nk,nk->k', tau_u, diff.pow(2).sum(dim=2))
+        extra = _missing.conditional_cov_sum(blocks, tau, kind, d)
+        if base_type == 'spherical':
+            extra = extra.sum(dim=-1)
+        s2 = s2 + extra
+
+        half = (nu + p) / 2
+        e = torch.special.digamma(half) - torch.log(half) + torch.log(u) - u
+        aux = {
+            'tau_u_sum': m_k,
+            'log_u_minus_u': (tau * e).sum(dim=0),
+            'dof_exact': torch.ones((), dtype=X.dtype, device=X.device),
+        }
+        return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples, aux=aux)
 
     # ===================================================================
     # M-step hooks
@@ -398,6 +519,8 @@ class StudentTMixture(BaseMixture):
         memory at once, so chunking rows would save only the final
         reduction, not the dominant cost.
         """
+        if self._missing_active(X):
+            return self._compute_stats_missing(X, resp)
         n_samples, d = X.shape
         delta, _ = _mahalanobis_and_logdet(X, self.means_, self.covariances_, self.covariance_type)
         nu = self.dof_  # (K,)
@@ -468,15 +591,16 @@ class StudentTMixture(BaseMixture):
             return  # fixed dof: never updated
 
         log_u_minus_u = stats.aux['log_u_minus_u']
+        exact = 'dof_exact' in stats.aux  # incomplete data: textbook form, see `_solve_dof`
         if self.dof == 'per_component':
             c = log_u_minus_u / nk
-            self.dof_ = self._solve_dof(c, d)
+            self.dof_ = self._solve_dof(c, d, exact=exact)
         else:  # 'shared'
             c_shared = log_u_minus_u.sum() / nk.sum()
-            nu_shared = self._solve_dof(c_shared.unsqueeze(0), d)
+            nu_shared = self._solve_dof(c_shared.unsqueeze(0), d, exact=exact)
             self.dof_ = nu_shared.expand(self.n_components).clone()
 
-    def _solve_dof(self, c: torch.Tensor, d: int) -> torch.Tensor:
+    def _solve_dof(self, c: torch.Tensor, d: int, exact: bool = False) -> torch.Tensor:
         r"""
         Solve, elementwise over `c`'s shape,
 
@@ -489,12 +613,17 @@ class StudentTMixture(BaseMixture):
         `polygamma` for the derivative). Bisection alone would already be
         accurate enough in practice; the Newton polish tightens it per the
         plan's "bisection then Newton" spec.
+
+        With `exact=True` (incomplete data, where `c` already contains the
+        :math:`\psi((\nu_{old}+p_i)/2)-\ln((\nu_{old}+p_i)/2)` terms of each row's own
+        number of observed entries `p_i`) the last two terms are dropped:
+        :math:`1-\psi(\nu/2)+\ln(\nu/2)+c=0`.
         """
         def f(nu):
-            return (
-                1.0 - torch.special.digamma(nu / 2) + torch.log(nu / 2) + c
-                + torch.special.digamma((nu + d) / 2) - torch.log((nu + d) / 2)
-            )
+            val = 1.0 - torch.special.digamma(nu / 2) + torch.log(nu / 2) + c
+            if exact:
+                return val
+            return val + torch.special.digamma((nu + d) / 2) - torch.log((nu + d) / 2)
 
         lo = torch.full_like(c, self.dof_bounds[0])
         hi = torch.full_like(c, self.dof_bounds[1])
@@ -514,10 +643,9 @@ class StudentTMixture(BaseMixture):
         for _ in range(4):
             nu_cur = torch.exp(log_nu)
             f_val = f(nu_cur)
-            fprime = (
-                -0.5 * torch.special.polygamma(1, nu_cur / 2) + 1.0 / nu_cur
-                + 0.5 * torch.special.polygamma(1, (nu_cur + d) / 2) - 1.0 / (nu_cur + d)
-            )
+            fprime = -0.5 * torch.special.polygamma(1, nu_cur / 2) + 1.0 / nu_cur
+            if not exact:
+                fprime = fprime + 0.5 * torch.special.polygamma(1, (nu_cur + d) / 2) - 1.0 / (nu_cur + d)
             d_f_d_lognu = nu_cur * fprime
             step = f_val / (d_f_d_lognu - torch.sign(d_f_d_lognu) * 1e-20 - 1e-20)
             log_nu = torch.clamp(log_nu - step, log_lo, log_hi)
@@ -586,6 +714,12 @@ class StudentTMixture(BaseMixture):
         -------
         torch.Tensor, shape (n_samples,)
         """
+        if self._missing_active(X.to(self.device)):
+            X = X.to(self.device)
+            resp, _ = self._e_step(X)
+            z_hat = torch.argmax(resp, dim=1)
+            _, _, u = self._missing_u(X)
+            return u[torch.arange(X.shape[0], device=self.device), z_hat]
         X = X.to(self.device)
         resp, _ = self._e_step(X)
         z_hat = torch.argmax(resp, dim=1)
@@ -628,6 +762,7 @@ class StudentTMixture(BaseMixture):
             'noise_prior': self.noise_prior,
             'noise_weight_': self.noise_weight_,
             'noise_bounds_': self.noise_bounds_,
+            'missing': self.missing,
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
@@ -663,7 +798,7 @@ class StudentTMixture(BaseMixture):
             sem_burn_in=state['sem_burn_in'], sem_estimate=state['sem_estimate'],
             verbose=state['verbose'], verbose_interval=state['verbose_interval'], device=device,
             noise=state.get('noise', False), noise_volume=state.get('noise_volume', 'bbox'),
-            noise_prior=state.get('noise_prior', 0.05),
+            noise_prior=state.get('noise_prior', 0.05), missing=state.get('missing', 'error'),
         )
         model.noise_weight_ = state.get('noise_weight_')
         model.noise_bounds_ = state.get('noise_bounds_')
@@ -687,6 +822,7 @@ class StudentTMixture(BaseMixture):
         self.noise = state_dict.get('noise', False)
         self.noise_volume = state_dict.get('noise_volume', 'bbox')
         self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.missing = state_dict.get('missing', 'error')
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
         self.weights_ = state_dict['weights_']

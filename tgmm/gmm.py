@@ -9,6 +9,7 @@ from .gmm_init import GMMInitializer
 from .stats import SufficientStats
 from .covariance.gpcm import mstep_gpcm, GPCMResult
 from .mixtures.base import BaseMixture
+from .mixtures import missing as _missing
 from scipy.stats import chi2
 
 
@@ -277,6 +278,16 @@ class GaussianMixture(BaseMixture):
         Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
         with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
         parameters are computed from the unflagged rows. (default: None)
+    missing : {'error', 'em'}, optional
+        How `NaN` entries of `X` are handled. `'error'` (default): `NaN` raises `ValueError`.
+        `'em'`: `NaN` marks missing-at-random values and the likelihood of the *observed* entries
+        is maximised by EM (rows are grouped by missingness pattern; the E-step uses the marginal
+        `N(x_o; mu_o, Sigma_oo)` and the M-step statistics use the conditional mean/covariance of
+        the missing block). Works for every covariance type, `algorithm` in
+        `{'em', 'cem', 'sem', 'saem'}`, `temperature` and `batch_size`; `predict`, `predict_proba`,
+        `score_samples`, `score`, `bic`/`aic`/`icl` accept incomplete rows and `impute(X)` fills
+        them in. Not supported with `noise=True`, Gibbs mode, `labels=`, online EM / `partial_fit`.
+        On data without `NaN` the result is identical to `'error'`. (default: 'error')
     verbose : bool, optional
         If True, print progress during EM iterations. (default: False)
     verbose_interval : int, optional
@@ -420,6 +431,9 @@ class GaussianMixture(BaseMixture):
         noise_volume: Union[str, float] = 'bbox',
         noise_prior: float = 0.05,
         noise_init=None,
+
+        # Missing values (v0.5 item 1.2; see BaseMixture._init_missing)
+        missing: str = 'error',
 
         # Prior parameters for MAP estimation (EM mode) / required NIW prior (Gibbs mode)
         weight_concentration_prior: torch.Tensor = None,
@@ -608,6 +622,11 @@ class GaussianMixture(BaseMixture):
         self.label_confidence = label_confidence
 
         self._init_noise(noise, noise_volume, noise_prior, noise_init)
+        if missing == 'em' and n_components is None:
+            raise NotImplementedError(
+                "missing='em' is not supported in Gibbs mode (n_components=None); use a fixed n_components."
+            )
+        self._init_missing(missing)
         if self.noise and n_components is None:
             raise NotImplementedError(
                 "noise=True is not supported in Gibbs mode (n_components=None); use a fixed n_components."
@@ -1673,6 +1692,8 @@ class GaussianMixture(BaseMixture):
         weight term and deterministic-annealing tempering are applied
         uniformly there, not here. See `BaseMixture._e_step`/`_e_step_chunk`.
         """
+        if self._missing_active(X):
+            return self._component_log_prob_missing(X)
         if self.covariance_type == 'full':
             return self._estimate_log_gaussian_full(X)
         elif self.covariance_type == 'diag':
@@ -2028,6 +2049,8 @@ class GaussianMixture(BaseMixture):
         -------
         SufficientStats
         """
+        if self._missing_active(X):
+            return self._compute_stats_missing(X, resp, batch_size)
         n_samples, n_features = X.shape
         # GPCM covariance types (Phase 3) always store/need a full (K, d, d)
         # second moment, regardless of whether the parameterization itself
@@ -2060,6 +2083,89 @@ class GaussianMixture(BaseMixture):
             chunk_s2 = self._second_moment(resp[start:end], diff_chunk, base_type)
             s2 = chunk_s2 if s2 is None else s2 + chunk_s2
 
+        return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples)
+
+    # ===================================================================
+    # Missing values (v0.5 item 1.2): see tgmm/mixtures/missing.py and
+    # docs/superpowers/specs/2026-10-15-v05-missing-values-design.md.
+    # ===================================================================
+    _supports_missing = True
+
+    def _missing_cov_repr(self):
+        r"""`(kind, cov)` for `missing.gaussian_blocks`: dense `(K, d, d)` or per-feature variances `(K, d)`."""
+        K, d = self.n_components, self.n_features
+        ctype = self.covariance_type
+        if ctype == 'full' or self.covariance_type_ in _NEW_GPCM_CODES:
+            return 'dense', self.covariances_
+        if ctype == 'tied_full':
+            return 'dense', self.covariances_.unsqueeze(0).expand(K, d, d)
+        if ctype == 'diag':
+            return 'diag', self.covariances_
+        if ctype == 'spherical':
+            return 'diag', self.covariances_.unsqueeze(1).expand(K, d)
+        if ctype == 'tied_diag':
+            return 'diag', self.covariances_.unsqueeze(0).expand(K, d)
+        if ctype == 'tied_spherical':
+            return 'diag', self.covariances_.expand(K, d)
+        raise ValueError(f"Unsupported covariance type: {ctype}")
+
+    def _component_log_prob_missing(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Marginal log-density of the *observed* entries of each row under each component,
+        :math:`\log N(x_o;\mu_o,\Sigma_{oo}) = -\tfrac12[p\log 2\pi + \log|\Sigma_{oo}| + \delta_o]`,
+        shape `(n_samples, n_components)`.
+        """
+        kind, cov = self._missing_cov_repr()
+        out = torch.empty(X.shape[0], self.means_.shape[0], dtype=X.dtype, device=X.device)
+        log_2pi = math.log(2.0 * math.pi)
+        for b in _missing.gaussian_blocks(X, self.means_, cov, kind, need_conditional=False):
+            p = b.obs.numel()
+            out[b.rows] = -0.5 * (p * log_2pi + b.logdet.unsqueeze(0) + b.delta)
+        return out
+
+    def _compute_stats_missing(self, X: torch.Tensor, resp: torch.Tensor, batch_size: Optional[int] = None) -> SufficientStats:
+        r"""
+        Expected complete-data statistics given the observed entries, at the *current* parameters
+        (those the E-step just used): :math:`n_k=\sum_i r_{ik}`, :math:`s1_k=\sum_i r_{ik}\tilde x_{ik}` and
+
+        .. math::
+            s2_k = \sum_i r_{ik}(\tilde x_{ik}-\bar y_k)(\tilde x_{ik}-\bar y_k)^\top
+                   + \sum_i r_{ik} C_{k,\mathrm{pattern}(i)}
+
+        with :math:`\tilde x_{ik}` the completed row (conditional mean in the missing block) and `C` the
+        conditional covariance placed in the missing block, reduced to the diag / spherical form the
+        covariance type's M-step expects. Chunked over rows like the complete-data version.
+        """
+        n_samples, n_features = X.shape
+        n_components = resp.shape[1]
+        kind, cov = self._missing_cov_repr()
+        base_type = 'full' if self.covariance_type_ in _NEW_GPCM_CODES \
+            else self.covariance_type.replace('tied_', '', 1)
+        step = n_samples if (batch_size is None or batch_size >= n_samples) else batch_size
+
+        def chunk(start):
+            end = min(start + step, n_samples)
+            Xc, rc = X[start:end], resp[start:end]
+            blocks = _missing.gaussian_blocks(Xc, self.means_, cov, kind, need_conditional=True)
+            return Xc, rc, blocks, _missing.complete_rows(Xc, blocks, n_components)
+
+        nk = torch.zeros(n_components, device=X.device, dtype=X.dtype)
+        s1 = torch.zeros(n_components, n_features, device=X.device, dtype=X.dtype)
+        for start in range(0, n_samples, step):
+            _, rc, _, Xhat = chunk(start)
+            nk += rc.sum(dim=0)
+            s1 += torch.einsum('nk,nkd->kd', rc, Xhat)
+        ybar = s1 / (nk + 1e-20).unsqueeze(1)
+
+        s2 = None
+        for start in range(0, n_samples, step):
+            Xc, rc, blocks, Xhat = chunk(start)
+            part = self._second_moment(rc, Xhat - ybar.unsqueeze(0), base_type)
+            extra = _missing.conditional_cov_sum(blocks, rc, kind, n_features)
+            if base_type == 'spherical':
+                extra = extra.sum(dim=-1)
+            part = part + extra
+            s2 = part if s2 is None else s2 + part
         return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples)
 
     def _scatter_about_means(self, stats: SufficientStats, nk: torch.Tensor, ybar: torch.Tensor) -> torch.Tensor:
@@ -3836,6 +3942,7 @@ class GaussianMixture(BaseMixture):
             'noise_prior': self.noise_prior,
             'noise_weight_': self.noise_weight_,
             'noise_bounds_': self.noise_bounds_,
+            'missing': self.missing,
 
             # ===============================================================
             # Training state
@@ -3959,6 +4066,7 @@ class GaussianMixture(BaseMixture):
             noise=state_dict.get('noise', False),
             noise_volume=state_dict.get('noise_volume', 'bbox'),
             noise_prior=state_dict.get('noise_prior', 0.05),
+            missing=state_dict.get('missing', 'error'),
         )
         model.noise_weight_ = state_dict.get('noise_weight_')
         model.noise_bounds_ = state_dict.get('noise_bounds_')
@@ -4069,6 +4177,7 @@ class GaussianMixture(BaseMixture):
             'noise_prior': self.noise_prior,
             'noise_weight_': self.noise_weight_,
             'noise_bounds_': self.noise_bounds_,
+            'missing': self.missing,
 
             # ===============================================================
             # Training state
@@ -4179,6 +4288,7 @@ class GaussianMixture(BaseMixture):
         self.noise = state_dict.get('noise', False)
         self.noise_volume = state_dict.get('noise_volume', 'bbox')
         self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.missing = state_dict.get('missing', 'error')
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
 

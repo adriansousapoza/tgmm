@@ -209,6 +209,10 @@ class VonMisesFisherMixture(BaseMixture):
         Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
         with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
         parameters are computed from the unflagged rows. (default: None)
+    missing : {'error'}, optional
+        `NaN` in `X` raises `ValueError`; `missing='em'` is only available for `GaussianMixture`
+        and `StudentTMixture` (a von Mises-Fisher density has no marginal over a subset of the
+        coordinates of a unit vector). (default: 'error')
 
     Attributes
     ----------
@@ -247,6 +251,7 @@ class VonMisesFisherMixture(BaseMixture):
         noise_volume='bbox',
         noise_prior: float = 0.05,
         noise_init=None,
+        missing: str = 'error',
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -260,6 +265,7 @@ class VonMisesFisherMixture(BaseMixture):
             components_per_class=components_per_class, unlabeled_weight=unlabeled_weight,
             label_confidence=label_confidence,
             noise=noise, noise_volume=noise_volume, noise_prior=noise_prior, noise_init=noise_init,
+            missing=missing,
             verbose=verbose, verbose_interval=verbose_interval, device=device,
         )
 

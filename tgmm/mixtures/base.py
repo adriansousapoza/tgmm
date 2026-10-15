@@ -30,6 +30,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..stats import SufficientStats
+from . import missing as _missing
 
 _VALID_ALGORITHMS = ('em', 'cem', 'sem', 'saem')
 _VALID_CONVERGENCE = ('relative', 'aitken')
@@ -101,6 +102,7 @@ class BaseMixture(nn.Module, ABC):
         noise_volume='bbox',
         noise_prior: float = 0.05,
         noise_init=None,
+        missing: str = 'error',
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -168,6 +170,7 @@ class BaseMixture(nn.Module, ABC):
         self.class_of_component_ = None
 
         self._init_noise(noise, noise_volume, noise_prior, noise_init)
+        self._init_missing(missing)
 
         # Optional callable(X, resp_or_None), called once right after
         # _allocate_parameters (with resp=None) and once after every M-step
@@ -203,6 +206,98 @@ class BaseMixture(nn.Module, ABC):
         self.n_empty_components_ = 0
         self._online_running_stats_ = None
         self._online_step_count_ = 0
+
+    # ===================================================================
+    # Missing values (v0.5 item 1.2). See
+    # docs/superpowers/specs/2026-10-15-v05-missing-values-design.md.
+    # With missing='error' (default) NaN input raises; with missing='em' (families
+    # that set `_supports_missing`) NaN marks missing-at-random entries. On data
+    # without NaN both settings take exactly the same code path.
+    # ===================================================================
+    _supports_missing = False
+
+    def _init_missing(self, missing):
+        r"""Validate and store `missing`; reject combinations the EM-with-missing-values path cannot serve."""
+        if missing not in ('error', 'em'):
+            raise ValueError(f"missing must be 'error' or 'em', got {missing!r}.")
+        self.missing = missing
+        if missing != 'em':
+            return
+        if not self._supports_missing:
+            raise ValueError(
+                f"missing='em' is not supported by {type(self).__name__} (it is available for GaussianMixture "
+                "and StudentTMixture)."
+            )
+        if self.noise:
+            raise NotImplementedError(
+                "missing='em' cannot be combined with noise=True: the noise density needs the volume of each "
+                "row's observed subspace, which is not supported."
+            )
+        if self.algorithm in ('em', 'cem') and self.step_size is not None:
+            raise NotImplementedError(
+                "missing='em' does not support online EM (step_size set); use batch_size alone or algorithm='saem'."
+            )
+
+    def _missing_active(self, X: torch.Tensor) -> bool:
+        r"""True if `missing='em'` and `X` actually contains NaN (otherwise the ordinary path runs)."""
+        return self.missing == 'em' and _missing.has_missing(X)
+
+    def _check_nan_input(self, X: torch.Tensor):
+        r"""`missing='error'`: raise on NaN input (called at the top of every E-step and of `fit`)."""
+        if self.missing == 'em' or not torch.is_floating_point(X):
+            return
+        if bool(torch.isnan(X).any().item()):
+            hint = (
+                "pass missing='em' to treat NaN as missing-at-random values"
+                if self._supports_missing else
+                "this model does not support missing values (missing='em' is available for "
+                "GaussianMixture and StudentTMixture); impute or drop the NaN rows first"
+            )
+            raise ValueError(f"X contains NaN; {hint}.")
+
+    def _prepare_missing_fit(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Fit-time checks for incomplete data; returns the column-mean-imputed copy used for
+        initialisation (k-means etc. never see NaN) and for SEM re-seeding.
+        """
+        _missing.check_incomplete_rows_and_columns(X)
+        n_patterns = _missing.count_patterns(X)
+        if n_patterns > 1000:
+            warnings.warn(
+                f"X has {n_patterns} distinct missingness patterns; the E-step loops over patterns in Python, "
+                "so fitting will be slow.",
+                UserWarning,
+            )
+        return _missing.fill_columns_with_means(X)
+
+    def _missing_cov_repr(self):
+        r"""Family hook: `(kind, cov)` with `kind in {'dense', 'diag'}` (see `missing.gaussian_blocks`)."""
+        raise NotImplementedError
+
+    def _completed_rows(self, X: torch.Tensor) -> torch.Tensor:
+        r"""Per-component completed data `x_tilde`, shape `(n, K, d)`, with the *current* parameters."""
+        kind, cov = self._missing_cov_repr()
+        blocks = _missing.gaussian_blocks(X, self.means_, cov, kind, need_conditional=True)
+        return _missing.complete_rows(X, blocks, self.means_.shape[0])
+
+    def impute(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Replace every NaN of `X` by its posterior-weighted conditional mean
+        :math:`\sum_k \tau_{ik}\hat x_{ik}`, where :math:`\hat x_{ik}` is the conditional mean of the missing
+        block given the observed entries under component `k` (observed entries are returned unchanged).
+
+        Requires `missing='em'`.
+        """
+        if self.missing != 'em':
+            raise RuntimeError("impute requires a model constructed with missing='em'.")
+        X = X.to(self.device)
+        if X.dim() == 1:
+            X = X.unsqueeze(1)
+        if not _missing.has_missing(X):
+            return X.clone()
+        resp, _ = self._e_step(X)
+        completed = (resp.unsqueeze(-1) * self._completed_rows(X)).sum(dim=1)
+        return torch.where(torch.isnan(X), completed, X)
 
     # ===================================================================
     # Uniform noise component (v0.5 item 1.1). See
@@ -415,6 +510,7 @@ class BaseMixture(nn.Module, ABC):
         resp : torch.Tensor, shape (n_samples, n_components)
         log_prob_norm : torch.Tensor, shape (n_samples,)
         """
+        self._check_nan_input(X)
         if self.batch_size is None or self.batch_size >= X.shape[0]:
             return self._e_step_chunk(X, beta=beta)
 
@@ -596,7 +692,8 @@ class BaseMixture(nn.Module, ABC):
                 nk = nk[:-1]  # the noise column is never "empty" in the re-seeding sense
             empty_mask = nk < 1
             if torch.any(empty_mask):
-                n_empty_this_sweep = self._reseed_empty_components(X, log_prob_norm, empty_mask)
+                X_reseed = _missing.fill_columns_with_means(X) if self._missing_active(X) else X
+                n_empty_this_sweep = self._reseed_empty_components(X_reseed, log_prob_norm, empty_mask)
                 n_empty_total += n_empty_this_sweep
                 warnings.warn(
                     f"[Run {run_idx + 1}] Sweep {n_iter}: {n_empty_this_sweep} component(s) "
@@ -780,6 +877,8 @@ class BaseMixture(nn.Module, ABC):
             raise NotImplementedError(
                 "partial_fit is not supported with noise=True (online EM does not track the noise weight)."
             )
+        if self.missing == 'em':
+            raise NotImplementedError("partial_fit is not supported with missing='em'.")
         X_batch = X_batch.to(self.device)
         if X_batch.dim() == 1:
             X_batch = X_batch.unsqueeze(1)
@@ -844,6 +943,13 @@ class BaseMixture(nn.Module, ABC):
         if X.shape[1] != self.n_features:
             raise ValueError(f"X has {X.shape[1]} features, but expected {self.n_features}.")
 
+        self._check_nan_input(X)
+        if self.missing == 'em' and labels is not None:
+            raise NotImplementedError(
+                "missing='em' does not support fit(X, labels=...) (supervised / semi-supervised fitting)."
+            )
+        X_fill = self._prepare_missing_fit(X) if self._missing_active(X) else None
+
         self._check_noise_supported(labels)
         noise_mask = self._prepare_noise(X) if self.noise else None
 
@@ -896,6 +1002,8 @@ class BaseMixture(nn.Module, ABC):
 
             if not warm_start or not self.fitted_ or init_idx > 0:
                 X_init = X if noise_mask is None else X[~noise_mask]
+                if X_fill is not None:
+                    X_init = X_fill  # k-means etc. must not see NaN (column-mean imputed copy)
                 self._allocate_parameters(X_init, set_random_state=False)
                 if self.noise:
                     self._init_noise_weights(noise_mask)
