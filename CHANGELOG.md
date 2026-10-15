@@ -3,6 +3,49 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Changed (tutorials are marimo notebooks)
+
+- The 18 tutorials are now [marimo](https://marimo.io) notebooks, `notebooks/NN_name.py` (the only committed form);
+  `.ipynb` pages are generated in CI into `docs/notebooks/` (git-ignored) and rendered by `mkdocs-jupyter`, so the
+  published URLs are unchanged. Conventions: `notebooks/README.md`; design: `docs/superpowers/specs/2026-10-15-marimo-integration-design.md`.
+- `.github/workflows/docs.yml` runs the notebooks as tests on every PR (`pytest -m notebooks`, `TGMM_DOCS_FAST=1`,
+  `marimo check`), executes and exports them with CPU PyTorch, builds the site with `mkdocs build --strict` and
+  deploys on pushes to `main`. `make docs` reproduces the build locally. `pytest.ini` excludes the notebook tests from
+  the default run.
+- Every tutorial page gets an "Open in molab" badge (`scripts/postprocess_notebooks.py`).
+- The Student-t / von Mises-Fisher tutorial is split into `16_student_t` and `17_von_mises_fisher`; semi-supervised
+  fitting is now `18_semi_supervised_pu`.
+- `docs/notebooks` is no longer a symlink to `notebooks/`.
+
+### Added (interactive explainers)
+
+- Four in-browser explainer pages (`docs/explainers/`, `mkdocs-marimo` islands running NumPy/SciPy/matplotlib through
+  Pyodide): GPCM covariance shapes, EM step by step, deterministic annealing, clustering metrics and model selection.
+
+### Added
+
+- `tgmm.plot_vmf` (circle / sphere view of a `VonMisesFisherMixture`: points, mean
+  directions, spherical caps holding a chosen probability mass),
+  `tgmm.plot_vmf_cosine` (angle-to-mean histograms vs. the fitted density, any
+  dimension), and the helpers `vmf_angle_density` / `vmf_cap_angle`. Tutorial 16
+  gains a gallery of vMF distributions and these plots.
+
+### Changed
+
+- Documentation: detailed derivations (E-step, M-step per covariance type,
+  MAP/NIW, EM variants, Gibbs sampler, Student-t/vMF, semi-supervised/PU,
+  metrics, information criteria) in the user guide; index/README/quickstart
+  updated for v0.4.
+- Tutorials: all 17 notebooks share one format (title/intro, setup cell,
+  summary); `15_gpcm_models.ipynb` is replaced by
+  `15_covariance_models.ipynb` (the six classic covariance types, the 14
+  GPCM models and how each is estimated); `01_gmm.ipynb` no longer carries the
+  covariance-type comparison.
+- `mstep_gpcm` (`VEE`): the inner-loop stopping test now evaluates the
+  objective at the updated parameters (it previously used a stale inverse).
+
 ## [0.4.0] -- 2026-10-14
 
 ### Added (Phase 5: semi-supervised and positive-unlabeled fitting)
@@ -101,7 +144,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   compatible -- `GaussianMixture` never sets it, and `__add__`/`scale`
   are no-ops on it when absent.
 - New user guide page "Other Mixture Families" and notebook
-  `16_student_t_and_vmf.ipynb` (t-mixture vs Gaussian under contamination
+  `16_student_t.ipynb` / `17_von_mises_fisher.ipynb` (t-mixture vs Gaussian under contamination
   with the outlier-weight map; vMF vs `GaussianMixture(covariance_type=
   'diag')` on simulated 768-d unit-norm embeddings).
 

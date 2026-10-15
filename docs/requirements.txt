@@ -1,21 +1,27 @@
-# Documentation build requirements for Read the Docs
-# MkDocs Material theme with plugins
+# Documentation build requirements (used by .github/workflows/docs.yml and `make docs`).
+# Install a CPU build of PyTorch first (see the workflow), then: pip install -e . -r docs/requirements.txt
 
-# Core dependencies
-torch>=2.0.0
-numpy>=1.20.0
+# Package under documentation: runtime imports
+numpy>=1.23.0
+scipy>=1.10.1
+matplotlib>=3.10.1
+seaborn>=0.12.2
+scikit-learn>=1.2.2
+pandas
+tqdm
+mpltern>=1.0.0           # tutorial 09
 
 # MkDocs and Material theme
-mkdocs>=1.5.0
+mkdocs>=1.5.0,<2
 mkdocs-material>=9.4.0
 mkdocstrings[python]>=0.24.0
 mkdocs-jupyter>=0.24.0
 pymdown-extensions>=10.0
 
-# Optional dependencies for notebook execution
-matplotlib>=3.5.0
-scipy>=1.7.0
-mpltern>=1.0.0
+# Tutorials are marimo notebooks, exported to .ipynb with outputs in CI
+marimo==0.25.1
+nbformat>=5.9
+mkdocs-marimo==0.2.1     # pre-1.0: pin exactly; used by the interactive explainer pages
 
-# Minimal dependencies for importing the package
+# Needed to import the package for mkdocstrings
 setuptools

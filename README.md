@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/tgmm.svg)](https://badge.fury.io/py/tgmm)
 [![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://adriansousapoza.github.io/tgmm/)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.5+-orange.svg)](https://pytorch.org/)
 
 <div align="center">
@@ -11,9 +11,17 @@
 
 </div>
 
-**tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) in
-PyTorch, supporting EM and MAP estimation, multiple covariance types, several initialization
-strategies, and a comprehensive suite of clustering metrics and visualization tools.
+**tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) and
+related mixture families in PyTorch. It supports EM, MAP and Gibbs-sampling (Dirichlet-process)
+estimation, 14 covariance structures, several EM variants, robust (Student-t) and directional
+(von Mises-Fisher) mixtures, semi-supervised and positive-unlabeled learning, model selection,
+and a comprehensive suite of clustering metrics and visualization tools.
+
+A mixture model writes the density of the data as a weighted sum of components,
+p(x) = Σₖ πₖ fₖ(x | θₖ); EM alternates computing each component's responsibility for every point
+(E-step) with re-estimating the parameters from those soft assignments (M-step). The
+[Gaussian Mixture Model guide](https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/)
+derives every update tgmm implements.
 
 ## Installation
 
@@ -31,7 +39,7 @@ cd tgmm
 pip install -e .
 ```
 
-**Requirements:** Python 3.8+ and PyTorch 2.5+. For GPU usage, install the CUDA-enabled version of PyTorch as per the [official instructions](https://pytorch.org/get-started/locally/).
+**Requirements:** Python 3.9+ and PyTorch 2.5+. For GPU usage, install the CUDA-enabled version of PyTorch as per the [official instructions](https://pytorch.org/get-started/locally/).
 
 ## Documentation
 
@@ -39,7 +47,7 @@ Full documentation is hosted at **[adriansousapoza.github.io/tgmm](https://adria
 
 - **[Getting Started](https://adriansousapoza.github.io/tgmm/getting-started/installation/)** - Installation and quick start guide
 - **[User Guide](https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/)** - Detailed explanations of each component
-- **[Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/)** - Interactive Jupyter notebooks covering every feature
+- **[Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/)** - marimo notebooks covering every feature (runnable on molab), plus in-browser interactive explainers
 - **[API Reference](https://adriansousapoza.github.io/tgmm/api/gaussian-mixture/)** - Complete API documentation
 
 ## Quick Start
@@ -68,8 +76,9 @@ print(f"Converged: {gmm.converged_}, Iterations: {gmm.n_iter_}")
 ```
 
 See the [Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/) for runnable, end-to-end
-examples of every feature -- covariance types, all initialization strategies, MAP estimation
-with priors, Classification EM, constrained sampling, save/load, and more.
+examples of every feature -- covariance structures, initialization strategies, MAP estimation
+with priors, EM variants, model selection, Student-t / von Mises-Fisher mixtures, semi-supervised
+fitting, constrained sampling, save/load, and more.
 
 ## Key Features
 
@@ -88,6 +97,8 @@ The core `GaussianMixture` class supports:
   accumulation over rows, bounding peak memory on large datasets; `step_size` switches to
   mini-batch/online EM (plus `partial_fit` for streaming); optional Aitken-accelerated
   stopping rule via `convergence='aitken'`
+- **Dirichlet-process mixtures**: `GaussianMixture(n_components=None, ...)` runs a collapsed Gibbs
+  sampler that infers the number of components from the data
 - **Initialization**: Multiple strategies via `GMMInitializer`
 - **Model Selection**: `bic`/`aic`/`icl` methods for comparing fits at different `n_components`,
   or sweep a grid automatically with `select_model`
@@ -153,6 +164,14 @@ per-row positive probability under the SCAR assumption, for `family in ('gaussia
 'student_t', 'vmf')`, with `anchor in ('fixed', 'prior', 'free')` controlling identifiability.
 
 See the [Semi-Supervised and Positive-Unlabeled Fitting](https://adriansousapoza.github.io/tgmm/user-guide/semi-supervised-pu/) guide.
+
+### 7. Density-based clustering and building blocks
+
+- **`HDBSCAN`**: a PyTorch implementation of hierarchical density-based clustering (no `K`
+  needed, non-convex clusters, explicit noise points).
+- **`SufficientStats`** (the additive per-component statistics behind every M-step, used by
+  chunked, online and streaming fitting) and **`BaseMixture`** (subclass it to add a new
+  mixture family) are public.
 
 ## Citation
 

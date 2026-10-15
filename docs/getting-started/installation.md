@@ -2,10 +2,19 @@
 
 ## Requirements
 
-- **Python**: 3.8 or higher
-- **PyTorch**: 2.5 or higher
-- **NumPy**: For numerical operations
-- **SciPy**: For statistical functions and some initialization methods
+- **Python**: 3.9 or higher (the minimum supported by PyTorch 2.5)
+- **PyTorch**: 2.5 or higher (`torch>=2.5.1` in `requirements.txt`)
+- **NumPy**: for numerical operations
+- **SciPy**: special functions and distributions (the von Mises-Fisher Bessel functions, chi-squared quantiles, Hungarian label matching)
+- **Matplotlib** and **seaborn**: `tgmm.plotting`, which `import tgmm` loads
+- **tqdm**: progress bars in `HDBSCAN`
+
+`import tgmm` imports all of the above at start-up, so all must be installed. If a plain `pip install tgmm` does
+not pull them in automatically, install them explicitly:
+
+```bash
+pip install scipy matplotlib seaborn tqdm
+```
 
 ## Installation Methods
 
@@ -57,16 +66,26 @@ tgmm automatically uses CUDA if available. To enable GPU acceleration:
 
 ## Optional Dependencies
 
-For running tutorials and visualization:
+For running the tutorial notebooks (scikit-learn is used by some notebooks for datasets and PCA, pandas for the
+`select_model(...).to_dataframe()` tables):
 
 ```bash
-pip install jupyter matplotlib seaborn
+pip install jupyter scikit-learn pandas tqdm
+# from a source checkout, the "examples" extra installs tqdm and pandas:
+pip install -e ".[examples]"
 ```
 
-For building documentation:
+For running the test suite (`mpmath` supplies reference Bessel values for the von Mises-Fisher tests):
 
 ```bash
-pip install mkdocs mkdocs-material mkdocstrings[python] mkdocs-jupyter
+pip install -e ".[test]"
+```
+
+For building this documentation:
+
+```bash
+pip install -e ".[docs]"   # mkdocs, mkdocs-material, mkdocstrings, mkdocs-jupyter, pymdown-extensions
+mkdocs serve
 ```
 
 ## Verification
@@ -97,7 +116,7 @@ If you encounter import errors:
 
 ```bash
 # Ensure all dependencies are installed
-pip install torch numpy scipy scikit-learn
+pip install torch numpy scipy matplotlib seaborn tqdm
 
 # Reinstall tgmm
 pip uninstall tgmm
@@ -134,5 +153,7 @@ pip install tgmm
 
 ## Next Steps
 
-Next steps: Check out the [Quick Start Guide](quickstart.md) or explore the [Tutorials](../tutorials/index.md).
+- **[Quick Start Guide](quickstart.md)** - Fit your first model
+- **[User Guide](../user-guide/gaussian-mixture.md)** - The models and the mathematics behind them
+- **[Tutorials](../tutorials/index.md)** - Runnable notebooks
 - **[API Reference](../api/gaussian-mixture.md)** - Complete API documentation

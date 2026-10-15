@@ -121,6 +121,9 @@ plugins:
       kernel_name: python3
       ignore_h1_titles: true
       include_requirejs: true
+  # Interactive explainer pages (docs/explainers/): marimo islands that run in the browser via Pyodide.
+  # They must import only what Pyodide ships (numpy, scipy, matplotlib) -- never tgmm or torch.
+  - marimo
 
 extra_javascript:
   - javascripts/mathjax.js
@@ -159,9 +162,15 @@ nav:
       - 12. HDBSCAN Clustering: notebooks/12_hdbscan.ipynb
       - 13. Model Selection (BIC, AIC, ICL): notebooks/13_model_selection.ipynb
       - 14. Stochastic EM, Annealing & SAEM: notebooks/14_stochastic_em.ipynb
-      - 15. GPCM Covariance Models: notebooks/15_gpcm_models.ipynb
-      - 16. Student-t and von Mises-Fisher Mixtures: notebooks/16_student_t_and_vmf.ipynb
-      - 17. Semi-Supervised and Positive-Unlabeled Fitting: notebooks/17_semi_supervised_pu.ipynb
+      - 15. Covariance Structures (Classic Types and the 14 GPCM Models): notebooks/15_covariance_models.ipynb
+      - 16. Student-t Mixtures: notebooks/16_student_t.ipynb
+      - 17. Von Mises-Fisher Mixtures: notebooks/17_von_mises_fisher.ipynb
+      - 18. Semi-Supervised and Positive-Unlabeled Fitting: notebooks/18_semi_supervised_pu.ipynb
+  - Explainers:
+      - GPCM Covariance Shapes: explainers/gpcm-shapes.md
+      - EM Step by Step: explainers/em-stepper.md
+      - Deterministic Annealing: explainers/annealing.md
+      - Clustering Metrics and Model Selection: explainers/metrics-intuition.md
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - GPCM Covariance: api/covariance-gpcm.md
