@@ -5,6 +5,14 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (v0.5 Phase 1.6: documentation and acceptance)
+
+- User-guide page "Noise, Missing Values and Conditioning" (equations for the uniform noise component, missing-value EM,
+  marginals/conditionals, frozen components, sample weights and the component protocol) and tutorial
+  `19_noise_missing_conditioning` (marimo).
+- `tests/test_v05_phase1_acceptance.py`: cross-feature matrix over `em`/`cem`/`sem` and bit-identical-defaults checks for
+  `GaussianMixture`, `StudentTMixture` and `VonMisesFisherMixture`.
+
 ### Added (v0.5 Phase 1.5: component protocol and `GenericMixture`)
 
 - `tgmm.mixtures.protocol.Component`: a runtime-checkable `typing.Protocol` for a mixture component

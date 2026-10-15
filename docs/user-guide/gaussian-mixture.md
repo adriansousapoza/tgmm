@@ -783,7 +783,9 @@ After fitting, the model exposes:
 
 `StudentTMixture` (robust to outliers) and `VonMisesFisherMixture` (directional data) share this
 page's `fit` / `predict` / `bic` / algorithm / semi-supervised machinery through `BaseMixture`;
-see [Other Mixture Families](other-mixture-families.md).
+see [Other Mixture Families](other-mixture-families.md). A uniform noise component (`noise=True`), missing-value EM
+(`missing='em'`), `marginal` / `condition`, `frozen_components`, `sample_weight` and `GenericMixture` are described in
+[Noise, Missing Values and Conditioning](noise-missing-conditioning.md).
 
 ## Complete API reference
 

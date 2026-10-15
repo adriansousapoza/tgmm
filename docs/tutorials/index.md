@@ -45,6 +45,10 @@ suggested reading order.
 - [**17. Von Mises-Fisher Mixtures**](../notebooks/17_von_mises_fisher.ipynb) - Directional data: the vMF distribution on the circle and sphere, the EM updates for $\mu_k$ and $\kappa_k$, `plot_vmf` / `plot_vmf_cosine`, and clustering unit-norm embeddings with `VonMisesFisherMixture`
 - [**18. Semi-Supervised and Positive-Unlabeled Fitting**](../notebooks/18_semi_supervised_pu.ipynb) - Fitting with partially known labels and `PositiveUnlabeledMixture`
 
+## 9. Around the Fit
+
+- [**19. Noise, Missing Values and Conditioning**](../notebooks/19_noise_missing_conditioning.ipynb) - A uniform noise component (`noise=True`), EM with missing values and `impute`, `marginal` / `condition` and Gaussian mixture regression, `frozen_components` and `sample_weight`, and `GenericMixture` with your own component classes
+
 ## Interactive explainers
 
 Four short pages teach the ideas behind tgmm with sliders and buttons that run **in your browser** (no install, no tgmm

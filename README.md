@@ -14,7 +14,7 @@
 **tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) and
 related mixture families in PyTorch. It supports EM, MAP and Gibbs-sampling (Dirichlet-process)
 estimation, 14 covariance structures, several EM variants, robust (Student-t) and directional
-(von Mises-Fisher) mixtures, semi-supervised and positive-unlabeled learning, model selection,
+(von Mises-Fisher) mixtures, semi-supervised and positive-unlabeled learning, a uniform noise component, missing-value EM, marginal/conditional distributions, custom components, model selection,
 and a comprehensive suite of clustering metrics and visualization tools.
 
 A mixture model writes the density of the data as a weighted sum of components,

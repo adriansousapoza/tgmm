@@ -9,7 +9,7 @@
 **tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) and
 related mixture families in PyTorch. It supports EM, MAP and Gibbs-sampling (Dirichlet-process)
 estimation, 14 covariance structures, several EM variants, robust (Student-t) and directional
-(von Mises-Fisher) mixtures, semi-supervised and positive-unlabeled learning, model selection,
+(von Mises-Fisher) mixtures, semi-supervised and positive-unlabeled learning, a uniform noise component, missing-value EM, marginal/conditional distributions, custom components, model selection,
 and a comprehensive suite of clustering metrics and visualization tools.
 
 A mixture model writes the density of the data as a weighted sum of components,
@@ -113,24 +113,31 @@ Every family supports `fit(X, labels=...)` with `-1` for unknown rows (semi-supe
 per class), and `PositiveUnlabeledMixture` handles positive-unlabeled (PU) learning under the SCAR assumption.
 See [Semi-Supervised and PU Fitting](user-guide/semi-supervised-pu.md).
 
-### 4. Clustering metrics
+### 4. Noise, missing values and conditioning
+
+`noise=True` adds a uniform noise component that labels strays `-1`; `missing='em'` fits data with `NaN` entries and
+`impute`s them; `GaussianMixture.marginal` / `condition` give marginal and conditional distributions (Gaussian mixture
+regression); `frozen_components` and `sample_weight` control what EM may change; and `GenericMixture` fits components you write
+yourself. See [Noise, Missing Values and Conditioning](user-guide/noise-missing-conditioning.md).
+
+### 5. Clustering metrics
 
 `ClusteringMetrics` provides unsupervised indices (Silhouette, Davies-Bouldin, Calinski-Harabasz, Dunn,
 WB-Index, Wemmert-Gancarski, DBCV) and supervised metrics (ARI, NMI/AMI, purity, homogeneity,
 completeness, V-measure, confusion matrix and classification report). See
 [Clustering Metrics](user-guide/clustering-metrics.md).
 
-### 5. Density-based clustering
+### 6. Density-based clustering
 
 `HDBSCAN` is a PyTorch implementation of hierarchical density-based clustering -- no `K` needed,
 non-convex clusters, explicit noise points (see the [HDBSCAN tutorial](notebooks/12_hdbscan.ipynb)).
 
-### 6. Building blocks
+### 7. Building blocks
 
 `SufficientStats` (the additive $n_k,\sum_ir_{ik}x_i,W_k$ statistics behind every M-step, used by
 chunked, online and streaming fitting) and `BaseMixture` (subclass it to add a new family) are public.
 
-### 7. Visualization
+### 8. Visualization
 
 `plot_gmm` draws component ellipses at several confidence levels, cluster / ground-truth / log-likelihood
 coloring, initial vs. final means and weight-scaled markers for 2-D data, for any of the model families

@@ -440,6 +440,13 @@ directly, and with `-1` marking unknown rows they run semi-supervised EM
 `predict_class`). The math and the options are covered in [Semi-Supervised
 and Positive-Unlabeled Fitting](semi-supervised-pu.md).
 
+## Noise, missing values and custom families
+
+`noise=True` works for all three families (the noise density is uniform in the data's bounding box, or on the sphere for vMF);
+`missing='em'` for `GaussianMixture` and `StudentTMixture`; `frozen_components` and `sample_weight` for all of them. To fit a family that
+tgmm does not ship, implement the three-method `Component` protocol and use `GenericMixture`. See
+[Noise, Missing Values and Conditioning](noise-missing-conditioning.md).
+
 ## Shared machinery summary
 
 `bic`/`aic`/`icl` work the same way on both classes as on
