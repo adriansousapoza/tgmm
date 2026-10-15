@@ -97,6 +97,10 @@ class BaseMixture(nn.Module, ABC):
         components_per_class=1,
         unlabeled_weight: float = 1.0,
         label_confidence: float = 1.0,
+        noise: bool = False,
+        noise_volume='bbox',
+        noise_prior: float = 0.05,
+        noise_init=None,
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -163,6 +167,8 @@ class BaseMixture(nn.Module, ABC):
         self.classes_ = None
         self.class_of_component_ = None
 
+        self._init_noise(noise, noise_volume, noise_prior, noise_init)
+
         # Optional callable(X, resp_or_None), called once right after
         # _allocate_parameters (with resp=None) and once after every M-step
         # (with the resp actually used) during semi-supervised fitting
@@ -197,6 +203,111 @@ class BaseMixture(nn.Module, ABC):
         self.n_empty_components_ = 0
         self._online_running_stats_ = None
         self._online_step_count_ = 0
+
+    # ===================================================================
+    # Uniform noise component (v0.5 item 1.1). See
+    # docs/superpowers/specs/2026-10-15-v05-noise-component-design.md.
+    # Inert unless `noise=True`: every hook below is a no-op / pass-through
+    # when `self.noise` is False, so default fits are bit-identical.
+    # ===================================================================
+    # Families whose noise density is a uniform over the data's bounding box
+    # (rather than e.g. over the sphere) need `noise_bounds_` at fit time.
+    _noise_uses_bbox = True
+
+    def _init_noise(self, noise, noise_volume, noise_prior, noise_init):
+        r"""Validate and store the noise arguments (see the module docs / spec)."""
+        if not (0.0 < float(noise_prior) < 1.0):
+            raise ValueError(f"noise_prior must be in (0, 1), got {noise_prior}.")
+        if isinstance(noise_volume, str):
+            if noise_volume != 'bbox':
+                raise ValueError(f"noise_volume must be 'bbox' or a positive float, got {noise_volume!r}.")
+        elif isinstance(noise_volume, bool) or not float(noise_volume) > 0.0:
+            raise ValueError(f"noise_volume must be 'bbox' or a positive float, got {noise_volume!r}.")
+        self.noise = bool(noise)
+        self.noise_volume = noise_volume
+        self.noise_prior = float(noise_prior)
+        self.noise_init = noise_init
+        self.noise_weight_ = None
+        self.noise_bounds_ = None
+
+    def _noise_log_volume(self) -> float:
+        r"""`log V` of the uniform noise region (bounding box or the user-supplied volume)."""
+        if not isinstance(self.noise_volume, str):
+            return math.log(float(self.noise_volume))
+        if self.noise_bounds_ is None:
+            raise RuntimeError("noise_bounds_ is not set; fit the model first.")
+        extent = (self.noise_bounds_[1] - self.noise_bounds_[0]).clamp(min=1e-12)
+        return torch.log(extent).sum().item()
+
+    def _noise_log_density(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Log-density of the noise component at each row of `X`, shape `(n_samples,)`.
+
+        Default (`GaussianMixture`, every GPCM code, `StudentTMixture`): the
+        constant `-log V`, with `V` the volume of the bounding box of the fit
+        data (or `noise_volume`). Families override it: `VonMisesFisherMixture`
+        uses the uniform density on the sphere; discrete/count families must
+        raise ``ValueError('noise component requires bounded continuous support')``.
+        """
+        return torch.full((X.shape[0],), -self._noise_log_volume(), dtype=X.dtype, device=X.device)
+
+    def _sample_noise(self, n: int) -> torch.Tensor:
+        r"""Draw `n` points from the noise component: uniform in the stored bounding box."""
+        if self.noise_bounds_ is None:
+            raise RuntimeError("noise_bounds_ is not set; fit the model first.")
+        lo, hi = self.noise_bounds_[0], self.noise_bounds_[1]
+        u = torch.rand(n, self.n_features, dtype=lo.dtype, device=lo.device)
+        return lo + (hi - lo) * u
+
+    def _prepare_noise(self, X: torch.Tensor) -> Optional[torch.Tensor]:
+        r"""
+        Fit-time setup for `noise=True`: store the bounding box and resolve
+        `noise_init` into a boolean mask over the rows of `X` (or `None`).
+        """
+        if self._noise_uses_bbox:
+            self.noise_bounds_ = torch.stack([X.min(dim=0).values, X.max(dim=0).values]).detach()
+        init = self.noise_init
+        if init is None:
+            return None
+        if not torch.is_tensor(init):
+            init = torch.as_tensor(init)
+        init = init.to(self.device)
+        if init.dim() != 1 or init.shape[0] != X.shape[0]:
+            raise ValueError(
+                f"noise_init must be a 1D array of length n_samples={X.shape[0]}, got shape {tuple(init.shape)}."
+            )
+        mask = init if init.dtype == torch.bool else (init == -1)
+        if bool(mask.all()):
+            raise ValueError("noise_init flags every row as noise; at least some rows must be clustered.")
+        return mask
+
+    def _init_noise_weights(self, noise_mask: Optional[torch.Tensor]):
+        r"""After `_allocate_parameters`: set `pi_0` and rescale `weights_` to sum to `1 - pi_0`."""
+        if noise_mask is not None:
+            pi0 = min(max(noise_mask.double().mean().item(), 1e-3), 0.9)
+        else:
+            pi0 = self.noise_prior
+        self.noise_weight_ = torch.tensor(pi0, dtype=self.weights_.dtype, device=self.weights_.device)
+        self.weights_ = self.weights_ * (1.0 - self.noise_weight_)
+
+    def _split_noise(self, resp: torch.Tensor):
+        r"""`(resp[:, :K], resp[:, K])` when noise is on, else `(resp, None)`."""
+        if not self.noise:
+            return resp, None
+        return resp[:, :-1], resp[:, -1]
+
+    def _check_noise_supported(self, labels=None):
+        if not self.noise:
+            return
+        if labels is not None:
+            raise NotImplementedError(
+                "noise=True does not support fit(X, labels=...): a point cannot be labelled as known "
+                "noise in v0.5 (-1 already means 'unlabelled')."
+            )
+        if self.algorithm in ('em', 'cem') and self.step_size is not None:
+            raise NotImplementedError(
+                "noise=True does not support online EM (step_size set); use algorithm='saem' or batch_size alone."
+            )
 
     # ===================================================================
     # Abstract methods -- every subclass implements these
@@ -243,11 +354,14 @@ class BaseMixture(nn.Module, ABC):
     # extra keys an override adds, no further changes needed anywhere else.
     # ===================================================================
     def _get_param_snapshot(self) -> dict:
-        return {
+        snapshot = {
             'weights_': self.weights_.clone(),
             'means_': self.means_.clone(),
             'covariances_': self.covariances_.clone(),
         }
+        if self.noise:
+            snapshot['noise_weight_'] = self.noise_weight_.clone()
+        return snapshot
 
     def _apply_snapshot(self, snapshot: dict):
         for key, value in snapshot.items():
@@ -271,8 +385,15 @@ class BaseMixture(nn.Module, ABC):
     # M-step
     # ===================================================================
     def _m_step(self, X: torch.Tensor, resp: torch.Tensor):
-        r"""Thin wrapper over `_compute_stats`/`_m_step_from_stats`."""
-        self._m_step_from_stats(self._compute_stats(X, resp, batch_size=self.batch_size))
+        r"""Thin wrapper over `_compute_stats`/`_m_step_from_stats`.
+
+        With `noise=True`, `resp` has an extra last (noise) column: the K
+        components are updated from `resp[:, :K]` and `pi_0` is the mean
+        noise responsibility."""
+        resp_k, resp_noise = self._split_noise(resp)
+        self._m_step_from_stats(self._compute_stats(X, resp_k, batch_size=self.batch_size))
+        if resp_noise is not None:
+            self.noise_weight_ = (resp_noise.sum() / resp.shape[0]).to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
 
     # ===================================================================
     # E-step, C-step, S-step
@@ -310,6 +431,9 @@ class BaseMixture(nn.Module, ABC):
         log_prob = self._component_log_prob(X)
         log_weights = torch.log(self.weights_ + 1e-20)
         log_prob = log_prob + log_weights.unsqueeze(0)
+        if self.noise:
+            noise_col = torch.log(self.noise_weight_ + 1e-20) + self._noise_log_density(X)
+            log_prob = torch.cat([log_prob, noise_col.unsqueeze(1).to(log_prob.dtype)], dim=1)
         if beta != 1.0:
             log_prob = beta * log_prob
 
@@ -468,6 +592,8 @@ class BaseMixture(nn.Module, ABC):
             z_onehot = self._s_step(resp)
 
             nk = z_onehot.sum(dim=0)
+            if self.noise:
+                nk = nk[:-1]  # the noise column is never "empty" in the re-seeding sense
             empty_mask = nk < 1
             if torch.any(empty_mask):
                 n_empty_this_sweep = self._reseed_empty_components(X, log_prob_norm, empty_mask)
@@ -589,6 +715,7 @@ class BaseMixture(nn.Module, ABC):
         prev_lower_bound = -float("inf")
         prev_prev_lower_bound = None
         running_stats = None
+        running_noise = None
 
         resp, log_prob_norm = self._e_step(X)
         self.lower_bound_ = log_prob_norm.mean().item()
@@ -596,15 +723,21 @@ class BaseMixture(nn.Module, ABC):
 
         for n_iter in range(max_iter):
             z_onehot = self._s_step(resp)
-            batch_stats = self._compute_stats(X, z_onehot, batch_size=self.batch_size)
+            z_k, z_noise = self._split_noise(z_onehot)
+            batch_stats = self._compute_stats(X, z_k, batch_size=self.batch_size)
             gamma = gamma_fn(n_iter)
 
             if running_stats is None:
                 running_stats = batch_stats
+                running_noise = None if z_noise is None else z_noise.sum() / n_samples
             else:
                 running_stats = self._blend_stats(running_stats, batch_stats, gamma, n_samples, new_scale=1.0)
+                if z_noise is not None:
+                    running_noise = (1.0 - gamma) * running_noise + gamma * (z_noise.sum() / n_samples)
 
             self._m_step_from_stats(running_stats)
+            if z_noise is not None:
+                self.noise_weight_ = running_noise.to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
 
             if self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
                 self.converged_ = True
@@ -642,6 +775,10 @@ class BaseMixture(nn.Module, ABC):
                 "partial_fit requires the model to already be initialized -- call "
                 "fit() on a first batch, or set weights_/means_/covariances_ "
                 "explicitly, before the first partial_fit call."
+            )
+        if self.noise:
+            raise NotImplementedError(
+                "partial_fit is not supported with noise=True (online EM does not track the noise weight)."
             )
         X_batch = X_batch.to(self.device)
         if X_batch.dim() == 1:
@@ -707,6 +844,9 @@ class BaseMixture(nn.Module, ABC):
         if X.shape[1] != self.n_features:
             raise ValueError(f"X has {X.shape[1]} features, but expected {self.n_features}.")
 
+        self._check_noise_supported(labels)
+        noise_mask = self._prepare_noise(X) if self.noise else None
+
         # ===============================================================
         # (Semi-)supervised fitting (Phase 5): bypass the unsupervised
         # n_init loop below entirely. See the Phase 5 design doc.
@@ -755,7 +895,10 @@ class BaseMixture(nn.Module, ABC):
                     torch.cuda.manual_seed_all(current_random_state)
 
             if not warm_start or not self.fitted_ or init_idx > 0:
-                self._allocate_parameters(X, set_random_state=False)
+                X_init = X if noise_mask is None else X[~noise_mask]
+                self._allocate_parameters(X_init, set_random_state=False)
+                if self.noise:
+                    self._init_noise_weights(noise_mask)
 
             self._fit_single_run(X, max_iter, tol, run_idx=init_idx)
 
@@ -1199,10 +1342,14 @@ class BaseMixture(nn.Module, ABC):
         elif not self.converged_:
             warnings.warn("Model did not converge. Results may be unreliable.", UserWarning)
         resp, _ = self._e_step(X.to(self.device))
-        return torch.argmax(resp, dim=1)
+        labels = torch.argmax(resp, dim=1)
+        if self.noise:
+            labels = torch.where(labels == resp.shape[1] - 1, torch.full_like(labels, -1), labels)
+        return labels
 
     def predict_proba(self, X: torch.Tensor) -> torch.Tensor:
-        r"""Soft cluster assignment (responsibilities)."""
+        r"""Soft cluster assignment (responsibilities); shape `(n, K + 1)` with `noise=True`
+        (the last column is the noise responsibility, see `noise_proba`)."""
         import warnings
         if not self.fitted_:
             warnings.warn("Model has not been fitted. Results may be unreliable.", UserWarning)
@@ -1210,6 +1357,12 @@ class BaseMixture(nn.Module, ABC):
             warnings.warn("Model did not converge. Results may be unreliable.", UserWarning)
         resp, _ = self._e_step(X.to(self.device))
         return resp
+
+    def noise_proba(self, X: torch.Tensor) -> torch.Tensor:
+        r"""Posterior probability that each row of `X` is noise, shape `(n,)` (needs `noise=True`)."""
+        if not self.noise:
+            raise RuntimeError("noise_proba requires a model constructed with noise=True.")
+        return self.predict_proba(X)[:, -1]
 
     def predict_class(self, X: torch.Tensor) -> torch.Tensor:
         r"""
@@ -1310,13 +1463,24 @@ class BaseMixture(nn.Module, ABC):
         samples : torch.Tensor, shape (n_samples, n_features)
         component_indices : torch.Tensor, shape (n_samples,)
         """
-        component_indices = torch.multinomial(self.weights_, n_samples, replacement=True)
+        if self.noise:
+            probs = torch.cat([self.weights_, self.noise_weight_.reshape(1)])
+            component_indices = torch.multinomial(probs, n_samples, replacement=True)
+        else:
+            component_indices = torch.multinomial(self.weights_, n_samples, replacement=True)
         samples = torch.empty(n_samples, self.n_features, dtype=self.dtype, device=self.device)
-        for k in range(self.n_components_ or self.n_components):
+        K = self.n_components_ or self.n_components
+        for k in range(K):
             mask = component_indices == k
             count = int(mask.sum().item())
             if count > 0:
                 samples[mask] = self._sample_component(k, count)
+        if self.noise:
+            noise_mask = component_indices == K
+            count = int(noise_mask.sum().item())
+            if count > 0:
+                samples[noise_mask] = self._sample_noise(count).to(samples.dtype)
+            component_indices = torch.where(noise_mask, torch.full_like(component_indices, -1), component_indices)
         return samples, component_indices
 
     # ===================================================================

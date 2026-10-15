@@ -260,6 +260,23 @@ class GaussianMixture(BaseMixture):
     init_k : int or None, optional
         Gibbs mode only: number of components to seed the sampler with.
         Ignored in EM mode. (default: None)
+    noise : bool, optional
+        Add a uniform **noise component** (Banfield & Raftery, 1993): a parameter-free
+        extra mixture component with density `1 / V`. Responsibilities then have shape
+        `(n_samples, n_components + 1)` (last column = noise), `predict` returns `-1` for
+        points the noise component explains best, and `weights_` holds the component
+        weights, which sum to `1 - noise_weight_`. Not supported with Gibbs mode,
+        `labels=`, online EM / `partial_fit`, `weight_concentration_prior` or constrained
+        `sample`. (default: False)
+    noise_volume : 'bbox' or float, optional
+        Volume `V` of the noise region: the bounding box of the fit data, or a user-supplied
+        hypervolume. Ignored by `VonMisesFisherMixture` (uniform on the sphere). (default: 'bbox')
+    noise_prior : float, optional
+        Initial noise weight `pi_0`, in `(0, 1)`. (default: 0.05)
+    noise_init : array-like, optional
+        Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
+        with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
+        parameters are computed from the unflagged rows. (default: None)
     verbose : bool, optional
         If True, print progress during EM iterations. (default: False)
     verbose_interval : int, optional
@@ -397,6 +414,12 @@ class GaussianMixture(BaseMixture):
         components_per_class: Union[int, dict] = 1,
         unlabeled_weight: float = 1.0,
         label_confidence: float = 1.0,
+
+        # Uniform noise component (v0.5 item 1.1; see BaseMixture._init_noise)
+        noise: bool = False,
+        noise_volume: Union[str, float] = 'bbox',
+        noise_prior: float = 0.05,
+        noise_init=None,
 
         # Prior parameters for MAP estimation (EM mode) / required NIW prior (Gibbs mode)
         weight_concentration_prior: torch.Tensor = None,
@@ -583,6 +606,17 @@ class GaussianMixture(BaseMixture):
         if not (0.0 <= label_confidence <= 1.0):
             raise ValueError(f"label_confidence must be in [0, 1], got {label_confidence}.")
         self.label_confidence = label_confidence
+
+        self._init_noise(noise, noise_volume, noise_prior, noise_init)
+        if self.noise and n_components is None:
+            raise NotImplementedError(
+                "noise=True is not supported in Gibbs mode (n_components=None); use a fixed n_components."
+            )
+        if self.noise and weight_concentration_prior is not None:
+            raise ValueError(
+                "noise=True cannot be combined with weight_concentration_prior: a Dirichlet prior over the "
+                "K component weights has no counterpart once the noise weight is part of the mixture."
+            )
 
         self.classes_ = None
         self.class_of_component_ = None
@@ -3096,7 +3130,8 @@ class GaussianMixture(BaseMixture):
 
         mean_params = n_features * n_components
         weight_params = n_components - 1
-        return int(cov_params + mean_params + weight_params)
+        noise_params = 1 if self.noise else 0  # the noise weight pi_0
+        return int(cov_params + mean_params + weight_params + noise_params)
 
     def _active_score(self, X: torch.Tensor) -> float:
         r"""
@@ -3290,6 +3325,17 @@ class GaussianMixture(BaseMixture):
             warnings.warn("GMM has not been fitted. Results may be unreliable.", UserWarning)
         elif not self.converged_:
             warnings.warn("GMM did not converge. Results may be unreliable.", UserWarning)
+
+        # With noise=True only plain sampling is supported: noise draws (index -1) come from
+        # BaseMixture.sample; constrained/rejection sampling has no meaning for the noise column.
+        if self.noise:
+            if any(v is not None for v in (component, std_radius, std_range, confidence,
+                                           confidence_range, center_point, center_radius)):
+                raise NotImplementedError(
+                    "Constrained sampling (component=, std_radius=, std_range=, confidence=, "
+                    "confidence_range=, center_point=/center_radius=) is not supported with noise=True."
+                )
+            return BaseMixture.sample(self, n_samples)
 
         # ===============================================================
         # 2. Validate constraint parameter combinations
@@ -3785,6 +3831,11 @@ class GaussianMixture(BaseMixture):
             'burn_in': self.burn_in,
             'weight_threshold': self.weight_threshold,
             'init_k': self.init_k,
+            'noise': self.noise,
+            'noise_volume': self.noise_volume,
+            'noise_prior': self.noise_prior,
+            'noise_weight_': self.noise_weight_,
+            'noise_bounds_': self.noise_bounds_,
 
             # ===============================================================
             # Training state
@@ -3905,7 +3956,12 @@ class GaussianMixture(BaseMixture):
             burn_in=state_dict.get('burn_in'),
             weight_threshold=state_dict.get('weight_threshold'),
             init_k=state_dict.get('init_k'),
+            noise=state_dict.get('noise', False),
+            noise_volume=state_dict.get('noise_volume', 'bbox'),
+            noise_prior=state_dict.get('noise_prior', 0.05),
         )
+        model.noise_weight_ = state_dict.get('noise_weight_')
+        model.noise_bounds_ = state_dict.get('noise_bounds_')
 
         # ===============================================================
         # Load trained parameters and state
@@ -4008,6 +4064,11 @@ class GaussianMixture(BaseMixture):
             'burn_in': self.burn_in,
             'weight_threshold': self.weight_threshold,
             'init_k': self.init_k,
+            'noise': self.noise,
+            'noise_volume': self.noise_volume,
+            'noise_prior': self.noise_prior,
+            'noise_weight_': self.noise_weight_,
+            'noise_bounds_': self.noise_bounds_,
 
             # ===============================================================
             # Training state
@@ -4115,6 +4176,11 @@ class GaussianMixture(BaseMixture):
         self.burn_in = state_dict.get('burn_in')
         self.weight_threshold = state_dict.get('weight_threshold')
         self.init_k = state_dict.get('init_k')
+        self.noise = state_dict.get('noise', False)
+        self.noise_volume = state_dict.get('noise_volume', 'bbox')
+        self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.noise_weight_ = state_dict.get('noise_weight_')
+        self.noise_bounds_ = state_dict.get('noise_bounds_')
 
         # ===============================================================
         # Load parameters

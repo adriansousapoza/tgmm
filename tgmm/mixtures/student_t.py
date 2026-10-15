@@ -135,6 +135,24 @@ class StudentTMixture(BaseMixture):
     batch_size, temperature, convergence, step_size, sem_burn_in,
     sem_estimate, verbose, verbose_interval, device : see `BaseMixture`.
 
+    noise : bool, optional
+        Add a uniform **noise component** (Banfield & Raftery, 1993): a parameter-free
+        extra mixture component with density `1 / V`. Responsibilities then have shape
+        `(n_samples, n_components + 1)` (last column = noise), `predict` returns `-1` for
+        points the noise component explains best, and `weights_` holds the component
+        weights, which sum to `1 - noise_weight_`. Not supported with Gibbs mode,
+        `labels=`, online EM / `partial_fit`, `weight_concentration_prior` or constrained
+        `sample`. (default: False)
+    noise_volume : 'bbox' or float, optional
+        Volume `V` of the noise region: the bounding box of the fit data, or a user-supplied
+        hypervolume. Ignored by `VonMisesFisherMixture` (uniform on the sphere). (default: 'bbox')
+    noise_prior : float, optional
+        Initial noise weight `pi_0`, in `(0, 1)`. (default: 0.05)
+    noise_init : array-like, optional
+        Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
+        with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
+        parameters are computed from the unflagged rows. (default: None)
+
     Attributes
     ----------
     weights_ : torch.Tensor, shape (n_components,)
@@ -175,6 +193,10 @@ class StudentTMixture(BaseMixture):
         components_per_class=1,
         unlabeled_weight: float = 1.0,
         label_confidence: float = 1.0,
+        noise: bool = False,
+        noise_volume='bbox',
+        noise_prior: float = 0.05,
+        noise_init=None,
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -187,6 +209,7 @@ class StudentTMixture(BaseMixture):
             step_size=step_size, sem_burn_in=sem_burn_in, sem_estimate=sem_estimate,
             components_per_class=components_per_class, unlabeled_weight=unlabeled_weight,
             label_confidence=label_confidence,
+            noise=noise, noise_volume=noise_volume, noise_prior=noise_prior, noise_init=noise_init,
             verbose=verbose, verbose_interval=verbose_interval, device=device,
         )
 
@@ -524,7 +547,8 @@ class StudentTMixture(BaseMixture):
 
         mean_params = K * d
         weight_params = K - 1
-        return int(cov_params + mean_params + weight_params + dof_params)
+        noise_params = 1 if self.noise else 0
+        return int(cov_params + mean_params + weight_params + dof_params + noise_params)
 
     def _sample_component(self, k: int, n: int) -> torch.Tensor:
         d = self.n_features
@@ -599,6 +623,11 @@ class StudentTMixture(BaseMixture):
             'sem_estimate': self.sem_estimate,
             'verbose': self.verbose,
             'verbose_interval': self.verbose_interval,
+            'noise': self.noise,
+            'noise_volume': self.noise_volume,
+            'noise_prior': self.noise_prior,
+            'noise_weight_': self.noise_weight_,
+            'noise_bounds_': self.noise_bounds_,
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
@@ -633,7 +662,11 @@ class StudentTMixture(BaseMixture):
             temperature=state['temperature'], convergence=state['convergence'], step_size=state['step_size'],
             sem_burn_in=state['sem_burn_in'], sem_estimate=state['sem_estimate'],
             verbose=state['verbose'], verbose_interval=state['verbose_interval'], device=device,
+            noise=state.get('noise', False), noise_volume=state.get('noise_volume', 'bbox'),
+            noise_prior=state.get('noise_prior', 0.05),
         )
+        model.noise_weight_ = state.get('noise_weight_')
+        model.noise_bounds_ = state.get('noise_bounds_')
         model.weights_ = state['weights_']
         model.means_ = state['means_']
         model.covariances_ = state['covariances_']
@@ -651,6 +684,11 @@ class StudentTMixture(BaseMixture):
 
     def load_state_dict(self, state_dict: dict):
         r"""In-place counterpart to `load`: restores this instance's fitted state from `state_dict`."""
+        self.noise = state_dict.get('noise', False)
+        self.noise_volume = state_dict.get('noise_volume', 'bbox')
+        self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.noise_weight_ = state_dict.get('noise_weight_')
+        self.noise_bounds_ = state_dict.get('noise_bounds_')
         self.weights_ = state_dict['weights_']
         self.means_ = state_dict['means_']
         self.covariances_ = state_dict['covariances_']

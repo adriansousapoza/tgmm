@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (v0.5 Phase 1.1: uniform noise component)
+
+- `noise=True` on `GaussianMixture` (all 14 covariance codes), `StudentTMixture` and `VonMisesFisherMixture`:
+  an extra, parameter-free uniform component (Banfield & Raftery, 1993). New arguments `noise_volume`
+  (`'bbox'` or a float hypervolume; the sphere's surface area for vMF), `noise_prior` (initial noise weight)
+  and `noise_init` (initial noise mask, or `HDBSCAN` labels with `-1` = noise). Responsibilities and
+  `predict_proba` gain a last column; `predict` returns `-1` for noise; new `noise_proba(X)`,
+  `noise_weight_`, `noise_bounds_`; `sample` draws noise points (index `-1`); `bic`/`aic`/`icl`/`select_model`
+  count the extra weight. Works with `em`/`cem`/`sem`/`saem`, `temperature`, `batch_size`, `n_init`,
+  `warm_start` and save/load. Not supported (raises): Gibbs mode, `labels=`, online EM/`partial_fit`,
+  `weight_concentration_prior`, constrained `sample`. Default fits are bit-identical with `noise=False`.
+  Design: `docs/superpowers/specs/2026-10-15-v05-noise-component-design.md`.
+
 ### Changed (tutorials are marimo notebooks)
 
 - The 18 tutorials are now [marimo](https://marimo.io) notebooks, `notebooks/NN_name.py` (the only committed form);
