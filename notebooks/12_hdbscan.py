@@ -235,7 +235,9 @@ def _(HDBSCAN, SEED, device, generate_gmm_data, np, plot_gmm, plt):
     # Generate complex data with noise
     n_samples_complex = [150, 100, 80, 50]
     centers_complex = [np.array([0, 0]), np.array([3, 3]), np.array([0, 3]), np.array([3, 0])]
-    covs_complex = [0.4 * np.eye(2) for _ in range(4)]
+    # Variance 0.16 per axis (std 0.4): four well-separated blobs of 150/100/80/50 points, so that raising
+    # min_cluster_size past 50, 80 and 100 removes the smallest clusters one by one.
+    covs_complex = [0.16 * np.eye(2) for _ in range(4)]
     X_complex, y_complex = generate_gmm_data(centers_complex, covs_complex, n_samples_complex, device=device, random_state=SEED)
     # The smallest true cluster has 50 points, so anything below that won't change what counts as a
     # valid cluster: 10 and 30 would look identical. 70 and 100 cross the size of progressively larger true clusters.

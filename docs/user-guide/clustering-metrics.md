@@ -25,7 +25,7 @@ mode -- not `ClusteringMetrics` calls. See [Model Selection](#model-selection) b
 
 **Supervised** (requires ground truth labels):
 - Rand Index / Adjusted Rand Index (ARI)
-- Mutual Information / Normalized (NMI) / Adjusted (AMI, approximate) Mutual Information
+- Mutual Information / Normalized (NMI) / Adjusted (AMI) Mutual Information
 - Purity
 - Fowlkes-Mallows, Homogeneity, Completeness, V-Measure (weighted via `beta`)
 - Normalized Information Distance (NID)
@@ -334,15 +334,23 @@ NMI uses the arithmetic-mean normalization and lies in $[0, 1]$ (all in
 nats). The **AMI** (`adjusted_mutual_info_score`) is meant to correct MI for
 chance, $\mathrm{AMI} = \dfrac{\mathrm{MI} - \mathbb{E}[\mathrm{MI}]}{\tfrac12(H(U)+H(V)) - \mathbb{E}[\mathrm{MI}]}$.
 
-!!! warning "AMI is an approximation"
-    The exact $\mathbb{E}[\mathrm{MI}]$ under the hypergeometric model
-    (Vinh, Epps & Bailey, 2010) is an expensive triple sum. tgmm replaces it
-    with the rough approximation $\mathbb{E}[\mathrm{MI}] \approx H(U)H(V)/n$,
-    so `adjusted_mutual_info_score` is **not** numerically equal to
-    scikit-learn's. It still behaves like a chance-corrected score (near $0$
-    for random labelings, $1$ for identical ones), but use scikit-learn's
-    implementation if you need exact AMI values. NMI and ARI, in contrast,
-    match scikit-learn.
+The chance correction uses the **exact** expected mutual information under the
+permutation (hypergeometric) model of Vinh, Epps & Bailey (2010), with row sums
+$a_i$ and column sums $b_j$:
+
+$$
+\mathbb{E}[\mathrm{MI}] = \sum_{i,j}\ \sum_{n_{ij}=\max(1,\,a_i+b_j-n)}^{\min(a_i,\,b_j)}
+\frac{n_{ij}}{n}\ln\frac{n\,n_{ij}}{a_ib_j}\;
+\frac{a_i!\,b_j!\,(n-a_i)!\,(n-b_j)!}{n!\,n_{ij}!\,(a_i-n_{ij})!\,(b_j-n_{ij})!\,(n-a_i-b_j+n_{ij})!}.
+$$
+
+The summand depends only on $(a_i, b_j)$, so tgmm groups equal cluster sizes and
+evaluates each distinct pair once, vectorised over $n_{ij}$ with log-gamma in
+float64 (adapted from scikit-learn's `expected_mutual_information`, BSD-3).
+`adjusted_mutual_info_score` and `normalized_mutual_info_score` take
+`average_method` (`'arithmetic'` by default, `'min'`, `'max'`, `'geometric'`) and
+agree with scikit-learn to about $10^{-8}$ or better; the exact expectation is exposed as
+`ClusteringMetrics.expected_mutual_information(contingency)`.
 
 **Range**: NMI in [0, 1]; AMI $\lesssim 1$, may be slightly negative
 **Interpretation**: Higher is better
@@ -430,11 +438,13 @@ conf_matrix = ClusteringMetrics.confusion_matrix(true_labels, pred_labels)
 print(conf_matrix)
 ```
 
-Rows and columns are both indexed by the distinct values of
-`true_labels`, so it assumes predicted cluster ids have already been aligned
-to the true class ids (cluster ids are arbitrary in clustering: align them
-first, e.g. by the Hungarian algorithm). Predicted ids that don't occur in
-`true_labels` are not counted in any column.
+Rows (true labels) and columns (predicted labels) are both indexed by the sorted
+**union** of the labels present in `true_labels` and `pred_labels`, so a
+predicted id that never occurs in `true_labels` gets its own (all-zero) row and a
+column instead of being silently dropped. Pass `labels=[...]` to fix the order
+(and, as in scikit-learn, to ignore samples with other labels). Cluster ids are
+arbitrary in clustering, so align them to the class ids first (e.g. by the
+Hungarian algorithm) if you want the diagonal to mean "correct".
 
 ### Classification Report (Precision / Recall / F1)
 
@@ -451,7 +461,8 @@ $$
 Returns a dict keyed by class label, each with `precision`, `recall`,
 `f1-score`, `support`, `jaccard`, and `roc_auc`. Like the confusion matrix,
 it matches predicted and true labels by *value*, so align cluster ids to
-class ids first.
+class ids first. The classes are the sorted union of the true and predicted
+labels; a label that is only ever predicted is listed with `support` 0.
 
 ```python
 report = ClusteringMetrics.classification_report(true_labels, pred_labels)
@@ -459,14 +470,15 @@ for label, scores in report.items():
     print(f"Class {label}: F1={scores['f1-score']:.3f}, precision={scores['precision']:.3f}, recall={scores['recall']:.3f}")
 ```
 
-!!! warning "`roc_auc` is a naive hard-label AUC"
-    `ClusteringMetrics.roc_auc_score` is computed from the *binary*
-    one-vs-rest predictions (not from probabilities), where a ROC curve has
-    a single operating point; the value is the area of a step path that
-    depends on how tied predictions happen to be ordered, and does not equal
-    the textbook value (for binary predictions, $(\mathrm{TPR} +
-    \mathrm{TNR})/2$). Treat the `roc_auc` entry as indicative only; for
-    a real AUC pass `predict_proba` outputs to `sklearn.metrics.roc_auc_score`.
+!!! note "`roc_auc` is the AUC of the hard predictions"
+    `ClusteringMetrics.roc_auc_score` is the rank-based (Mann-Whitney) AUC
+    with average ranks for ties,
+    $\mathrm{AUC}=\bigl(\sum_{i:\,y_i=1}\mathrm{rank}(s_i)-n_+(n_++1)/2\bigr)/(n_+n_-)$,
+    so it equals `sklearn.metrics.roc_auc_score` and does not depend on the order of
+    the samples. In `classification_report` it is applied to the *binary* one-vs-rest
+    predictions, where it reduces to $(\mathrm{TPR}+\mathrm{TNR})/2$ (balanced
+    accuracy); for a real AUC pass scores or probabilities to `roc_auc_score`
+    directly. It is `1.0` by convention when only one class is present.
 
 ### Other helpers
 

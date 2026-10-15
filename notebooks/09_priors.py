@@ -126,7 +126,7 @@ def _(device, np, plot_gmm, plt, torch):
     covs = [1.0 * np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
     components = []
     for n, center, _cov in zip(_n_samples, centers, covs):
-        _samples = np.dot(np.random.randn(n, 2), _cov) + center
+        _samples = np.random.randn(n, 2) @ np.linalg.cholesky(_cov).T + center
         components.append(_samples)  # spherical covariance
     X = np.vstack(components)  # spherical covariance, fewer points
     labels = np.concatenate([i * np.ones(n) for i, n in enumerate(_n_samples)])  # diagonal covariance

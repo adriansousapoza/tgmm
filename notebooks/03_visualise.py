@@ -185,7 +185,7 @@ def _(GaussianMixture, MAX_ITER, N_INIT, device, np, torch):
 
     _components = []
     for _n, _center, _cov in zip(n_samples, centers, covs):
-        _samples = np.dot(np.random.randn(_n, 2), _cov) + _center
+        _samples = np.random.randn(_n, 2) @ np.linalg.cholesky(_cov).T + _center
         _components.append(_samples)
 
     X = np.vstack(_components)

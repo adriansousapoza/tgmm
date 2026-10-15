@@ -108,7 +108,7 @@ def _(np, plot_gmm, plt):
     covs = [1.0 * np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
     components = []
     for n, center, cov in zip(_n_samples, centers, covs):
-        _samples = np.dot(np.random.randn(n, 2), cov) + center
+        _samples = np.random.randn(n, 2) @ np.linalg.cholesky(cov).T + center
         components.append(_samples)  # spherical covariance
     X = np.vstack(components)  # spherical covariance, fewer points
     _labels = np.concatenate([i * np.ones(n) for i, n in enumerate(_n_samples)])  # diagonal covariance

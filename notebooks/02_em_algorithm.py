@@ -572,7 +572,7 @@ def _(device, np, plt, torch):
     covs = [1.0 * np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
     _components = []
     for _n, _center, _cov in zip(n_samples, centers, covs):
-        _samples = np.dot(np.random.randn(_n, 2), _cov) + _center
+        _samples = np.random.randn(_n, 2) @ np.linalg.cholesky(_cov).T + _center
         _components.append(_samples)  # spherical covariance
     _X_np = np.vstack(_components)  # spherical covariance, fewer points
     labels = np.concatenate([_i * np.ones(_n) for _i, _n in enumerate(n_samples)])  # diagonal covariance
@@ -675,7 +675,7 @@ def _(mo):
     ### Running EM and Plotting Snapshots
 
     We refit from scratch for an increasing number of iterations (`max_iter=i`), snapshot at
-    iterations 0, 1, 5, and at convergence, and plot each snapshot as a row. Watch how the soft
+    iterations 1, 5, and at convergence, and plot each snapshot as a row. Watch how the soft
     responsibilities sharpen into confident hard assignments as the ellipses converge onto the four
     true blobs.
     """)

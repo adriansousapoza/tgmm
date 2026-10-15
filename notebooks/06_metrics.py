@@ -426,7 +426,7 @@ def _(mo):
     \text{AMI}(U,V) = \frac{\text{MI}(U,V) - \mathbb{E}[\text{MI}(U,V)]}{\tfrac{1}{2}\big(H(U) + H(V)\big) - \mathbb{E}[\text{MI}(U,V)]}
     $$
 
-    where the expectation is over random labelings with the same cluster sizes (the arithmetic-mean normalizer is scikit-learn's default). `tgmm` approximates $\mathbb{E}[\text{MI}]$ by $H(U)\,H(V)/N$ instead of computing the exact hypergeometric expectation, so its AMI can differ slightly from scikit-learn's -- the comparison table below shows by how much.
+    where the expectation is the exact hypergeometric expectation over random labelings with the same cluster sizes (Vinh, Epps & Bailey, 2010; the arithmetic-mean normalizer is scikit-learn's default, and `average_method` selects 'min', 'max' or 'geometric'). `tgmm` computes it exactly, so its AMI agrees with scikit-learn's to numerical precision -- the comparison table below shows it.
 
     ### Fowlkes-Mallows Index (FMI)
 
@@ -553,7 +553,7 @@ def _(mo):
     - BIC/AIC come from two independently fitted models (`tgmm`'s and scikit-learn's), so they agree only approximately
 
     **Key observations:**
-    - **Information-theoretic metrics** (MI, NMI, AMI) should be very close
+    - **Information-theoretic metrics** (MI, NMI, AMI) agree with scikit-learn to numerical precision
     - **Pairwise metrics** (RI, ARI, FMI) should match exactly for identical cluster assignments
     - **Geometric metrics** (Silhouette, Davies-Bouldin, Calinski-Harabasz) may show small differences due to distance computation methods
     """)
@@ -698,7 +698,7 @@ def _(mo):
     ## Summary
 
     - Unsupervised indices (Silhouette, Davies-Bouldin, Calinski-Harabasz, Dunn) and information criteria (BIC, AIC) can be swept over `n_components`, but they need not agree on the best $K$.
-    - Supervised indices compare a clustering with ground truth; `tgmm`'s versions can be checked directly against scikit-learn (AMI uses an approximate chance correction).
+    - Supervised indices compare a clustering with ground truth; `tgmm`'s versions can be checked directly against scikit-learn (AMI uses the exact chance correction).
     - Cluster indices are arbitrary, so predictions are matched to true classes before building a confusion matrix or classification report.
     - `kl_divergence_gmm` estimates $D_{KL}(P \parallel Q)$ between two fitted mixtures by Monte Carlo sampling.
 

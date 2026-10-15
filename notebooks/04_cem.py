@@ -249,7 +249,7 @@ def _(device, fit_and_evaluate_gmm, np, torch):
     _covs = [1.0 * np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
     _components = []
     for _n, _center, _cov in zip(_n_samples, _centers, _covs):
-        _samples = np.dot(np.random.randn(_n, 2), _cov) + _center
+        _samples = np.random.randn(_n, 2) @ np.linalg.cholesky(_cov).T + _center
         _components.append(_samples)
     X_sep = np.vstack(_components)
     labels_sep = np.concatenate([_i * np.ones(_n) for _i, _n in enumerate(_n_samples)])

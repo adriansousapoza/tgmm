@@ -97,6 +97,48 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   needs a sample-dependent scale and `nu + d_obs` degrees of freedom). Gibbs-mode and `noise=True` models raise.
   Design: `docs/superpowers/specs/2026-10-15-v05-marginal-condition-design.md`.
 
+### Fixed
+
+- `StudentTMixture(covariance_type='spherical')` divided the scale update by `n_k` instead of `d * n_k`, making the variance
+  `d` times too large (also under `missing='em'` and `sample_weight`).
+- `GaussianMixture` NIW update for `tied_spherical` added `reg_covar * n * d` instead of `reg_covar * d` to the scale matrix
+  (a ~1e-7 relative change).
+- Semi-supervised fitting: `weights_` summed to less than 1 when `unlabeled_weight < 1`, and labeled rows whose class-block
+  posterior underflowed (below `1e-20`) silently lost their responsibility mass. Weights are renormalised and those rows are
+  computed in log space.
+- k-means++ / k-means initialisation produced `NaN` for empty clusters and when `k` exceeded the number of distinct points,
+  and the empirical covariance init produced `NaN` for singleton clusters (e.g. `GaussianMixture(n_components=25,
+  algorithm='sem')` on ~180 points).
+- `save` / `load` / `to_dict` / `save_state_dict` / `load_state_dict` of `GaussianMixture`, `StudentTMixture` and
+  `VonMisesFisherMixture` now keep `components_per_class`, `unlabeled_weight`, `label_confidence`, `noise_init`, `classes_`
+  and `class_of_component_` (and vMF `missing`).
+- `generate_gmm_data` sampled `X = Z @ cov`, so a component's actual covariance was `cov.T @ cov` (the square of the
+  requested one). It now samples with a Cholesky factor, so `covs` really are the covariances. **Data generated with a given
+  `random_state` changes for any `covs` other than the identity**; pass the old effective covariance (`cov.T @ cov`) to
+  reproduce earlier data. Tutorials were re-run accordingly.
+- `ClusteringMetrics.roc_auc_score` is now the rank-based AUC with average ranks for ties (equal to scikit-learn, independent
+  of sample order); this also corrects the `roc_auc` entry of `classification_report`.
+- `ClusteringMetrics.confusion_matrix` no longer drops predicted labels that do not occur in `labels_true` (the matrix covers
+  the sorted union of labels; new optional `labels=`), and `classification_report` lists predicted-only labels with support 0.
+- `ClusteringMetrics.adjusted_mutual_info_score` uses the exact expected mutual information (Vinh, Epps & Bailey 2010) and
+  matches scikit-learn; it and `normalized_mutual_info_score` accept `average_method`; new `expected_mutual_information`.
+- `ClusteringMetrics.calinski_harabasz_score` computes in float64. Rand, ARI, MI, NMI and Fowlkes-Mallows use a float64
+  contingency table with exact entropies, accept non-contiguous labels and follow scikit-learn's edge cases; Fowlkes-Mallows
+  returns 0.0 instead of `nan` when no pair agrees.
+- `HDBSCAN(cluster_selection_epsilon=...)` was accepted but ignored; it now merges clusters born below the given distance,
+  following scikit-learn-contrib/hdbscan. `allow_single_cluster=True` now follows the reference (a root-only result labels only
+  points that stayed in the root until a high enough density, and `max_cluster_size` applies to the root); this changes results
+  for `allow_single_cluster=True`. `HDBSCAN` no longer raises `IndexError` for fewer points than `min_samples`. Docstring:
+  `min_cluster_size` defaults to 10 and `min_samples` counts the point itself (reference `min_samples=k-1`).
+- Packaging: `pip install tgmm` now installs everything `import tgmm` needs (scipy, matplotlib, seaborn, tqdm were missing) and
+  `python_requires` is `>=3.9`.
+- Docstrings: the Student-t and vMF class docstrings no longer claim supervised fitting is Gaussian-only, the ECME note says
+  ECM and ECME reach the same fit, and the MAP covariance docstrings describe what the code does.
+
+### Added (HDBSCAN)
+
+- `cluster_selection_method='leaf'` alongside `'eom'` (the default), combinable with `cluster_selection_epsilon`.
+
 ### Changed (tutorials are marimo notebooks)
 
 - The 18 tutorials are now [marimo](https://marimo.io) notebooks, `notebooks/NN_name.py` (the only committed form);
