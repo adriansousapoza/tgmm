@@ -99,6 +99,11 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `GaussianMixture(covariance_type='tied_spherical')`: the v0.4 sufficient-statistics refactor summed the pooled scatter per
+  component first, which differs from tgmm <= 0.3.0 in the last digit; iterated fits (training loops, warm starts) amplified that
+  into a different model. The single-reduction order of 0.3.0 is restored for the unchunked path, and fits are bit-identical to
+  0.3.0 again (float32 and float64). Other covariance types still differ from 0.3.0 at rounding level; see
+  `docs/superpowers/specs/2026-10-19-tied-spherical-summation-order.md`.
 - `StudentTMixture(covariance_type='spherical')` divided the scale update by `n_k` instead of `d * n_k`, making the variance
   `d` times too large (also under `missing='em'` and `sample_weight`).
 - `GaussianMixture` NIW update for `tied_spherical` added `reg_covar * n * d` instead of `reg_covar * d` to the scale matrix

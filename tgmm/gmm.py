@@ -2154,7 +2154,14 @@ class GaussianMixture(BaseMixture):
             ybar = s1 / (nk + 1e-20).unsqueeze(1)
             diff = X.unsqueeze(1) - ybar.unsqueeze(0)
             s2 = self._second_moment(resp, diff, base_type)
-            return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples)
+            aux = None
+            if self.covariance_type == 'tied_spherical':
+                # The pooled scatter as ONE reduction over samples, components and features, in the order
+                # tgmm <= 0.3.0 used. Summing the per-component `s2` instead gives the same number up to a
+                # last-digit rounding difference, which iterated fits (warm starts, training loops) amplify
+                # into a different model; see docs/superpowers/specs/2026-10-19-tied-spherical-summation-order.md.
+                aux = {'s2_total': torch.einsum('nk,nkd->', resp, diff.pow(2))}
+            return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples, aux=aux)
 
         n_components = resp.shape[1]
         nk = torch.zeros(n_components, device=X.device, dtype=X.dtype)
@@ -2793,7 +2800,11 @@ class GaussianMixture(BaseMixture):
 
     def _update_mle_tied_spherical(self, stats, nk, ybar):
         r"""MLE update for tied spherical covariance (single variance for all)."""
-        sum_diff = self._scatter_about_means(stats, nk, ybar).sum()
+        if stats.aux is not None and 's2_total' in stats.aux and not self.use_mean_prior:
+            # means_ == ybar here, so the pooled scatter about means_ is the single-reduction total
+            sum_diff = stats.aux['s2_total']
+        else:
+            sum_diff = self._scatter_about_means(stats, nk, ybar).sum()
         cov_tied_spherical = sum_diff / (nk.sum() * self.n_features)
         cov_tied_spherical = cov_tied_spherical + self.reg_covar
         self.covariances_ = cov_tied_spherical
