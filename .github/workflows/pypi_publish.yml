@@ -21,9 +21,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools wheel twine
 
+      - name: Check that the tag matches the package version
+        run: |
+          VERSION=$(grep -oP 'version="\K[^"]+' setup.py)
+          INIT_VERSION=$(grep -oP '__version__ = "\K[^"]+' tgmm/__init__.py)
+          echo "tag=$GITHUB_REF_NAME setup.py=$VERSION tgmm/__init__.py=$INIT_VERSION"
+          test "v$VERSION" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME does not match setup.py version $VERSION"; exit 1; }
+          test "$VERSION" = "$INIT_VERSION" || { echo "setup.py ($VERSION) and tgmm/__init__.py ($INIT_VERSION) disagree"; exit 1; }
+
       - name: Build package
         run: |
           python setup.py sdist bdist_wheel
+
+      - name: Check the distribution and smoke-test the built wheel
+        run: |
+          python -m twine check dist/*
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          /tmp/smoke/bin/pip install --quiet dist/*.whl
+          cd /tmp && /tmp/smoke/bin/python -c "import tgmm, torch; m = tgmm.GaussianMixture(n_components=2, random_state=0).fit(torch.randn(200, 2)); print('tgmm', tgmm.__version__, 'ok')"
 
       - name: Publish package
         env:
