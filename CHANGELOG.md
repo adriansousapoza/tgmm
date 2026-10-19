@@ -5,6 +5,14 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.1] -- 2026-10-19
+
+Supersedes 0.4.0. It fixes numerical and correctness bugs found after the 0.4.0 release (Student-t spherical variance,
+semi-supervised weights, metrics against scikit-learn, HDBSCAN `cluster_selection_epsilon`, the data generator, packaging,
+`tied_spherical` summation order), adds the first v0.5 features (uniform noise component, missing-value EM, marginal /
+conditional, frozen components and sample weights, the component protocol and `GenericMixture`), and moves the tutorials to
+marimo notebooks. Users of 0.4.0 should upgrade; fits can differ at rounding level, and a few results change (see *Fixed*).
+
 ### Added (v0.5 Phase 1.6: documentation and acceptance)
 
 - User-guide page "Noise, Missing Values and Conditioning" (equations for the uniform noise component, missing-value EM,
@@ -186,6 +194,8 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   objective at the updated parameters (it previously used a stale inverse).
 
 ## [0.4.0] -- 2026-10-14
+
+> Superseded by 0.4.1, which fixes bugs found after this release (see the *Fixed* section there).
 
 ### Added (Phase 5: semi-supervised and positive-unlabeled fitting)
 
