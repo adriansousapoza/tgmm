@@ -2,170 +2,210 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/contributing/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/base-mixture/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/clustering-metrics/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/api/conditional-gaussian-mixture/</loc>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/covariance-gpcm/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/gaussian-mixture/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/api/generic-mixture/</loc>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/gmm-initializer/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/model-selection/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/plotting/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/positive-unlabeled-mixture/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/student-t-mixture/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/sufficient-stats/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/api/vmf-mixture/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/assets/em_animation/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/assets/logo_generator/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/explainers/annealing/</loc>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/explainers/data-designer/</loc>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/explainers/em-stepper/</loc>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/explainers/gpcm-shapes/</loc>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/explainers/metrics-intuition/</loc>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/getting-started/installation/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/getting-started/quickstart/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/01_gmm/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/02_em_algorithm/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/03_visualise/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/04_cem/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/05_supervised_gmm/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/06_metrics/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/07_sampling/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/08_pca_plotting/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/09_priors/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/10_niw_priors_comparison/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/11_dpgmm/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/12_hdbscan/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/13_model_selection/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/notebooks/14_stochastic_em/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
-         <loc>https://adriansousapoza.github.io/tgmm/notebooks/15_gpcm_models/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/15_covariance_models/</loc>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
-         <loc>https://adriansousapoza.github.io/tgmm/notebooks/16_student_t_and_vmf/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/16_student_t/</loc>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
-         <loc>https://adriansousapoza.github.io/tgmm/notebooks/17_semi_supervised_pu/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/17_von_mises_fisher/</loc>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/18_semi_supervised_pu/</loc>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/notebooks/19_noise_missing_conditioning/</loc>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/tutorials/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/clustering-metrics/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/gmm-initializer/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/gpcm-covariance-models/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
+    </url>
+    <url>
+         <loc>https://adriansousapoza.github.io/tgmm/user-guide/noise-missing-conditioning/</loc>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/other-mixture-families/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/plotting/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
     <url>
          <loc>https://adriansousapoza.github.io/tgmm/user-guide/semi-supervised-pu/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <lastmod>2026-10-20</lastmod>
     </url>
 </urlset>

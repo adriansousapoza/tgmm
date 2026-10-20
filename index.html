@@ -63,7 +63,28 @@
 
     
     
-  </head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
   
   
     
@@ -82,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#tgmm-gaussian-mixture-models-in-pytorch" class="md-skip">
+        <a href="#tgmm-mixture-models-in-pytorch" class="md-skip">
           Skip to content
         </a>
       
@@ -315,6 +336,26 @@
     
     
       <li class="md-tabs__item">
+        <a href="explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
         <a href="api/gaussian-mixture/" class="md-tabs__link">
           
   
@@ -513,10 +554,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-bayesian-inference-with-priors" class="md-nav__link">
+  <a href="#2-other-mixture-families" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Bayesian Inference with Priors
+        2. Other mixture families
       
     </span>
   </a>
@@ -524,10 +565,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-clustering-metrics" class="md-nav__link">
+  <a href="#3-semi-supervised-and-positive-unlabeled-learning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Clustering Metrics
+        3. Semi-supervised and positive-unlabeled learning
       
     </span>
   </a>
@@ -535,10 +576,54 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-visualization-tools" class="md-nav__link">
+  <a href="#4-noise-missing-values-and-conditioning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Visualization Tools
+        4. Noise, missing values and conditioning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-clustering-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Clustering metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-density-based-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Density-based clustering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Building blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Visualization
       
     </span>
   </a>
@@ -861,6 +946,34 @@
     
   
     Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="user-guide/noise-missing-conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
   
 
     
@@ -1446,14 +1559,14 @@
   
   
     <li class="md-nav__item">
-      <a href="notebooks/15_gpcm_models/" class="md-nav__link">
+      <a href="notebooks/15_covariance_models/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    15. GPCM Covariance Models
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
   
 
     
@@ -1474,14 +1587,14 @@
   
   
     <li class="md-nav__item">
-      <a href="notebooks/16_student_t_and_vmf/" class="md-nav__link">
+      <a href="notebooks/16_student_t/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16. Student-t and von Mises-Fisher Mixtures
+    16. Student-t Mixtures
   
 
     
@@ -1502,14 +1615,70 @@
   
   
     <li class="md-nav__item">
-      <a href="notebooks/17_semi_supervised_pu/" class="md-nav__link">
+      <a href="notebooks/17_von_mises_fisher/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    17. Semi-Supervised and Positive-Unlabeled Fitting
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
   
 
     
@@ -1562,7 +1731,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Explainers
   
 
     
@@ -1575,6 +1744,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1683,6 +2053,62 @@
     
   
     tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
   
 
     
@@ -2009,10 +2435,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-bayesian-inference-with-priors" class="md-nav__link">
+  <a href="#2-other-mixture-families" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Bayesian Inference with Priors
+        2. Other mixture families
       
     </span>
   </a>
@@ -2020,10 +2446,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-clustering-metrics" class="md-nav__link">
+  <a href="#3-semi-supervised-and-positive-unlabeled-learning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Clustering Metrics
+        3. Semi-supervised and positive-unlabeled learning
       
     </span>
   </a>
@@ -2031,10 +2457,54 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-visualization-tools" class="md-nav__link">
+  <a href="#4-noise-missing-values-and-conditioning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Visualization Tools
+        4. Noise, missing values and conditioning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-clustering-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Clustering metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-density-based-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Density-based clustering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Building blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-visualization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Visualization
       
     </span>
   </a>
@@ -2102,10 +2572,19 @@
 <div align="center">
 <p><img src="assets/tgmm-logo.png" alt="tgmm Logo" width="300"/></p>
 </div>
-<h1 id="tgmm-gaussian-mixture-models-in-pytorch">tgmm: Gaussian Mixture Models in PyTorch<a class="headerlink" href="#tgmm-gaussian-mixture-models-in-pytorch" title="Permanent link">&para;</a></h1>
-<p><strong>tgmm</strong> is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) in
-PyTorch, supporting EM and MAP estimation, multiple covariance types, several initialization
-strategies, and a comprehensive suite of clustering metrics and visualization tools.</p>
+<h1 id="tgmm-mixture-models-in-pytorch">tgmm: Mixture Models in PyTorch<a class="headerlink" href="#tgmm-mixture-models-in-pytorch" title="Permanent link">&para;</a></h1>
+<p><strong>tgmm</strong> is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) and
+related mixture families in PyTorch. It supports EM, MAP and Gibbs-sampling (Dirichlet-process)
+estimation, 14 covariance structures, several EM variants, robust (Student-t) and directional
+(von Mises-Fisher) mixtures, semi-supervised and positive-unlabeled learning, a uniform noise component, missing-value EM, marginal/conditional distributions, custom components, model selection,
+and a comprehensive suite of clustering metrics and visualization tools.</p>
+<p>A mixture model writes the density of the data as a weighted sum of components,</p>
+<div class="arithmatex">\[
+p(x)=\sum_{k=1}^{K}\pi_k\,f_k(x\mid\theta_k),\qquad \sum_k\pi_k=1,
+\]</div>
+<p>and EM alternates computing each component's responsibility for each point (E-step) with
+re-estimating the parameters from those soft assignments (M-step). The
+<a href="user-guide/gaussian-mixture/">Gaussian Mixture Model guide</a> derives every update tgmm implements.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">PyPI (Stable)</label><label for="__tabbed_1_2">Development (Latest)</label></div>
 <div class="tabbed-content">
@@ -2121,13 +2600,14 @@ strategies, and a comprehensive suite of clustering metrics and visualization to
 </div>
 </div>
 </div>
-<p><strong>Requirements</strong>: Python 3.8+ and PyTorch 2.5+</p>
+<p><strong>Requirements</strong>: Python 3.9+ and PyTorch 2.5+ (see <a href="getting-started/installation/">Installation</a>)</p>
 <p>For GPU support, install CUDA-enabled PyTorch following the <a href="https://pytorch.org/get-started/locally/">official instructions</a>.</p>
 <h2 id="documentation-structure">Documentation Structure<a class="headerlink" href="#documentation-structure" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong><a href="getting-started/installation/">Getting Started</a></strong> - Installation and quick start guide</li>
 <li><strong><a href="user-guide/gaussian-mixture/">User Guide</a></strong> - Detailed explanations of each component</li>
-<li><strong>Check out the <a href="tutorials/">Tutorials</a> to see tgmm in action!</strong> - Interactive Jupyter notebooks</li>
+<li><strong>Check out the <a href="tutorials/">Tutorials</a> to see tgmm in action!</strong> - marimo notebooks, rendered here and runnable on molab</li>
+<li><strong><a href="explainers/gpcm-shapes/">Explainers</a></strong> - Interactive pages that run in your browser: covariance shapes, EM, annealing, metrics, and a designer for your own mixture data</li>
 <li><strong><a href="api/gaussian-mixture/">API Reference</a></strong> - Complete API documentation</li>
 </ul>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
@@ -2153,41 +2633,56 @@ strategies, and a comprehensive suite of clustering metrics and visualization to
 </span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Converged: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">converged_</span><span class="si">}</span><span class="s2">, Iterations: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span></code></pre></div>
 <p>See the <a href="tutorials/">Tutorials</a> for runnable, end-to-end examples of every feature --
-covariance types, all initialization strategies, MAP estimation with priors, Classification EM,
-constrained sampling, save/load, and more.</p>
+covariance structures, initialization strategies, MAP estimation with priors, EM variants,
+model selection, Student-t / von Mises-Fisher mixtures, semi-supervised fitting, constrained sampling,
+save/load, and more.</p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <h3 id="1-gaussian-mixture-model">1. Gaussian Mixture Model<a class="headerlink" href="#1-gaussian-mixture-model" title="Permanent link">&para;</a></h3>
 <p>The core <code>GaussianMixture</code> class supports:</p>
 <ul>
-<li><strong>Covariance Types</strong>: <code>'full'</code>, <code>'diag'</code>, <code>'spherical'</code>, <code>'tied_full'</code>, <code>'tied_diag'</code>, <code>'tied_spherical'</code></li>
-<li><strong>Estimation Methods</strong>: MLE (Maximum Likelihood) or MAP (Maximum A Posteriori) with priors</li>
-<li><strong>Algorithms</strong>: Standard EM or CEM (Classification EM) for hard assignments</li>
-<li><strong>Initialization</strong>: Multiple strategies via <code>GMMInitializer</code></li>
-<li><strong>Model Selection</strong>: <code>bic</code>/<code>aic</code> methods for comparing fits at different <code>n_components</code></li>
+<li><strong>Covariance structures</strong>: the six classic types (<code>'full'</code>, <code>'diag'</code>, <code>'spherical'</code>, <code>'tied_full'</code>,
+  <code>'tied_diag'</code>, <code>'tied_spherical'</code>) and all 14 Celeux &amp; Govaert (1995) GPCM models via their mclust
+  codes (<code>'EII'</code>, <code>'VEI'</code>, <code>'EVE'</code>, <code>'VVV'</code>, ...), which decompose each covariance into volume, shape and
+  orientation -- see <a href="user-guide/gpcm-covariance-models/">GPCM Covariance Models</a></li>
+<li><strong>Estimation</strong>: MLE, or MAP with Dirichlet / Gaussian / Inverse-Wishart / Normal-Inverse-Wishart priors</li>
+<li><strong>Algorithms</strong>: <code>algorithm='em'</code>, <code>'cem'</code> (Classification EM), <code>'sem'</code> (Stochastic EM) or <code>'saem'</code>
+  (Stochastic Approximation EM); <code>temperature</code> adds deterministic annealing; <code>batch_size</code> / <code>step_size</code> give
+  memory-bounded, mini-batch and online EM (plus <code>partial_fit</code> for streams); <code>convergence='aitken'</code>
+  adds an accelerated stopping rule</li>
+<li><strong>Dirichlet-process mixtures</strong>: <code>GaussianMixture(n_components=None, ...)</code> runs a collapsed Gibbs
+  sampler that infers the number of components</li>
+<li><strong>Initialization</strong>: multiple strategies via <code>GMMInitializer</code></li>
+<li><strong>Model selection</strong>: <code>bic</code> / <code>aic</code> / <code>icl</code> methods, and <code>select_model</code> to sweep <code>n_components</code> and all 14
+  covariance codes at once (<a href="notebooks/13_model_selection/">Model Selection tutorial</a>)</li>
 </ul>
-<h3 id="2-bayesian-inference-with-priors">2. Bayesian Inference with Priors<a class="headerlink" href="#2-bayesian-inference-with-priors" title="Permanent link">&para;</a></h3>
-<p>Support for conjugate priors enables proper Bayesian inference:</p>
-<ul>
-<li><strong>Weight Prior</strong>: Dirichlet distribution</li>
-<li><strong>Mean Prior</strong>: Gaussian distribution</li>
-<li><strong>Covariance Prior</strong>: Wishart/Inverse-Wishart distribution</li>
-<li><strong>NIW Conjugate Prior</strong>: Normal-Inverse-Wishart for joint mean-covariance updates</li>
-</ul>
-<h3 id="3-clustering-metrics">3. Clustering Metrics<a class="headerlink" href="#3-clustering-metrics" title="Permanent link">&para;</a></h3>
-<p>Comprehensive evaluation with <code>ClusteringMetrics</code>:</p>
-<p><strong>Unsupervised Metrics</strong> (no ground truth needed):
-- Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index, Dunn Index
-  (BIC/AIC are <code>bic</code>/<code>aic</code> methods on <code>GaussianMixture</code> directly -- including <code>GaussianMixture(n_components=None, ...)</code> -- not <code>ClusteringMetrics</code>)</p>
-<p><strong>Supervised Metrics</strong> (with ground truth labels):
-- Adjusted Rand Index (ARI), Normalized/Adjusted Mutual Information, Purity
-- Confusion Matrix and per-class Classification Report (precision, recall, F1, ROC-AUC)</p>
-<h3 id="4-visualization-tools">4. Visualization Tools<a class="headerlink" href="#4-visualization-tools" title="Permanent link">&para;</a></h3>
-<p>Flexible plotting utilities in <code>tgmm.plotting</code>:</p>
-<ul>
-<li>Component ellipses at multiple confidence levels</li>
-<li>Cluster coloring, ground-truth comparison, and log-likelihood coloring</li>
-<li>Initial vs. final mean trajectories and weight-scaled markers</li>
-</ul>
+<h3 id="2-other-mixture-families">2. Other mixture families<a class="headerlink" href="#2-other-mixture-families" title="Permanent link">&para;</a></h3>
+<p><code>StudentTMixture</code> (robust to outliers) and <code>VonMisesFisherMixture</code> (L2-normalized / directional data)
+share <code>GaussianMixture</code>'s EM toolkit through the common <code>BaseMixture</code> base class. See
+<a href="user-guide/other-mixture-families/">Other Mixture Families</a>.</p>
+<h3 id="3-semi-supervised-and-positive-unlabeled-learning">3. Semi-supervised and positive-unlabeled learning<a class="headerlink" href="#3-semi-supervised-and-positive-unlabeled-learning" title="Permanent link">&para;</a></h3>
+<p>Every family supports <code>fit(X, labels=...)</code> with <code>-1</code> for unknown rows (semi-supervised EM, multiple components
+per class), and <code>PositiveUnlabeledMixture</code> handles positive-unlabeled (PU) learning under the SCAR assumption.
+See <a href="user-guide/semi-supervised-pu/">Semi-Supervised and PU Fitting</a>.</p>
+<h3 id="4-noise-missing-values-and-conditioning">4. Noise, missing values and conditioning<a class="headerlink" href="#4-noise-missing-values-and-conditioning" title="Permanent link">&para;</a></h3>
+<p><code>noise=True</code> adds a uniform noise component that labels strays <code>-1</code>; <code>missing='em'</code> fits data with <code>NaN</code> entries and
+<code>impute</code>s them; <code>GaussianMixture.marginal</code> / <code>condition</code> give marginal and conditional distributions (Gaussian mixture
+regression); <code>frozen_components</code> and <code>sample_weight</code> control what EM may change; and <code>GenericMixture</code> fits components you write
+yourself. See <a href="user-guide/noise-missing-conditioning/">Noise, Missing Values and Conditioning</a>.</p>
+<h3 id="5-clustering-metrics">5. Clustering metrics<a class="headerlink" href="#5-clustering-metrics" title="Permanent link">&para;</a></h3>
+<p><code>ClusteringMetrics</code> provides unsupervised indices (Silhouette, Davies-Bouldin, Calinski-Harabasz, Dunn,
+WB-Index, Wemmert-Gancarski, DBCV) and supervised metrics (ARI, NMI/AMI, purity, homogeneity,
+completeness, V-measure, confusion matrix and classification report). See
+<a href="user-guide/clustering-metrics/">Clustering Metrics</a>.</p>
+<h3 id="6-density-based-clustering">6. Density-based clustering<a class="headerlink" href="#6-density-based-clustering" title="Permanent link">&para;</a></h3>
+<p><code>HDBSCAN</code> is a PyTorch implementation of hierarchical density-based clustering -- no <code>K</code> needed,
+non-convex clusters, explicit noise points (see the <a href="notebooks/12_hdbscan/">HDBSCAN tutorial</a>).</p>
+<h3 id="7-building-blocks">7. Building blocks<a class="headerlink" href="#7-building-blocks" title="Permanent link">&para;</a></h3>
+<p><code>SufficientStats</code> (the additive <span class="arithmatex">\(n_k,\sum_ir_{ik}x_i,W_k\)</span> statistics behind every M-step, used by
+chunked, online and streaming fitting) and <code>BaseMixture</code> (subclass it to add a new family) are public.</p>
+<h3 id="8-visualization">8. Visualization<a class="headerlink" href="#8-visualization" title="Permanent link">&para;</a></h3>
+<p><code>plot_gmm</code> draws component ellipses at several confidence levels, cluster / ground-truth / log-likelihood
+coloring, initial vs. final means and weight-scaled markers for 2-D data, for any of the model families
+(<code>plot_gmm</code> itself requires 2-D data -- project higher-dimensional data first).</p>
 <h2 id="citation">Citation<a class="headerlink" href="#citation" title="Permanent link">&para;</a></h2>
 <p>TBA</p>
 <h2 id="license">License<a class="headerlink" href="#license" title="Permanent link">&para;</a></h2>

@@ -65,7 +65,28 @@
 
     
     
-  </head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
   
   
     
@@ -302,6 +323,26 @@
   
   
   Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
 
         </a>
       </li>
@@ -716,6 +757,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-shared-machinery-one-em-loop-for-every-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The shared machinery: one EM loop for every family
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#studenttmixture-robust-to-outliers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -728,10 +780,98 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#why-heavy-tails-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why heavy tails help
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-step-responsibilities-and-robustness-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E-step: responsibilities and robustness weights
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#m-step-ecm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        M-step (ECM)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#degrees-of-freedom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Degrees of freedom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters-attributes-and-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters, attributes, and counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#flagging-outliers-with-sample_weights" class="md-nav__link">
     <span class="md-ellipsis">
       
         Flagging outliers with sample_weights
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
       
     </span>
   </a>
@@ -756,6 +896,83 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#why-a-different-density" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a different density
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-step-and-m-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E-step and M-step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters-attributes-and-counts_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters, attributes, and counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualizing-a-vmf-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualizing a vMF fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#comparing-against-gaussianmixture-on-normalized-data" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -772,10 +989,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#model-selection-and-shared-machinery" class="md-nav__link">
+  <a href="#supervised-and-semi-supervised-fitting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Model selection and shared machinery
+        Supervised and semi-supervised fitting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#noise-missing-values-and-custom-families" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Noise, missing values and custom families
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shared-machinery-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared machinery summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
       
     </span>
   </a>
@@ -806,6 +1056,34 @@
     
   
     Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../noise-missing-conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
   
 
     
@@ -1391,14 +1669,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/15_gpcm_models/" class="md-nav__link">
+      <a href="../../notebooks/15_covariance_models/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    15. GPCM Covariance Models
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
   
 
     
@@ -1419,14 +1697,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/16_student_t_and_vmf/" class="md-nav__link">
+      <a href="../../notebooks/16_student_t/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16. Student-t and von Mises-Fisher Mixtures
+    16. Student-t Mixtures
   
 
     
@@ -1447,14 +1725,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/17_semi_supervised_pu/" class="md-nav__link">
+      <a href="../../notebooks/17_von_mises_fisher/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    17. Semi-Supervised and Positive-Unlabeled Fitting
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
   
 
     
@@ -1507,7 +1841,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Explainers
   
 
     
@@ -1520,6 +1854,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1628,6 +2163,62 @@
     
   
     tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
   
 
     
@@ -1898,6 +2489,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-shared-machinery-one-em-loop-for-every-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The shared machinery: one EM loop for every family
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#studenttmixture-robust-to-outliers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1910,10 +2512,98 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#why-heavy-tails-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why heavy tails help
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-step-responsibilities-and-robustness-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E-step: responsibilities and robustness weights
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#m-step-ecm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        M-step (ECM)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#degrees-of-freedom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Degrees of freedom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters-attributes-and-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters, attributes, and counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#flagging-outliers-with-sample_weights" class="md-nav__link">
     <span class="md-ellipsis">
       
         Flagging outliers with sample_weights
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
       
     </span>
   </a>
@@ -1938,6 +2628,83 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#why-a-different-density" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why a different density
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-step-and-m-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E-step and M-step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters-attributes-and-counts_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters, attributes, and counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visualizing-a-vmf-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualizing a vMF fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#comparing-against-gaussianmixture-on-normalized-data" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1954,10 +2721,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#model-selection-and-shared-machinery" class="md-nav__link">
+  <a href="#supervised-and-semi-supervised-fitting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Model selection and shared machinery
+        Supervised and semi-supervised fitting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#noise-missing-values-and-custom-families" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Noise, missing values and custom families
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shared-machinery-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared machinery summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
       
     </span>
   </a>
@@ -1995,18 +2795,236 @@ has two more mixture families for exactly those two cases,
 <code>BaseMixture</code> machinery as <code>GaussianMixture</code> -- the same <code>fit</code>/<code>predict</code>/
 <code>score</code>/<code>bic</code>/<code>aic</code>/<code>icl</code> API, the same <code>algorithm</code>/<code>temperature</code>/
 <code>step_size</code> options for the EM loop itself.</p>
-<p>Neither supports Gibbs-sampling mode (<code>n_components=None</code>) or supervised
-fitting (<code>fit(X, labels=...)</code>) -- both stay <code>GaussianMixture</code>-only for now.</p>
+<p>Both families also support partial and full label information through
+<code>fit(X, labels=...)</code> (see <a href="../semi-supervised-pu/">Semi-Supervised and Positive-Unlabeled
+Fitting</a>). Neither supports Gibbs-sampling mode
+(<code>n_components=None</code>), the 14 GPCM covariance codes, or MAP/NIW priors --
+those stay <code>GaussianMixture</code>-only.</p>
+<p><strong>Notation</strong> used on this page and throughout the user guide: <span class="arithmatex">\(n\)</span> samples
+<span class="arithmatex">\(x_i \in \mathbb{R}^d\)</span>, <span class="arithmatex">\(K\)</span> components, mixing weights <span class="arithmatex">\(\pi_k\)</span>,
+responsibilities <span class="arithmatex">\(r_{ik} = P(z_i = k \mid x_i)\)</span>, effective component counts
+<span class="arithmatex">\(n_k = \sum_i r_{ik}\)</span>.</p>
+<h2 id="the-shared-machinery-one-em-loop-for-every-family">The shared machinery: one EM loop for every family<a class="headerlink" href="#the-shared-machinery-one-em-loop-for-every-family" title="Permanent link">&para;</a></h2>
+<p>Every mixture family in tgmm is a finite mixture</p>
+<div class="arithmatex">\[
+p(x) = \sum_{k=1}^{K} \pi_k \, f_k(x \mid \theta_k), \qquad
+\ell(\theta) = \sum_{i=1}^{n} \log \sum_{k=1}^{K} \pi_k \, f_k(x_i \mid \theta_k),
+\]</div>
+<p>and <code>BaseMixture</code> implements the generic loop once. A family only supplies
+the component log-density <span class="arithmatex">\(\log f_k\)</span> (<code>_component_log_prob</code>), the
+accumulation of its sufficient statistics (<code>_compute_stats</code>), and its
+M-step (<code>_m_step_from_stats</code>).</p>
+<p><strong>E-step.</strong> The responsibilities are computed in log space (a softmax over
+components, so nothing under/overflows):</p>
+<div class="arithmatex">\[
+r_{ik} = \frac{\pi_k f_k(x_i)}{\sum_{j} \pi_j f_j(x_i)}
+= \exp\!\Big(\log \pi_k + \log f_k(x_i) - \operatorname{logsumexp}_j\big(\log \pi_j + \log f_j(x_i)\big)\Big).
+\]</div>
+<p>The per-sample normalizer <span class="arithmatex">\(\log \sum_j \pi_j f_j(x_i)\)</span> is also what
+<code>score_samples</code> returns, and its mean is <code>lower_bound_</code> (the average
+log-likelihood <span class="arithmatex">\(\ell(\theta)/n\)</span> that <code>tol</code> is checked against).</p>
+<p><strong>M-step.</strong> Each family maximizes (or, for Student-t, conditionally
+maximizes) the expected complete-data log-likelihood
+<span class="arithmatex">\(\sum_{i,k} r_{ik} \big[\log \pi_k + \log f_k(x_i)\big]\)</span>. The mixing
+weights are always</p>
+<div class="arithmatex">\[
+\pi_k = \frac{n_k}{n}.
+\]</div>
+<p><strong>Variants of the loop</strong>, all shared by every family:</p>
+<table>
+<thead>
+<tr>
+<th><code>algorithm</code></th>
+<th>What replaces the soft <span class="arithmatex">\(r_{ik}\)</span> fed to the M-step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'em'</code></td>
+<td><span class="arithmatex">\(r_{ik}\)</span> itself.</td>
+</tr>
+<tr>
+<td><code>'cem'</code></td>
+<td>One-hot <span class="arithmatex">\(\mathbb{1}[k = \arg\max_j r_{ij}]\)</span> (Classification EM).</td>
+</tr>
+<tr>
+<td><code>'sem'</code></td>
+<td>One-hot of a <em>sample</em> <span class="arithmatex">\(z_i \sim \mathrm{Categorical}(r_{i\cdot})\)</span> (Stochastic EM).</td>
+</tr>
+<tr>
+<td><code>'saem'</code></td>
+<td>A running average of sampled-assignment statistics with a decaying step size.</td>
+</tr>
+</tbody>
+</table>
+<p><code>temperature=(beta_0, n_anneal)</code> (deterministic annealing) tempers the
+E-step: <span class="arithmatex">\(r_{ik} \propto \big(\pi_k f_k(x_i)\big)^{\beta}\)</span> with <span class="arithmatex">\(\beta\)</span>
+rising geometrically from <code>beta_0</code> to <span class="arithmatex">\(1\)</span> over the first <code>n_anneal</code>
+iterations, <span class="arithmatex">\(\beta_t = \beta_0^{\,1 - t/n_{\text{anneal}}}\)</span>. <code>step_size</code>
+switches to online/mini-batch EM, blending each batch's sufficient
+statistics into a running accumulator. See the <a href="../gaussian-mixture/#fitting-algorithms">Gaussian Mixture
+Model</a> guide for when to use each.</p>
+<p><strong>Model selection.</strong> All families share</p>
+<div class="arithmatex">\[
+\mathrm{BIC} = -2\,\ell(\hat\theta) + p \ln n, \qquad
+\mathrm{AIC} = -2\,\ell(\hat\theta) + 2p,
+\]</div>
+<div class="arithmatex">\[
+\mathrm{ICL} = \mathrm{BIC} + 2\,\mathrm{EN}(r), \qquad
+\mathrm{EN}(r) = -\sum_{i} \ln r_{i\hat z_i} \;\;(\texttt{mode='hard'}),
+\quad \text{or} \quad -\sum_{i,k} r_{ik}\ln r_{ik} \;\;(\texttt{mode='soft'}),
+\]</div>
+<p>(all "lower is better"), where <span class="arithmatex">\(p\)</span> is the number of free parameters
+(<code>_n_parameters()</code>, family-specific; given in each section below) and
+<span class="arithmatex">\(\hat z_i = \arg\max_k r_{ik}\)</span>. The entropy term is <span class="arithmatex">\(\ge 0\)</span> and vanishes
+when every responsibility is one-hot, so <span class="arithmatex">\(\mathrm{ICL} \ge \mathrm{BIC}\)</span>
+with equality only for perfectly separated clusters. Criteria are directly
+comparable <em>within</em> a family at different <span class="arithmatex">\(K\)</span> (or covariance structure), and
+between families whose densities share a base measure -- Gaussian and Student-t,
+both on <span class="arithmatex">\(\mathbb{R}^d\)</span>. They are <strong>not</strong> comparable between a vMF mixture
+(density on the sphere) and the other two.</p>
 <h2 id="studenttmixture-robust-to-outliers">StudentTMixture: robust to outliers<a class="headerlink" href="#studenttmixture-robust-to-outliers" title="Permanent link">&para;</a></h2>
+<h3 id="why-heavy-tails-help">Why heavy tails help<a class="headerlink" href="#why-heavy-tails-help" title="Permanent link">&para;</a></h3>
 <p>A multivariate Student-t distribution looks like a Gaussian near its
-center but has heavier tails, controlled by its degrees of freedom <span class="arithmatex">\(\nu\)</span>:
-small <span class="arithmatex">\(\nu\)</span> means heavy tails (very forgiving of far-away points), and as
-<span class="arithmatex">\(\nu \to \infty\)</span> it converges to a Gaussian exactly. Fitting a mixture of
-these (Peel &amp; McLachlan, 2000) gives each component an extra per-sample
-weight <span class="arithmatex">\(u_{ik}\)</span> in the M-step that shrinks toward zero for points far from
-that component's center -- those points get downweighted instead of
-pulling the covariance estimate toward them the way they would for
-<code>GaussianMixture</code>.</p>
+center but has polynomially decaying tails, controlled by its degrees of
+freedom <span class="arithmatex">\(\nu\)</span>: small <span class="arithmatex">\(\nu\)</span> means heavy tails (very forgiving of far-away
+points), and as <span class="arithmatex">\(\nu \to \infty\)</span> it converges to a Gaussian exactly. A
+Gaussian component's covariance estimate is a plain average of squared
+deviations, so a single far-away point can inflate it arbitrarily; the
+t-component instead <em>downweights</em> such points automatically (derived
+below).</p>
+<h3 id="model">Model<a class="headerlink" href="#model" title="Permanent link">&para;</a></h3>
+<p>Component <span class="arithmatex">\(k\)</span> has mean <span class="arithmatex">\(\mu_k\)</span>, scale matrix <span class="arithmatex">\(\Sigma_k\)</span> and degrees of
+freedom <span class="arithmatex">\(\nu_k\)</span>:</p>
+<div class="arithmatex">\[
+t(x \mid \mu_k, \Sigma_k, \nu_k) =
+\frac{\Gamma\!\big(\tfrac{\nu_k + d}{2}\big)}{\Gamma\!\big(\tfrac{\nu_k}{2}\big)\,(\nu_k \pi)^{d/2}\,|\Sigma_k|^{1/2}}
+\Big(1 + \frac{\delta_{ik}}{\nu_k}\Big)^{-\frac{\nu_k + d}{2}},
+\qquad
+\delta_{ik} = (x_i - \mu_k)^\top \Sigma_k^{-1} (x_i - \mu_k).
+\]</div>
+<p>This is exactly what <code>_component_log_prob</code> evaluates (and it matches
+<code>scipy.stats.multivariate_t</code> to machine precision). The key to fitting it is
+its <strong>scale-mixture representation</strong>: draw a latent precision multiplier
+<span class="arithmatex">\(w \sim \mathrm{Gamma}(\nu_k/2, \nu_k/2)\)</span> (shape/rate, mean <span class="arithmatex">\(1\)</span>), then
+<span class="arithmatex">\(x \mid w \sim \mathcal{N}(\mu_k, \Sigma_k / w)\)</span>. Marginalizing <span class="arithmatex">\(w\)</span> gives
+the t density above. (<code>sample</code> uses this representation directly:
+<span class="arithmatex">\(x = \mu_k + z/\sqrt{w}\)</span> with <span class="arithmatex">\(z \sim \mathcal{N}(0, \Sigma_k)\)</span>.)</p>
+<div class="admonition note">
+<p class="admonition-title">Scale matrix vs. covariance</p>
+<p><code>covariances_</code> holds the <strong>scale matrix</strong> <span class="arithmatex">\(\Sigma_k\)</span>, not the covariance
+of the distribution. For <span class="arithmatex">\(\nu_k &gt; 2\)</span> the actual covariance is
+<span class="arithmatex">\(\frac{\nu_k}{\nu_k - 2}\,\Sigma_k\)</span>; for <span class="arithmatex">\(\nu_k \le 2\)</span> it is infinite.</p>
+</div>
+<h3 id="e-step-responsibilities-and-robustness-weights">E-step: responsibilities <em>and</em> robustness weights<a class="headerlink" href="#e-step-responsibilities-and-robustness-weights" title="Permanent link">&para;</a></h3>
+<p>Besides the usual <span class="arithmatex">\(r_{ik}\)</span>, the latent multiplier has a closed-form
+posterior given <span class="arithmatex">\(x_i\)</span> and <span class="arithmatex">\(z_i = k\)</span>:
+<span class="arithmatex">\(w_{ik} \mid x_i \sim \mathrm{Gamma}\!\big(\tfrac{\nu_k + d}{2}, \tfrac{\nu_k + \delta_{ik}}{2}\big)\)</span>,
+whose mean is</p>
+<div class="arithmatex">\[
+u_{ik} = \mathbb{E}[w_{ik} \mid x_i, z_i = k] = \frac{\nu_k + d}{\nu_k + \delta_{ik}}.
+\]</div>
+<p>Points near the center (<span class="arithmatex">\(\delta_{ik} \ll \nu_k\)</span>) get <span class="arithmatex">\(u_{ik} \approx
+(\nu_k + d)/\nu_k &gt; 1\)</span>; points far away (<span class="arithmatex">\(\delta_{ik} \gg \nu_k\)</span>) get
+<span class="arithmatex">\(u_{ik} \to 0\)</span>. That is the robustness mechanism: <span class="arithmatex">\(u_{ik}\)</span> is a per-sample,
+per-component weight that shrinks with Mahalanobis distance.
+<code>sample_weights(X)</code> returns <span class="arithmatex">\(u_{i\hat z_i}\)</span> at each point's predicted
+component, so small values flag likely outliers.</p>
+<h3 id="m-step-ecm">M-step (ECM)<a class="headerlink" href="#m-step-ecm" title="Permanent link">&para;</a></h3>
+<p>With <span class="arithmatex">\(m_k = \sum_i r_{ik} u_{ik}\)</span>, the updates are</p>
+<div class="arithmatex">\[
+\pi_k = \frac{n_k}{n}, \qquad
+\mu_k = \frac{\sum_i r_{ik} u_{ik}\, x_i}{m_k}, \qquad
+\Sigma_k = \frac{\sum_i r_{ik} u_{ik}\,(x_i - \mu_k)(x_i - \mu_k)^\top}{n_k}
+\;\;(+\, \texttt{reg\_covar}\cdot I).
+\]</div>
+<p>Compare with the Gaussian M-step: the only change is the extra weight
+<span class="arithmatex">\(u_{ik}\)</span> inside the sums (and the mean's denominator being <span class="arithmatex">\(m_k\)</span>, not
+<span class="arithmatex">\(n_k\)</span>). With <span class="arithmatex">\(\nu \to \infty\)</span>, <span class="arithmatex">\(u_{ik} \to 1\)</span> and these reduce to the
+Gaussian updates (<code>dof=1e4</code> is an easy sanity check against
+<code>GaussianMixture</code>). The statistics <span class="arithmatex">\(\mu_k\)</span> and <span class="arithmatex">\(\Sigma_k\)</span> are computed with
+<span class="arithmatex">\(u_{ik}\)</span> evaluated at the <em>previous</em> parameters within the same iteration,
+which is what makes this an <em>ECM</em> (expectation conditional maximization)
+algorithm rather than plain EM: each parameter block is maximized
+conditionally on the others.</p>
+<p>For <code>covariance_type='diag'</code> the scatter and the denominator are the
+per-feature (diagonal) versions; <code>'spherical'</code> uses
+<span class="arithmatex">\(\sigma_k^2 = \sum_i r_{ik} u_{ik}\,\lVert x_i - \mu_k\rVert^2 / (d\, n_k)\)</span>;
+<code>'tied_full'</code> pools the scatter and the denominator across components,
+<span class="arithmatex">\(\Sigma = \sum_k \sum_i r_{ik} u_{ik} (x_i - \mu_k)(x_i - \mu_k)^\top \big/ \sum_k n_k\)</span>.</p>
+<p><code>scale_update='ecme'</code> divides by <span class="arithmatex">\(m_k\)</span> instead of <span class="arithmatex">\(n_k\)</span>. At the
+maximum-likelihood fixed point the two coincide: the stationarity
+condition for <span class="arithmatex">\(\Sigma_k\)</span> gives <span class="arithmatex">\(\sum_i r_{ik} u_{ik} \delta_{ik} = d\, n_k\)</span>,
+and since <span class="arithmatex">\(u\,\delta = (\nu + d) - \nu\, u\)</span> this forces <span class="arithmatex">\(m_k = n_k\)</span>. Both
+variants therefore converge to the same estimate; <code>'ecme'</code> just takes a
+different path and often needs a few fewer iterations.</p>
+<h3 id="degrees-of-freedom">Degrees of freedom<a class="headerlink" href="#degrees-of-freedom" title="Permanent link">&para;</a></h3>
+<p>For <code>dof='per_component'</code> each <span class="arithmatex">\(\nu_k\)</span> solves a one-dimensional equation
+every M-step. Writing</p>
+<div class="arithmatex">\[
+c_k = \frac{1}{n_k}\sum_i r_{ik}\,\big(\ln u_{ik} - u_{ik}\big),
+\]</div>
+<p>tgmm solves</p>
+<div class="arithmatex">\[
+1 - \psi\!\Big(\frac{\nu}{2}\Big) + \ln\!\Big(\frac{\nu}{2}\Big) + c_k
++ \psi\!\Big(\frac{\nu + d}{2}\Big) - \ln\!\Big(\frac{\nu + d}{2}\Big) = 0
+\]</div>
+<p>for <span class="arithmatex">\(\nu\)</span> (<span class="arithmatex">\(\psi\)</span> the digamma function) by 60 bisection steps inside
+<code>dof_bounds</code> followed by 4 Newton steps on <span class="arithmatex">\(\ln\nu\)</span>, clamping to
+<code>dof_bounds</code> (default <code>(0.1, 1000)</code>) -- if the root lies outside the bounds
+the fit lands on the bound. This is the first-order condition of the
+expected complete-data log-likelihood in <span class="arithmatex">\(\nu\)</span> (the Gamma<span class="arithmatex">\((\nu/2,\nu/2)\)</span>
+part). For <code>dof='shared'</code>, <span class="arithmatex">\(c\)</span> is the pooled average over all components,
+<span class="arithmatex">\(\sum_k \sum_i r_{ik}(\ln u_{ik} - u_{ik}) / \sum_k n_k\)</span>, and one <span class="arithmatex">\(\nu\)</span> is
+solved for. A numeric <code>dof</code> fixes every <span class="arithmatex">\(\nu_k\)</span> for the whole fit.</p>
+<div class="admonition note">
+<p class="admonition-title">Where this deviates from the textbook</p>
+<p>The textbook update (Peel &amp; McLachlan, 2000) evaluates the last two
+terms, <span class="arithmatex">\(\psi\big(\tfrac{\nu^{(t)} + d}{2}\big) - \ln\big(\tfrac{\nu^{(t)} + d}{2}\big)\)</span>,
+at the <em>previous</em> iterate <span class="arithmatex">\(\nu^{(t)}\)</span>. tgmm evaluates them at the
+candidate <span class="arithmatex">\(\nu\)</span> itself. The two share the same fixed point (at
+convergence <span class="arithmatex">\(\nu^{(t)} = \nu\)</span>; the residual of the textbook equation at
+a converged tgmm fit is <span class="arithmatex">\(\sim 10^{-6}\)</span>), so the final estimate is the
+same maximum-likelihood solution, but the per-iteration step is not
+literally the textbook EM step.</p>
+</div>
+<h3 id="parameters-attributes-and-counts">Parameters, attributes, and counts<a class="headerlink" href="#parameters-attributes-and-counts" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Shape</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>weights_</code></td>
+<td><span class="arithmatex">\((K,)\)</span></td>
+<td><span class="arithmatex">\(\pi_k\)</span></td>
+</tr>
+<tr>
+<td><code>means_</code></td>
+<td><span class="arithmatex">\((K, d)\)</span></td>
+<td><span class="arithmatex">\(\mu_k\)</span></td>
+</tr>
+<tr>
+<td><code>covariances_</code></td>
+<td>by <code>covariance_type</code></td>
+<td>scale matrix <span class="arithmatex">\(\Sigma_k\)</span> (not the covariance)</td>
+</tr>
+<tr>
+<td><code>dof_</code></td>
+<td><span class="arithmatex">\((K,)\)</span></td>
+<td>fitted <span class="arithmatex">\(\nu_k\)</span> (all entries equal for <code>'shared'</code> or a fixed float)</td>
+</tr>
+</tbody>
+</table>
+<p>The number of free parameters used by <code>bic</code>/<code>aic</code>/<code>icl</code> is
+<span class="arithmatex">\(p = (K-1) + Kd + p_\Sigma + p_\nu\)</span>, with <span class="arithmatex">\(p_\Sigma = K\,d(d+1)/2\)</span> (<code>full</code>),
+<span class="arithmatex">\(Kd\)</span> (<code>diag</code>), <span class="arithmatex">\(K\)</span> (<code>spherical</code>) or <span class="arithmatex">\(d(d+1)/2\)</span> (<code>tied_full</code>), and
+<span class="arithmatex">\(p_\nu = K\)</span> (<code>per_component</code>), <span class="arithmatex">\(1\)</span> (<code>shared</code>) or <span class="arithmatex">\(0\)</span> (fixed <code>dof</code>).</p>
+<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">StudentTMixture</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">stm</span> <span class="o">=</span> <span class="n">StudentTMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span><span class="p">,</span> <span class="n">dof</span><span class="o">=</span><span class="s1">'per_component'</span><span class="p">)</span>
@@ -2018,15 +3036,12 @@ pulling the covariance estimate toward them the way they would for
 </span></code></pre></div>
 <ul>
 <li><code>covariance_type</code>: one of <code>'full'</code>, <code>'diag'</code>, <code>'spherical'</code>,
-  <code>'tied_full'</code> (the GPCM parameterizations and Gibbs-only axis-aligned
-  types aren't supported here).</li>
-<li><code>dof</code>: <code>'per_component'</code> (default, one <span class="arithmatex">\(\nu_k\)</span> per component, found by
-  root-finding each M-step), <code>'shared'</code> (one <span class="arithmatex">\(\nu\)</span> for every component),
-  or a fixed float (e.g. <code>dof=1e4</code> recovers an approximately Gaussian
-  fit -- a useful sanity check against <code>GaussianMixture</code> on clean data).</li>
-<li><code>scale_update</code>: <code>'ecm'</code> (default) or <code>'ecme'</code> -- two valid M-step
-  normalizations for the scale matrix; <code>'ecme'</code> tends to converge faster
-  but is a different fixed point in general.</li>
+  <code>'tied_full'</code> (the GPCM parameterizations and the Gibbs-only axis-aligned
+  tied types aren't supported here).</li>
+<li><code>dof</code>: <code>'per_component'</code> (default, one <span class="arithmatex">\(\nu_k\)</span> per component), <code>'shared'</code>
+  (one <span class="arithmatex">\(\nu\)</span> for every component), or a fixed float. <code>dof_init</code> (default
+  <code>5.0</code>) is the starting value, <code>dof_bounds</code> the clamp.</li>
+<li><code>scale_update</code>: <code>'ecm'</code> (default) or <code>'ecme'</code>, see above.</li>
 </ul>
 <h3 id="flagging-outliers-with-sample_weights">Flagging outliers with <code>sample_weights</code><a class="headerlink" href="#flagging-outliers-with-sample_weights" title="Permanent link">&para;</a></h3>
 <p>After fitting, <code>sample_weights(X)</code> returns each point's <span class="arithmatex">\(u_{ik}\)</span> at its
@@ -2035,16 +3050,113 @@ treated as outliers:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">stm</span><span class="o">.</span><span class="n">sample_weights</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">likely_outliers</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">weights</span> <span class="o">&lt;</span> <span class="mf">0.3</span><span class="p">]</span>
 </span></code></pre></div>
+<h3 id="caveats">Caveats<a class="headerlink" href="#caveats" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A fitted <span class="arithmatex">\(\nu_k\)</span> near <code>dof_bounds[1]</code> means that component is
+  indistinguishable from a Gaussian; near <code>dof_bounds[0]</code> means a very
+  heavy tail (infinite mean for <span class="arithmatex">\(\nu \le 1\)</span>).</li>
+<li>Each iteration needs the full <span class="arithmatex">\((n, K)\)</span> matrix of Mahalanobis distances in
+  memory (<code>batch_size</code> only chunks the E-step's reduction, not this).</li>
+<li>Student-t and Gaussian densities share the same base measure (Lebesgue on
+  <span class="arithmatex">\(\mathbb{R}^d\)</span>), so a <code>StudentTMixture</code>'s <code>score</code>, <code>bic</code>, <code>aic</code> and <code>icl</code>
+  <em>are</em> directly comparable with those of a <code>GaussianMixture</code> fitted to the
+  same data (the t pays for its extra <span class="arithmatex">\(\nu\)</span> parameters in the count).</li>
+</ul>
 <h2 id="vonmisesfishermixture-directional-data">VonMisesFisherMixture: directional data<a class="headerlink" href="#vonmisesfishermixture-directional-data" title="Permanent link">&para;</a></h2>
-<p>For L2-normalized data -- points on the unit hypersphere, as you get from
+<h3 id="why-a-different-density">Why a different density<a class="headerlink" href="#why-a-different-density" title="Permanent link">&para;</a></h3>
+<p>For L2-normalized data -- points on the unit hypersphere
+<span class="arithmatex">\(\mathbb{S}^{d-1} = \{x : \lVert x\rVert = 1\}\)</span>, as you get from
 normalizing text or image embeddings before clustering by cosine
 similarity -- a Gaussian (or Student-t) mixture is the wrong model: it's
 defined over all of <span class="arithmatex">\(\mathbb{R}^d\)</span> and has no notion of "direction only."
 The von Mises-Fisher (vMF) distribution is the natural analogue restricted
-to the sphere: component <span class="arithmatex">\(k\)</span> has a mean <em>direction</em> <span class="arithmatex">\(\mu_k\)</span> (itself
-unit-norm) and a concentration <span class="arithmatex">\(\kappa_k\)</span> controlling how tightly points
-cluster around it -- higher <span class="arithmatex">\(\kappa_k\)</span> is a tighter cluster, and
-<span class="arithmatex">\(\kappa_k \to 0\)</span> approaches a uniform distribution over the whole sphere.</p>
+to the sphere.</p>
+<h3 id="model_1">Model<a class="headerlink" href="#model_1" title="Permanent link">&para;</a></h3>
+<p>Component <span class="arithmatex">\(k\)</span> has a mean <em>direction</em> <span class="arithmatex">\(\mu_k\)</span> (unit norm) and a
+concentration <span class="arithmatex">\(\kappa_k \ge 0\)</span>:</p>
+<div class="arithmatex">\[
+f(x \mid \mu_k, \kappa_k) = C_d(\kappa_k)\,\exp\!\big(\kappa_k\, \mu_k^\top x\big),
+\qquad
+C_d(\kappa) = \frac{\kappa^{d/2 - 1}}{(2\pi)^{d/2}\, I_{d/2 - 1}(\kappa)},
+\]</div>
+<p>where <span class="arithmatex">\(I_\nu\)</span> is the modified Bessel function of the first kind. The
+log-density tgmm evaluates is <span class="arithmatex">\(\log C_d(\kappa_k) + \kappa_k\, x^\top \mu_k\)</span>
+(verified against <code>scipy.stats.vonmises_fisher</code>). The density depends on
+<span class="arithmatex">\(x\)</span> only through the <strong>cosine similarity</strong> <span class="arithmatex">\(\mu_k^\top x\)</span>: higher <span class="arithmatex">\(\kappa_k\)</span>
+is a tighter cluster around <span class="arithmatex">\(\mu_k\)</span>, and <span class="arithmatex">\(\kappa_k \to 0\)</span> approaches the
+uniform distribution on the sphere. <span class="arithmatex">\(\log I_\nu(\kappa)\)</span> is computed from
+<code>scipy.special.ive</code> (exponentially scaled, so it doesn't overflow), with a
+uniform large-order asymptotic expansion as a fallback when <code>ive</code>
+underflows -- which happens in high dimension at modest <span class="arithmatex">\(\kappa\)</span>.</p>
+<h3 id="e-step-and-m-step">E-step and M-step<a class="headerlink" href="#e-step-and-m-step" title="Permanent link">&para;</a></h3>
+<p>The E-step is the generic one above with these <span class="arithmatex">\(f_k\)</span>. For the M-step, form
+the <strong>resultant vector</strong> of each component,</p>
+<div class="arithmatex">\[
+\mathbf{R}_k = \sum_{i} r_{ik}\, x_i, \qquad
+\bar R_k = \frac{\lVert \mathbf{R}_k \rVert}{n_k} \in [0, 1],
+\]</div>
+<p>(the length of the responsibility-weighted mean vector; <span class="arithmatex">\(\bar R_k\)</span> near <span class="arithmatex">\(1\)</span>
+means the points are nearly parallel). The maximum-likelihood updates are</p>
+<div class="arithmatex">\[
+\pi_k = \frac{n_k}{n}, \qquad
+\mu_k = \frac{\mathbf{R}_k}{\lVert \mathbf{R}_k \rVert}, \qquad
+A_d(\hat\kappa_k) = \bar R_k, \quad
+A_d(\kappa) = \frac{I_{d/2}(\kappa)}{I_{d/2 - 1}(\kappa)}.
+\]</div>
+<p><span class="arithmatex">\(A_d(\kappa) = \bar R\)</span> has no closed-form solution. tgmm follows Banerjee,
+Dhillon, Ghosh &amp; Sra (2005): start from the closed-form approximation</p>
+<div class="arithmatex">\[
+\kappa^{(0)} = \frac{\bar R\,(d - \bar R^2)}{1 - \bar R^2},
+\]</div>
+<p>then refine with <strong>two Newton steps</strong> on <span class="arithmatex">\(A_d(\kappa) - \bar R = 0\)</span> using
+<span class="arithmatex">\(A_d'(\kappa) = 1 - A_d(\kappa)^2 - \frac{d-1}{\kappa} A_d(\kappa)\)</span> (Sra,
+2012), clamping <span class="arithmatex">\(\kappa\)</span> to <span class="arithmatex">\([10^{-3}, 10^{5}]\)</span>. (The Banerjee
+approximation alone leaves a residual <span class="arithmatex">\(A_d(\kappa^{(0)}) - \bar R\)</span> of up to
+<span class="arithmatex">\(\sim 10^{-2}\)</span>; after the two Newton steps the residual is <span class="arithmatex">\(\lesssim
+10^{-7}\)</span> in the cases we checked.) With <code>concentration='shared'</code>, one
+<span class="arithmatex">\(\kappa\)</span> is solved from the pooled resultant length
+<span class="arithmatex">\(\sum_k \lVert\mathbf{R}_k\rVert / \sum_k n_k\)</span>.</p>
+<div class="admonition note">
+<p class="admonition-title">Relation to spherical k-means</p>
+<p>With <code>algorithm='cem'</code>, equal weights and a common <span class="arithmatex">\(\kappa\)</span>, the
+E/C-step assigns each point to the component of largest cosine
+similarity and the M-step sets each mean direction to the normalized sum
+of its members -- i.e. <strong>spherical k-means</strong> (Dhillon &amp; Modha, 2001).
+tgmm's default <code>init_means='kmeans'</code> runs exactly that, seeded with a
+cosine-distance k-means++ scheme (the next center is drawn with
+probability proportional to <span class="arithmatex">\(1 - \max_{\text{chosen}} \cos\)</span>) to avoid
+two initial centers landing in one true cluster.</p>
+</div>
+<h3 id="parameters-attributes-and-counts_1">Parameters, attributes, and counts<a class="headerlink" href="#parameters-attributes-and-counts_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Shape</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>weights_</code></td>
+<td><span class="arithmatex">\((K,)\)</span></td>
+<td><span class="arithmatex">\(\pi_k\)</span></td>
+</tr>
+<tr>
+<td><code>means_</code></td>
+<td><span class="arithmatex">\((K, d)\)</span></td>
+<td>unit-norm mean directions <span class="arithmatex">\(\mu_k\)</span></td>
+</tr>
+<tr>
+<td><code>kappa_</code></td>
+<td><span class="arithmatex">\((K,)\)</span></td>
+<td>fitted concentrations <span class="arithmatex">\(\kappa_k\)</span> (all equal for <code>'shared'</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Each <span class="arithmatex">\(\mu_k\)</span> lives on a <span class="arithmatex">\((d-1)\)</span>-sphere, so <span class="arithmatex">\(p = (K-1) + K(d-1) + p_\kappa\)</span>
+with <span class="arithmatex">\(p_\kappa = K\)</span> (<code>per_component</code>) or <span class="arithmatex">\(1\)</span> (<code>shared</code>).</p>
+<h3 id="usage_1">Usage<a class="headerlink" href="#usage_1" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">VonMisesFisherMixture</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">vmf</span> <span class="o">=</span> <span class="n">VonMisesFisherMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="s1">'per_component'</span><span class="p">)</span>
@@ -2059,34 +3171,84 @@ data is still the right thing to do, since that's what the ambient
 dimensionality (<code>n_features</code>) and the density itself assume.</p>
 <ul>
 <li><code>concentration</code>: <code>'per_component'</code> (default) or <code>'shared'</code> (one
-  <span class="arithmatex">\(\kappa\)</span> for every component).</li>
-<li><code>init_means='kmeans'</code> (the default) runs <em>spherical</em> k-means -- k-means
-  with cosine similarity instead of Euclidean distance, seeded with a
-  cosine-distance k-means++ scheme to avoid collapsing two well-separated
-  clusters into one (plain random seeding occasionally does exactly that;
-  see the <a href="https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-10-14-phase4-base-mixture-studentt-vmf-design.md">design
+  <span class="arithmatex">\(\kappa\)</span> for every component). <code>kappa_init</code> (default <code>10.0</code>) is the
+  starting value.</li>
+<li><code>init_means</code>: <code>'kmeans'</code> (default, spherical k-means as above),
+  <code>'random'</code> (uniform on the sphere), <code>'points'</code> (random rows of <code>X</code>), or a
+  tensor (normalized and used directly). See the <a href="https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-10-14-phase4-base-mixture-studentt-vmf-design.md">design
   doc</a>
-  for the failure mode this fixes).</li>
+  for the seeding failure mode this fixes.</li>
+<li><code>sample(n)</code> uses Wood's (1994) rejection sampler. <code>reg_covar</code> is accepted
+  for interface parity but unused (there is no covariance).</li>
+</ul>
+<h3 id="visualizing-a-vmf-fit">Visualizing a vMF fit<a class="headerlink" href="#visualizing-a-vmf-fit" title="Permanent link">&para;</a></h3>
+<p><code>plot_gmm</code> cannot draw data on a sphere, so <code>tgmm.plotting</code> has vMF-specific tools: <code>plot_vmf</code> draws a fitted
+model on the circle (<span class="arithmatex">\(d=2\)</span>) or sphere (<span class="arithmatex">\(d=3\)</span>) -- points, mean-direction arrows, and spherical caps holding a
+chosen probability mass of each component -- and <code>plot_vmf_cosine</code> compares, in any dimension, each
+component's histogram of angles to its mean direction with the fitted density
+<span class="arithmatex">\(f_{\kappa}(\theta)\propto e^{\kappa\cos\theta}\sin^{d-2}\theta\)</span>. See
+<a href="../plotting/#von-mises-fisher-mixtures">von Mises-Fisher mixtures in the plotting guide</a> and the
+<a href="../../notebooks/17_von_mises_fisher/">tutorial</a>.</p>
+<h3 id="caveats_1">Caveats<a class="headerlink" href="#caveats_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><span class="arithmatex">\(\kappa\)</span> is clamped to <span class="arithmatex">\([10^{-3}, 10^{5}]\)</span>; an extremely tight cluster
+  (or duplicate points, <span class="arithmatex">\(\bar R \to 1\)</span>) lands on the upper bound.</li>
+<li>The Bessel normalizer is evaluated per component in Python each E-step,
+  which is cheap (<span class="arithmatex">\(K\)</span> scalars) but not GPU-resident.</li>
+<li>vMF has no notion of cluster <em>shape</em> -- every component is isotropic
+  around its mean direction. For elongated clusters on the sphere,
+  consider PCA-reducing and a <code>GaussianMixture</code>/<code>StudentTMixture</code> instead.</li>
 </ul>
 <h3 id="comparing-against-gaussianmixture-on-normalized-data">Comparing against <code>GaussianMixture</code> on normalized data<a class="headerlink" href="#comparing-against-gaussianmixture-on-normalized-data" title="Permanent link">&para;</a></h3>
 <p>Nothing stops you from fitting <code>GaussianMixture(covariance_type='diag')</code>
 on the same L2-normalized data -- it's a reasonable baseline, just not one
-that respects the data living on a sphere. Compare the two with <code>icl</code> (or
-a cosine-based clustering metric) to see whether the vMF assumption
-actually buys you anything on a given dataset; see notebook 16 for a
-worked example on high-dimensional embeddings.</p>
-<h2 id="model-selection-and-shared-machinery">Model selection and shared machinery<a class="headerlink" href="#model-selection-and-shared-machinery" title="Permanent link">&para;</a></h2>
-<p><code>bic</code>/<code>aic</code>/<code>icl</code> work the same way on both new classes as on
-<code>GaussianMixture</code> -- lower is better, and they're directly comparable
-<em>within</em> a family (not across families with a structurally different
-density). <code>sample(n)</code> draws from the fitted mixture for both: a Gaussian
-scaled by <span class="arithmatex">\(1/\sqrt{\mathrm{Gamma}(\nu_k/2, \nu_k/2)}\)</span> for
-<code>StudentTMixture</code>, and Wood's (1994) rejection sampler for
-<code>VonMisesFisherMixture</code>. <code>algorithm='cem'/'sem'/'saem'</code>, <code>temperature</code>
-(deterministic annealing), <code>step_size</code> (mini-batch/online EM, plus
-<code>partial_fit</code>), and <code>n_init</code> all work exactly as documented for
-<code>GaussianMixture</code>, since they're implemented once, in <code>BaseMixture</code>, and
-shared by every family.</p>
+that respects the data living on a sphere. Do <strong>not</strong> compare their <code>bic</code>/
+<code>aic</code>/<code>icl</code>: a vMF density is taken with respect to the surface measure of
+the sphere, a Gaussian density with respect to Lebesgue measure on
+<span class="arithmatex">\(\mathbb{R}^d\)</span>, so the log-likelihoods are not on the same scale (information
+criteria are comparable only among vMF fits). Compare across families with a
+cosine-based clustering metric or agreement with known labels instead; see
+notebook 17 for a worked example on high-dimensional embeddings.</p>
+<h2 id="supervised-and-semi-supervised-fitting">Supervised and semi-supervised fitting<a class="headerlink" href="#supervised-and-semi-supervised-fitting" title="Permanent link">&para;</a></h2>
+<p>Because <code>fit(X, labels=...)</code> lives in <code>BaseMixture</code>, both families accept
+it: with every row labeled they fit one block of components per class
+directly, and with <code>-1</code> marking unknown rows they run semi-supervised EM
+(<code>components_per_class</code>, <code>unlabeled_weight</code>, <code>label_confidence</code>,
+<code>predict_class</code>). The math and the options are covered in <a href="../semi-supervised-pu/">Semi-Supervised
+and Positive-Unlabeled Fitting</a>.</p>
+<h2 id="noise-missing-values-and-custom-families">Noise, missing values and custom families<a class="headerlink" href="#noise-missing-values-and-custom-families" title="Permanent link">&para;</a></h2>
+<p><code>noise=True</code> works for all three families (the noise density is uniform in the data's bounding box, or on the sphere for vMF);
+<code>missing='em'</code> for <code>GaussianMixture</code> and <code>StudentTMixture</code>; <code>frozen_components</code> and <code>sample_weight</code> for all of them. To fit a family that
+tgmm does not ship, implement the three-method <code>Component</code> protocol and use <code>GenericMixture</code>. See
+<a href="../noise-missing-conditioning/">Noise, Missing Values and Conditioning</a>.</p>
+<h2 id="shared-machinery-summary">Shared machinery summary<a class="headerlink" href="#shared-machinery-summary" title="Permanent link">&para;</a></h2>
+<p><code>bic</code>/<code>aic</code>/<code>icl</code> work the same way on both classes as on
+<code>GaussianMixture</code> (see the formulas above). <code>sample(n)</code> draws from the
+fitted mixture for both: a Gaussian scaled by
+<span class="arithmatex">\(1/\sqrt{\mathrm{Gamma}(\nu_k/2, \nu_k/2)}\)</span> for <code>StudentTMixture</code>, and
+Wood's (1994) rejection sampler for <code>VonMisesFisherMixture</code>.
+<code>algorithm='cem'/'sem'/'saem'</code>, <code>temperature</code> (deterministic annealing),
+<code>step_size</code> (mini-batch/online EM, plus <code>partial_fit</code>), and <code>n_init</code> all
+work exactly as documented for <code>GaussianMixture</code>, since they're
+implemented once, in <code>BaseMixture</code>, and shared by every family.</p>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Peel, D. &amp; McLachlan, G. J. (2000). Robust mixture modelling using the t
+  distribution. <em>Statistics and Computing</em>, 10, 339-348.</li>
+<li>Banerjee, A., Dhillon, I. S., Ghosh, J. &amp; Sra, S. (2005). Clustering on
+  the unit hypersphere using von Mises-Fisher distributions. <em>JMLR</em>, 6,
+  1345-1382.</li>
+<li>Sra, S. (2012). A short note on parameter approximation for von
+  Mises-Fisher distributions. <em>Computational Statistics</em>, 27, 177-190.</li>
+<li>Wood, A. T. A. (1994). Simulation of the von Mises Fisher distribution.
+  <em>Communications in Statistics -- Simulation and Computation</em>, 23(1),
+  157-164.</li>
+<li>Dhillon, I. S. &amp; Modha, D. S. (2001). Concept decompositions for large
+  sparse text data using clustering. <em>Machine Learning</em>, 42, 143-175.</li>
+<li>Biernacki, C., Celeux, G. &amp; Govaert, G. (2000). Assessing a mixture model
+  for clustering with the integrated completed likelihood. <em>IEEE TPAMI</em>,
+  22(7), 719-725.</li>
+</ul>
 
 
 

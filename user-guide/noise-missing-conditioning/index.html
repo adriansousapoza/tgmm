@@ -1,0 +1,2727 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Gaussian Mixture Model implementation in PyTorch with EM/MAP estimation">
+      
+      
+        <meta name="author" content="Adrián A. Sousa-Poza">
+      
+      
+        <link rel="canonical" href="https://adriansousapoza.github.io/tgmm/user-guide/noise-missing-conditioning/">
+      
+      
+        <link rel="prev" href="../semi-supervised-pu/">
+      
+      
+        <link rel="next" href="../gmm-initializer/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/tgmm-logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Noise, Missing Values and Conditioning - tgmm Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="black">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#noise-missing-values-and-conditioning" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="tgmm Documentation" class="md-header__button md-logo" aria-label="tgmm Documentation" data-md-component="logo">
+      
+  <img src="../../assets/tgmm-logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tgmm Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Noise, Missing Values and Conditioning
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="black"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="black"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/adriansousapoza/tgmm" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    adriansousapoza/tgmm
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../gaussian-mixture/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/gaussian-mixture/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="tgmm Documentation" class="md-nav__button md-logo" aria-label="tgmm Documentation" data-md-component="logo">
+      
+  <img src="../../assets/tgmm-logo.png" alt="logo">
+
+    </a>
+    tgmm Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/adriansousapoza/tgmm" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    adriansousapoza/tgmm
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gaussian Mixture Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gpcm-covariance-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../other-mixture-families/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other Mixture Families
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semi-supervised-pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#uniform-noise-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uniform noise component
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#missing-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#marginals-and-conditionals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marginals and conditionals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frozen-components-and-sample-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frozen components and sample weights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-components-the-component-protocol-and-genericmixture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom components: the Component protocol and GenericMixture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gmm-initializer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GMM Initializer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clustering-metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plotting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plotting & Visualization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/01_gmm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Basic GMM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/02_em_algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. EM Algorithm Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/03_visualise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Visualization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/04_cem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. CEM Algorithm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/05_supervised_gmm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Supervised Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/06_metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Metrics & Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/07_sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Sampling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/08_pca_plotting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. PCA Plotting Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/09_priors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Using Priors (MAP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/10_niw_priors_comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. NIW Priors Comparison
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/11_dpgmm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Dirichlet Process Mixtures (Stick-Breaking & Gibbs Sampling)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/12_hdbscan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    12. HDBSCAN Clustering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/13_model_selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    13. Model Selection (BIC, AIC, ICL)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/14_stochastic_em/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    14. Stochastic EM, Annealing & SAEM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/15_covariance_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/16_student_t/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    16. Student-t Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/17_von_mises_fisher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explainers
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/covariance-gpcm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/base-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.BaseMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/student-t-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/vmf-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.VonMisesFisherMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/positive-unlabeled-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.PositiveUnlabeledMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/gmm-initializer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GMMInitializer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/clustering-metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ClusteringMetrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/plotting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.plotting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/sufficient-stats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.SufficientStats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/model-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#uniform-noise-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uniform noise component
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#missing-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing values
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#marginals-and-conditionals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marginals and conditionals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frozen-components-and-sample-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frozen components and sample weights
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-components-the-component-protocol-and-genericmixture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom components: the Component protocol and GenericMixture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="noise-missing-values-and-conditioning">Noise, Missing Values and Conditioning<a class="headerlink" href="#noise-missing-values-and-conditioning" title="Permanent link">&para;</a></h1>
+<p>Five features that every mixture family inherits from <code>BaseMixture</code> (or, for the Gaussian-specific ones, from
+<code>GaussianMixture</code>) and that change <em>what the fit is allowed to do</em> rather than which density it fits:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>What it gives you</th>
+<th>Section</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>noise=True</code></td>
+<td>a parameter-free uniform component that absorbs stray points</td>
+<td><a href="#uniform-noise-component">Uniform noise component</a></td>
+</tr>
+<tr>
+<td><code>missing='em'</code></td>
+<td>maximum likelihood from rows with <code>NaN</code> entries, and <code>impute</code></td>
+<td><a href="#missing-values">Missing values</a></td>
+</tr>
+<tr>
+<td><code>marginal</code> / <code>condition</code></td>
+<td>marginal and conditional distributions, Gaussian mixture regression</td>
+<td><a href="#marginals-and-conditionals">Marginals and conditionals</a></td>
+</tr>
+<tr>
+<td><code>frozen_components</code>, <code>sample_weight</code></td>
+<td>pin known components; weighted observations</td>
+<td><a href="#frozen-components-and-sample-weights">Frozen components and sample weights</a></td>
+</tr>
+<tr>
+<td><code>Component</code> protocol, <code>GenericMixture</code></td>
+<td>bring your own component family</td>
+<td><a href="#custom-components-the-component-protocol-and-genericmixture">Custom components</a></td>
+</tr>
+</tbody>
+</table>
+<p>Notation as elsewhere: <span class="arithmatex">\(n\)</span> samples, <span class="arithmatex">\(d\)</span> features, <span class="arithmatex">\(K\)</span> components, responsibilities <span class="arithmatex">\(r_{ik}\)</span>, <span class="arithmatex">\(n_k=\sum_i r_{ik}\)</span>. The
+<a href="../../notebooks/19_noise_missing_conditioning/">tutorial</a> runs every example below.</p>
+<h2 id="uniform-noise-component">Uniform noise component<a class="headerlink" href="#uniform-noise-component" title="Permanent link">&para;</a></h2>
+<p>Real data often contain points that no cluster explains. A Gaussian component forced to cover them widens and drifts.
+Banfield &amp; Raftery (1993) add one more component that is <strong>uniform over a region of volume <span class="arithmatex">\(V\)</span></strong>:</p>
+<div class="arithmatex">\[
+p(x)=\sum_{k=1}^{K}\pi_k f_k(x)+\frac{\pi_0}{V},\qquad \sum_{k=1}^{K}\pi_k+\pi_0=1 .
+\]</div>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>        <span class="c1"># -1 where the noise component is the most probable</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">p_noise</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">noise_proba</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>   <span class="c1"># posterior probability of the noise component</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">gmm</span><span class="o">.</span><span class="n">noise_weight_</span>              <span class="c1"># pi_0</span>
+</span></code></pre></div>
+<p><strong>E-step.</strong> A column <span class="arithmatex">\(\log\pi_0-\log V\)</span> is appended to the <span class="arithmatex">\((n,K)\)</span> component log-densities, so the responsibilities have
+shape <span class="arithmatex">\((n,K+1)\)</span> and the last column is <span class="arithmatex">\(\tau_{i0}\)</span>. <span class="arithmatex">\(\log V\)</span> is a constant, so the noise log-density is the same at every <span class="arithmatex">\(x\)</span> (also
+outside the data's bounding box: new points beyond the box are not given zero noise density).</p>
+<p><strong>M-step.</strong> <span class="arithmatex">\(\pi_0=\sum_i\tau_{i0}/n\)</span>. The <span class="arithmatex">\(K\)</span> components are updated from the first <span class="arithmatex">\(K\)</span> columns by the family's usual
+M-step, so <code>weights_</code> <span class="arithmatex">\(=n_k/n\)</span> sums to <span class="arithmatex">\(1-\pi_0\)</span> rather than to 1.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>weights_</code> and <code>noise_weight_</code></p>
+<p>With <code>noise=True</code>, <code>weights_</code> keeps shape <span class="arithmatex">\((K,)\)</span> and holds the <strong>component</strong> weights, which sum to
+<code>1 - noise_weight_</code>. This keeps <code>sample</code>, <code>plot_gmm</code>, <code>plot_vmf</code> and <code>save</code>/<code>load</code> working unchanged.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>noise</code></td>
+<td><code>False</code></td>
+<td>switch the component on; with <code>False</code> every fit is bit-identical to before</td>
+</tr>
+<tr>
+<td><code>noise_volume</code></td>
+<td><code>'bbox'</code></td>
+<td><code>'bbox'</code>: volume of the axis-aligned bounding box of the fit data, <span class="arithmatex">\(\prod_j(\max_j-\min_j)\)</span> (each extent floored at <span class="arithmatex">\(10^{-12}\)</span>); or a positive float, a user-supplied hypervolume</td>
+</tr>
+<tr>
+<td><code>noise_prior</code></td>
+<td><code>0.05</code></td>
+<td>initial <span class="arithmatex">\(\pi_0\in(0,1)\)</span></td>
+</tr>
+<tr>
+<td><code>noise_init</code></td>
+<td><code>None</code></td>
+<td>per-sample initial flag of length <span class="arithmatex">\(n\)</span>. A <code>bool</code> tensor is a mask (<code>True</code> = noise); any other dtype is read as cluster labels with <code>-1</code> = noise, so <code>HDBSCAN(...).labels_</code> can be passed as is. It overrides <code>noise_prior</code>, and the initial means and covariances come from the unflagged rows only</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Family hook.</strong> The noise log-density is <code>-log V</code> for <code>GaussianMixture</code> (all covariance types and GPCM codes) and <code>StudentTMixture</code>.
+For <code>VonMisesFisherMixture</code> it is <span class="arithmatex">\(-\log A_d\)</span> with <span class="arithmatex">\(A_d=2\pi^{d/2}/\Gamma(d/2)\)</span> the surface area of the unit sphere <span class="arithmatex">\(S^{d-1}\)</span> (the uniform density
+on the sphere), independent of <code>noise_volume</code>. Families without bounded continuous support raise <code>ValueError</code>.</p>
+<p><strong>Behaviour.</strong> <code>predict_proba(X)</code> is <span class="arithmatex">\((n,K+1)\)</span>; <code>score_samples</code>, <code>bic</code>, <code>aic</code>, <code>icl</code> and <code>select_model</code> include the noise term (one extra
+parameter). <code>sample</code> draws a noise point with probability <span class="arithmatex">\(\pi_0\)</span>, uniform in the stored bounding box <code>noise_bounds_</code> (uniform on the sphere for vMF), with
+component index <code>-1</code>. Works with <code>em</code>, <code>cem</code>, <code>sem</code>, <code>saem</code>, <code>temperature</code>, <code>batch_size</code>, <code>n_init</code>, <code>warm_start</code> and persistence.</p>
+<div class="admonition warning">
+<p class="admonition-title">Unsupported combinations (they raise)</p>
+<p>Gibbs mode (<code>n_components=None</code>); <code>fit(X, labels=...)</code> (a point cannot be labelled "known noise": <code>-1</code> still means unlabelled);
+online EM (<code>step_size</code>) and <code>partial_fit</code>; <code>weight_concentration_prior</code>; constrained <code>GaussianMixture.sample</code> variants
+(<code>component=</code>, <code>confidence=</code>, ...); <code>missing='em'</code>.</p>
+</div>
+<h2 id="missing-values">Missing values<a class="headerlink" href="#missing-values" title="Permanent link">&para;</a></h2>
+<p>With <code>missing='em'</code>, <code>NaN</code> entries of <code>X</code> are <strong>missing at random</strong> and EM maximises the likelihood of the <em>observed</em> entries
+(Ghahramani &amp; Jordan, 1994; Hunt &amp; Jorgensen, 2003). It is available for <code>GaussianMixture</code> (all six classic covariance types and all 14 GPCM codes) and
+<code>StudentTMixture</code>. <code>fit</code>, <code>predict</code>, <code>predict_proba</code>, <code>score_samples</code>, <code>score</code> and <code>bic</code>/<code>aic</code>/<code>icl</code> then accept incomplete rows.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">missing</span><span class="o">=</span><span class="s1">'em'</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_with_nans</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">X_filled</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">impute</span><span class="p">(</span><span class="n">X_with_nans</span><span class="p">)</span>
+</span></code></pre></div>
+<p>For a row with observed index set <span class="arithmatex">\(o\)</span> and missing index set <span class="arithmatex">\(m\)</span>, and component <span class="arithmatex">\(k\)</span>:</p>
+<ul>
+<li><strong>E-step (marginal likelihood):</strong> <span class="arithmatex">\(\log p(x_i\mid k)=-\tfrac12\big[p\log2\pi+\log|\Sigma_{k,oo}|+\delta_o\big]\)</span> with
+  <span class="arithmatex">\(\delta_o=(x_o-\mu_{k,o})^\top\Sigma_{k,oo}^{-1}(x_o-\mu_{k,o})\)</span> and <span class="arithmatex">\(p=|o|\)</span>.</li>
+<li><strong>Conditional mean and covariance of the hole</strong>, with <span class="arithmatex">\(A_k=\Sigma_{k,mo}\Sigma_{k,oo}^{-1}\)</span>:
+$$
+\hat x_{m}=\mu_{k,m}+A_k(x_o-\mu_{k,o}),\qquad C_k=\Sigma_{k,mm}-A_k\Sigma_{k,om}.
+$$</li>
+<li><strong>Completed statistics.</strong> With <span class="arithmatex">\(\tilde x_{ik}\)</span> the row with the hole replaced by <span class="arithmatex">\(\hat x_m\)</span>: <span class="arithmatex">\(n_k=\sum_ir_{ik}\)</span>, <span class="arithmatex">\(s_{1,k}=\sum_ir_{ik}\tilde x_{ik}\)</span>, <span class="arithmatex">\(\bar y_k=s_{1,k}/n_k\)</span> and
+$$
+s_{2,k}=\sum_i r_{ik}(\tilde x_{ik}-\bar y_k)(\tilde x_{ik}-\bar y_k)^\top+\sum_i r_{ik}\,C_{k,\text{pattern}(i)}\quad(C\text{ in the }m\times m\text{ block}),
+$$
+  which is exactly <span class="arithmatex">\(\mathbb E[\sum_ir_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top\mid x_o,\theta^{\text{old}}]\)</span>. Every M-step formula of the
+  <a href="../gaussian-mixture/">Gaussian guide</a> (MLE, MAP, NIW, GPCM) reads only <span class="arithmatex">\((n_k,s_1,s_2)\)</span>, so it applies unchanged.</li>
+</ul>
+<p>Rows are grouped by <strong>missingness pattern</strong> (<code>torch.unique(torch.isnan(X), dim=0)</code>), so the cost is one batched solve per pattern per component, not per row
+(<code>UserWarning</code> when more than 1000 distinct patterns). For <code>diag</code>/<code>spherical</code> types <span class="arithmatex">\(\Sigma_{mo}=0\)</span>, so <span class="arithmatex">\(\hat x_m=\mu_m\)</span> and <span class="arithmatex">\(C=\operatorname{diag}\Sigma_{mm}\)</span>:
+no solves at all. <code>impute(X)</code> replaces each <code>NaN</code> by <span class="arithmatex">\(\sum_k\tau_{ik}\hat x_{ik}\)</span> and leaves observed entries untouched.</p>
+<p><strong>Student-t.</strong> With the scale-mixture form (<span class="arithmatex">\(w\sim\mathrm{Gamma}(\nu/2,\nu/2)\)</span>, <span class="arithmatex">\(x\mid w\sim\mathcal N(\mu,\Sigma/w)\)</span>) the observed block is a <span class="arithmatex">\(t_p\)</span> and
+<span class="arithmatex">\(u_{ik}=(\nu_k+p)/(\nu_k+\delta_o)\)</span> uses the number <span class="arithmatex">\(p\)</span> of observed entries. The conditional mean does not depend on <span class="arithmatex">\(w\)</span>, so
+<span class="arithmatex">\(\mathbb E[w\,x_m\mid x_o]=u\,\hat x_m\)</span> and <span class="arithmatex">\(\mathbb E[w(x_m-c)(x_m-c)^\top\mid x_o]=u(\hat x_m-c)(\hat x_m-c)^\top+C_k\)</span> (the conditional covariance carries <strong>no</strong> factor <span class="arithmatex">\(u\)</span>). Degrees
+of freedom use the textbook form per row with that row's own <span class="arithmatex">\(p\)</span>. <code>scale_update='ecme'</code> is not available with <code>missing='em'</code>.</p>
+<p><strong>Initialisation</strong> runs on the column-mean-imputed data. <strong>Defaults:</strong> with <code>missing='error'</code> a <code>NaN</code> raises a <code>ValueError</code> pointing at <code>missing='em'</code> (earlier
+versions silently propagated <code>NaN</code> into the parameters); <code>missing='em'</code> on data without <code>NaN</code> gives results identical to <code>'error'</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">What raises</p>
+<p>Rows with no observed entry and entirely-<code>NaN</code> columns (<code>ValueError</code>: they carry no information); <code>noise=True</code>, Gibbs mode,
+<code>labels=</code>, online EM / <code>partial_fit</code> (<code>NotImplementedError</code>); <code>VonMisesFisherMixture</code> (<code>ValueError</code>).</p>
+</div>
+<h2 id="marginals-and-conditionals">Marginals and conditionals<a class="headerlink" href="#marginals-and-conditionals" title="Permanent link">&para;</a></h2>
+<p>A fitted <code>GaussianMixture</code> is a joint density, so it can be restricted and conditioned.</p>
+<p><strong><code>gmm.marginal(dims)</code></strong> returns a new fitted <code>GaussianMixture</code> over the chosen coordinates: component <span class="arithmatex">\(k\)</span> becomes <span class="arithmatex">\(\mathcal N(\mu_k[\text{dims}],\Sigma_k[\text{dims},\text{dims}])\)</span> with the same
+weights. <code>diag</code>, <code>spherical</code> and <code>tied_*</code> keep their type; <code>full</code> and the GPCM codes without a classic name return <code>full</code> (the volume/shape/orientation decomposition does not
+survive restriction). <code>StudentTMixture.marginal</code> is exact too (same <span class="arithmatex">\(\nu\)</span>, restricted scale matrix).</p>
+<p><strong><code>gmm.condition(x_obs, obs_dims)</code></strong> returns a <code>ConditionalGaussianMixture</code>: for every row <span class="arithmatex">\(x_{o,i}\)</span> the distribution of the remaining coordinates,</p>
+<div class="arithmatex">\[
+p(y\mid x_{o,i})=\sum_{k=1}^{K}w_{ik}\,\mathcal N\!\big(y;\,m_{ik},\,C_k\big),\qquad
+w_{ik}\propto\pi_k\,\mathcal N(x_{o,i};\mu_{k,o},\Sigma_{k,oo}),
+\]</div>
+<div class="arithmatex">\[
+m_{ik}=\mu_{k,m}+\Sigma_{k,mo}\Sigma_{k,oo}^{-1}(x_{o,i}-\mu_{k,o}),\qquad C_k=\Sigma_{k,mm}-\Sigma_{k,mo}\Sigma_{k,oo}^{-1}\Sigma_{k,om}.
+\]</div>
+<p>The weights depend on the observed values; the conditional covariances do not. All steps are batched Cholesky solves, with no loop over samples.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">cond</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">condition</span><span class="p">(</span><span class="n">x_obs</span><span class="p">,</span> <span class="n">obs_dims</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cond</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>        <span class="c1"># (n, d_m): Gaussian mixture regression, E[y | x] = sum_k w_ik m_ik</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">cond</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>   <span class="c1"># (n,) conditional log-density (a single-row conditional broadcasts against many Y)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">cond</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>    <span class="c1"># (n, 50, d_m)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">cond</span><span class="o">.</span><span class="n">as_gmm</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>     <span class="c1"># conditional of row i as an ordinary GaussianMixture over the missing coordinates</span>
+</span></code></pre></div>
+<p><code>obs_dims</code> keeps the order you give (column <span class="arithmatex">\(j\)</span> of <code>x_obs</code> is coordinate <code>obs_dims[j]</code>); the conditional is over the <strong>sorted complement</strong>. Attributes: <code>weights_ (n, K)</code>, <code>means_ (n, K, d_m)</code>,
+<code>covariances_ (K, d_m, d_m)</code>, <code>obs_dims</code>, <code>missing_dims</code>. The mean is a regression curve; the <em>distribution</em> can be multimodal, which a single regression mean would hide.</p>
+<div class="admonition warning">
+<p class="admonition-title">Not supported</p>
+<p>Gibbs-mode and <code>noise=True</code> models (a noise component has no Gaussian-mixture form after conditioning); <code>StudentTMixture.condition</code> (the conditional t has degrees of
+freedom <span class="arithmatex">\(\nu+d_o\)</span> and a sample-dependent scale, so it is not a member of this class); <code>VonMisesFisherMixture</code>.</p>
+</div>
+<h2 id="frozen-components-and-sample-weights">Frozen components and sample weights<a class="headerlink" href="#frozen-components-and-sample-weights" title="Permanent link">&para;</a></h2>
+<p><strong><code>frozen_components=[k, ...]</code></strong> keeps component <span class="arithmatex">\(k\)</span>'s means and covariances (or <code>dof_</code>, <code>kappa_</code>) at their <strong>initial</strong> values for the whole fit. Mixing weights, and the
+noise weight, still update, and <span class="arithmatex">\(\sum_k\pi_k+\pi_0=1\)</span> is preserved. Initial values come from <code>init_means</code>/<code>init_covariances</code> or <code>warm_start</code>. Priors never shrink a frozen
+component and SEM never re-seeds it. Not supported (<code>ValueError</code>): tied covariance types and GPCM codes without a classic name, <code>dof='shared'</code>, <code>concentration='shared'</code>, Gibbs mode.
+<code>PositiveUnlabeledMixture(anchor='fixed')</code> is built on it.</p>
+<p><strong><code>fit(X, sample_weight=w)</code></strong></p>
+<ul>
+<li><em>Row weights</em>, shape <span class="arithmatex">\((n,)\)</span>: responsibilities are scaled by <span class="arithmatex">\(w_i\)</span> before the sufficient statistics, so <span class="arithmatex">\(n_k\)</span>, <span class="arithmatex">\(s_1\)</span>, <span class="arithmatex">\(s_2\)</span> (and the Student-t and vMF analogues) are weighted. The effective sample count is
+  <span class="arithmatex">\(n_{\text{eff}}=\sum_iw_i\)</span> (mixing weights <span class="arithmatex">\(\pi_k=n_k/n_{\text{eff}}\)</span>; MAP priors use <span class="arithmatex">\(n_{\text{eff}}\)</span>), and <code>lower_bound_</code> is <span class="arithmatex">\(\sum_iw_i\log p(x_i)/\sum_iw_i\)</span>. Hence integer weights equal
+  duplicating rows, a weight of 0 drops the row, a constant rescaling changes nothing, and all-ones is bit-identical to no weights. Initialisation ignores weights (except to exclude zero-weight rows),
+  and <code>bic</code>/<code>aic</code>/<code>icl</code>/<code>score</code> take only <code>X</code>.</li>
+<li><em>Per-feature weights</em>, shape <span class="arithmatex">\((n,d)\)</span>: for models that factorise over features (<code>GaussianMixture</code> <code>'diag'</code>/<code>'spherical'</code>, <code>StudentTMixture</code> <code>'diag'</code>), maximum likelihood only. A weight <span class="arithmatex">\(w_{ij}=0\)</span> hides feature
+  <span class="arithmatex">\(j\)</span> of row <span class="arithmatex">\(i\)</span> (exact marginalisation). For <code>'diag'</code>:
+$$
+\log p(x_i\mid k)=-\tfrac12\sum_jw_{ij}\Big[\log2\pi+\log s_{kj}+\frac{(x_{ij}-m_{kj})^2}{s_{kj}}\Big],\quad
+m_{kj}=\frac{\sum_ir_{ik}w_{ij}x_{ij}}{N_{kj}},  s_{kj}=\frac{\sum_ir_{ik}w_{ij}(x_{ij}-m_{kj})^2}{N_{kj}},
+$$
+  with <span class="arithmatex">\(N_{kj}=\sum_ir_{ik}w_{ij}\)</span>. Other models raise <code>ValueError</code>.</li>
+</ul>
+<p>Row weights work with <code>em</code>/<code>cem</code>/<code>sem</code>/<code>saem</code>, <code>batch_size</code>, <code>n_init</code>, <code>warm_start</code>, <code>noise=True</code> and <code>missing='em'</code> (each on its own: the two cannot be combined); they raise <code>NotImplementedError</code> in Gibbs mode, with <code>labels=</code> and with online EM.</p>
+<div class="admonition note">
+<p class="admonition-title">No <code>inertia</code></p>
+<p>pomegranate's <code>inertia</code> is deliberately not added: <code>step_size</code> (online EM / SAEM) is the same control on the statistics.</p>
+</div>
+<h2 id="custom-components-the-component-protocol-and-genericmixture">Custom components: the <code>Component</code> protocol and <code>GenericMixture</code><a class="headerlink" href="#custom-components-the-component-protocol-and-genericmixture" title="Permanent link">&para;</a></h2>
+<p><code>tgmm.mixtures.protocol.Component</code> is a runtime-checkable <code>typing.Protocol</code> that describes a mixture component as EM sees it (the API shape is borrowed from pomegranate 1.x, MIT; tgmm does not import it):</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>log_probability(X)</code></td>
+<td><span class="arithmatex">\(\log f_k(x_i)\)</span>, shape <code>(n,)</code></td>
+</tr>
+<tr>
+<td><code>summarize(X, sample_weight)</code></td>
+<td><strong>accumulate</strong> weighted statistics of one chunk (<code>sample_weight</code> = responsibility <span class="arithmatex">\(\times\)</span> row weight)</td>
+</tr>
+<tr>
+<td><code>from_summaries()</code></td>
+<td>update the parameters from everything summarised and reset the accumulators</td>
+</tr>
+</tbody>
+</table>
+<p>Optional members: <code>sample(n)</code>, <code>n_parameters()</code> (fallback: the number of scalar entries in the object's public tensors), <code>frozen</code>, <code>reseed(x)</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenericMixture</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">gm</span> <span class="o">=</span> <span class="n">GenericMixture</span><span class="p">(</span><span class="n">components</span><span class="o">=</span><span class="p">[</span><span class="n">Exponential</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">Normal1D</span><span class="p">(</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)])</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span></code></pre></div>
+<p><strong>M-step.</strong> For every data chunk and every non-frozen component, <code>summarize(X_chunk, resp_chunk[:, k])</code>; then <code>from_summaries()</code> once. Because <code>summarize</code> accumulates, <code>batch_size</code> works and
+chunked equals unchunked. Mixing weights are <span class="arithmatex">\(\pi_k=n_k/n\)</span> as in every family.</p>
+<p><strong>Autograd components.</strong> A <code>torch.nn.Module</code> with learnable parameters and a <code>log_prob(X)</code> method (and no <code>summarize</code>) is wrapped automatically. Its M-step maximises
+<span class="arithmatex">\(Q_k(\theta_k)=\sum_iw_{ik}\log f_k(x_i\mid\theta_k)/\sum_iw_{ik}\)</span> with a few L-BFGS steps (<code>BaseMixture._gem_step</code>) and <strong>keeps the update only if <span class="arithmatex">\(Q_k\)</span> increases</strong>, so the log-likelihood stays monotone (a generalised EM step).</p>
+<p><strong>Decisions.</strong> The components you pass <em>are</em> the starting point (no k-means); <code>n_init</code> must be 1; frozen parameters still count in BIC; <code>em</code>, <code>cem</code>, <code>sem</code> (with <code>sem_estimate='best'</code>) and <code>temperature</code> work, while
+<code>saem</code>, online EM and <code>partial_fit</code> raise <code>NotImplementedError</code> (opaque <code>summarize</code> state cannot be blended); <code>noise=True</code> needs a float <code>noise_volume</code>; per-feature weights and <code>missing='em'</code> raise <code>ValueError</code>;
+<code>save</code>/<code>load</code> pickle the components, so their classes must be importable.</p>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../gaussian-mixture/">Gaussian Mixture Model</a>: the E- and M-steps these features modify; <a href="../other-mixture-families/">Other Mixture Families</a>; <a href="../semi-supervised-pu/">Semi-Supervised and PU Fitting</a>.</li>
+<li>API: <a href="../../api/conditional-gaussian-mixture/"><code>ConditionalGaussianMixture</code></a>, <a href="../../api/generic-mixture/"><code>GenericMixture</code></a>.</li>
+</ul>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<p>Banfield, J. D. &amp; Raftery, A. E. (1993). Model-based Gaussian and non-Gaussian clustering. <em>Biometrics</em>, 49(3). Ghahramani, Z. &amp; Jordan, M. I. (1994). Supervised learning from incomplete data via an EM approach. <em>NeurIPS 6</em>.
+Hunt, L. &amp; Jorgensen, M. (2003). Mixture model clustering for mixed data with missing information. <em>CSDA</em>, 41. Lin, T. I., Lee, J. C. &amp; Ho, H. J. (2006). On fast supervised learning for normal mixture models with missing information. <em>Pattern Recognition</em>, 39. McLachlan, G. &amp; Krishnan, T. (2008). <em>The EM Algorithm and Extensions</em>, ch. 5.
+Sung, H. G. (2004). <em>Gaussian Mixture Regression and Classification</em>. PhD thesis, Rice University. Design notes: <code>docs/superpowers/specs/2026-10-15-v05-*.md</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 Adrián A. Sousa-Poza
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/adriansousapoza/tgmm" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/tgmm/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

@@ -65,7 +65,28 @@
 
     
     
-  </head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
   
   
     
@@ -302,6 +323,26 @@
   
   
   Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
 
         </a>
       </li>
@@ -660,10 +701,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#the-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        The model
       
     </span>
   </a>
@@ -671,33 +712,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#how-em-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Basic Usage
+        How EM works
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#covariance-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Covariance Types
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Covariance Types">
+    <nav class="md-nav" aria-label="How EM works">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#component-specific-covariances" class="md-nav__link">
+  <a href="#e-step-responsibilities" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component-Specific Covariances
+        E-step: responsibilities
       
     </span>
   </a>
@@ -705,10 +735,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tied-covariances" class="md-nav__link">
+  <a href="#m-step-maximum-likelihood-updates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tied Covariances
+        M-step: maximum-likelihood updates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter counts
       
     </span>
   </a>
@@ -721,15 +762,26 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#estimation-methods" class="md-nav__link">
+  <a href="#covariance-types-at-a-glance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Estimation Methods
+        Covariance types at a glance
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Estimation Methods">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estimation-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estimation methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Estimation methods">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -747,7 +799,7 @@
   <a href="#maximum-a-posteriori-map-with-priors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Maximum A Posteriori (MAP) with Priors
+        Maximum A Posteriori (MAP) with priors
       
     </span>
   </a>
@@ -758,7 +810,7 @@
   <a href="#normal-inverse-wishart-niw-conjugate-prior" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Normal-Inverse-Wishart (NIW) Conjugate Prior
+        Normal-Inverse-Wishart (NIW) conjugate prior
       
     </span>
   </a>
@@ -774,63 +826,19 @@
   <a href="#initialization-strategies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Initialization Strategies
+        Initialization strategies
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Initialization Strategies">
+    <nav class="md-nav" aria-label="Initialization strategies">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#k-means-initialization-recommended" class="md-nav__link">
+  <a href="#multiple-restarts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        K-means Initialization (Recommended)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#k-means-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        K-means++ Initialization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#random-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Random Initialization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#custom-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Custom Initialization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-random-restarts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Random Restarts
+        Multiple restarts
       
     </span>
   </a>
@@ -846,12 +854,12 @@
   <a href="#fitting-algorithms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fitting Algorithms
+        Fitting algorithms
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Fitting Algorithms">
+    <nav class="md-nav" aria-label="Fitting algorithms">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -902,7 +910,18 @@
   <a href="#mini-batch-and-online-em" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mini-Batch and Online EM
+        Mini-batch and online EM
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#convergence-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Convergence control
       
     </span>
   </a>
@@ -915,10 +934,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#supervised-fitting" class="md-nav__link">
+  <a href="#model-selection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervised Fitting
+        Model selection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supervised-and-semi-supervised-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supervised and semi-supervised fitting
       
     </span>
   </a>
@@ -929,29 +959,46 @@
   <a href="#gibbs-sampling-inferring-the-number-of-components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Gibbs Sampling: Inferring the Number of Components
+        Gibbs sampling: inferring the number of components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gibbs sampling: inferring the number of components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-model_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The model
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#convergence-control" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#the-sampler" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Convergence Control
+        The sampler
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#large-datasets-batch_size" class="md-nav__link">
+  <a href="#frozen-components-and-sample-weights" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Large Datasets: batch_size
+        Frozen components and sample weights
       
     </span>
   </a>
@@ -962,7 +1009,18 @@
   <a href="#sampling-from-the-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sampling from the Model
+        Sampling from the model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#large-datasets-batch_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Large datasets: batch_size
       
     </span>
   </a>
@@ -973,7 +1031,7 @@
   <a href="#model-persistence" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Model Persistence
+        Model persistence
       
     </span>
   </a>
@@ -984,7 +1042,7 @@
   <a href="#gpu-acceleration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        GPU Acceleration
+        GPU acceleration
       
     </span>
   </a>
@@ -992,10 +1050,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#attributes" class="md-nav__link">
+  <a href="#fitted-attributes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Attributes
+        Fitted attributes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related models
       
     </span>
   </a>
@@ -1006,7 +1075,7 @@
   <a href="#complete-api-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Complete API Reference
+        Complete API reference
       
     </span>
   </a>
@@ -1093,6 +1162,34 @@
     
   
     Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../noise-missing-conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
   
 
     
@@ -1678,14 +1775,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/15_gpcm_models/" class="md-nav__link">
+      <a href="../../notebooks/15_covariance_models/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    15. GPCM Covariance Models
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
   
 
     
@@ -1706,14 +1803,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/16_student_t_and_vmf/" class="md-nav__link">
+      <a href="../../notebooks/16_student_t/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16. Student-t and von Mises-Fisher Mixtures
+    16. Student-t Mixtures
   
 
     
@@ -1734,14 +1831,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/17_semi_supervised_pu/" class="md-nav__link">
+      <a href="../../notebooks/17_von_mises_fisher/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    17. Semi-Supervised and Positive-Unlabeled Fitting
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
   
 
     
@@ -1794,7 +1947,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Explainers
   
 
     
@@ -1807,6 +1960,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1915,6 +2269,62 @@
     
   
     tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
   
 
     
@@ -2185,10 +2595,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#the-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        The model
       
     </span>
   </a>
@@ -2196,33 +2606,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#basic-usage" class="md-nav__link">
+  <a href="#how-em-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Basic Usage
+        How EM works
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#covariance-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Covariance Types
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Covariance Types">
+    <nav class="md-nav" aria-label="How EM works">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#component-specific-covariances" class="md-nav__link">
+  <a href="#e-step-responsibilities" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component-Specific Covariances
+        E-step: responsibilities
       
     </span>
   </a>
@@ -2230,10 +2629,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tied-covariances" class="md-nav__link">
+  <a href="#m-step-maximum-likelihood-updates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tied Covariances
+        M-step: maximum-likelihood updates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter counts
       
     </span>
   </a>
@@ -2246,15 +2656,26 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#estimation-methods" class="md-nav__link">
+  <a href="#covariance-types-at-a-glance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Estimation Methods
+        Covariance types at a glance
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Estimation Methods">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estimation-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estimation methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Estimation methods">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2272,7 +2693,7 @@
   <a href="#maximum-a-posteriori-map-with-priors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Maximum A Posteriori (MAP) with Priors
+        Maximum A Posteriori (MAP) with priors
       
     </span>
   </a>
@@ -2283,7 +2704,7 @@
   <a href="#normal-inverse-wishart-niw-conjugate-prior" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Normal-Inverse-Wishart (NIW) Conjugate Prior
+        Normal-Inverse-Wishart (NIW) conjugate prior
       
     </span>
   </a>
@@ -2299,63 +2720,19 @@
   <a href="#initialization-strategies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Initialization Strategies
+        Initialization strategies
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Initialization Strategies">
+    <nav class="md-nav" aria-label="Initialization strategies">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#k-means-initialization-recommended" class="md-nav__link">
+  <a href="#multiple-restarts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        K-means Initialization (Recommended)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#k-means-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        K-means++ Initialization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#random-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Random Initialization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#custom-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Custom Initialization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-random-restarts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Random Restarts
+        Multiple restarts
       
     </span>
   </a>
@@ -2371,12 +2748,12 @@
   <a href="#fitting-algorithms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fitting Algorithms
+        Fitting algorithms
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Fitting Algorithms">
+    <nav class="md-nav" aria-label="Fitting algorithms">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2427,7 +2804,18 @@
   <a href="#mini-batch-and-online-em" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mini-Batch and Online EM
+        Mini-batch and online EM
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#convergence-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Convergence control
       
     </span>
   </a>
@@ -2440,10 +2828,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#supervised-fitting" class="md-nav__link">
+  <a href="#model-selection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supervised Fitting
+        Model selection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supervised-and-semi-supervised-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supervised and semi-supervised fitting
       
     </span>
   </a>
@@ -2454,29 +2853,46 @@
   <a href="#gibbs-sampling-inferring-the-number-of-components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Gibbs Sampling: Inferring the Number of Components
+        Gibbs sampling: inferring the number of components
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gibbs sampling: inferring the number of components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-model_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The model
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#convergence-control" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#the-sampler" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Convergence Control
+        The sampler
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#large-datasets-batch_size" class="md-nav__link">
+  <a href="#frozen-components-and-sample-weights" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Large Datasets: batch_size
+        Frozen components and sample weights
       
     </span>
   </a>
@@ -2487,7 +2903,18 @@
   <a href="#sampling-from-the-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sampling from the Model
+        Sampling from the model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#large-datasets-batch_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Large datasets: batch_size
       
     </span>
   </a>
@@ -2498,7 +2925,7 @@
   <a href="#model-persistence" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Model Persistence
+        Model persistence
       
     </span>
   </a>
@@ -2509,7 +2936,7 @@
   <a href="#gpu-acceleration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        GPU Acceleration
+        GPU acceleration
       
     </span>
   </a>
@@ -2517,10 +2944,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#attributes" class="md-nav__link">
+  <a href="#fitted-attributes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Attributes
+        Fitted attributes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related models
       
     </span>
   </a>
@@ -2531,7 +2969,7 @@
   <a href="#complete-api-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Complete API Reference
+        Complete API reference
       
     </span>
   </a>
@@ -2559,439 +2997,811 @@
 
 
 <h1 id="gaussian-mixture-model">Gaussian Mixture Model<a class="headerlink" href="#gaussian-mixture-model" title="Permanent link">&para;</a></h1>
-<p>The <code>GaussianMixture</code> class is the core component of tgmm, implementing the Expectation-Maximization (EM) algorithm for fitting Gaussian Mixture Models with optional Bayesian priors (MAP estimation).</p>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>A Gaussian Mixture Model represents a probability distribution as a weighted sum of Gaussian components:</p>
+<p>The <code>GaussianMixture</code> class is the core component of tgmm. It fits a mixture of Gaussians by
+Expectation-Maximization (EM) or one of its variants (classification, stochastic, annealed,
+online), with optional Bayesian priors (MAP estimation), a choice of 6 classic or 14
+eigen-decomposed (GPCM) covariance structures, semi-supervised fitting, and a Dirichlet-process
+(Gibbs-sampling) mode that infers the number of components.</p>
+<p>This page explains <strong>what is computed</strong>: the model, every update equation the code implements,
+and how each option changes them. For runnable examples see the <a href="../../tutorials/">Tutorials</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Notation (used throughout the documentation)</p>
+<p><span class="arithmatex">\(n\)</span> samples <span class="arithmatex">\(x_i\in\mathbb{R}^d\)</span>, <span class="arithmatex">\(K\)</span> components. <span class="arithmatex">\(r_{ik}\)</span> is the responsibility of component
+<span class="arithmatex">\(k\)</span> for sample <span class="arithmatex">\(i\)</span>, and</p>
 <div class="arithmatex">\[
-p(x) = \sum_{k=1}^{K} \pi_k \mathcal{N}(x | \mu_k, \Sigma_k)
+n_k=\sum_i r_{ik},\qquad
+\bar y_k=\frac{1}{n_k}\sum_i r_{ik}\,x_i,\qquad
+W_k=\sum_i r_{ik}\,(x_i-\bar y_k)(x_i-\bar y_k)^\top .
 \]</div>
-<p>where:</p>
-<ul>
-<li><span class="arithmatex">\(K\)</span> is the number of components</li>
-<li><span class="arithmatex">\(\pi_k\)</span> are the mixing weights (<span class="arithmatex">\(\sum_k \pi_k = 1\)</span>)</li>
-<li><span class="arithmatex">\(\mu_k\)</span> are the component means</li>
-<li><span class="arithmatex">\(\Sigma_k\)</span> are the component covariances</li>
-</ul>
-<h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
+<p><span class="arithmatex">\(n_k\)</span> is the "effective sample count", <span class="arithmatex">\(\bar y_k\)</span> the responsibility-weighted mean and <span class="arithmatex">\(W_k\)</span> the
+responsibility-weighted scatter matrix. Together with <span class="arithmatex">\(n\)</span> these are the <strong>sufficient
+statistics</strong> of the M-step (<code>tgmm.SufficientStats</code> stores <span class="arithmatex">\(n_k\)</span>, <span class="arithmatex">\(\sum_i r_{ik}x_i\)</span> and
+<span class="arithmatex">\(W_k\)</span> -- or its diagonal / trace for <code>diag</code> / <code>spherical</code> types).</p>
+</div>
+<h2 id="the-model">The model<a class="headerlink" href="#the-model" title="Permanent link">&para;</a></h2>
+<p>A Gaussian mixture represents the density of the data as a weighted sum of <span class="arithmatex">\(K\)</span> Gaussians:</p>
+<div class="arithmatex">\[
+p(x\mid\theta)=\sum_{k=1}^{K}\pi_k\,\mathcal{N}(x\mid\mu_k,\Sigma_k),\qquad
+\pi_k\ge 0,\ \ \sum_k\pi_k=1,
+\]</div>
+<div class="arithmatex">\[
+\mathcal{N}(x\mid\mu,\Sigma)=(2\pi)^{-d/2}\,|\Sigma|^{-1/2}
+\exp\!\Big(-\tfrac12 (x-\mu)^\top\Sigma^{-1}(x-\mu)\Big),
+\]</div>
+<p>with parameters <span class="arithmatex">\(\theta=\{\pi_k,\mu_k,\Sigma_k\}_{k=1}^K\)</span>. Equivalently, there is a hidden
+(latent) label <span class="arithmatex">\(z_i\in\{1,\dots,K\}\)</span> per sample with <span class="arithmatex">\(p(z_i=k)=\pi_k\)</span> and
+<span class="arithmatex">\(x_i\mid z_i=k\sim\mathcal{N}(\mu_k,\Sigma_k)\)</span>; clustering means inferring <span class="arithmatex">\(z_i\)</span>.</p>
+<p>Maximum likelihood maximizes the observed-data log-likelihood</p>
+<div class="arithmatex">\[
+\ell(\theta)=\sum_{i=1}^n\log\sum_{k=1}^K\pi_k\,\mathcal{N}(x_i\mid\mu_k,\Sigma_k),
+\]</div>
+<p>which has a log of a sum and so no closed-form maximizer. If the labels <em>were</em> observed, the
+<strong>complete-data</strong> log-likelihood</p>
+<div class="arithmatex">\[
+\ell_c(\theta)=\sum_{i,k}\mathbb{1}[z_i=k]\,\big(\log\pi_k+\log\mathcal{N}(x_i\mid\mu_k,\Sigma_k)\big)
+\]</div>
+<p>would split into one independent, closed-form problem per component. EM exploits this.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Create GMM</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>      <span class="c1"># Number of Gaussian components</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>        <span class="c1"># Data dimensionality</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span>  <span class="c1"># Type of covariance matrix</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Fit to data</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="c1"># Make predictions</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>              <span class="c1"># Hard assignments</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="n">probabilities</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># Soft assignments</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">log_likelihood</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>         <span class="c1"># Average log-likelihood</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>         <span class="c1"># number of Gaussian components K</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>           <span class="c1"># data dimensionality d (optional: inferred from X)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span>  <span class="c1"># structure of each Sigma_k</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">labels</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>              <span class="c1"># hard assignments, argmax_k r_ik</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">probabilities</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># soft assignments r_ik</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">log_likelihood</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>         <span class="c1"># average log-likelihood (1/n) * ell(theta)</span>
 </span></code></pre></div>
-<h2 id="covariance-types">Covariance Types<a class="headerlink" href="#covariance-types" title="Permanent link">&para;</a></h2>
-<p>tgmm supports six different covariance types, offering trade-offs between flexibility and computational cost:</p>
-<h3 id="component-specific-covariances">Component-Specific Covariances<a class="headerlink" href="#component-specific-covariances" title="Permanent link">&para;</a></h3>
-<p>Each component has its own covariance matrix:</p>
-<h4 id="full-covariance">Full Covariance<a class="headerlink" href="#full-covariance" title="Permanent link">&para;</a></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span><span class="p">)</span>
+<h2 id="how-em-works">How EM works<a class="headerlink" href="#how-em-works" title="Permanent link">&para;</a></h2>
+<p>For any distribution <span class="arithmatex">\(q_{ik}\)</span> over the labels, Jensen's inequality gives a lower bound on <span class="arithmatex">\(\ell\)</span>:</p>
+<div class="arithmatex">\[
+\ell(\theta)\ \ge\ \mathcal{F}(q,\theta)=\sum_{i,k}q_{ik}\log\frac{\pi_k\,\mathcal{N}(x_i\mid\mu_k,\Sigma_k)}{q_{ik}},
+\]</div>
+<p>with equality exactly when <span class="arithmatex">\(q_{ik}=p(z_i=k\mid x_i,\theta)\)</span>. EM alternates</p>
+<ol>
+<li><strong>E-step</strong>: set <span class="arithmatex">\(q\)</span> to that posterior (making the bound tight at the current <span class="arithmatex">\(\theta^{(t)}\)</span>);</li>
+<li><strong>M-step</strong>: maximize <span class="arithmatex">\(\mathcal{F}(q,\theta)\)</span> over <span class="arithmatex">\(\theta\)</span>.</li>
+</ol>
+<p>Then <span class="arithmatex">\(\ell(\theta^{(t+1)})\ge\mathcal{F}(q,\theta^{(t+1)})\ge\mathcal{F}(q,\theta^{(t)})=\ell(\theta^{(t)})\)</span>:
+<strong>the log-likelihood never decreases</strong>, so EM converges to a stationary point (a local
+maximum in practice, which is why initialization and <code>n_init</code> matter). With priors the same
+argument applies to the log-posterior <span class="arithmatex">\(\ell(\theta)+\log p(\theta)\)</span> (MAP-EM).</p>
+<h3 id="e-step-responsibilities">E-step: responsibilities<a class="headerlink" href="#e-step-responsibilities" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[
+r_{ik}=p(z_i=k\mid x_i,\theta)=
+\frac{\pi_k\,\mathcal{N}(x_i\mid\mu_k,\Sigma_k)}{\sum_{j}\pi_j\,\mathcal{N}(x_i\mid\mu_j,\Sigma_j)}
+=\operatorname{softmax}_k\!\big(\log\pi_k+\log\mathcal{N}(x_i\mid\mu_k,\Sigma_k)\big).
+\]</div>
+<p>tgmm works entirely in log space: the per-component log-density
+<span class="arithmatex">\(\log\mathcal{N}(x\mid\mu_k,\Sigma_k)=-\tfrac12\big[d\log 2\pi+\log|\Sigma_k|+(x-\mu_k)^\top\Sigma_k^{-1}(x-\mu_k)\big]\)</span>
+is evaluated per covariance type (for <code>full</code>, via a Cholesky factor <span class="arithmatex">\(\Sigma_k=L_kL_k^\top\)</span>:
+<span class="arithmatex">\(\log|\Sigma_k|=2\sum\log\operatorname{diag}L_k\)</span>, and the Mahalanobis term by a triangular
+solve; for <code>diag</code> / <code>spherical</code> / <code>tied_*</code> the corresponding cheap closed forms), the mixing
+weight is added, and the normalizer is a <code>logsumexp</code>. The same normalizer gives the
+per-sample log-likelihood <span class="arithmatex">\(\log p(x_i\mid\theta)\)</span>, whose mean is <code>lower_bound_</code>
+(and what <code>score</code> returns).</p>
+<h3 id="m-step-maximum-likelihood-updates">M-step: maximum-likelihood updates<a class="headerlink" href="#m-step-maximum-likelihood-updates" title="Permanent link">&para;</a></h3>
+<p>Maximizing <span class="arithmatex">\(\mathcal{F}\)</span> over <span class="arithmatex">\(\theta\)</span> (using the responsibilities as soft counts) gives</p>
+<div class="arithmatex">\[
+\pi_k=\frac{n_k}{n},\qquad \mu_k=\bar y_k,
+\]</div>
+<p>and a covariance update that depends on <code>covariance_type</code>. For each component the
+<span class="arithmatex">\(\Sigma_k\)</span>-dependent part of <span class="arithmatex">\(\mathcal{F}\)</span> is</p>
+<div class="arithmatex">\[
+-\tfrac12\Big[n_k\log|\Sigma_k|+\operatorname{tr}\big(\Sigma_k^{-1}W_k\big)\Big]
+\qquad(\text{at }\mu_k=\bar y_k),
+\]</div>
+<p>so constraining <span class="arithmatex">\(\Sigma_k\)</span> to a family and minimizing <span class="arithmatex">\(n_k\log|\Sigma_k|+\operatorname{tr}(\Sigma_k^{-1}W_k)\)</span>
+within that family yields the closed forms below. With <span class="arithmatex">\(\varepsilon\)</span> = <code>reg_covar</code>
+(added to keep <span class="arithmatex">\(\Sigma\)</span> positive definite):</p>
+<table>
+<thead>
+<tr>
+<th><code>covariance_type</code></th>
+<th>Shape of <code>covariances_</code></th>
+<th>Update</th>
+<th>Free covariance parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>full</code></td>
+<td><span class="arithmatex">\((K,d,d)\)</span></td>
+<td><span class="arithmatex">\(\Sigma_k=\dfrac{W_k}{n_k}+\varepsilon I\)</span></td>
+<td><span class="arithmatex">\(K\,d(d+1)/2\)</span></td>
+</tr>
+<tr>
+<td><code>diag</code></td>
+<td><span class="arithmatex">\((K,d)\)</span></td>
+<td><span class="arithmatex">\(\sigma^2_{kj}=\dfrac{(W_k)_{jj}}{n_k}+\varepsilon\)</span></td>
+<td><span class="arithmatex">\(Kd\)</span></td>
+</tr>
+<tr>
+<td><code>spherical</code></td>
+<td><span class="arithmatex">\((K,)\)</span></td>
+<td><span class="arithmatex">\(\sigma_k^2=\dfrac{\operatorname{tr}W_k}{n_k\,d}+\varepsilon\)</span></td>
+<td><span class="arithmatex">\(K\)</span></td>
+</tr>
+<tr>
+<td><code>tied_full</code></td>
+<td><span class="arithmatex">\((d,d)\)</span></td>
+<td><span class="arithmatex">\(\Sigma=\dfrac{\sum_kW_k}{\sum_kn_k}+\varepsilon I\)</span></td>
+<td><span class="arithmatex">\(d(d+1)/2\)</span></td>
+</tr>
+<tr>
+<td><code>tied_diag</code></td>
+<td><span class="arithmatex">\((d,)\)</span></td>
+<td><span class="arithmatex">\(\sigma^2_{j}=\dfrac{\sum_k(W_k)_{jj}}{\sum_kn_k}+\varepsilon\)</span></td>
+<td><span class="arithmatex">\(d\)</span></td>
+</tr>
+<tr>
+<td><code>tied_spherical</code></td>
+<td>scalar</td>
+<td><span class="arithmatex">\(\sigma^2=\dfrac{\sum_k\operatorname{tr}W_k}{d\sum_kn_k}+\varepsilon\)</span></td>
+<td><span class="arithmatex">\(1\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Why these forms: for <code>full</code> the minimizer of <span class="arithmatex">\(n_k\log|\Sigma|+\operatorname{tr}(\Sigma^{-1}W_k)\)</span> is
+<span class="arithmatex">\(W_k/n_k\)</span> (the weighted sample covariance); for a diagonal <span class="arithmatex">\(\Sigma\)</span> the objective separates per
+coordinate; for <span class="arithmatex">\(\Sigma=\sigma^2I\)</span> it is <span class="arithmatex">\(n_kd\log\sigma^2+\operatorname{tr}(W_k)/\sigma^2\)</span>, minimized at
+<span class="arithmatex">\(\operatorname{tr}(W_k)/(n_kd)\)</span>; for <em>tied</em> types the same objective is summed over <span class="arithmatex">\(k\)</span> with a single
+shared <span class="arithmatex">\(\Sigma\)</span>, so the scatter is pooled over components and divided by the total count.</p>
+<div class="admonition note">
+<p class="admonition-title">More covariance structures: the 14 GPCM models</p>
+<p><code>covariance_type</code> also accepts all 14 Celeux &amp; Govaert (1995) mclust codes
+(<code>'EII'</code>, <code>'VEI'</code>, <code>'EVE'</code>, <code>'VVV'</code>, ... -- the six names above are aliases for six of them).
+These decompose <span class="arithmatex">\(\Sigma_k=\lambda_kD_kA_kD_k^\top\)</span> into volume, shape and orientation, each
+shared across or free per component. See
+<a href="../gpcm-covariance-models/">GPCM Covariance Models</a> for the decomposition, the M-step
+derivations and parameter counts; <code>covariance_type_</code> always reports the canonical code.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Where <code>reg_covar</code> enters</p>
+<p>In the plain MLE updates above, <span class="arithmatex">\(\varepsilon\)</span> is added to the covariance itself. In the MAP / NIW
+updates below it is added to the posterior scale matrix <span class="arithmatex">\(\Psi_n\)</span> <em>before</em> dividing by
+<span class="arithmatex">\(\nu_n\)</span>, so its effective size is <span class="arithmatex">\(\varepsilon/\nu_n\)</span>.</p>
+</div>
+<h3 id="parameter-counts">Parameter counts<a class="headerlink" href="#parameter-counts" title="Permanent link">&para;</a></h3>
+<p>The total number of free parameters used by <code>bic</code> / <code>aic</code> / <code>icl</code> is
+<span class="arithmatex">\(p=(K-1)+Kd+p_\Sigma\)</span>, where <span class="arithmatex">\(p_\Sigma\)</span> is the last column of the table above (for the 8 extra
+GPCM codes see the GPCM page). In Gibbs mode <span class="arithmatex">\(K\)</span> is the inferred number of <em>active</em> components.</p>
+<h2 id="covariance-types-at-a-glance">Covariance types at a glance<a class="headerlink" href="#covariance-types-at-a-glance" title="Permanent link">&para;</a></h2>
+<p>Per-component covariances (<code>full</code>, <code>diag</code>, <code>spherical</code>) let each cluster have its own size,
+shape and orientation to the degree the type allows; <code>tied_*</code> types force every cluster to
+share one covariance (different centers only), which saves parameters and stabilizes fits
+with few points per cluster.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span><span class="p">)</span>            <span class="c1"># arbitrary ellipsoids</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'diag'</span><span class="p">)</span>            <span class="c1"># axis-aligned ellipsoids</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'spherical'</span><span class="p">)</span>       <span class="c1"># one variance per cluster</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'tied_full'</span><span class="p">)</span>       <span class="c1"># one shared full covariance</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'tied_diag'</span><span class="p">)</span>       <span class="c1"># one shared diagonal</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'tied_spherical'</span><span class="p">)</span>  <span class="c1"># one shared variance</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'EVE'</span><span class="p">)</span>             <span class="c1"># any of the 14 mclust GPCM codes</span>
 </span></code></pre></div>
-<ul>
-<li><strong>Shape</strong>: <span class="arithmatex">\((K, d, d)\)</span> where <span class="arithmatex">\(K\)</span> is number of components, <span class="arithmatex">\(d\)</span> is dimensionality</li>
-<li><strong>Parameters</strong>: <span class="arithmatex">\(K \cdot d \cdot (d+1)/2\)</span> (due to symmetry)</li>
-<li><strong>Use</strong>: Most flexible; clusters can have arbitrary orientation and shape</li>
-<li><strong>Computational Cost</strong>: Highest</li>
-</ul>
-<h4 id="diagonal-covariance">Diagonal Covariance<a class="headerlink" href="#diagonal-covariance" title="Permanent link">&para;</a></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'diag'</span><span class="p">)</span>
-</span></code></pre></div>
-<ul>
-<li><strong>Shape</strong>: <span class="arithmatex">\((K, d)\)</span></li>
-<li><strong>Parameters</strong>: <span class="arithmatex">\(K \cdot d\)</span></li>
-<li><strong>Use</strong>: Axis-aligned ellipsoids; assumes feature independence</li>
-<li><strong>Computational Cost</strong>: Medium</li>
-</ul>
-<h4 id="spherical-covariance">Spherical Covariance<a class="headerlink" href="#spherical-covariance" title="Permanent link">&para;</a></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'spherical'</span><span class="p">)</span>
-</span></code></pre></div>
-<ul>
-<li><strong>Shape</strong>: <span class="arithmatex">\((K,)\)</span> (single variance per component)</li>
-<li><strong>Parameters</strong>: <span class="arithmatex">\(K\)</span></li>
-<li><strong>Use</strong>: Spherical/circular clusters; all features have same variance</li>
-<li><strong>Computational Cost</strong>: Lowest</li>
-</ul>
-<h3 id="tied-covariances">Tied Covariances<a class="headerlink" href="#tied-covariances" title="Permanent link">&para;</a></h3>
-<p>All components share the same covariance structure:</p>
-<h4 id="tied-full">Tied Full<a class="headerlink" href="#tied-full" title="Permanent link">&para;</a></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'tied_full'</span><span class="p">)</span>
-</span></code></pre></div>
-<ul>
-<li><strong>Shape</strong>: <span class="arithmatex">\((d, d)\)</span></li>
-<li><strong>Parameters</strong>: <span class="arithmatex">\(d \cdot (d+1)/2\)</span></li>
-<li><strong>Use</strong>: All clusters have same shape/orientation, different centers</li>
-</ul>
-<h4 id="tied-diagonal">Tied Diagonal<a class="headerlink" href="#tied-diagonal" title="Permanent link">&para;</a></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'tied_diag'</span><span class="p">)</span>
-</span></code></pre></div>
-<ul>
-<li><strong>Shape</strong>: <span class="arithmatex">\((d,)\)</span></li>
-<li><strong>Parameters</strong>: <span class="arithmatex">\(d\)</span></li>
-<li><strong>Use</strong>: All clusters are axis-aligned ellipsoids with same shape</li>
-</ul>
-<h4 id="tied-spherical">Tied Spherical<a class="headerlink" href="#tied-spherical" title="Permanent link">&para;</a></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'tied_spherical'</span><span class="p">)</span>
-</span></code></pre></div>
-<ul>
-<li><strong>Shape</strong>: Scalar</li>
-<li><strong>Parameters</strong>: 1</li>
-<li><strong>Use</strong>: All clusters are spheres with same radius</li>
-</ul>
-<h2 id="estimation-methods">Estimation Methods<a class="headerlink" href="#estimation-methods" title="Permanent link">&para;</a></h2>
+<p>Aliases: <code>'tied'</code> is <code>'tied_full'</code> and <code>'isotropic'</code> is <code>'spherical'</code>. The
+<a href="../../notebooks/15_covariance_models/">covariance tutorial</a> compares all of them visually.</p>
+<h2 id="estimation-methods">Estimation methods<a class="headerlink" href="#estimation-methods" title="Permanent link">&para;</a></h2>
 <h3 id="maximum-likelihood-estimation-mle">Maximum Likelihood Estimation (MLE)<a class="headerlink" href="#maximum-likelihood-estimation-mle" title="Permanent link">&para;</a></h3>
-<p>Standard EM algorithm without priors:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<p>The default: the updates above.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="maximum-a-posteriori-map-with-priors">Maximum A Posteriori (MAP) with Priors<a class="headerlink" href="#maximum-a-posteriori-map-with-priors" title="Permanent link">&para;</a></h3>
-<p>Bayesian approach with conjugate priors:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="c1"># Dirichlet prior on weights</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">weight_concentration_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mf">2.0</span><span class="p">,</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="c1"># Gaussian prior on means</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">mean_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">mean_precision_prior</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="c1"># Inverse-Wishart prior on covariances</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    <span class="n">covariance_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
-</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="n">degrees_of_freedom_prior</span><span class="o">=</span><span class="mf">3.0</span>
-</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="p">)</span>
-</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<h3 id="maximum-a-posteriori-map-with-priors">Maximum A Posteriori (MAP) with priors<a class="headerlink" href="#maximum-a-posteriori-map-with-priors" title="Permanent link">&para;</a></h3>
+<p>Priors regularize each M-step. All priors are conjugate:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Prior</th>
+<th>Constructor arguments</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>weights <span class="arithmatex">\(\pi\)</span></td>
+<td><span class="arithmatex">\(\operatorname{Dirichlet}(\alpha_1,\dots,\alpha_K)\)</span></td>
+<td><code>weight_concentration_prior</code> <span class="arithmatex">\(=\alpha\)</span></td>
+</tr>
+<tr>
+<td>mean <span class="arithmatex">\(\mu_k\)</span></td>
+<td><span class="arithmatex">\(\mathcal{N}(\mu_{0,k},\ \Sigma_k/\kappa_0)\)</span></td>
+<td><code>mean_prior</code> <span class="arithmatex">\(=\mu_0\)</span>, <code>mean_precision_prior</code> <span class="arithmatex">\(=\kappa_0\)</span></td>
+</tr>
+<tr>
+<td>covariance <span class="arithmatex">\(\Sigma_k\)</span></td>
+<td><span class="arithmatex">\(\operatorname{Inverse\text{-}Wishart}(\Psi_0,\nu_0)\)</span></td>
+<td><code>covariance_prior</code> <span class="arithmatex">\(=\Psi_0\)</span>, <code>degrees_of_freedom_prior</code> <span class="arithmatex">\(=\nu_0\)</span></td>
+</tr>
+</tbody>
+</table>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">weight_concentration_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mf">2.0</span><span class="p">,</span>                  <span class="c1"># Dirichlet on weights</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">mean_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>                                     <span class="c1"># Gaussian on means</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">mean_precision_prior</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">covariance_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>      <span class="c1"># Inverse-Wishart on covariances</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">degrees_of_freedom_prior</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">)</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 </span></code></pre></div>
-<p>See the <a href="../../notebooks/09_priors/">Priors Tutorial</a> for details.</p>
-<h3 id="normal-inverse-wishart-niw-conjugate-prior">Normal-Inverse-Wishart (NIW) Conjugate Prior<a class="headerlink" href="#normal-inverse-wishart-niw-conjugate-prior" title="Permanent link">&para;</a></h3>
-<p>When both mean and covariance priors are specified, tgmm uses the NIW conjugate prior:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># NIW automatically used when both priors are set</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">mean_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">mean_precision_prior</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="n">covariance_prior</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">degrees_of_freedom_prior</span><span class="o">=</span><span class="mf">5.0</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="p">)</span>
+<p><strong>Weights</strong> (independent of everything else; works with all covariance types, including all
+14 GPCM codes): the MAP estimate of a Dirichlet-multinomial,</p>
+<div class="arithmatex">\[
+\pi_k=\frac{n_k+\alpha_k-1}{\,n+\sum_j\alpha_j-K\,} .
+\]</div>
+<p><strong>Means only</strong> (<code>mean_prior</code> without <code>covariance_prior</code>):</p>
+<div class="arithmatex">\[
+\mu_k=\frac{\sum_ir_{ik}x_i+\kappa_0\mu_{0,k}}{n_k+\kappa_0}
+=\frac{n_k\bar y_k+\kappa_0\mu_{0,k}}{n_k+\kappa_0},
+\]</div>
+<p>a precision-weighted average of the data mean and the prior mean (shrinkage toward <span class="arithmatex">\(\mu_0\)</span> that is
+strong when <span class="arithmatex">\(n_k\ll\kappa_0\)</span>). The covariance is then the ordinary MLE form, but with the scatter
+taken about the <em>shrunk</em> mean <span class="arithmatex">\(\mu_k\)</span> rather than <span class="arithmatex">\(\bar y_k\)</span> (by the parallel-axis identity
+<span class="arithmatex">\(\sum_ir_{ik}(x_i-\mu_k)(x_i-\mu_k)^\top=W_k+n_k(\bar y_k-\mu_k)(\bar y_k-\mu_k)^\top\)</span>).</p>
+<p><strong>Covariance only</strong> (<code>covariance_prior</code> without <code>mean_prior</code>), with scatter <span class="arithmatex">\(S_k\)</span> about <span class="arithmatex">\(\mu_k=\bar y_k\)</span>:</p>
+<div class="arithmatex">\[
+\Sigma_k=\frac{\Psi_0+W_k+\varepsilon I}{\nu_0+n_k}\quad(\texttt{full}),
+\]</div>
+<p>with the analogous diagonal / trace forms for the other types (<code>diag</code>: per coordinate, divide by
+<span class="arithmatex">\(\nu_0+n_k\)</span>; <code>spherical</code>: <span class="arithmatex">\(\sigma_k^2=(\psi_0+\operatorname{tr}W_k+\varepsilon)/\big((\nu_0+n_k)d\big)\)</span>; <code>tied_*</code>: pool
+<span class="arithmatex">\(W_k\)</span> over <span class="arithmatex">\(k\)</span> and use <span class="arithmatex">\(\nu_0+\sum_kn_k\)</span>).</p>
+<h3 id="normal-inverse-wishart-niw-conjugate-prior">Normal-Inverse-Wishart (NIW) conjugate prior<a class="headerlink" href="#normal-inverse-wishart-niw-conjugate-prior" title="Permanent link">&para;</a></h3>
+<p>When <strong>both</strong> <code>mean_prior</code> and <code>covariance_prior</code> are given, tgmm uses the joint NIW prior
+<span class="arithmatex">\(\mu_k,\Sigma_k\sim\operatorname{NIW}(\mu_0,\kappa_0,\Psi_0,\nu_0)\)</span>, i.e.
+<span class="arithmatex">\(\Sigma_k\sim\operatorname{IW}(\Psi_0,\nu_0)\)</span> and <span class="arithmatex">\(\mu_k\mid\Sigma_k\sim\mathcal{N}(\mu_0,\Sigma_k/\kappa_0)\)</span>.
+The posterior is again NIW with</p>
+<div class="arithmatex">\[
+\kappa_n=\kappa_0+n_k,\quad
+\nu_n=\nu_0+n_k,\quad
+\mu_n=\frac{\kappa_0\mu_0+n_k\bar y_k}{\kappa_n},
+\]</div>
+<div class="arithmatex">\[
+\Psi_n=\Psi_0+W_k+\frac{\kappa_0\,n_k}{\kappa_0+n_k}\,(\bar y_k-\mu_0)(\bar y_k-\mu_0)^\top+\varepsilon I,
+\]</div>
+<p>and the M-step sets</p>
+<div class="arithmatex">\[
+\mu_k=\mu_n,\qquad \Sigma_k=\frac{\Psi_n}{\nu_n}.
+\]</div>
+<p>The third term of <span class="arithmatex">\(\Psi_n\)</span> penalizes a data mean that disagrees with the prior mean: it is the
+price of the prior's uncertainty about <span class="arithmatex">\(\mu_k\)</span> and vanishes as <span class="arithmatex">\(n_k\to\infty\)</span> or <span class="arithmatex">\(\kappa_0\to0\)</span>.</p>
+<div class="admonition note">
+<p class="admonition-title"><span class="arithmatex">\(\Psi_n/\nu_n\)</span> is a deliberate choice, not the textbook posterior mean or mode</p>
+<p>For an Inverse-Wishart posterior the textbook point estimates are the mean
+<span class="arithmatex">\(\Psi_n/(\nu_n-d-1)\)</span> and the mode <span class="arithmatex">\(\Psi_n/(\nu_n+d+1)\)</span>. tgmm uses <span class="arithmatex">\(\Psi_n/\nu_n\)</span> for every
+covariance type, in both MAP and NIW updates and in Gibbs mode. The mean is undefined whenever
+<span class="arithmatex">\(\nu_n\le d+1\)</span>, which a nearly empty component can reach, while <span class="arithmatex">\(\Psi_n/\nu_n\)</span> stays finite and
+positive for every <span class="arithmatex">\(\nu_n&gt;0\)</span>; and the three agree closely when <span class="arithmatex">\(\nu_n\gg d\)</span>. In particular,
+with <span class="arithmatex">\(\kappa_0\to0\)</span> and <span class="arithmatex">\(\Psi_0\to0\)</span> it reduces to the MLE <span class="arithmatex">\(W_k/n_k\)</span>.</p>
+</div>
+<p>The other covariance types use the same <span class="arithmatex">\(\Psi_n\)</span> in structured form:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th><span class="arithmatex">\(\Psi_n\)</span></th>
+<th><span class="arithmatex">\(\Sigma\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>diag</code></td>
+<td>per coordinate: <span class="arithmatex">\(\psi_{0,j}+(W_k)_{jj}+\frac{\kappa_0n_k}{\kappa_n}(\bar y_{kj}-\mu_{0,kj})^2+\varepsilon\)</span></td>
+<td><span class="arithmatex">\(\Psi_n/\nu_n\)</span> per coordinate</td>
+</tr>
+<tr>
+<td><code>spherical</code></td>
+<td><span class="arithmatex">\(\psi_0+\operatorname{tr}W_k+\frac{\kappa_0n_k}{\kappa_n}\lVert\bar y_k-\mu_{0,k}\rVert^2+d\,\varepsilon\)</span></td>
+<td><span class="arithmatex">\(\sigma_k^2=\Psi_n/(\nu_n\,d)\)</span></td>
+</tr>
+<tr>
+<td><code>tied_full</code></td>
+<td><span class="arithmatex">\(\Psi_0+\sum_kW_k+\sum_k\frac{\kappa_0n_k}{\kappa_n}(\bar y_k-\mu_{0,k})(\bar y_k-\mu_{0,k})^\top+\varepsilon I\)</span></td>
+<td><span class="arithmatex">\(\Psi_n/(\nu_0+\sum_kn_k)\)</span></td>
+</tr>
+<tr>
+<td><code>tied_diag</code>, <code>tied_spherical</code></td>
+<td>the tied analogues (sums over <span class="arithmatex">\(k\)</span>)</td>
+<td><span class="arithmatex">\(\Psi_n/(\nu_0+\sum_kn_k)\)</span>, divided by <span class="arithmatex">\(d\)</span> for spherical</td>
+</tr>
+</tbody>
+</table>
+<p>(For <code>tied_spherical</code> the code adds <span class="arithmatex">\(\varepsilon\cdot n\cdot d\)</span> rather than <span class="arithmatex">\(\varepsilon\cdot d\)</span> to the
+numerator, so there <span class="arithmatex">\(\varepsilon\)</span> acts at its face value on the variance.)</p>
+<div class="admonition warning">
+<p class="admonition-title">MAP/NIW are for the six classic covariance types</p>
+<p><code>mean_prior</code> / <code>covariance_prior</code> raise <code>NotImplementedError</code> for the 8 GPCM codes without a
+tgmm name; a conjugate prior would have to be derived per parameterization.
+<code>weight_concentration_prior</code> is independent of the covariance parameterization and works with all 14.</p>
+</div>
+<p>See the <a href="../../notebooks/09_priors/">Priors tutorial</a> and the
+<a href="../../notebooks/10_niw_priors_comparison/">NIW comparison</a> for worked examples.</p>
+<h2 id="initialization-strategies">Initialization strategies<a class="headerlink" href="#initialization-strategies" title="Permanent link">&para;</a></h2>
+<p>EM converges to a local optimum, so where it starts matters. <code>init_means</code> chooses the initial
+means (the E-step then yields the first responsibilities from them), <code>init_weights</code> and
+<code>init_covariances</code> the rest; all three also accept an explicit tensor.</p>
+<table>
+<thead>
+<tr>
+<th><code>init_means</code></th>
+<th>How the <span class="arithmatex">\(K\)</span> initial centers are chosen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>'kmeans'</code> (default)</td>
+<td>Lloyd's algorithm (pure PyTorch), started from k-means++</td>
+</tr>
+<tr>
+<td><code>'kpp'</code></td>
+<td>k-means++: pick each new center with probability <span class="arithmatex">\(\propto D(x)^2\)</span> (squared distance to the nearest chosen center)</td>
+</tr>
+<tr>
+<td><code>'random'</code></td>
+<td><span class="arithmatex">\(\mu=\bar x+Lz\)</span>, <span class="arithmatex">\(z\sim\mathcal{N}(0,I)\)</span>, <span class="arithmatex">\(LL^\top\)</span> = the data covariance</td>
+</tr>
+<tr>
+<td><code>'points'</code></td>
+<td><span class="arithmatex">\(K\)</span> data points chosen uniformly at random</td>
+</tr>
+<tr>
+<td><code>'maxdist'</code></td>
+<td>greedy farthest-point selection</td>
+</tr>
+</tbody>
+</table>
+<p><code>init_weights</code>: <code>'uniform'</code> (default), <code>'random'</code> (Dirichlet draw), <code>'kmeans'</code> (cluster
+proportions). <code>init_covariances</code>: <code>'empirical'</code> (default; covariance of the points nearest
+each mean), <code>'eye'</code>, <code>'random'</code>, <code>'global'</code> (the data covariance for every component). See the
+<a href="../gmm-initializer/">GMM Initializer guide</a>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_means</span><span class="o">=</span><span class="s1">'kpp'</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">initial_means</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_means</span><span class="o">=</span><span class="n">initial_means</span><span class="p">)</span>   <span class="c1"># custom</span>
 </span></code></pre></div>
-<h2 id="initialization-strategies">Initialization Strategies<a class="headerlink" href="#initialization-strategies" title="Permanent link">&para;</a></h2>
-<p>Good initialization is critical for EM convergence:</p>
-<h3 id="k-means-initialization-recommended">K-means Initialization (Recommended)<a class="headerlink" href="#k-means-initialization-recommended" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_means</span><span class="o">=</span><span class="s1">'kmeans'</span><span class="p">)</span>
+<h3 id="multiple-restarts">Multiple restarts<a class="headerlink" href="#multiple-restarts" title="Permanent link">&para;</a></h3>
+<p><code>n_init=m</code> runs the whole fit <span class="arithmatex">\(m\)</span> times from different initializations and keeps the run with the
+highest final log-likelihood. With <code>random_state=s</code>, run <span class="arithmatex">\(i\)</span> is seeded with <span class="arithmatex">\(s+i\)</span> and the winner's
+seed is stored in <code>best_random_state_</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_init</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">best_random_state_</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Runs a pure-PyTorch Lloyd's algorithm (started from a k-means++ initialization) to initialize component means -- no scikit-learn dependency.</p>
-<h3 id="k-means-initialization">K-means++ Initialization<a class="headerlink" href="#k-means-initialization" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_means</span><span class="o">=</span><span class="s1">'kpp'</span><span class="p">)</span>
-</span></code></pre></div>
-<p>More sophisticated initialization that spreads initial centers apart.</p>
-<h3 id="random-initialization">Random Initialization<a class="headerlink" href="#random-initialization" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_means</span><span class="o">=</span><span class="s1">'random'</span><span class="p">)</span>
-</span></code></pre></div>
-<p>Randomly selects data points as initial means.</p>
-<h3 id="custom-initialization">Custom Initialization<a class="headerlink" href="#custom-initialization" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">initial_means</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">init_means</span><span class="o">=</span><span class="n">initial_means</span><span class="p">)</span>
-</span></code></pre></div>
-<h3 id="multiple-random-restarts">Multiple Random Restarts<a class="headerlink" href="#multiple-random-restarts" title="Permanent link">&para;</a></h3>
-<p>To avoid local minima:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">n_init</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>  <span class="c1"># Run EM 10 times with different initializations</span>
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span>
-</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="fitting-algorithms">Fitting Algorithms<a class="headerlink" href="#fitting-algorithms" title="Permanent link">&para;</a></h2>
-<p><code>algorithm</code> selects which EM variant drives <code>fit()</code>. One sentence each on
-when to reach for them:</p>
+<h2 id="fitting-algorithms">Fitting algorithms<a class="headerlink" href="#fitting-algorithms" title="Permanent link">&para;</a></h2>
+<p><code>algorithm</code> selects the EM variant that drives <code>fit()</code>. Every variant feeds some matrix of
+(soft or hard) assignments into the same M-step, which computes <span class="arithmatex">\(n_k,\bar y_k,W_k\)</span> from it exactly as above.</p>
 <table>
 <thead>
 <tr>
 <th><code>algorithm</code></th>
+<th>What goes into the M-step</th>
 <th>When to use it</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>'em'</code> (default)</td>
-<td>Standard soft-assignment EM -- the right default for most fits.</td>
+<td>soft responsibilities <span class="arithmatex">\(r_{ik}\)</span></td>
+<td>the right default</td>
 </tr>
 <tr>
 <td><code>'cem'</code></td>
-<td>Classification EM (hard assignments between the E- and M-steps) -- converges faster and gives a crisper partition, at the cost of being more prone to local minima than soft EM.</td>
+<td>hard one-hot <span class="arithmatex">\(\mathbb{1}[k=\arg\max_jr_{ij}]\)</span></td>
+<td>faster, crisper partition; more local-minimum prone</td>
 </tr>
 <tr>
 <td><code>'sem'</code></td>
-<td>Stochastic EM -- samples a hard assignment from the responsibilities each iteration instead of taking the argmax; use it to escape poor local optima, or to detect an overspecified <code>n_components</code> via <code>n_empty_components_</code>.</td>
+<td>a hard label <em>sampled</em> from <span class="arithmatex">\(r_{i\cdot}\)</span></td>
+<td>escape poor optima; diagnose an overspecified <span class="arithmatex">\(K\)</span></td>
 </tr>
 <tr>
 <td><code>'saem'</code></td>
-<td>Stochastic Approximation EM -- SEM with a decaying step size blended across iterations, so it <em>does</em> converge pointwise (unlike plain SEM); use it when you want SEM's exploration with a convergent stopping point.</td>
+<td>statistics averaged over sampled sweeps with step <span class="arithmatex">\(\gamma_t\)</span></td>
+<td>SEM's exploration with a convergent stopping point</td>
 </tr>
 </tbody>
 </table>
-<p><code>temperature</code> (deterministic annealing) and <code>step_size</code> (online/mini-batch
-EM) are independent knobs layered on top of these -- see below.</p>
+<p><code>temperature</code> (deterministic annealing) and <code>step_size</code> (online / mini-batch EM) are independent
+knobs layered on top.</p>
 <h3 id="classification-em-cem">Classification EM (CEM)<a class="headerlink" href="#classification-em-cem" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'cem'</span><span class="p">)</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<p>CEM inserts a <em>classification</em> step between E and M: <span class="arithmatex">\(\hat r_{ik}=\mathbb{1}\big[k=\arg\max_jr_{ij}\big]\)</span>.
+It maximizes the classification likelihood <span class="arithmatex">\(\sum_i\log\big(\pi_{z_i}\mathcal{N}(x_i\mid\mu_{z_i},\Sigma_{z_i})\big)\)</span>
+over parameters <em>and</em> labels, rather than the mixture likelihood. It is a hard-assignment
+generalization of k-means (k-means is CEM with equal weights and a shared spherical covariance, <code>tied_spherical</code>) and converges
+in few iterations, but it estimates the parameters from truncated data, so it is biased when
+clusters overlap.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'cem'</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title"><code>cem=True</code> is deprecated</p>
-<p>The older <code>cem=True</code> keyword still works (it's treated as
-<code>algorithm='cem'</code>), but emits a <code>DeprecationWarning</code> -- prefer
-<code>algorithm='cem'</code> in new code.</p>
+<p>The older <code>cem=True</code> keyword still works (treated as <code>algorithm='cem'</code>) but emits a
+<code>DeprecationWarning</code>; passing it together with <code>algorithm='sem'</code>/<code>'saem'</code> raises. Use
+<code>algorithm='cem'</code>.</p>
 </div>
 <h3 id="stochastic-em-sem">Stochastic EM (SEM)<a class="headerlink" href="#stochastic-em-sem" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'sem'</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">log_likelihood_history_</span><span class="p">)</span>   <span class="c1"># per-sweep log-likelihood trace</span>
-</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_empty_components_</span><span class="p">)</span>       <span class="c1"># &gt; 0 re-seeds suggest n_components is too large</span>
+<p>SEM (Celeux &amp; Diebolt, 1985) replaces the soft assignment by one draw per sample,
+<span class="arithmatex">\(z_i\sim\operatorname{Categorical}(r_{i1},\dots,r_{iK})\)</span>, and runs the M-step on the resulting
+one-hot matrix. The iterates form a Markov chain that keeps exploring instead of settling, so
+SEM can leave poor local optima.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'sem'</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">log_likelihood_history_</span><span class="p">)</span>   <span class="c1"># per-sweep log-likelihood trace</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_empty_components_</span><span class="p">)</span>       <span class="c1"># &gt; 0 re-seeds suggest n_components is too large</span>
 </span></code></pre></div>
-<p>SEM never checks convergence -- it always runs the full <code>max_iter</code> sweeps
-(same convention as Gibbs mode), since the sampled hard assignment keeps
-the iterate moving even near a mode. The final parameters come from
-<code>sem_estimate</code> applied to the sweeps at or after <code>sem_burn_in</code> (default
-<code>max_iter // 5</code>): <code>'best'</code> (default) keeps the highest-log-likelihood
-post-burn-in sweep; <code>'mean'</code> averages parameters across all of them, which
-assumes no label switching between sweeps -- prefer <code>'best'</code> whenever
-<code>n_components</code> might be overspecified.</p>
+<p>SEM has no pointwise convergence, so it always runs exactly <code>max_iter</code> sweeps (and sets
+<code>converged_=True</code>). A component that receives fewer than one sampled point in a sweep has its mean re-seeded at one of the worst-fit data points (and, for
+<code>full</code>/<code>diag</code>/<code>spherical</code>, its covariance reset to the data covariance); each re-seed is counted in <code>n_empty_components_</code>. The returned parameters
+are computed from the sweeps at or after <code>sem_burn_in</code> (default <code>max(1, max_iter // 5)</code>):
+<code>sem_estimate='best'</code> (default) keeps the snapshot with the highest log-likelihood;
+<code>'mean'</code> averages the parameters across all of them, which presumes no label switching between
+sweeps -- prefer <code>'best'</code> whenever <span class="arithmatex">\(K\)</span> may be overspecified.</p>
 <h3 id="stochastic-approximation-em-saem">Stochastic Approximation EM (SAEM)<a class="headerlink" href="#stochastic-approximation-em-saem" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'saem'</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">converged_</span><span class="p">)</span>
+<p>SAEM (Delyon, Lavielle &amp; Moulines, 1999) averages the <em>sufficient statistics</em> of the sampled
+sweeps with a decreasing step size <span class="arithmatex">\(\gamma_t\)</span> (Robbins-Monro):</p>
+<div class="arithmatex">\[
+\tilde S_t=(1-\gamma_t)\,\tilde S_{t-1}+\gamma_t\,S\big(z^{(t)}\big),\qquad \tilde S_0=S\big(z^{(0)}\big),
+\]</div>
+<p>where <span class="arithmatex">\(S=(n_k,\ \sum_ir_{ik}x_i,\ W_k)\)</span>, and the M-step then maps <span class="arithmatex">\(\tilde S_t\)</span> to parameters. The
+default <code>step_size='auto'</code> is <span class="arithmatex">\(\gamma_t=(t+2)^{-0.7}\)</span> (so <span class="arithmatex">\(\sum\gamma_t=\infty\)</span> while
+<span class="arithmatex">\(\sum\gamma_t^2&lt;\infty\)</span>); a positive float gives a constant step and a callable <span class="arithmatex">\(t\mapsto\gamma_t\)</span> a custom
+schedule. Because the averaged statistics converge, the usual <code>tol</code> test applies -- SAEM is "the SEM that converges".</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'saem'</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">converged_</span><span class="p">)</span>
 </span></code></pre></div>
-<p>SAEM blends each sweep's sampled-assignment statistics into a running
-average with a decaying step size (<code>step_size</code>, defaulting to <code>'auto'</code>
-for this algorithm), so <code>tol</code>-based convergence applies exactly as in
-ordinary EM/CEM -- the "SEM that converges."</p>
 <h3 id="deterministic-annealing-daem">Deterministic Annealing (DAEM)<a class="headerlink" href="#deterministic-annealing-daem" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="n">temperature</span><span class="o">=</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>  <span class="c1"># (beta_0, n_anneal)</span>
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="p">)</span>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">annealing_schedule_</span><span class="p">)</span>  <span class="c1"># beta actually used at each E-step</span>
+<p>DAEM (Ueda &amp; Nakano, 1998) tempers the posterior with an inverse temperature <span class="arithmatex">\(\beta\in(0,1]\)</span>:</p>
+<div class="arithmatex">\[
+r_{ik}(\beta)=\frac{\big(\pi_k\,\mathcal{N}(x_i\mid\mu_k,\Sigma_k)\big)^{\beta}}
+{\sum_j\big(\pi_j\,\mathcal{N}(x_i\mid\mu_j,\Sigma_j)\big)^{\beta}} .
+\]</div>
+<p>At <span class="arithmatex">\(\beta\to0\)</span> every sample is assigned almost uniformly to all components (a smooth, nearly unimodal
+objective); at <span class="arithmatex">\(\beta=1\)</span> this is the ordinary E-step. <code>temperature=(beta_0, n_anneal)</code> starts at
+<span class="arithmatex">\(\beta_0\in(0,1)\)</span> and raises <span class="arithmatex">\(\beta\)</span> geometrically to 1 over <code>n_anneal</code> iterations:</p>
+<div class="arithmatex">\[
+\beta_t=\begin{cases}\beta_0^{\,1-t/n_{\text{anneal}}}, &amp; t&lt;n_{\text{anneal}}\\[2pt] 1, &amp; t\ge n_{\text{anneal}}\end{cases}
+\]</div>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">temperature</span><span class="o">=</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">30</span><span class="p">))</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">annealing_schedule_</span><span class="p">)</span>  <span class="c1"># beta actually used at each E-step</span>
 </span></code></pre></div>
-<p>Works with <code>algorithm</code> in <code>{'em', 'cem', 'sem'}</code>. Tempers the E-step's
-joint log-density by a <code>beta</code> that rises geometrically from <code>beta_0</code> to
-<code>1.0</code> over the first <code>n_anneal</code> iterations (then holds at <code>1.0</code>);
-convergence checks are suspended while <code>beta &lt; 1.0</code>. Use this when
-initialization is unreliable, e.g. several components starting out close
-together -- annealing smooths the likelihood surface early on, when
-standard EM would otherwise settle into the first nearby local optimum.
-It is a heuristic, not a guarantee: an initialization that is <em>exactly</em>
-symmetric (e.g. every mean identical to machine precision) stays
-symmetric under annealing too, since tempering a perfectly symmetric
-responsibility distribution is still perfectly symmetric -- some
-real-world asymmetry in the starting point, even a small one, is what
-annealing needs to amplify.</p>
-<h3 id="mini-batch-and-online-em">Mini-Batch and Online EM<a class="headerlink" href="#mini-batch-and-online-em" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">step_size</span><span class="o">=</span><span class="s1">'auto'</span><span class="p">,</span>  <span class="c1"># or a float, or a callable t -&gt; gamma_t</span>
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>    <span class="n">max_iter</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>  <span class="c1"># epochs</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="p">)</span>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># shuffles X into batch_size-sized mini-batches each epoch</span>
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">log_likelihood_history_</span><span class="p">)</span>  <span class="c1"># one entry per epoch</span>
+<p>Works with <code>algorithm</code> in <code>{'em', 'cem', 'sem'}</code>. While <span class="arithmatex">\(\beta&lt;1\)</span> convergence checks are suspended,
+and the entries of <code>log_likelihood_history_</code> recorded then are the <em>tempered</em> normalizers, not true
+log-likelihoods -- compare only the entries from <span class="arithmatex">\(\beta=1\)</span> on. Annealing is a heuristic, not a
+guarantee: a perfectly symmetric start (e.g. identical means) stays symmetric under any <span class="arithmatex">\(\beta\)</span>,
+so some asymmetry in the initialization is needed for annealing to amplify.</p>
+<h3 id="mini-batch-and-online-em">Mini-batch and online EM<a class="headerlink" href="#mini-batch-and-online-em" title="Permanent link">&para;</a></h3>
+<p>With <code>batch_size</code> alone, the E-step and statistics accumulation run in row chunks. This is <strong>exact</strong>
+(a per-row softmax and additive statistics) and only bounds peak memory at
+<span class="arithmatex">\(O(\text{batch\_size}\cdot K\cdot d)\)</span>. Adding <code>step_size</code> switches to <strong>online EM</strong>
+(Cappe &amp; Moulines, 2009): for each shuffled mini-batch <span class="arithmatex">\(B\)</span> of the epoch, compute <span class="arithmatex">\(S_B\)</span> from the current parameters,
+rescale it to the full data size, blend it into a running estimate with step <span class="arithmatex">\(\gamma_t\)</span> (where <span class="arithmatex">\(t\)</span>
+counts mini-batches globally), and run the M-step from it:</p>
+<div class="arithmatex">\[
+\tilde S\leftarrow(1-\gamma_t)\,\tilde S+\gamma_t\,\frac{n}{|B|}\,S_B ,\qquad
+\theta\leftarrow\text{M-step}(\tilde S).
+\]</div>
+<p><code>max_iter</code> counts epochs; there is no <code>tol</code> test (<code>converged_</code> is set to <code>True</code>), and
+<code>log_likelihood_history_</code> has one entry per epoch. <code>step_size</code> requires <code>batch_size</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">step_size</span><span class="o">=</span><span class="s1">'auto'</span><span class="p">,</span>  <span class="c1"># or a float, or a callable t -&gt; gamma_t</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">max_iter</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>                        <span class="c1"># epochs</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 </span></code></pre></div>
-<p>For streaming data, <code>partial_fit</code> continues training after an initial
-<code>fit()</code> call (or explicit parameter initialization):</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">step_size</span><span class="o">=</span><span class="s1">'auto'</span><span class="p">)</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">first_batch</span><span class="p">)</span>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">stream_of_batches</span><span class="p">:</span>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>    <span class="n">gmm</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+<p>For streaming data, <code>partial_fit</code> performs one such update per call on an already-initialized model:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">step_size</span><span class="o">=</span><span class="s1">'auto'</span><span class="p">)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">first_batch</span><span class="p">)</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">stream_of_batches</span><span class="p">:</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">gmm</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
 </span></code></pre></div>
-<p><code>step_size=None</code> (the default) keeps <code>batch_size</code> as a pure memory
-optimization (exact EM, see <a href="#large-datasets-batch_size">Large Datasets</a>
-above) -- setting <code>step_size</code> is what switches to online EM. <code>partial_fit</code>
-assumes a roughly constant batch size across calls; unlike <code>fit()</code>'s own
-epoch loop, it does not rescale each batch against a known total dataset
-size (there isn't one in a true streaming setting).</p>
-<h2 id="supervised-fitting">Supervised Fitting<a class="headerlink" href="#supervised-fitting" title="Permanent link">&para;</a></h2>
-<p>If you already know the true class of every point, <code>fit</code> can skip EM/CEM
-entirely and fit one Gaussian per class directly from the labeled data —
-pass <code>labels</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span><span class="p">)</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>  <span class="c1"># y: shape (n_samples,), one of 3 distinct values</span>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">classes_</span><span class="p">)</span>      <span class="c1"># the 3 distinct label values seen, sorted</span>
-</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">converged_</span><span class="p">)</span>    <span class="c1"># always True</span>
-</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span><span class="p">)</span>       <span class="c1"># always 1</span>
+<p><code>partial_fit</code> assumes a roughly constant batch size across calls: unlike <code>fit()</code>'s epoch loop it does
+not rescale to a known total size (there is none in a true stream).</p>
+<div class="admonition note">
+<p class="admonition-title">A caveat on blended scatter</p>
+<p><span class="arithmatex">\(W_k\)</span> is centered on each accumulation's <em>own</em> mean <span class="arithmatex">\(\bar y_k\)</span>. SAEM and online EM blend <span class="arithmatex">\(W_k\)</span> (and
+<span class="arithmatex">\(n_k\)</span>, <span class="arithmatex">\(\sum_ir_{ik}x_i\)</span>) linearly, which is exact for the first two but only approximate for <span class="arithmatex">\(W_k\)</span> when
+the means shift between accumulations: the true scatter about the blended mean also contains a
+between-accumulation term. The approximation vanishes as the iterates stabilize.</p>
+</div>
+<h3 id="convergence-control">Convergence control<a class="headerlink" href="#convergence-control" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>        <span class="c1"># maximum EM iterations</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">tol</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>            <span class="c1"># convergence tolerance</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">verbose_interval</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="p">)</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">converged_</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span><span class="p">,</span> <span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="p">)</span>
 </span></code></pre></div>
-<p>This is the fully-labeled limit of Classification EM: instead of assigning
-each point to its highest-responsibility component (<code>argmax(resp)</code>), the
-assignment comes from the true label. Since that assignment never depends
-on the current parameter estimates, there's nothing left to iterate — a
-single M-step already recovers the same per-class mean/covariance/weight
-you'd get from Classification EM if it had converged with the correct
-partition. <code>n_components</code> must equal the number of distinct values in
-<code>labels</code>; label values don't need to be contiguous integers (<code>classes_[k]</code>
-recovers the original label for component <code>k</code>). <code>n_init</code> and <code>warm_start</code>
-are ignored — the result is deterministic. Any configured <code>mean_prior</code> /
-<code>covariance_prior</code> still applies, giving a regularized supervised fit for
-classes with few samples.</p>
-<p>See the <a href="../../notebooks/05_supervised_gmm/">Supervised Fitting notebook</a> for
-a worked comparison of plain EM, CEM, and supervised fitting on the same
-synthetic data.</p>
-<h2 id="gibbs-sampling-inferring-the-number-of-components">Gibbs Sampling: Inferring the Number of Components<a class="headerlink" href="#gibbs-sampling-inferring-the-number-of-components" title="Permanent link">&para;</a></h2>
-<p>If you don't know <code>K</code> ahead of time, <code>GaussianMixture(n_components=None,
-...)</code> switches from EM to a collapsed Gibbs sampler that infers the number
-of components from the data during <code>fit</code>, instead of requiring it fixed in
-advance:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="c1"># A principled starting point for the NIW prior Gibbs mode requires,</span>
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># estimated from a quick k-means pass over the data.</span>
-</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="n">mean_prior</span><span class="p">,</span> <span class="n">mean_precision_prior</span><span class="p">,</span> <span class="n">covariance_prior</span><span class="p">,</span> <span class="n">degrees_of_freedom_prior</span> <span class="o">=</span> \
-</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>    <span class="n">GaussianMixture</span><span class="o">.</span><span class="n">suggest_priors</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
-</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>
-</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>    <span class="n">n_components</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>       <span class="c1"># switches to Gibbs sampling</span>
-</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span><span class="p">,</span>  <span class="c1"># 'full', 'diag', or 'spherical' -- no tied_* support</span>
-</span><span id="__span-22-11"><a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>    <span class="n">max_components</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>       <span class="c1"># upper bound on tracked components</span>
-</span><span id="__span-22-12"><a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>    <span class="n">alpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>                <span class="c1"># Dirichlet process concentration</span>
-</span><span id="__span-22-13"><a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>    <span class="n">mean_prior</span><span class="o">=</span><span class="n">mean_prior</span><span class="p">,</span>
-</span><span id="__span-22-14"><a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a>    <span class="n">mean_precision_prior</span><span class="o">=</span><span class="n">mean_precision_prior</span><span class="p">,</span>
-</span><span id="__span-22-15"><a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a>    <span class="n">covariance_prior</span><span class="o">=</span><span class="n">covariance_prior</span><span class="p">,</span>
-</span><span id="__span-22-16"><a id="__codelineno-22-16" name="__codelineno-22-16" href="#__codelineno-22-16"></a>    <span class="n">degrees_of_freedom_prior</span><span class="o">=</span><span class="n">degrees_of_freedom_prior</span><span class="p">,</span>
-</span><span id="__span-22-17"><a id="__codelineno-22-17" name="__codelineno-22-17" href="#__codelineno-22-17"></a>    <span class="n">max_iter</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>               <span class="c1"># an exact sweep count in Gibbs mode -- see below</span>
-</span><span id="__span-22-18"><a id="__codelineno-22-18" name="__codelineno-22-18" href="#__codelineno-22-18"></a><span class="p">)</span>
-</span><span id="__span-22-19"><a id="__codelineno-22-19" name="__codelineno-22-19" href="#__codelineno-22-19"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-</span><span id="__span-22-20"><a id="__codelineno-22-20" name="__codelineno-22-20" href="#__codelineno-22-20"></a>
-</span><span id="__span-22-21"><a id="__codelineno-22-21" name="__codelineno-22-21" href="#__codelineno-22-21"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components_</span><span class="p">)</span>  <span class="c1"># the inferred component count</span>
-</span><span id="__span-22-22"><a id="__codelineno-22-22" name="__codelineno-22-22" href="#__codelineno-22-22"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">active_</span><span class="p">)</span>        <span class="c1"># which of the max_components slots are in use</span>
+<p>Let <span class="arithmatex">\(L_t=\frac1n\ell(\theta^{(t)})\)</span> be the average log-likelihood (<code>lower_bound_</code>).
+<code>convergence='relative'</code> (default) stops when</p>
+<div class="arithmatex">\[
+\frac{|L_t-L_{t-1}|}{|L_{t-1}|}&lt;\texttt{tol}.
+\]</div>
+<p><code>convergence='aitken'</code> uses Aitken's acceleration: EM's log-likelihood sequence is asymptotically
+geometric, so with <span class="arithmatex">\(a_t=\dfrac{L_t-L_{t-1}}{L_{t-1}-L_{t-2}}\)</span> (when <span class="arithmatex">\(a_t&lt;1\)</span>) the limit is estimated as</p>
+<div class="arithmatex">\[
+L_\infty=L_{t-1}+\frac{L_t-L_{t-1}}{1-a_t},
+\]</div>
+<p>and the fit stops when <span class="arithmatex">\(L_\infty-L_t&lt;\texttt{tol}\)</span> (an absolute gap to the extrapolated limit). It can stop
+earlier on fits that improve slowly but steadily, and falls back to the relative test until three
+values exist (or when <span class="arithmatex">\(a_t\ge1\)</span>).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">convergence</span><span class="o">=</span><span class="s1">'aitken'</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Unlike EM, Gibbs mode has <strong>no default prior</strong>: an earlier version of this
-project auto-resolved one, and the auto-resolved default measurably
-distorted fitted covariances, so <code>__init__</code> requires <code>mean_prior</code>,
-<code>mean_precision_prior</code>, <code>covariance_prior</code>, and <code>degrees_of_freedom_prior</code>
-explicitly whenever <code>n_components=None</code>. <code>GaussianMixture.suggest_priors(X,
-n_components=&lt;a rough guess&gt;)</code> gives a sensible starting point -- inspect
-and adjust it before passing it in if needed.</p>
-<p>Key parameters (see the <a href="../../api/gaussian-mixture/">API reference</a> for
-full detail):</p>
+<p><code>fit()</code> also accepts per-call overrides of <code>max_iter</code>, <code>tol</code>, <code>random_state</code> and <code>warm_start</code>
+(continue from the previous fit's parameters) without changing the model's defaults.</p>
+<h2 id="model-selection">Model selection<a class="headerlink" href="#model-selection" title="Permanent link">&para;</a></h2>
+<p>Choosing <span class="arithmatex">\(K\)</span> (and the covariance structure) is a trade-off between fit and complexity. With
+<span class="arithmatex">\(p\)</span> the parameter count above and <span class="arithmatex">\(\bar L=\frac1n\ell(\hat\theta)\)</span>:</p>
+<div class="arithmatex">\[
+\operatorname{AIC}=-2n\bar L+2p,\qquad
+\operatorname{BIC}=-2n\bar L+p\ln n,\qquad
+\operatorname{ICL}=\operatorname{BIC}+2\,\mathrm{EN}.
+\]</div>
+<p>All are "lower is better" (<code>gmm.aic(X)</code>, <code>gmm.bic(X)</code>, <code>gmm.icl(X)</code>). <span class="arithmatex">\(\mathrm{EN}\ge0\)</span> is the
+classification-entropy penalty of Biernacki, Celeux &amp; Govaert (2000): with <code>mode='hard'</code> (default)
+<span class="arithmatex">\(\mathrm{EN}=-\sum_i\log\hat\tau_{i}\)</span>, where <span class="arithmatex">\(\hat\tau_i=\max_kr_{ik}\)</span> is the posterior of the assigned
+cluster; with <code>mode='soft'</code> it is the entropy <span class="arithmatex">\(-\sum_{i,k}r_{ik}\log r_{ik}\)</span>. ICL therefore penalizes overlapping
+clusters on top of BIC and favors well-separated partitions.</p>
+<p><code>select_model</code> sweeps a grid and returns the best fit (by <code>criterion='bic'</code>, <code>'aic'</code> or <code>'icl'</code>);
+by default it tries <strong>all 14 GPCM covariance codes</strong>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">select_model</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">select_model</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">criterion</span><span class="o">=</span><span class="s1">'bic'</span><span class="p">)</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">best_</span><span class="o">.</span><span class="n">covariance_type_</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">best_</span><span class="o">.</span><span class="n">n_components</span><span class="p">)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="n">df</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>   <span class="c1"># every (K, covariance_type) with bic, aic, icl, log_likelihood, converged</span>
+</span></code></pre></div>
+<p>See the <a href="../../notebooks/13_model_selection/">Model Selection tutorial</a> and
+<a href="../clustering-metrics/">Clustering Metrics</a> for label-free validity indices.</p>
+<h2 id="supervised-and-semi-supervised-fitting">Supervised and semi-supervised fitting<a class="headerlink" href="#supervised-and-semi-supervised-fitting" title="Permanent link">&para;</a></h2>
+<p>Passing <code>labels</code> to <code>fit</code> uses known class information; <code>-1</code> marks an unknown label.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span><span class="p">)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>             <span class="c1"># fully labeled</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">y_partial</span><span class="p">)</span>     <span class="c1"># some entries -1: semi-supervised EM</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="n">gmm</span><span class="o">.</span><span class="n">predict_class</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>             <span class="c1"># class labels (via classes_), not component indices</span>
+</span></code></pre></div>
+<p><strong>Fully labeled.</strong> Each point's responsibility is the one-hot vector of its true class, so there is
+nothing to iterate: a single M-step recovers the per-class <span class="arithmatex">\(\pi_k=n_k/n\)</span>, <span class="arithmatex">\(\mu_k\)</span>, <span class="arithmatex">\(\Sigma_k\)</span> -- exactly
+what CEM would converge to with the correct partition. <code>n_components</code> must equal the number of
+distinct labels (times <code>components_per_class</code> for a <code>components_per_class &gt; 1</code>; then each class's block of
+components is fit by ordinary EM on that class's rows, weights scaled by the class fraction, and <code>n_init</code>
+applies within each block); label values need not be contiguous
+(<code>classes_[k]</code> recovers the original value). <code>n_init</code> and <code>warm_start</code> are ignored, <code>converged_</code> is
+<code>True</code> and <code>n_iter_</code> is 1. Priors still apply (a regularized fit for classes with few samples).</p>
+<p><strong>Partially labeled.</strong> Semi-supervised EM maximizes</p>
+<div class="arithmatex">\[
+\sum_{i\in\text{labeled}}\log\sum_{k\in\text{block}(c_i)}\pi_k\mathcal{N}(x_i\mid\mu_k,\Sigma_k)
++\sum_{i\in\text{unlabeled}}\log\sum_{k=1}^K\pi_k\mathcal{N}(x_i\mid\mu_k,\Sigma_k),
+\]</div>
+<p>by clamping each labeled row's responsibility to its class's block of components (zero outside,
+renormalized inside) and leaving unlabeled rows with the full posterior. <code>unlabeled_weight</code> <span class="arithmatex">\(u\)</span>
+multiplies the unlabeled rows' responsibilities before the M-step (<span class="arithmatex">\(u=0\)</span> uses the labeled rows only),
+<code>label_confidence</code> <span class="arithmatex">\(c&lt;1\)</span> keeps mass <span class="arithmatex">\(c\)</span> on the class block and gives <span class="arithmatex">\(1-c\)</span> to the unclamped posterior
+outside it (for noisy labels), and <code>components_per_class</code> (an int or a dict) gives a class several components.
+Partial labels support <code>algorithm='em'</code>/<code>'cem'</code> only. See
+<a href="../semi-supervised-pu/">Semi-Supervised and Positive-Unlabeled Fitting</a> for the full treatment,
+including <code>PositiveUnlabeledMixture</code>, and the
+<a href="../../notebooks/05_supervised_gmm/">Supervised Fitting notebook</a> and
+<a href="../../notebooks/18_semi_supervised_pu/">Semi-supervised notebook</a> for worked examples.</p>
+<h2 id="gibbs-sampling-inferring-the-number-of-components">Gibbs sampling: inferring the number of components<a class="headerlink" href="#gibbs-sampling-inferring-the-number-of-components" title="Permanent link">&para;</a></h2>
+<p>If <span class="arithmatex">\(K\)</span> is unknown, <code>GaussianMixture(n_components=None, ...)</code> replaces EM by a collapsed Gibbs
+sampler for a <strong>Dirichlet-process mixture</strong>, which infers the number of components from the data.</p>
+<h3 id="the-model_1">The model<a class="headerlink" href="#the-model_1" title="Permanent link">&para;</a></h3>
+<p>A Dirichlet process <span class="arithmatex">\(G\sim\operatorname{DP}(\alpha,G_0)\)</span> with a NIW base measure <span class="arithmatex">\(G_0\)</span> gives
+mixture weights by <em>stick-breaking</em>:</p>
+<div class="arithmatex">\[
+v_k\sim\operatorname{Beta}(1,\alpha),\qquad \pi_k=v_k\prod_{j&lt;k}(1-v_j),
+\]</div>
+<p>an infinite sequence of weights summing to 1 -- larger <span class="arithmatex">\(\alpha\)</span> spreads mass over more components.
+Marginalizing the weights gives the equivalent <em>Chinese Restaurant Process</em>: sample <span class="arithmatex">\(i\)</span> joins an existing
+cluster <span class="arithmatex">\(k\)</span> with probability <span class="arithmatex">\(\propto n_k^{-i}\)</span> (the other points already there) or opens a new one with
+probability <span class="arithmatex">\(\propto\alpha\)</span>.</p>
+<h3 id="the-sampler">The sampler<a class="headerlink" href="#the-sampler" title="Permanent link">&para;</a></h3>
+<p>Component parameters are integrated out too (collapsed sampling, Neal's Algorithm 3). With the NIW
+prior <span class="arithmatex">\((\mu_0,\kappa_0,\Psi_0,\nu_0)\)</span>, the posterior given the other points of cluster <span class="arithmatex">\(k\)</span> has the
+same form as the NIW update above (<span class="arithmatex">\(\kappa_n,\nu_n,\mu_n,\Psi_n\)</span>), and the posterior predictive of a
+point is a multivariate Student-<span class="arithmatex">\(t\)</span>:</p>
+<div class="arithmatex">\[
+x\mid X_k^{-i}\ \sim\ t_{\nu_n-d+1}\!\Big(\mu_n,\ \frac{\kappa_n+1}{\kappa_n(\nu_n-d+1)}\,\Psi_n\Big).
+\]</div>
+<p>Each sweep resamples every assignment from</p>
+<div class="arithmatex">\[
+p(z_i=k\mid z_{-i},X)\ \propto\ n_k^{-i}\;t_{\nu_n-d+1}\big(x_i;\ \mu_n,\ \cdots\big)
+\quad(\text{existing } k),\qquad
+p(z_i=\text{new}\mid z_{-i},X)\ \propto\ \alpha\;t_{\nu_0-d+1}\big(x_i;\ \mu_0,\ \cdots\big).
+\]</div>
+<p>For <code>diag</code> the predictive is a product of per-coordinate Student-<span class="arithmatex">\(t\)</span> with <span class="arithmatex">\(\nu_n\)</span> degrees of freedom; for
+<code>spherical</code> a single isotropic <span class="arithmatex">\(t\)</span> with <span class="arithmatex">\(\nu_0+n_kd\)</span> degrees of freedom. <code>tied_*</code> types and the 8
+extra GPCM codes are not supported (a coupling across components breaks the per-cluster factorization).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1"># Gibbs mode has no default prior; suggest_priors gives a sensible start from a k-means pass.</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">mean_prior</span><span class="p">,</span> <span class="n">mean_precision_prior</span><span class="p">,</span> <span class="n">covariance_prior</span><span class="p">,</span> <span class="n">degrees_of_freedom_prior</span> <span class="o">=</span> \
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">GaussianMixture</span><span class="o">.</span><span class="n">suggest_priors</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>    <span class="n">n_components</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>       <span class="c1"># switches to Gibbs sampling</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>    <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'full'</span><span class="p">,</span>  <span class="c1"># 'full', 'diag' or 'spherical'</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>    <span class="n">max_components</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>       <span class="c1"># upper bound on tracked components (None = unbounded)</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="n">alpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>               <span class="c1"># DP concentration</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>    <span class="n">mean_prior</span><span class="o">=</span><span class="n">mean_prior</span><span class="p">,</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>    <span class="n">mean_precision_prior</span><span class="o">=</span><span class="n">mean_precision_prior</span><span class="p">,</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>    <span class="n">covariance_prior</span><span class="o">=</span><span class="n">covariance_prior</span><span class="p">,</span>
+</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>    <span class="n">degrees_of_freedom_prior</span><span class="o">=</span><span class="n">degrees_of_freedom_prior</span><span class="p">,</span>
+</span><span id="__span-16-16"><a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>    <span class="n">max_iter</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>             <span class="c1"># an exact sweep count in Gibbs mode</span>
+</span><span id="__span-16-17"><a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="p">)</span>
+</span><span id="__span-16-18"><a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-16-19"><a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>
+</span><span id="__span-16-20"><a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_components_</span><span class="p">)</span>  <span class="c1"># the inferred component count</span>
+</span><span id="__span-16-21"><a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">active_</span><span class="p">)</span>        <span class="c1"># which of the tracked slots are in use</span>
+</span></code></pre></div>
 <ul>
-<li><code>max_components</code>: upper bound on the number of components tracked while sampling (default <code>20</code>). Set to <code>None</code> for the unbounded variant, which creates and destroys components on the fly instead of using a fixed number of slots.</li>
-<li><code>alpha</code>: Dirichlet process concentration -- higher values make the sampler more willing to propose new components.</li>
-<li><code>init_k</code>: number of components to seed the sampler with.</li>
-<li><code>weight_threshold</code>: a component is treated as inactive (excluded from <code>n_components_</code>/<code>active_</code>) once its <em>expected point count</em>, <code>weight * n_samples</code>, drops to or below this value -- a count threshold, not a raw weight.</li>
-<li><code>burn_in</code>: unbounded variant only -- sweeps excluded from <code>n_components_history_</code>, the per-sweep trace of how many components were active. It does not affect the fitted parameters themselves, which always come from the final sweep regardless of <code>burn_in</code>.</li>
+<li><strong>Truncated</strong> (<code>max_components=K</code>, default 20): <span class="arithmatex">\(K\)</span> fixed slots. The CRP rule is replaced by its finite
+  Dirichlet-multinomial approximation, <span class="arithmatex">\(p(z_i=k)\propto(n_k^{-i}+\alpha/K)\times\text{predictive}_k\)</span>, which
+  converges to the CRP as <span class="arithmatex">\(K\)</span> grows past the number of clusters actually used.</li>
+<li><strong>Unbounded</strong> (<code>max_components=None</code>): components are created and destroyed on the fly
+  (Neal's Algorithm 3 exactly). <code>init_k</code> sets the number of components the sampler is seeded with, and <code>burn_in</code>
+  (default <code>max_iter // 5</code>) the number of sweeps excluded from <code>n_components_history_</code>, the per-sweep trace of the
+  number of active components.</li>
+<li>The fitted parameters come from the <strong>final sweep</strong>'s partition (one posterior draw, not an average --
+  averaging over sweeps is not meaningful because labels permute): <span class="arithmatex">\(\mu_k=\mu_n\)</span>,
+  <span class="arithmatex">\(\Sigma_k=\Psi_n/\nu_n\)</span>, <span class="arithmatex">\(\pi_k=n_k/n\)</span>. A component is <em>active</em> (counted in <code>n_components_</code> / <code>active_</code>) when its
+  expected point count <span class="arithmatex">\(\pi_kn\)</span> exceeds <code>weight_threshold</code> (default <code>1.0</code>).</li>
+<li><code>suggest_priors(X, n_components)</code> sets <span class="arithmatex">\(\mu_0=\bar x\)</span>, <span class="arithmatex">\(\kappa_0=0.1\)</span>, <span class="arithmatex">\(\nu_0=d+2\)</span> and
+  <span class="arithmatex">\(\Psi_0\)</span> to the <em>pooled within-cluster</em> scatter of a <span class="arithmatex">\(k\)</span>-means partition (not the marginal data covariance,
+  which for well-separated clusters conflates between- and within-cluster spread and inflates every
+  fitted covariance).</li>
+<li>There is no EM-style convergence test: <code>max_iter</code> is an <em>exact</em> sweep count and <code>converged_</code> is always
+  <code>True</code> there. Each sweep is an <span class="arithmatex">\(O(n)\)</span> Python-level loop, so the EM default of 1000 can be very slow --
+  pass an explicit, usually much smaller, <code>max_iter</code>. Supervised fitting (<code>labels=</code>) is not available.</li>
 </ul>
-<p>Gibbs sampling has no EM-style convergence check, so <code>max_iter</code> is an
-<em>exact</em> sweep count rather than an early-stoppable cap. Each sweep is an
-O(n_samples) Python-level loop over every point, so the EM-oriented default
-of 1000 can be far slower than necessary for Gibbs mode -- pass an
-explicit, usually much smaller, value.</p>
-<p>See the <a href="../../notebooks/11_dpgmm/">Dirichlet Process Mixture notebook</a> for
-the stick-breaking/Gibbs-sampling math, a step-by-step walkthrough of the
-sampler itself, and a worked comparison against classical EM; see <a href="https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md">the
-design
-doc</a>
-for the full derivation and rationale.</p>
-<h2 id="convergence-control">Convergence Control<a class="headerlink" href="#convergence-control" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>     <span class="c1"># Maximum EM iterations</span>
-</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    <span class="n">tol</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span>         <span class="c1"># Convergence tolerance on log-likelihood change</span>
-</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>     <span class="c1"># Print progress</span>
-</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>    <span class="n">verbose_interval</span><span class="o">=</span><span class="mi">10</span>  <span class="c1"># Print every 10 iterations</span>
-</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="p">)</span>
-</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
-</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>
-</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="c1"># Check convergence</span>
-</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Converged: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">converged_</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iterations: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">n_iter_</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Final log-likelihood: </span><span class="si">{</span><span class="n">gmm</span><span class="o">.</span><span class="n">lower_bound_</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<p>See the <a href="../../notebooks/11_dpgmm/">Dirichlet Process Mixture notebook</a> for the stick-breaking and
+Gibbs-sampling math, a step-by-step walkthrough and a comparison against classical EM, and the
+<a href="https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md">design document</a>
+for the full derivation.</p>
+<h2 id="frozen-components-and-sample-weights">Frozen components and sample weights<a class="headerlink" href="#frozen-components-and-sample-weights" title="Permanent link">&para;</a></h2>
+<p><code>frozen_components=(1, 3)</code> holds those components' parameters at their <em>initial</em> values for the whole fit
+(give them with tensor <code>init_means</code> / <code>init_covariances</code>, or with <code>warm_start</code>); their mixing weights still update,
+and MAP / NIW priors never shrink them. It is useful for anchoring known classes (a "reference" population) while the
+rest of the mixture is learned, and it is what <code>PositiveUnlabeledMixture(anchor='fixed')</code> uses. It is not available
+for the tied covariance types or the 8 GPCM codes without a classic name (one factor is shared across components).</p>
+<p><code>fit(X, sample_weight=w)</code> fits a weighted sample. With <code>w</code> of shape <code>(n,)</code> row <span class="arithmatex">\(i\)</span> counts <span class="arithmatex">\(w_i\)</span> times: every
+responsibility is multiplied by <span class="arithmatex">\(w_i\)</span> before the statistics of the M-step, the mixing weights use
+<span class="arithmatex">\(n_\mathrm{eff}=\sum_iw_i\)</span> as the sample count, and the convergence criterion is the weighted mean
+log-likelihood. Integer weights are therefore equivalent to duplicating rows and weight <span class="arithmatex">\(0\)</span> to dropping the row.
+For <code>covariance_type='diag'</code> or <code>'spherical'</code> (maximum likelihood only) <code>w</code> may also have shape <code>(n, d)</code>: entry
+<span class="arithmatex">\(w_{ij}\)</span> then weights feature <span class="arithmatex">\(j\)</span> of row <span class="arithmatex">\(i\)</span> in both steps,</p>
+<div class="arithmatex">\[
+\mu_{kj}=\frac{\sum_i r_{ik}w_{ij}x_{ij}}{\sum_i r_{ik}w_{ij}},\qquad
+\sigma^2_{kj}=\frac{\sum_i r_{ik}w_{ij}(x_{ij}-\mu_{kj})^2}{\sum_i r_{ik}w_{ij}},
+\]</div>
+<p>and <span class="arithmatex">\(w_{ij}=0\)</span> makes that entry invisible, which is exact marginalisation of an independent feature. <code>inertia</code> (as in
+pomegranate) is not provided: <code>step_size</code> (online EM / SAEM) is the same control on the sufficient statistics.</p>
+<h2 id="sampling-from-the-model">Sampling from the model<a class="headerlink" href="#sampling-from-the-model" title="Permanent link">&para;</a></h2>
+<p>Generate new samples from the fitted mixture: pick <span class="arithmatex">\(z\sim\operatorname{Categorical}(\pi)\)</span>, then draw
+<span class="arithmatex">\(x=\mu_z+L_zg\)</span> with <span class="arithmatex">\(g\sim\mathcal{N}(0,I)\)</span> and <span class="arithmatex">\(L_zL_z^\top=\Sigma_z\)</span>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">samples</span><span class="p">,</span> <span class="n">component_ids</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>                          <span class="c1"># basic sampling</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>                          <span class="c1"># one component only</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">confidence</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>                     <span class="c1"># within the 95% region</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">))</span>                <span class="c1"># Mahalanobis radius in [1, 2]</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="n">outliers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">3.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s1">'inf'</span><span class="p">)))</span>       <span class="c1"># beyond 3 standard deviations</span>
 </span></code></pre></div>
-<p>By default, <code>tol</code> is checked against the <em>relative</em> change in log-likelihood
-between iterations (<code>convergence='relative'</code>). <code>convergence='aitken'</code> uses an
-Aitken-accelerated extrapolation of the asymptotic log-likelihood instead,
-which can detect convergence earlier on fits that improve slowly but
-steadily:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">convergence</span><span class="o">=</span><span class="s1">'aitken'</span><span class="p">)</span>
-</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<p>Constraints are applied by rejection sampling on the Mahalanobis distance
+<span class="arithmatex">\(\sqrt{(x-\mu_k)^\top\Sigma_k^{-1}(x-\mu_k)}\)</span>; <code>confidence</code> <span class="arithmatex">\(q\)</span> is converted to a radius through the
+<span class="arithmatex">\(\chi^2_d\)</span> quantile, <span class="arithmatex">\(\sqrt{\chi^2_{d,q}}\)</span> (so in <span class="arithmatex">\(d=2\)</span>, 95% is a radius of about 2.45, not 2). See the
+<a href="../../notebooks/07_sampling/">Sampling tutorial</a>.</p>
+<h2 id="large-datasets-batch_size">Large datasets: <code>batch_size</code><a class="headerlink" href="#large-datasets-batch_size" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4096</span><span class="p">)</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># same result as batch_size=None, bounded peak memory</span>
 </span></code></pre></div>
-<h2 id="large-datasets-batch_size">Large Datasets: <code>batch_size</code><a class="headerlink" href="#large-datasets-batch_size" title="Permanent link">&para;</a></h2>
-<p>For datasets too large to comfortably fit the E-step/M-step in memory at
-once, <code>batch_size</code> processes <code>X</code> in row chunks instead of all at once:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4096</span><span class="p">)</span>
-</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># same result as batch_size=None, bounded peak memory</span>
+<p>As explained under <a href="#mini-batch-and-online-em">online EM</a>, <code>batch_size</code> alone changes nothing about the
+result (up to floating-point summation order) -- it is purely a memory/speed knob.</p>
+<h2 id="model-persistence">Model persistence<a class="headerlink" href="#model-persistence" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">gmm</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">)</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">loaded_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">'cuda'</span><span class="p">)</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">state_dict</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">save_state_dict</span><span class="p">()</span>          <span class="c1"># PyTorch-style</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="s1">'model_state.pth'</span><span class="p">)</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="n">new_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="n">new_gmm</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'model_state.pth'</span><span class="p">))</span>
 </span></code></pre></div>
-<p>This changes nothing about the result (up to ordinary floating-point
-summation-order differences) -- it's purely a memory/speed knob. Peak memory
-is roughly <code>O(batch_size * n_components * n_features)</code> regardless of how
-many rows <code>X</code> has.</p>
-<h2 id="sampling-from-the-model">Sampling from the Model<a class="headerlink" href="#sampling-from-the-model" title="Permanent link">&para;</a></h2>
-<p>Generate new samples from the fitted distribution:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Basic sampling</span>
-</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">samples</span><span class="p">,</span> <span class="n">component_ids</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
-</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
-</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># Sample from specific component</span>
-</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-</span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
-</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="c1"># Sample within confidence region</span>
-</span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">confidence</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>
-</span><span id="__span-26-9"><a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>
-</span><span id="__span-26-10"><a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="c1"># Sample within standard deviation range</span>
-</span><span id="__span-26-11"><a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">))</span>
-</span><span id="__span-26-12"><a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a>
-</span><span id="__span-26-13"><a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="c1"># Sample outliers (beyond 3 std)</span>
-</span><span id="__span-26-14"><a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a><span class="n">outliers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">3.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s1">'inf'</span><span class="p">)))</span>
+<p><code>classes_</code> / <code>class_of_component_</code> are not persisted.</p>
+<h2 id="gpu-acceleration">GPU acceleration<a class="headerlink" href="#gpu-acceleration" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">device</span> <span class="o">=</span> <span class="s1">'cuda'</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">'cpu'</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># X can be on CPU or GPU; it is moved to `device`</span>
 </span></code></pre></div>
-<h2 id="model-persistence">Model Persistence<a class="headerlink" href="#model-persistence" title="Permanent link">&para;</a></h2>
-<p>Save and load trained models:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># Save model</span>
-</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">)</span>
-</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
-</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="c1"># Load model</span>
-</span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="n">loaded_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">'cuda'</span><span class="p">)</span>
-</span><span id="__span-27-6"><a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>
-</span><span id="__span-27-7"><a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="c1"># Or use state dict (PyTorch-style)</span>
-</span><span id="__span-27-8"><a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="n">state_dict</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">save_state_dict</span><span class="p">()</span>
-</span><span id="__span-27-9"><a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="s1">'model_state.pth'</span><span class="p">)</span>
-</span><span id="__span-27-10"><a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a>
-</span><span id="__span-27-11"><a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a><span class="c1"># Load state dict</span>
-</span><span id="__span-27-12"><a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a><span class="n">new_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</span><span id="__span-27-13"><a id="__codelineno-27-13" name="__codelineno-27-13" href="#__codelineno-27-13"></a><span class="n">new_gmm</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'model_state.pth'</span><span class="p">))</span>
-</span></code></pre></div>
-<h2 id="gpu-acceleration">GPU Acceleration<a class="headerlink" href="#gpu-acceleration" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Automatic device selection</span>
-</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="n">device</span> <span class="o">=</span> <span class="s1">'cuda'</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">'cpu'</span>
-</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>
-</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
-</span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-28-6"><a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a>    <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-28-7"><a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a>    <span class="n">device</span><span class="o">=</span><span class="n">device</span>
-</span><span id="__span-28-8"><a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="p">)</span>
-</span><span id="__span-28-9"><a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a>
-</span><span id="__span-28-10"><a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a><span class="c1"># Data is automatically moved to the correct device</span>
-</span><span id="__span-28-11"><a id="__codelineno-28-11" name="__codelineno-28-11" href="#__codelineno-28-11"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># X can be on CPU or GPU</span>
-</span></code></pre></div>
-<h2 id="attributes">Attributes<a class="headerlink" href="#attributes" title="Permanent link">&para;</a></h2>
+<h2 id="fitted-attributes">Fitted attributes<a class="headerlink" href="#fitted-attributes" title="Permanent link">&para;</a></h2>
 <p>After fitting, the model exposes:</p>
-<ul>
-<li><code>gmm.weights_</code>: Mixing weights, shape <span class="arithmatex">\((K,)\)</span></li>
-<li><code>gmm.means_</code>: Component means, shape <span class="arithmatex">\((K, d)\)</span></li>
-<li><code>gmm.covariances_</code>: Component covariances (shape depends on type)</li>
-<li><code>gmm.converged_</code>: Whether EM converged</li>
-<li><code>gmm.n_iter_</code>: Number of EM iterations performed</li>
-<li><code>gmm.lower_bound_</code>: Final average log-likelihood</li>
-<li><code>gmm.fitted_</code>: Whether model has been fitted</li>
-</ul>
-<h2 id="complete-api-reference">Complete API Reference<a class="headerlink" href="#complete-api-reference" title="Permanent link">&para;</a></h2>
-<p>For full details on all parameters and methods, see the <a href="../../api/gaussian-mixture/">API Reference</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>weights_</code></td>
+<td>mixing weights <span class="arithmatex">\(\pi\)</span>, shape <span class="arithmatex">\((K,)\)</span></td>
+</tr>
+<tr>
+<td><code>means_</code></td>
+<td>component means, shape <span class="arithmatex">\((K,d)\)</span></td>
+</tr>
+<tr>
+<td><code>covariances_</code></td>
+<td>covariances; shape depends on <code>covariance_type</code> (table above); always the assembled <span class="arithmatex">\((K,d,d)\)</span> matrices for the 8 extra GPCM codes</td>
+</tr>
+<tr>
+<td><code>covariance_type_</code></td>
+<td>canonical mclust code of <code>covariance_type</code> (e.g. <code>'VVV'</code> for <code>'full'</code>)</td>
+</tr>
+<tr>
+<td><code>volume_</code>, <code>shape_</code>, <code>orientation_</code></td>
+<td>the GPCM decomposition <span class="arithmatex">\(\Sigma_k=\lambda_kD_kA_kD_k^\top\)</span> for the 8 extra codes; <code>None</code> otherwise</td>
+</tr>
+<tr>
+<td><code>converged_</code>, <code>n_iter_</code></td>
+<td>whether EM converged and in how many iterations (<code>True</code> / sweeps count for SEM, online EM, Gibbs)</td>
+</tr>
+<tr>
+<td><code>lower_bound_</code></td>
+<td>final average log-likelihood of the best run</td>
+</tr>
+<tr>
+<td><code>log_likelihood_history_</code></td>
+<td>per-iteration / sweep / epoch average log-likelihood (EM modes; <code>None</code> in Gibbs mode)</td>
+</tr>
+<tr>
+<td><code>best_random_state_</code></td>
+<td>seed of the winning run when <code>n_init &gt; 1</code></td>
+</tr>
+<tr>
+<td><code>initial_weights_</code>, <code>initial_means_</code>, <code>initial_covariances_</code></td>
+<td>parameters before the first EM iteration</td>
+</tr>
+<tr>
+<td><code>annealing_schedule_</code></td>
+<td>the <span class="arithmatex">\(\beta\)</span> used at each E-step when <code>temperature</code> is set</td>
+</tr>
+<tr>
+<td><code>n_empty_components_</code></td>
+<td><code>algorithm='sem'</code>: number of component re-seeds</td>
+</tr>
+<tr>
+<td><code>classes_</code>, <code>class_of_component_</code></td>
+<td>label values seen by a <code>fit(X, labels=...)</code> call and each component's class; <code>None</code> otherwise</td>
+</tr>
+<tr>
+<td><code>n_components_</code>, <code>active_</code></td>
+<td>inferred component count and active-slot mask (Gibbs mode; <code>n_components_</code> equals <code>n_components</code> in EM mode)</td>
+</tr>
+<tr>
+<td><code>n_components_history_</code></td>
+<td>Gibbs mode, unbounded variant: active-component trace after <code>burn_in</code></td>
+</tr>
+<tr>
+<td><code>fitted_</code></td>
+<td>whether the model has been fitted</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related-models">Related models<a class="headerlink" href="#related-models" title="Permanent link">&para;</a></h2>
+<p><code>StudentTMixture</code> (robust to outliers) and <code>VonMisesFisherMixture</code> (directional data) share this
+page's <code>fit</code> / <code>predict</code> / <code>bic</code> / algorithm / semi-supervised machinery through <code>BaseMixture</code>;
+see <a href="../other-mixture-families/">Other Mixture Families</a>. A uniform noise component (<code>noise=True</code>), missing-value EM
+(<code>missing='em'</code>), <code>marginal</code> / <code>condition</code>, <code>frozen_components</code>, <code>sample_weight</code> and <code>GenericMixture</code> are described in
+<a href="../noise-missing-conditioning/">Noise, Missing Values and Conditioning</a>.</p>
+<h2 id="complete-api-reference">Complete API reference<a class="headerlink" href="#complete-api-reference" title="Permanent link">&para;</a></h2>
+<p>For all parameters and methods, see the <a href="../../api/gaussian-mixture/">API Reference</a>.</p>
 
 
 

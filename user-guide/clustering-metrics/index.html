@@ -65,7 +65,28 @@
 
     
     
-  </head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
   
   
     
@@ -302,6 +323,26 @@
   
   
   Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
 
         </a>
       </li>
@@ -712,6 +753,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../noise-missing-conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../gmm-initializer/" class="md-nav__link">
         
   
@@ -845,6 +914,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#notation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#silhouette-score" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -939,10 +1019,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#adjusted-rand-index-ari" class="md-nav__link">
+  <a href="#rand-index-and-adjusted-rand-index-ari" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adjusted Rand Index (ARI)
+        Rand Index and Adjusted Rand Index (ARI)
       
     </span>
   </a>
@@ -950,10 +1030,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#normalized-mutual-information-nmi" class="md-nav__link">
+  <a href="#mutual-information-nmi-and-ami" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Normalized Mutual Information (NMI)
+        Mutual Information, NMI and AMI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fowlkes-mallows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fowlkes-Mallows
       
     </span>
   </a>
@@ -1015,6 +1106,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#other-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1042,6 +1144,17 @@
   
     <nav class="md-nav" aria-label="Model Selection">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#free-parameter-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Free parameter counts
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#icl-integrated-completed-likelihood" class="md-nav__link">
@@ -1606,14 +1719,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/15_gpcm_models/" class="md-nav__link">
+      <a href="../../notebooks/15_covariance_models/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    15. GPCM Covariance Models
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
   
 
     
@@ -1634,14 +1747,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/16_student_t_and_vmf/" class="md-nav__link">
+      <a href="../../notebooks/16_student_t/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16. Student-t and von Mises-Fisher Mixtures
+    16. Student-t Mixtures
   
 
     
@@ -1662,14 +1775,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/17_semi_supervised_pu/" class="md-nav__link">
+      <a href="../../notebooks/17_von_mises_fisher/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    17. Semi-Supervised and Positive-Unlabeled Fitting
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
   
 
     
@@ -1722,7 +1891,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Explainers
   
 
     
@@ -1735,6 +1904,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1843,6 +2213,62 @@
     
   
     tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
   
 
     
@@ -2158,6 +2584,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#notation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#silhouette-score" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2252,10 +2689,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#adjusted-rand-index-ari" class="md-nav__link">
+  <a href="#rand-index-and-adjusted-rand-index-ari" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adjusted Rand Index (ARI)
+        Rand Index and Adjusted Rand Index (ARI)
       
     </span>
   </a>
@@ -2263,10 +2700,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#normalized-mutual-information-nmi" class="md-nav__link">
+  <a href="#mutual-information-nmi-and-ami" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Normalized Mutual Information (NMI)
+        Mutual Information, NMI and AMI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fowlkes-mallows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fowlkes-Mallows
       
     </span>
   </a>
@@ -2328,6 +2776,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#other-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2355,6 +2814,17 @@
   
     <nav class="md-nav" aria-label="Model Selection">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#free-parameter-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Free parameter counts
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#icl-integrated-completed-likelihood" class="md-nav__link">
@@ -2428,13 +2898,13 @@ call the methods directly on the class.</p>
   benchmark; prefer these over Dunn Index (ranked 25<sup>th</sup> of 26 in that same
   benchmark, kept only for completeness)</p>
 <p>BIC/AIC/ICL aren't here -- they only need a model's own log-likelihood and
-parameter count, so they're <code>bic</code>/<code>aic</code>/<code>icl</code> methods on <code>GaussianMixture</code>
+parameter count, so they're <code>bic</code>/<code>aic</code>/<code>icl</code> methods on every fitted mixture
 directly (<code>gmm.bic(X)</code>, <code>gmm.aic(X)</code>, <code>gmm.icl(X)</code>) -- including when
-constructed with <code>n_components=None</code> for Gibbs-sampling mode -- not
-<code>ClusteringMetrics</code> calls. See <a href="#model-selection">Model Selection</a> below.</p>
+<code>GaussianMixture</code> is constructed with <code>n_components=None</code> for Gibbs-sampling
+mode -- not <code>ClusteringMetrics</code> calls. See <a href="#model-selection">Model Selection</a> below.</p>
 <p><strong>Supervised</strong> (requires ground truth labels):
 - Rand Index / Adjusted Rand Index (ARI)
-- Mutual Information / Normalized / Adjusted Mutual Information (NMI)
+- Mutual Information / Normalized (NMI) / Adjusted (AMI) Mutual Information
 - Purity
 - Fowlkes-Mallows, Homogeneity, Completeness, V-Measure (weighted via <code>beta</code>)
 - Normalized Information Distance (NID)
@@ -2488,7 +2958,10 @@ extra keyword arguments:</p>
   with <code>metric='mahalanobis'</code> gives the GMM-matched version of the index.</li>
 <li><code>noise_label</code>: a label value (e.g. <code>-1</code> for <code>HDBSCAN</code> output) marking
   noise points. Noise rows are dropped before computing the index, and the
-  result is scaled by <code>(n - n_noise) / n</code>.</li>
+  result is then penalized for having discarded points: with
+  <span class="arithmatex">\(f = (n - n_{\text{noise}})/n\)</span>, indexes where higher is better
+  (silhouette, CH, Dunn, WG) are multiplied by <span class="arithmatex">\(f\)</span>, and indexes where lower
+  is better (Davies-Bouldin, WB) are divided by <span class="arithmatex">\(f\)</span>.</li>
 <li><code>chunk_size</code> (silhouette/Dunn only): row-chunk size for the pairwise
   distance computation, bounding peak memory regardless of <code>n_samples</code>
   (default <code>4096</code>). Chunking is exact, not an approximation.</li>
@@ -2496,8 +2969,27 @@ extra keyword arguments:</p>
 <p><code>dbcv</code> has its own, simpler signature (<code>metric</code>, <code>noise_label=-1</code>) -- its
 noise handling is built into the index's own weighting formula rather than
 the generic rescaling above.</p>
+<h3 id="notation">Notation<a class="headerlink" href="#notation" title="Permanent link">&para;</a></h3>
+<p>Throughout, a clustering assigns each of <span class="arithmatex">\(n\)</span> points <span class="arithmatex">\(x_i\)</span> to one of <span class="arithmatex">\(K\)</span>
+clusters <span class="arithmatex">\(C_1,\dots,C_K\)</span> with sizes <span class="arithmatex">\(n_k = |C_k|\)</span> and centroids
+<span class="arithmatex">\(c_k = \frac{1}{n_k}\sum_{x\in C_k} x\)</span> (the plain coordinate-wise mean --
+note this is the <em>hard-assignment</em> centroid, not the GMM's <code>means_</code>), and
+<span class="arithmatex">\(d(\cdot,\cdot)\)</span> is the chosen <code>metric</code> (Euclidean by default). When
+<code>noise_label</code> is set, noise rows are removed first and <span class="arithmatex">\(n\)</span> counts only the
+remaining points.</p>
 <h3 id="silhouette-score">Silhouette Score<a class="headerlink" href="#silhouette-score" title="Permanent link">&para;</a></h3>
-<p>Measures how similar objects are to their own cluster compared to other clusters.</p>
+<p>For a point <span class="arithmatex">\(i\)</span> in cluster <span class="arithmatex">\(C_{k(i)}\)</span>, let</p>
+<div class="arithmatex">\[
+a(i) = \frac{1}{n_{k(i)} - 1}\sum_{j \in C_{k(i)},\, j\neq i} d(i,j), \qquad
+b(i) = \min_{l \neq k(i)} \frac{1}{n_l}\sum_{j \in C_l} d(i,j),
+\]</div>
+<p>the mean distance to its own cluster and to the <em>nearest other</em> cluster.
+Then</p>
+<div class="arithmatex">\[
+s(i) = \frac{b(i) - a(i)}{\max\{a(i),\, b(i)\}}, \qquad
+\text{Silhouette} = \frac{1}{n}\sum_i s(i),
+\]</div>
+<p>with <span class="arithmatex">\(s(i) = 0\)</span> for singleton clusters. Requires at least two clusters.</p>
 <p><strong>Range</strong>: [-1, 1]
 <strong>Interpretation</strong>: Higher is better
 - 1: Perfect clustering
@@ -2506,19 +2998,43 @@ the generic rescaling above.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">silhouette</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">silhouette_score</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="davies-bouldin-index">Davies-Bouldin Index<a class="headerlink" href="#davies-bouldin-index" title="Permanent link">&para;</a></h3>
-<p>Measures the average similarity between each cluster and its most similar cluster.</p>
+<p>With the within-cluster scatter <span class="arithmatex">\(S_k = \frac{1}{n_k}\sum_{x\in C_k} d(x, c_k)\)</span>
+(mean distance to the centroid) and centroid separation
+<span class="arithmatex">\(M_{kl} = d(c_k, c_l)\)</span>,</p>
+<div class="arithmatex">\[
+\mathrm{DB} = \frac{1}{K}\sum_{k=1}^{K}\max_{l \neq k}\frac{S_k + S_l}{M_{kl}},
+\]</div>
+<p>the average, over clusters, of the similarity to the <em>most similar</em> other
+cluster (large when two clusters are wide and close).</p>
 <p><strong>Range</strong>: [0, ∞)
 <strong>Interpretation</strong>: Lower is better</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">db_index</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">davies_bouldin_index</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="calinski-harabasz-index">Calinski-Harabasz Index<a class="headerlink" href="#calinski-harabasz-index" title="Permanent link">&para;</a></h3>
-<p>Ratio of between-cluster dispersion to within-cluster dispersion.</p>
+<p>Let <span class="arithmatex">\(\bar x\)</span> be the global mean,</p>
+<div class="arithmatex">\[
+\mathrm{SSW} = \sum_{k}\sum_{x\in C_k} d(x, c_k)^2, \qquad
+\mathrm{SSB} = \sum_{k} n_k\, d(c_k, \bar x)^2,
+\]</div>
+<p>the within- and between-cluster sums of squared distances. Then</p>
+<div class="arithmatex">\[
+\mathrm{CH} = \frac{\mathrm{SSB}/(K-1)}{\mathrm{SSW}/(n-K)},
+\]</div>
+<p>a variance-ratio (pseudo-<span class="arithmatex">\(F\)</span>) statistic. For the Euclidean metric
+<span class="arithmatex">\(\mathrm{SSW}+\mathrm{SSB}\)</span> is the total sum of squares.</p>
 <p><strong>Range</strong>: [0, ∞)
 <strong>Interpretation</strong>: Higher is better</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">ch_index</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">calinski_harabasz_score</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="dunn-index">Dunn Index<a class="headerlink" href="#dunn-index" title="Permanent link">&para;</a></h3>
-<p>Ratio of the smallest inter-cluster distance to the largest intra-cluster distance.</p>
+<div class="arithmatex">\[
+D = \frac{\min_{k \neq l}\; d(C_k, C_l)}{\max_{k}\;\operatorname{diam}(C_k)}, \qquad
+d(C_k, C_l) = \min_{x\in C_k,\, y\in C_l} d(x,y), \quad
+\operatorname{diam}(C_k) = \max_{x,y\in C_k} d(x,y),
+\]</div>
+<p>the smallest between-cluster gap over the largest within-cluster diameter.
+It depends on only two pairs of points, so it is very sensitive to
+outliers.</p>
 <p><strong>Range</strong>: [0, ∞)
 <strong>Interpretation</strong>: Higher is better</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">dunn</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">dunn_index</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
@@ -2529,68 +3045,167 @@ Stojanovski (2025) benchmark -- kept for completeness/familiarity, not as
 a recommended choice. Prefer WB-Index, Wemmert-Gancarski, or DBCV below.</p>
 </blockquote>
 <h3 id="wb-index">WB-Index<a class="headerlink" href="#wb-index" title="Permanent link">&para;</a></h3>
-<p><code>K * SSW / SSB</code> (Zhao &amp; Fränti, 2014) -- same SSW/SSB as Calinski-Harabasz.</p>
+<div class="arithmatex">\[
+\mathrm{WB} = K\,\frac{\mathrm{SSW}}{\mathrm{SSB}}
+\]</div>
+<p>(Zhao &amp; Fränti, 2014) -- same SSW/SSB as Calinski-Harabasz, with the
+number of clusters as a built-in penalty.</p>
 <p><strong>Range</strong>: [0, ∞)
 <strong>Interpretation</strong>: Lower is better</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">wb</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">wb_index</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="wemmert-gancarski-index">Wemmert-Gancarski Index<a class="headerlink" href="#wemmert-gancarski-index" title="Permanent link">&para;</a></h3>
 <p>Compares each point's distance to its own centroid against its distance to
-the <em>nearest other</em> centroid; penalises clusters where points sit closer to
-another cluster's centroid than their own.</p>
-<p><strong>Range</strong>: [0, ∞)
+the <em>nearest other</em> centroid:</p>
+<div class="arithmatex">\[
+R(x) = \frac{d(x, c_{k(x)})}{\min_{l \neq k(x)} d(x, c_l)}, \qquad
+J_k = \max\Big(0,\; 1 - \frac{1}{n_k}\sum_{x\in C_k} R(x)\Big), \qquad
+\mathrm{WG} = \frac{1}{n}\sum_k n_k J_k .
+\]</div>
+<p>A cluster contributes <span class="arithmatex">\(0\)</span> when, on average, its points are no closer to
+their own centroid than to another's.</p>
+<p><strong>Range</strong>: [0, ∞) (in practice [0, 1])
 <strong>Interpretation</strong>: Higher is better</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">wg</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">wemmert_gancarski_index</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="dbcv-density-based-clustering-validation">DBCV (Density-Based Clustering Validation)<a class="headerlink" href="#dbcv-density-based-clustering-validation" title="Permanent link">&para;</a></h3>
-<p>Moulavi, Jaskowiak, Campello, Zimek &amp; Sander (2014). Built on an "all-points
-core distance" and per-cluster minimum spanning trees over the
-mutual-reachability graph -- the natural validity index for density-based
-partitions (e.g. <code>HDBSCAN</code> output, including noise points), where
-centroid-based indexes like Davies-Bouldin don't make sense for
-non-convex clusters.</p>
+<p>Moulavi, Jaskowiak, Campello, Zimek &amp; Sander (2014). The natural validity
+index for density-based partitions (e.g. <code>HDBSCAN</code> output, including noise
+points), where centroid-based indexes like Davies-Bouldin don't make sense
+for non-convex clusters. For every cluster <span class="arithmatex">\(C\)</span> (computed within the
+cluster, using the <span class="arithmatex">\(d_f\)</span> = <code>n_features</code>-th power of distances):</p>
+<ol>
+<li><strong>All-points core distance</strong> of <span class="arithmatex">\(x\in C\)</span>:
+   $<span class="arithmatex">\(a_{\text{core}}(x) = \Big(\frac{1}{|C|-1}\sum_{y\in C,\,y\neq x} d(x,y)^{-d_f}\Big)^{-1/d_f}.\)</span>$</li>
+<li><strong>Mutual reachability</strong>: <span class="arithmatex">\(d_{\text{mreach}}(x,y) = \max\{a_{\text{core}}(x),\, a_{\text{core}}(y),\, d(x,y)\}\)</span>.</li>
+<li>A <strong>minimum spanning tree</strong> (MST) over <span class="arithmatex">\(C\)</span>'s mutual-reachability graph.
+   <strong>Density sparseness</strong> <span class="arithmatex">\(\mathrm{DSC}(C)\)</span> = the largest MST edge weight.</li>
+<li><strong>Density separation</strong> <span class="arithmatex">\(\mathrm{DSPC}(C_i, C_j)\)</span> = the smallest
+   mutual-reachability distance between an <em>internal</em> node (MST degree
+   <span class="arithmatex">\(\ge 2\)</span>) of <span class="arithmatex">\(C_i\)</span> and an internal node of <span class="arithmatex">\(C_j\)</span>.</li>
+</ol>
+<p>The per-cluster validity and the index are</p>
+<div class="arithmatex">\[
+V(C_i) = \frac{\min_{j\neq i}\mathrm{DSPC}(C_i,C_j) - \mathrm{DSC}(C_i)}
+              {\max\{\min_{j\neq i}\mathrm{DSPC}(C_i,C_j),\; \mathrm{DSC}(C_i)\}},
+\qquad
+\mathrm{DBCV} = \sum_i \frac{n_i}{n}\, V(C_i),
+\]</div>
+<p>where <span class="arithmatex">\(n\)</span> <strong>includes the noise points</strong> (they add to the denominator only),
+which is DBCV's own noise handling -- so it does <em>not</em> use the generic
+<code>noise_label</code> rescaling of the other indexes. Clusters with fewer than 2
+points contribute <span class="arithmatex">\(0\)</span>. Note this is the all-points core distance of the DBCV
+paper, not the <span class="arithmatex">\(k\)</span>-NN core distance that <code>HDBSCAN</code> itself uses internally.</p>
 <p><strong>Range</strong>: [-1, 1]
 <strong>Interpretation</strong>: Higher is better</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">score</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">dbcv</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">noise_label</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># -1 is HDBSCAN's noise label</span>
 </span></code></pre></div>
 <h2 id="supervised-metrics">Supervised Metrics<a class="headerlink" href="#supervised-metrics" title="Permanent link">&para;</a></h2>
-<h3 id="adjusted-rand-index-ari">Adjusted Rand Index (ARI)<a class="headerlink" href="#adjusted-rand-index-ari" title="Permanent link">&para;</a></h3>
-<p>Measures similarity between two clusterings, adjusted for chance.</p>
-<p><strong>Range</strong>: [-1, 1]
+<p>These compare a predicted partition <span class="arithmatex">\(V\)</span> (<code>labels_pred</code>) with a reference
+partition <span class="arithmatex">\(U\)</span> (<code>labels_true</code>). Most are built from the <strong>contingency table</strong>
+<span class="arithmatex">\(n_{ij} = |\{x : u(x) = i,\ v(x) = j\}|\)</span> with row sums <span class="arithmatex">\(a_i = \sum_j n_{ij}\)</span>,
+column sums <span class="arithmatex">\(b_j = \sum_i n_{ij}\)</span> and total <span class="arithmatex">\(n\)</span>. Cluster labels are
+arbitrary, so every score here is invariant to relabeling the clusters.</p>
+<div class="admonition note">
+<p class="admonition-title">Label format</p>
+<p>The supervised scores build the contingency table by indexing, so they
+expect <strong>non-negative, 0-indexed integer labels</strong> (e.g. from
+<code>gmm.predict</code>). To score density-based output containing a <code>-1</code> noise
+label, drop or remap the noise rows first.</p>
+</div>
+<h3 id="rand-index-and-adjusted-rand-index-ari">Rand Index and Adjusted Rand Index (ARI)<a class="headerlink" href="#rand-index-and-adjusted-rand-index-ari" title="Permanent link">&para;</a></h3>
+<p>Count pairs of points: <span class="arithmatex">\(\mathrm{TP}\)</span> = pairs together in both partitions,
+<span class="arithmatex">\(\mathrm{TN}\)</span> = apart in both, <span class="arithmatex">\(\mathrm{FP}\)</span>/<span class="arithmatex">\(\mathrm{FN}\)</span> the
+disagreements. Then</p>
+<div class="arithmatex">\[
+\mathrm{RI} = \frac{\mathrm{TP} + \mathrm{TN}}{\binom{n}{2}}, \qquad
+\mathrm{ARI} = \frac{\sum_{ij}\binom{n_{ij}}{2} - \Big[\sum_i\binom{a_i}{2}\sum_j\binom{b_j}{2}\Big]\Big/\binom{n}{2}}
+{\tfrac12\Big[\sum_i\binom{a_i}{2}+\sum_j\binom{b_j}{2}\Big] - \Big[\sum_i\binom{a_i}{2}\sum_j\binom{b_j}{2}\Big]\Big/\binom{n}{2}}.
+\]</div>
+<p>ARI subtracts the Rand index's expected value under random labeling with
+the same cluster sizes (the generalized hypergeometric model), so a random
+partition scores <span class="arithmatex">\(\approx 0\)</span>.</p>
+<p><strong>Range</strong>: ARI in [-1, 1]; RI in [0, 1]
 <strong>Interpretation</strong>: Higher is better
 - 1: Perfect agreement
 - 0: Random labeling
 - Negative: Worse than random</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">ari</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">adjusted_rand_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
 </span></code></pre></div>
-<h3 id="normalized-mutual-information-nmi">Normalized Mutual Information (NMI)<a class="headerlink" href="#normalized-mutual-information-nmi" title="Permanent link">&para;</a></h3>
-<p>Measures mutual information normalized to [0, 1].</p>
-<p><strong>Range</strong>: [0, 1]
+<h3 id="mutual-information-nmi-and-ami">Mutual Information, NMI and AMI<a class="headerlink" href="#mutual-information-nmi-and-ami" title="Permanent link">&para;</a></h3>
+<p>With <span class="arithmatex">\(p_{ij} = n_{ij}/n\)</span>, <span class="arithmatex">\(p_i = a_i/n\)</span>, <span class="arithmatex">\(p_j = b_j/n\)</span>, entropies
+<span class="arithmatex">\(H(U) = -\sum_i p_i\ln p_i\)</span>, <span class="arithmatex">\(H(V) = -\sum_j p_j \ln p_j\)</span>:</p>
+<div class="arithmatex">\[
+\mathrm{MI}(U,V) = \sum_{ij} p_{ij}\ln\frac{p_{ij}}{p_i\,p_j}, \qquad
+\mathrm{NMI} = \frac{2\,\mathrm{MI}}{H(U) + H(V)} .
+\]</div>
+<p>NMI uses the arithmetic-mean normalization and lies in <span class="arithmatex">\([0, 1]\)</span> (all in
+nats). The <strong>AMI</strong> (<code>adjusted_mutual_info_score</code>) is meant to correct MI for
+chance, <span class="arithmatex">\(\mathrm{AMI} = \dfrac{\mathrm{MI} - \mathbb{E}[\mathrm{MI}]}{\tfrac12(H(U)+H(V)) - \mathbb{E}[\mathrm{MI}]}\)</span>.</p>
+<p>The chance correction uses the <strong>exact</strong> expected mutual information under the
+permutation (hypergeometric) model of Vinh, Epps &amp; Bailey (2010), with row sums
+<span class="arithmatex">\(a_i\)</span> and column sums <span class="arithmatex">\(b_j\)</span>:</p>
+<div class="arithmatex">\[
+\mathbb{E}[\mathrm{MI}] = \sum_{i,j}\ \sum_{n_{ij}=\max(1,\,a_i+b_j-n)}^{\min(a_i,\,b_j)}
+\frac{n_{ij}}{n}\ln\frac{n\,n_{ij}}{a_ib_j}\;
+\frac{a_i!\,b_j!\,(n-a_i)!\,(n-b_j)!}{n!\,n_{ij}!\,(a_i-n_{ij})!\,(b_j-n_{ij})!\,(n-a_i-b_j+n_{ij})!}.
+\]</div>
+<p>The summand depends only on <span class="arithmatex">\((a_i, b_j)\)</span>, so tgmm groups equal cluster sizes and
+evaluates each distinct pair once, vectorised over <span class="arithmatex">\(n_{ij}\)</span> with log-gamma in
+float64 (adapted from scikit-learn's <code>expected_mutual_information</code>, BSD-3).
+<code>adjusted_mutual_info_score</code> and <code>normalized_mutual_info_score</code> take
+<code>average_method</code> (<code>'arithmetic'</code> by default, <code>'min'</code>, <code>'max'</code>, <code>'geometric'</code>) and
+agree with scikit-learn to about <span class="arithmatex">\(10^{-8}\)</span> or better; the exact expectation is exposed as
+<code>ClusteringMetrics.expected_mutual_information(contingency)</code>.</p>
+<p><strong>Range</strong>: NMI in [0, 1]; AMI <span class="arithmatex">\(\lesssim 1\)</span>, may be slightly negative
 <strong>Interpretation</strong>: Higher is better
 - 1: Perfect agreement
 - 0: Independent labelings</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">nmi</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">normalized_mutual_info_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
 </span></code></pre></div>
+<h3 id="fowlkes-mallows">Fowlkes-Mallows<a class="headerlink" href="#fowlkes-mallows" title="Permanent link">&para;</a></h3>
+<p>The geometric mean of pairwise precision and recall,</p>
+<div class="arithmatex">\[
+\mathrm{FM} = \sqrt{\frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FP}}\cdot\frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FN}}},
+\qquad \mathrm{TP} = \sum_{ij}\binom{n_{ij}}{2}.
+\]</div>
+<p><strong>Range</strong>: [0, 1] -- Higher is better.</p>
 <h3 id="homogeneity-completeness-v-measure">Homogeneity, Completeness, V-Measure<a class="headerlink" href="#homogeneity-completeness-v-measure" title="Permanent link">&para;</a></h3>
 <p>Homogeneity asks "does each cluster contain only one true class?";
 completeness asks "is each true class kept in one cluster?" (Rosenberg &amp;
-Hirschberg, 2007). V-measure is their weighted harmonic mean, via <code>beta</code>
-(<code>beta=1.0</code>, the default, weighs them equally; <code>beta &gt; 1</code> favours
-completeness, <code>beta &lt; 1</code> favours homogeneity).</p>
+Hirschberg, 2007):</p>
+<div class="arithmatex">\[
+h = 1 - \frac{H(U \mid V)}{H(U)}, \qquad
+c = 1 - \frac{H(V \mid U)}{H(V)}, \qquad
+V_\beta = \frac{(1+\beta)\,h\,c}{\beta\,h + c},
+\]</div>
+<p>with the conventions <span class="arithmatex">\(h = 1\)</span> when <span class="arithmatex">\(H(U) = 0\)</span> and <span class="arithmatex">\(c = 1\)</span> when <span class="arithmatex">\(H(V) = 0\)</span>.
+V-measure is their weighted harmonic mean, via <code>beta</code> (<code>beta=1.0</code>, the
+default, weighs them equally and gives <span class="arithmatex">\(2hc/(h+c)\)</span>, the same as NMI with
+arithmetic normalization; <code>beta &gt; 1</code> favours completeness, <code>beta &lt; 1</code>
+favours homogeneity).</p>
 <p><strong>Range</strong>: [0, 1] each. <strong>Interpretation</strong>: Higher is better.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">h</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">homogeneity_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">c</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">completeness_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">v</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">v_measure_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="normalized-information-distance-nid">Normalized Information Distance (NID)<a class="headerlink" href="#normalized-information-distance-nid" title="Permanent link">&para;</a></h3>
-<p><code>1 - I(U; V) / max(H(U), H(V))</code> (Vinh, Epps &amp; Bailey, 2010) -- an
-information-theoretic <em>distance</em> between two partitions.</p>
+<div class="arithmatex">\[
+\mathrm{NID} = 1 - \frac{I(U;V)}{\max\{H(U), H(V)\}}
+\]</div>
+<p>(Vinh, Epps &amp; Bailey, 2010) -- an information-theoretic <em>distance</em> between
+two partitions.</p>
 <p><strong>Range</strong>: [0, 1]
 <strong>Interpretation</strong>: Lower is better; 0 for identical partitions.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">nid</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">normalized_information_distance</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="purity">Purity<a class="headerlink" href="#purity" title="Permanent link">&para;</a></h3>
-<p>Fraction of correctly clustered samples in the majority class of each cluster.</p>
+<div class="arithmatex">\[
+\mathrm{purity} = \frac{1}{n}\sum_{j}\max_i n_{ij},
+\]</div>
+<p>the fraction of points that belong to the majority true class of their
+predicted cluster. It never decreases as the number of clusters grows (a
+cluster per point has purity 1), so only compare it at the same <span class="arithmatex">\(K\)</span>.</p>
 <p><strong>Range</strong>: [0, 1]
 <strong>Interpretation</strong>: Higher is better</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">purity</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">purity_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
@@ -2599,13 +3214,55 @@ information-theoretic <em>distance</em> between two partitions.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">conf_matrix</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">confusion_matrix</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">conf_matrix</span><span class="p">)</span>
 </span></code></pre></div>
+<p>Rows (true labels) and columns (predicted labels) are both indexed by the sorted
+<strong>union</strong> of the labels present in <code>true_labels</code> and <code>pred_labels</code>, so a
+predicted id that never occurs in <code>true_labels</code> gets its own (all-zero) row and a
+column instead of being silently dropped. Pass <code>labels=[...]</code> to fix the order
+(and, as in scikit-learn, to ignore samples with other labels). Cluster ids are
+arbitrary in clustering, so align them to the class ids first (e.g. by the
+Hungarian algorithm) if you want the diagonal to mean "correct".</p>
 <h3 id="classification-report-precision-recall-f1">Classification Report (Precision / Recall / F1)<a class="headerlink" href="#classification-report-precision-recall-f1" title="Permanent link">&para;</a></h3>
-<p>Returns a dict keyed by class label, each with <code>precision</code>, <code>recall</code>, <code>f1-score</code>,
-<code>support</code>, <code>jaccard</code>, and <code>roc_auc</code>:</p>
+<p>Treats each true class <span class="arithmatex">\(c\)</span> one-vs-rest, with <span class="arithmatex">\(\mathrm{TP}_c\)</span>, <span class="arithmatex">\(\mathrm{FP}_c\)</span>,
+<span class="arithmatex">\(\mathrm{FN}_c\)</span>:</p>
+<div class="arithmatex">\[
+\text{precision} = \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FP}}, \quad
+\text{recall} = \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FN}}, \quad
+F_1 = \frac{2PR}{P+R}, \quad
+\text{Jaccard} = \frac{\mathrm{TP}}{\mathrm{TP}+\mathrm{FP}+\mathrm{FN}} .
+\]</div>
+<p>Returns a dict keyed by class label, each with <code>precision</code>, <code>recall</code>,
+<code>f1-score</code>, <code>support</code>, <code>jaccard</code>, and <code>roc_auc</code>. Like the confusion matrix,
+it matches predicted and true labels by <em>value</em>, so align cluster ids to
+class ids first. The classes are the sorted union of the true and predicted
+labels; a label that is only ever predicted is listed with <code>support</code> 0.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">report</span> <span class="o">=</span> <span class="n">ClusteringMetrics</span><span class="o">.</span><span class="n">classification_report</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">pred_labels</span><span class="p">)</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Class </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">: F1=</span><span class="si">{</span><span class="n">scores</span><span class="p">[</span><span class="s1">'f1-score'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, precision=</span><span class="si">{</span><span class="n">scores</span><span class="p">[</span><span class="s1">'precision'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, recall=</span><span class="si">{</span><span class="n">scores</span><span class="p">[</span><span class="s1">'recall'</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title"><code>roc_auc</code> is the AUC of the hard predictions</p>
+<p><code>ClusteringMetrics.roc_auc_score</code> is the rank-based (Mann-Whitney) AUC
+with average ranks for ties,
+<span class="arithmatex">\(\mathrm{AUC}=\bigl(\sum_{i:\,y_i=1}\mathrm{rank}(s_i)-n_+(n_++1)/2\bigr)/(n_+n_-)\)</span>,
+so it equals <code>sklearn.metrics.roc_auc_score</code> and does not depend on the order of
+the samples. In <code>classification_report</code> it is applied to the <em>binary</em> one-vs-rest
+predictions, where it reduces to <span class="arithmatex">\((\mathrm{TPR}+\mathrm{TNR})/2\)</span> (balanced
+accuracy); for a real AUC pass scores or probabilities to <code>roc_auc_score</code>
+directly. It is <code>1.0</code> by convention when only one class is present.</p>
+</div>
+<h3 id="other-helpers">Other helpers<a class="headerlink" href="#other-helpers" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>ClusteringMetrics.kl_divergence_gmm(gmm_p, gmm_q, n_samples=10000)</code>: a
+  Monte-Carlo estimate of <span class="arithmatex">\(D_{\mathrm{KL}}(p\,\Vert\,q) = \mathbb{E}_{x\sim p}[\log p(x) - \log q(x)]\)</span>
+  between two fitted mixtures, averaging <span class="arithmatex">\(\log p - \log q\)</span> over samples drawn
+  from <code>gmm_p</code>. It is not symmetric and has Monte-Carlo noise
+  <span class="arithmatex">\(\propto 1/\sqrt{n_{\text{samples}}}\)</span>.</li>
+<li><code>ClusteringMetrics.evaluate_clustering(gmm_model, X, true_labels=None, metrics=None)</code>:
+  computes a requested subset of the above for a fitted model in one call
+  (supervised scores only when <code>true_labels</code> is given).</li>
+<li><code>rand_score</code>, <code>mutual_info_score</code>: the unadjusted building blocks of ARI
+  and NMI.</li>
+</ul>
 <h2 id="model-comparison-example">Model Comparison Example<a class="headerlink" href="#model-comparison-example" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span><span class="p">,</span> <span class="n">ClusteringMetrics</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
@@ -2640,12 +3297,112 @@ information-theoretic <em>distance</em> between two partitions.</p>
 </span><span id="__span-15-31"><a id="__codelineno-15-31" name="__codelineno-15-31" href="#__codelineno-15-31"></a>          <span class="sa">f</span><span class="s2">"AIC: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'aic'</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="model-selection">Model Selection<a class="headerlink" href="#model-selection" title="Permanent link">&para;</a></h2>
+<p>Likelihood-based criteria need a model's own log-likelihood and parameter
+count, so they are <code>bic</code>/<code>aic</code>/<code>icl</code> <strong>methods on every fitted mixture</strong>
+(<code>GaussianMixture</code>, <code>StudentTMixture</code>, <code>VonMisesFisherMixture</code> -- including
+<code>GaussianMixture(n_components=None, ...)</code> in Gibbs mode), not
+<code>ClusteringMetrics</code> calls. With <span class="arithmatex">\(\ell(\hat\theta) = \sum_i \log p(x_i \mid \hat\theta)\)</span>
+the maximized log-likelihood (<code>gmm.score(X) * n</code>) and <span class="arithmatex">\(p\)</span> the number of free
+parameters:</p>
+<div class="arithmatex">\[
+\mathrm{BIC} = -2\,\ell(\hat\theta) + p\,\ln n, \qquad
+\mathrm{AIC} = -2\,\ell(\hat\theta) + 2p
+\]</div>
+<p>(both "lower is better"). BIC's <span class="arithmatex">\(\ln n\)</span> penalty is heavier than AIC's <span class="arithmatex">\(2\)</span>
+once <span class="arithmatex">\(n &gt; 7\)</span>, so BIC prefers smaller models and is consistent for the true
+<span class="arithmatex">\(K\)</span> when the model family is correct; AIC targets predictive accuracy and
+tends to pick more components.</p>
+<h3 id="free-parameter-counts">Free parameter counts<a class="headerlink" href="#free-parameter-counts" title="Permanent link">&para;</a></h3>
+<p>For <code>GaussianMixture</code>, <span class="arithmatex">\(p = (K-1) + Kd + p_\Sigma\)</span>: <span class="arithmatex">\(K-1\)</span> free weights, <span class="arithmatex">\(Kd\)</span>
+means, and covariance parameters</p>
+<table>
+<thead>
+<tr>
+<th><code>covariance_type</code></th>
+<th><span class="arithmatex">\(p_\Sigma\)</span></th>
+<th></th>
+<th><code>covariance_type</code></th>
+<th><span class="arithmatex">\(p_\Sigma\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>full</code> / <code>VVV</code></td>
+<td><span class="arithmatex">\(K\,d(d+1)/2\)</span></td>
+<td></td>
+<td><code>VEI</code></td>
+<td><span class="arithmatex">\(K + (d-1)\)</span></td>
+</tr>
+<tr>
+<td><code>diag</code> / <code>VVI</code></td>
+<td><span class="arithmatex">\(Kd\)</span></td>
+<td></td>
+<td><code>EVI</code></td>
+<td><span class="arithmatex">\(1 + K(d-1)\)</span></td>
+</tr>
+<tr>
+<td><code>spherical</code> / <code>VII</code></td>
+<td><span class="arithmatex">\(K\)</span></td>
+<td></td>
+<td><code>VEE</code></td>
+<td><span class="arithmatex">\(K + (d-1) + d(d-1)/2\)</span></td>
+</tr>
+<tr>
+<td><code>tied_full</code> / <code>EEE</code></td>
+<td><span class="arithmatex">\(d(d+1)/2\)</span></td>
+<td></td>
+<td><code>EVE</code></td>
+<td><span class="arithmatex">\(1 + K(d-1) + d(d-1)/2\)</span></td>
+</tr>
+<tr>
+<td><code>tied_diag</code> / <code>EEI</code></td>
+<td><span class="arithmatex">\(d\)</span></td>
+<td></td>
+<td><code>EEV</code></td>
+<td><span class="arithmatex">\(d + K\,d(d-1)/2\)</span></td>
+</tr>
+<tr>
+<td><code>tied_spherical</code> / <code>EII</code></td>
+<td><span class="arithmatex">\(1\)</span></td>
+<td></td>
+<td><code>VVE</code></td>
+<td><span class="arithmatex">\(Kd + d(d-1)/2\)</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td><code>VEV</code></td>
+<td><span class="arithmatex">\(K + (d-1) + K\,d(d-1)/2\)</span></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td><code>EVV</code></td>
+<td><span class="arithmatex">\(1 + K(d-1) + K\,d(d-1)/2\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>(the GPCM codes are explained in <a href="../gpcm-covariance-models/">GPCM Covariance
+Models</a>). Student-t adds <span class="arithmatex">\(K\)</span> (or <span class="arithmatex">\(1\)</span>, or <span class="arithmatex">\(0\)</span>)
+degrees-of-freedom parameters, and vMF has <span class="arithmatex">\((K-1) + K(d-1) + K\)</span> (or <span class="arithmatex">\(+1\)</span> for
+a shared <span class="arithmatex">\(\kappa\)</span>) -- see <a href="../other-mixture-families/">Other Mixture Families</a>.
+In Gibbs mode, <span class="arithmatex">\(K\)</span> is the number of <em>active</em> components.</p>
 <h3 id="icl-integrated-completed-likelihood">ICL (Integrated Completed Likelihood)<a class="headerlink" href="#icl-integrated-completed-likelihood" title="Permanent link">&para;</a></h3>
-<p><code>icl(X, mode='hard')</code> on a fitted <code>GaussianMixture</code> adds an entropy penalty
-to <code>bic</code> for ambiguous, overlapping-cluster assignments (Biernacki, Celeux &amp;
-Govaert, 2000). Lower is better, same convention as <code>bic</code>; <code>ICL &gt;= BIC</code>
-always, and the two are identical when responsibilities are one-hot
-(perfectly separated clusters).</p>
+<p><code>icl(X, mode='hard')</code> adds an entropy penalty to <code>bic</code> for ambiguous,
+overlapping-cluster assignments (Biernacki, Celeux &amp; Govaert, 2000). With
+responsibilities <span class="arithmatex">\(r_{ik}\)</span> and <span class="arithmatex">\(\hat z_i = \arg\max_k r_{ik}\)</span>,</p>
+<div class="arithmatex">\[
+\mathrm{ICL}_{\text{hard}} = \mathrm{BIC} - 2\sum_i \ln r_{i\hat z_i}, \qquad
+\mathrm{ICL}_{\text{soft}} = \mathrm{BIC} - 2\sum_{i,k} r_{ik}\ln r_{ik}.
+\]</div>
+<p>Both penalties are <span class="arithmatex">\(\ge 0\)</span>, so lower is better, same convention as <code>bic</code>;
+<span class="arithmatex">\(\mathrm{ICL} \ge \mathrm{BIC}\)</span> always, and the two are identical when
+responsibilities are one-hot (perfectly separated clusters). <span class="arithmatex">\(-\sum
+r\ln r\)</span> is the entropy of the soft assignment: ICL is BIC applied to the
+<em>completed</em> (data + cluster labels) likelihood, so it penalizes solutions
+whose components overlap.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">gmm</span><span class="o">.</span><span class="n">bic</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">gmm</span><span class="o">.</span><span class="n">icl</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>       <span class="c1"># icl(X) &gt;= bic(X)</span>
@@ -2670,11 +3427,15 @@ worked BIC-vs-ICL comparison where they pick different <code>K</code>.</p>
 </span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">best_</span><span class="o">.</span><span class="n">n_components</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">best_</span><span class="o">.</span><span class="n">covariance_type</span><span class="p">)</span>
 </span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="n">df</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>  <span class="c1"># lazy pandas import</span>
 </span></code></pre></div>
-<p><code>result.table</code> has one row per <code>(n_components, covariance_type)</code> combination
+<p><code>covariance_types</code> defaults to <strong>all 14 GPCM codes</strong> (the mclust-style
+workflow); pass an explicit subset, as above, to narrow the search.
+<code>result.table</code> has one row per <code>(n_components, covariance_type)</code> combination
 (<code>bic</code>, <code>aic</code>, <code>icl</code>, <code>log_likelihood</code>, <code>converged</code>); a combination whose fit
 raises (e.g. a singular covariance at a large <code>K</code>) gets <code>None</code> scores
 instead of aborting the whole sweep. <code>result.models_[(K, covariance_type)]</code>
-gives the fitted model for any successful combination. See the
+gives the fitted model for any successful combination, and <code>best_</code> is the
+one minimizing <code>criterion</code>. Any other keyword (<code>max_iter</code>, <code>reg_covar</code>, ...)
+is forwarded to every <code>GaussianMixture</code>. See the
 <a href="../../api/model-selection/">API reference</a> for the full signature.</p>
 <h2 id="complete-api-reference">Complete API Reference<a class="headerlink" href="#complete-api-reference" title="Permanent link">&para;</a></h2>
 <p>For full details on all metrics, see the <a href="../../api/clustering-metrics/">API Reference</a>.</p>

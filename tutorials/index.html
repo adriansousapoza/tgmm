@@ -65,7 +65,28 @@
 
     
     
-  </head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
   
   
     
@@ -302,6 +323,26 @@
   
   
   Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
 
         </a>
       </li>
@@ -709,6 +750,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../user-guide/noise-missing-conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../user-guide/gmm-initializer/" class="md-nav__link">
         
   
@@ -972,6 +1041,61 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#6-model-selection-and-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Model Selection and Algorithms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-covariance-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Covariance Structures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-other-families-and-supervision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Other Families and Supervision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-around-the-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Around the Fit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interactive-explainers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interactive explainers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running-tutorials" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -984,32 +1108,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#option-1-google-colab" class="md-nav__link">
+  <a href="#locally" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 1: Google Colab
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-2-local-jupyter" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2: Local Jupyter
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-jupyterlab" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3: JupyterLab
+        Locally
       
     </span>
   </a>
@@ -1440,14 +1542,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../notebooks/15_gpcm_models/" class="md-nav__link">
+      <a href="../notebooks/15_covariance_models/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    15. GPCM Covariance Models
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
   
 
     
@@ -1468,14 +1570,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../notebooks/16_student_t_and_vmf/" class="md-nav__link">
+      <a href="../notebooks/16_student_t/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16. Student-t and von Mises-Fisher Mixtures
+    16. Student-t Mixtures
   
 
     
@@ -1496,14 +1598,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../notebooks/17_semi_supervised_pu/" class="md-nav__link">
+      <a href="../notebooks/17_von_mises_fisher/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    17. Semi-Supervised and Positive-Unlabeled Fitting
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
   
 
     
@@ -1556,7 +1714,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Explainers
   
 
     
@@ -1569,6 +1727,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1677,6 +2036,62 @@
     
   
     tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
   
 
     
@@ -2002,6 +2417,61 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#6-model-selection-and-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Model Selection and Algorithms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-covariance-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Covariance Structures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-other-families-and-supervision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Other Families and Supervision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-around-the-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Around the Fit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interactive-explainers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interactive explainers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running-tutorials" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2014,32 +2484,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#option-1-google-colab" class="md-nav__link">
+  <a href="#locally" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 1: Google Colab
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-2-local-jupyter" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2: Local Jupyter
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-jupyterlab" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3: JupyterLab
+        Locally
       
     </span>
   </a>
@@ -2087,7 +2535,7 @@
 suggested reading order.</p>
 <h2 id="1-foundations">1. Foundations<a class="headerlink" href="#1-foundations" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../notebooks/01_gmm/"><strong>1. Gaussian Mixture Models (GMM)</strong></a> - Basic introduction to fitting GMMs with tgmm, including a comparison of mean/weight/covariance initialization strategies</li>
+<li><a href="../notebooks/01_gmm/"><strong>1. Gaussian Mixture Models (GMM)</strong></a> - Basic introduction to fitting GMMs with tgmm: initialization strategies (means, weights, covariances), training controls (<code>n_init</code>, <code>warm_start</code>, ...), MAP priors, constrained sampling and save/load. How the <em>covariance structure</em> is chosen and estimated now has its own tutorial, <a href="../notebooks/15_covariance_models/">15. Covariance Structures</a></li>
 <li><a href="../notebooks/02_em_algorithm/"><strong>2. EM Algorithm Walkthrough</strong></a> - Step-by-step visualization of how the EM algorithm updates responsibilities and parameters each iteration</li>
 <li><a href="../notebooks/03_visualise/"><strong>3. Visualization Techniques</strong></a> - Comprehensive guide to <code>plot_gmm</code>, the toolkit every later tutorial uses</li>
 </ul>
@@ -2112,27 +2560,53 @@ suggested reading order.</p>
 <li><a href="../notebooks/11_dpgmm/"><strong>11. Dirichlet Process Mixtures: Stick-Breaking and Gibbs Sampling</strong></a> - The math (stick-breaking, Chinese Restaurant Process), a step-by-step sampler walkthrough, then validating <code>GaussianMixture(n_components=None, ...)</code> against classical EM at scale</li>
 <li><a href="../notebooks/12_hdbscan/"><strong>12. HDBSCAN Clustering</strong></a> - Density-based clustering with a PyTorch HDBSCAN implementation, including using it to remove noise before fitting a GMM</li>
 </ul>
+<h2 id="6-model-selection-and-algorithms">6. Model Selection and Algorithms<a class="headerlink" href="#6-model-selection-and-algorithms" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../notebooks/13_model_selection/"><strong>13. Model Selection (BIC, AIC, ICL)</strong></a> - Choosing the number of components and the covariance structure with <code>select_model</code>, and how the three criteria differ on overlapping clusters</li>
+<li><a href="../notebooks/14_stochastic_em/"><strong>14. Stochastic EM, Annealing &amp; SAEM</strong></a> - Escaping poor local optima: SEM, deterministic annealing (DAEM) and SAEM compared against EM and CEM from the same bad initialization</li>
+</ul>
+<h2 id="7-covariance-structures">7. Covariance Structures<a class="headerlink" href="#7-covariance-structures" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../notebooks/15_covariance_models/"><strong>15. Covariance Structures: the 6 classic types and the 14 GPCM models</strong></a> - What each covariance type assumes, how its parameters are estimated in the M-step (the equations), the Celeux &amp; Govaert volume/shape/orientation decomposition behind the 14 mclust models, and model selection among all 14</li>
+</ul>
+<h2 id="8-other-families-and-supervision">8. Other Families and Supervision<a class="headerlink" href="#8-other-families-and-supervision" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../notebooks/16_student_t/"><strong>16. Student-t Mixtures</strong></a> - Heavy-tailed components, the scale-mixture view and robustness weights <span class="arithmatex">\(u_{ik}\)</span>, and resisting contamination with <code>StudentTMixture</code></li>
+<li><a href="../notebooks/17_von_mises_fisher/"><strong>17. Von Mises-Fisher Mixtures</strong></a> - Directional data: the vMF distribution on the circle and sphere, the EM updates for <span class="arithmatex">\(\mu_k\)</span> and <span class="arithmatex">\(\kappa_k\)</span>, <code>plot_vmf</code> / <code>plot_vmf_cosine</code>, and clustering unit-norm embeddings with <code>VonMisesFisherMixture</code></li>
+<li><a href="../notebooks/18_semi_supervised_pu/"><strong>18. Semi-Supervised and Positive-Unlabeled Fitting</strong></a> - Fitting with partially known labels and <code>PositiveUnlabeledMixture</code></li>
+</ul>
+<h2 id="9-around-the-fit">9. Around the Fit<a class="headerlink" href="#9-around-the-fit" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../notebooks/19_noise_missing_conditioning/"><strong>19. Noise, Missing Values and Conditioning</strong></a> - A uniform noise component (<code>noise=True</code>), EM with missing values and <code>impute</code>, <code>marginal</code> / <code>condition</code> and Gaussian mixture regression, <code>frozen_components</code> and <code>sample_weight</code>, and <code>GenericMixture</code> with your own component classes</li>
+</ul>
+<h2 id="interactive-explainers">Interactive explainers<a class="headerlink" href="#interactive-explainers" title="Permanent link">&para;</a></h2>
+<p>Five short pages teach the ideas behind tgmm with sliders and buttons that run <strong>in your browser</strong> (no install, no tgmm
+or PyTorch involved):</p>
+<ul>
+<li><a href="../explainers/gpcm-shapes/">GPCM Covariance Shapes</a> -- volume, shape and orientation, and the mclust code they spell</li>
+<li><a href="../explainers/em-stepper/">EM Step by Step</a> -- the E- and M-steps of EM, CEM and SEM on a 1-D mixture</li>
+<li><a href="../explainers/annealing/">Deterministic Annealing</a> -- how a temperature escapes a collapsed initialization</li>
+<li><a href="../explainers/metrics-intuition/">Clustering Metrics and Model Selection</a> -- internal indices, BIC and ICL live</li>
+<li><a href="../explainers/data-designer/">Design Your Own Mixture</a> -- move and reshape Gaussian blobs, choose how many points each has, and watch EM and BIC respond</li>
+</ul>
 <h2 id="running-tutorials">Running Tutorials<a class="headerlink" href="#running-tutorials" title="Permanent link">&para;</a></h2>
-<h3 id="option-1-google-colab">Option 1: Google Colab<a class="headerlink" href="#option-1-google-colab" title="Permanent link">&para;</a></h3>
-<p>Click the "Open in Colab" button at the top of each notebook.</p>
-<h3 id="option-2-local-jupyter">Option 2: Local Jupyter<a class="headerlink" href="#option-2-local-jupyter" title="Permanent link">&para;</a></h3>
-<p>Install Jupyter:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>jupyter
+<p>The tutorials are <a href="https://marimo.io">marimo</a> notebooks (<code>notebooks/NN_name.py</code>), published here as static
+pages. Each page has an <strong>Open in molab</strong> badge at the top that runs the real notebook, PyTorch included, on a
+free hosted server (no setup; the full-size runs, not the shortened ones used to build this site).</p>
+<h3 id="locally">Locally<a class="headerlink" href="#locally" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/adriansousapoza/tgmm.git<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>tgmm
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="w"> </span>marimo
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>marimo<span class="w"> </span>edit<span class="w"> </span>notebooks/01_gmm.py<span class="w">        </span><span class="c1"># interactive editor</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>python<span class="w"> </span>notebooks/01_gmm.py<span class="w">             </span><span class="c1"># or run it as a plain script</span>
 </span></code></pre></div>
-<p>Launch Jupyter:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>docs/notebooks
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>jupyter<span class="w"> </span>notebook
-</span></code></pre></div>
-<h3 id="option-3-jupyterlab">Option 3: JupyterLab<a class="headerlink" href="#option-3-jupyterlab" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>jupyterlab
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>jupyter<span class="w"> </span>lab
-</span></code></pre></div>
+<p>Or, without installing anything yourself, in an isolated environment built from the notebook's own header:
+<code>uvx marimo edit --sandbox notebooks/01_gmm.py</code>. See <code>notebooks/README.md</code> for the conventions every notebook follows.</p>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <p>All tutorials require:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>numpy<span class="w"> </span>matplotlib<span class="w"> </span>scipy
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span>tgmm<span class="w">  </span><span class="c1"># or install from source</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>numpy<span class="w"> </span>scipy<span class="w"> </span>matplotlib<span class="w"> </span>seaborn<span class="w"> </span>tqdm
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pip<span class="w"> </span>install<span class="w"> </span>tgmm<span class="w">  </span><span class="c1"># or, from a source checkout: pip install -e .</span>
 </span></code></pre></div>
-<p>Some tutorials may have additional dependencies listed at the top of the notebook.</p>
+<p>Some tutorials additionally use scikit-learn (datasets, PCA), pandas (<code>select_model(...).to_dataframe()</code>) or <code>mpltern</code>; see <a href="../getting-started/installation/#optional-dependencies">Installation</a>. The notebooks declare all of their dependencies in a header, so <code>marimo edit --sandbox</code> installs them for you.</p>
 
 
 

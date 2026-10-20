@@ -65,7 +65,28 @@
 
     
     
-  </head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
   
   
     
@@ -302,6 +323,26 @@
   
   
   Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
 
         </a>
       </li>
@@ -688,6 +729,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#where-the-covariance-enters-em" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the covariance enters EM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-idea-a-decomposed-covariance" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -710,21 +762,82 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#whats-and-isnt-supported-for-the-8-new-codes" class="md-nav__link">
+  <a href="#how-each-model-is-estimated" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What's and isn't supported for the 8 new codes
+        How each model is estimated
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How each model is estimated">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#closed-form-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-form models
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#the-5-iterative-models" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#the-iterative-models-vei-vee-vev" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The 5 iterative models
+        The iterative models: VEI, VEE, VEV
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-numerically-optimised-models-eve-vve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two numerically-optimised models: EVE, VVE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stopping-and-warm-starts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stopping and warm starts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#numerical-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numerical verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-and-isnt-supported-for-the-8-new-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's and isn't supported for the 8 new codes
       
     </span>
   </a>
@@ -794,6 +907,34 @@
     
   
     Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../noise-missing-conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
   
 
     
@@ -1379,14 +1520,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/15_gpcm_models/" class="md-nav__link">
+      <a href="../../notebooks/15_covariance_models/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    15. GPCM Covariance Models
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
   
 
     
@@ -1407,14 +1548,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/16_student_t_and_vmf/" class="md-nav__link">
+      <a href="../../notebooks/16_student_t/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16. Student-t and von Mises-Fisher Mixtures
+    16. Student-t Mixtures
   
 
     
@@ -1435,14 +1576,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/17_semi_supervised_pu/" class="md-nav__link">
+      <a href="../../notebooks/17_von_mises_fisher/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    17. Semi-Supervised and Positive-Unlabeled Fitting
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
   
 
     
@@ -1495,7 +1692,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Explainers
   
 
     
@@ -1508,6 +1705,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1616,6 +2014,62 @@
     
   
     tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
   
 
     
@@ -1886,6 +2340,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#where-the-covariance-enters-em" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the covariance enters EM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-idea-a-decomposed-covariance" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1908,21 +2373,82 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#whats-and-isnt-supported-for-the-8-new-codes" class="md-nav__link">
+  <a href="#how-each-model-is-estimated" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What's and isn't supported for the 8 new codes
+        How each model is estimated
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How each model is estimated">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#closed-form-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closed-form models
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#the-5-iterative-models" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#the-iterative-models-vei-vee-vev" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The 5 iterative models
+        The iterative models: VEI, VEE, VEV
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-numerically-optimised-models-eve-vve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two numerically-optimised models: EVE, VVE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stopping-and-warm-starts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stopping and warm starts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#numerical-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Numerical verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-and-isnt-supported-for-the-8-new-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's and isn't supported for the 8 new codes
       
     </span>
   </a>
@@ -1963,29 +2489,61 @@
 <h1 id="gpcm-covariance-models">GPCM Covariance Models<a class="headerlink" href="#gpcm-covariance-models" title="Permanent link">&para;</a></h1>
 <p><code>GaussianMixture</code> supports all 14 Celeux &amp; Govaert (1995) Gaussian
 Parsimonious Clustering Models (GPCM) -- the same family <code>mclust</code> implements
--- not just the 6 covariance types in the main
-<a href="../gaussian-mixture/#covariance-types">Gaussian Mixture Model</a> guide.</p>
+-- not just the six classic covariance types in the main
+<a href="../gaussian-mixture/#covariance-types-at-a-glance">Gaussian Mixture Model</a> guide. This
+page defines the models, states the M-step each one uses and why it is
+correct, and lists what is and isn't supported. The
+<a href="../../notebooks/15_covariance_models/">Covariance Structures tutorial</a>
+walks through the same material with runnable code, figures, and a numerical
+check of every formula below.</p>
+<h2 id="where-the-covariance-enters-em">Where the covariance enters EM<a class="headerlink" href="#where-the-covariance-enters-em" title="Permanent link">&para;</a></h2>
+<p>Given responsibilities <span class="arithmatex">\(r_{ik}\)</span> from the E-step, write</p>
+<div class="arithmatex">\[
+n_k=\sum_{i} r_{ik},\qquad
+\bar y_k=\frac1{n_k}\sum_i r_{ik}x_i,\qquad
+W_k=\sum_{i} r_{ik}\,(x_i-\bar y_k)(x_i-\bar y_k)^{\top}.
+\]</div>
+<p>After maximising the expected complete-data log-likelihood over <span class="arithmatex">\(\pi_k\)</span> and
+<span class="arithmatex">\(\mu_k\)</span>, the only terms left that depend on the covariances are, up to a
+factor <span class="arithmatex">\(-\tfrac12\)</span>,</p>
+<div class="arithmatex">\[
+J(\Sigma_1,\dots,\Sigma_K)=\sum_{k=1}^{K}\Big[\,n_k\log|\Sigma_k|+\operatorname{tr}\big(\Sigma_k^{-1}W_k\big)\Big].
+\]</div>
+<p><strong>Every covariance type is the same objective <span class="arithmatex">\(J\)</span> minimised over a different
+feasible set</strong>, and the M-step needs the data only through <span class="arithmatex">\((n_k, W_k)\)</span> (the
+<code>SufficientStats.nk</code> and <code>.s2</code> fields). For <code>full</code> the minimiser is
+<span class="arithmatex">\(\Sigma_k=W_k/n_k\)</span>; the other classic types are the restrictions listed in the
+<a href="../gaussian-mixture/#covariance-types-at-a-glance">Gaussian Mixture Model guide</a>.
+<code>reg_covar</code> is added to the diagonal of the assembled matrices afterwards.</p>
 <h2 id="the-idea-a-decomposed-covariance">The idea: a decomposed covariance<a class="headerlink" href="#the-idea-a-decomposed-covariance" title="Permanent link">&para;</a></h2>
-<p>Each component's covariance is written as</p>
-<div class="arithmatex">\[ \Sigma_k = \lambda_k D_k A_k D_k^T \]</div>
+<p>Each component's covariance is written through its eigendecomposition as</p>
+<div class="arithmatex">\[
+\Sigma_k=\lambda_k\,D_k\,A_k\,D_k^{\top},\qquad
+\det A_k=1,\quad D_k^{\top}D_k=I,\quad A_k=\operatorname{diag}(a_{k1}\ge\dots\ge a_{kd}&gt;0).
+\]</div>
 <ul>
-<li><span class="arithmatex">\(\lambda_k\)</span> (<strong>volume</strong>): a scalar controlling the component's overall
-  size.</li>
-<li><span class="arithmatex">\(A_k\)</span> (<strong>shape</strong>): a diagonal matrix with determinant 1, decreasing
+<li><span class="arithmatex">\(\lambda_k=|\Sigma_k|^{1/d}\)</span> (<strong>volume</strong>): a scalar controlling the
+  component's overall size (its ellipsoid's volume scales as <span class="arithmatex">\(\lambda_k^{d/2}\)</span>).</li>
+<li><span class="arithmatex">\(A_k\)</span> (<strong>shape</strong>): a diagonal matrix with determinant 1 and decreasing
   entries -- how stretched the component is along its own axes.</li>
-<li><span class="arithmatex">\(D_k\)</span> (<strong>orientation</strong>): an orthogonal matrix -- which way those axes
-  point.</li>
+<li><span class="arithmatex">\(D_k\)</span> (<strong>orientation</strong>): an orthogonal matrix -- which way those axes point.</li>
 </ul>
-<p>Each of the three can be **E**qual across components, **V**ary per
-component, or (volume/shape only) fixed to the **I**dentity (axis-aligned,
-no rotation). The 14 valid combinations are named by their 3-letter mclust
-code (Volume-shape-orientation):</p>
+<p>The semi-axes of the one-standard-deviation ellipsoid are
+<span class="arithmatex">\(\sqrt{\lambda_k a_{kj}}\)</span> along the <span class="arithmatex">\(j\)</span>-th column of <span class="arithmatex">\(D_k\)</span>.</p>
+<p>Each factor can be **E**qual across components, **V**ary per component, or
+(for shape and orientation only) be the **I**dentity: <span class="arithmatex">\(A_k=I\)</span> makes the
+component spherical, and <span class="arithmatex">\(D_k=I\)</span> makes it axis-aligned (no rotation). Volume
+has no identity option -- it is always a free scalar, shared or not. The 14
+valid combinations are named by their three-letter mclust code
+(Volume-Shape-Orientation); the last column is the number of free covariance
+parameters, which is what <code>bic</code>/<code>aic</code> charge for the covariances:</p>
 <table>
 <thead>
 <tr>
 <th>Code</th>
 <th>tgmm name</th>
 <th>Meaning</th>
+<th>Free covariance parameters</th>
 </tr>
 </thead>
 <tbody>
@@ -1993,74 +2551,123 @@ code (Volume-shape-orientation):</p>
 <td><code>EII</code></td>
 <td><code>'tied_spherical'</code></td>
 <td>one shared variance, spherical</td>
+<td><span class="arithmatex">\(1\)</span></td>
 </tr>
 <tr>
 <td><code>VII</code></td>
 <td><code>'spherical'</code></td>
 <td>per-component variance, spherical</td>
+<td><span class="arithmatex">\(K\)</span></td>
 </tr>
 <tr>
 <td><code>EEI</code></td>
 <td><code>'tied_diag'</code></td>
 <td>one shared diagonal covariance</td>
+<td><span class="arithmatex">\(d\)</span></td>
 </tr>
 <tr>
 <td><code>VEI</code></td>
 <td><em>(new)</em></td>
 <td>per-component volume, shared diagonal shape</td>
+<td><span class="arithmatex">\(K+(d-1)\)</span></td>
 </tr>
 <tr>
 <td><code>EVI</code></td>
 <td><em>(new)</em></td>
 <td>shared volume, per-component diagonal shape</td>
+<td><span class="arithmatex">\(1+K(d-1)\)</span></td>
 </tr>
 <tr>
 <td><code>VVI</code></td>
 <td><code>'diag'</code></td>
 <td>per-component diagonal covariance</td>
+<td><span class="arithmatex">\(Kd\)</span></td>
 </tr>
 <tr>
 <td><code>EEE</code></td>
 <td><code>'tied_full'</code></td>
 <td>one shared full covariance</td>
+<td><span class="arithmatex">\(d(d+1)/2\)</span></td>
 </tr>
 <tr>
 <td><code>VEE</code></td>
 <td><em>(new)</em></td>
 <td>per-component volume, shared shape &amp; orientation</td>
+<td><span class="arithmatex">\(K+(d-1)+d(d-1)/2\)</span></td>
 </tr>
 <tr>
 <td><code>EVE</code></td>
 <td><em>(new)</em></td>
 <td>shared volume &amp; orientation, per-component shape</td>
+<td><span class="arithmatex">\(1+K(d-1)+d(d-1)/2\)</span></td>
 </tr>
 <tr>
 <td><code>EEV</code></td>
 <td><em>(new)</em></td>
 <td>shared volume &amp; shape, per-component orientation</td>
+<td><span class="arithmatex">\(d+K\,d(d-1)/2\)</span></td>
 </tr>
 <tr>
 <td><code>VVE</code></td>
 <td><em>(new)</em></td>
 <td>shared orientation, per-component volume &amp; shape</td>
+<td><span class="arithmatex">\(Kd+d(d-1)/2\)</span></td>
 </tr>
 <tr>
 <td><code>VEV</code></td>
 <td><em>(new)</em></td>
 <td>shared shape, per-component volume &amp; orientation</td>
+<td><span class="arithmatex">\(K+(d-1)+K\,d(d-1)/2\)</span></td>
 </tr>
 <tr>
 <td><code>EVV</code></td>
 <td><em>(new)</em></td>
 <td>shared volume, per-component shape &amp; orientation</td>
+<td><span class="arithmatex">\(1+K(d-1)+K\,d(d-1)/2\)</span></td>
 </tr>
 <tr>
 <td><code>VVV</code></td>
 <td><code>'full'</code></td>
 <td>fully unconstrained per-component covariance</td>
+<td><span class="arithmatex">\(K\,d(d+1)/2\)</span></td>
 </tr>
 </tbody>
 </table>
+<p>The counts are sums of three independent contributions:</p>
+<table>
+<thead>
+<tr>
+<th>factor</th>
+<th><code>E</code></th>
+<th><code>V</code></th>
+<th><code>I</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>volume <span class="arithmatex">\(\lambda\)</span></td>
+<td><span class="arithmatex">\(1\)</span></td>
+<td><span class="arithmatex">\(K\)</span></td>
+<td>--</td>
+</tr>
+<tr>
+<td>shape <span class="arithmatex">\(A\)</span> (<span class="arithmatex">\(d-1\)</span> free ratios)</td>
+<td><span class="arithmatex">\(d-1\)</span></td>
+<td><span class="arithmatex">\(K(d-1)\)</span></td>
+<td><span class="arithmatex">\(0\)</span></td>
+</tr>
+<tr>
+<td>orientation <span class="arithmatex">\(D\)</span> (<span class="arithmatex">\(d(d-1)/2\)</span> free angles)</td>
+<td><span class="arithmatex">\(d(d-1)/2\)</span></td>
+<td><span class="arithmatex">\(K\,d(d-1)/2\)</span></td>
+<td><span class="arithmatex">\(0\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The total number of parameters adds <span class="arithmatex">\(K-1\)</span> free mixture weights and <span class="arithmatex">\(Kd\)</span> mean
+coordinates. The 14 models are <em>nested</em>: a model is a special case of another
+if it is at least as constrained in all three factors (V before E before I),
+so <span class="arithmatex">\(\min J\)</span> can only grow as constraints are added.</p>
 <p>Pass either name to <code>covariance_type</code> (mclust codes are case-insensitive):</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
@@ -2074,7 +2681,9 @@ code (Volume-shape-orientation):</p>
 n_features)</code> matrices regardless of which of the 14 codes you use --
 <code>predict</code>/<code>sample</code>/<code>score</code>/<code>plot_gmm</code>/<code>save</code>/<code>load</code> all work unchanged.
 <code>volume_</code>/<code>shape_</code>/<code>orientation_</code> expose the decomposition itself (<code>None</code>
-for the 6 pre-existing types, which don't compute one).</p>
+for the six classic types, which don't compute one). <code>reg_covar</code> is added to
+the assembled matrices, not to the decomposition, so the three factors
+describe the unregularised fit.</p>
 <h2 id="why-bother-with-8-more-models">Why bother with 8 more models?<a class="headerlink" href="#why-bother-with-8-more-models" title="Permanent link">&para;</a></h2>
 <p>More constrained models (fewer free parameters) are less prone to
 overfitting on small or high-dimensional data, at the cost of flexibility.
@@ -2088,6 +2697,116 @@ what <code>select_model</code> does by default:</p>
 </span></code></pre></div>
 <p><code>select_model</code>'s default <code>covariance_types</code> is all 14 GPCM codes (the
 mclust workflow); pass an explicit subset to narrow the search.</p>
+<h2 id="how-each-model-is-estimated">How each model is estimated<a class="headerlink" href="#how-each-model-is-estimated" title="Permanent link">&para;</a></h2>
+<p>With the decomposition, <span class="arithmatex">\(|\Sigma_k|=\lambda_k^d\)</span> and
+<span class="arithmatex">\(\Sigma_k^{-1}=\lambda_k^{-1}D_kA_k^{-1}D_k^{\top}\)</span>, so</p>
+<div class="arithmatex">\[
+J=\sum_{k}\Big[\,n_k\,d\log\lambda_k+\frac1{\lambda_k}\operatorname{tr}\big(A_k^{-1}D_k^{\top}W_kD_k\big)\Big].
+\]</div>
+<p>Two lemmas do most of the work.</p>
+<div class="admonition note">
+<p class="admonition-title">Lemma 1 (shape)</p>
+<p>For symmetric positive-definite <span class="arithmatex">\(B\)</span> and positive-definite <span class="arithmatex">\(C\)</span> with
+<span class="arithmatex">\(\det C=1\)</span>: <span class="arithmatex">\(\operatorname{tr}(C^{-1}B)\ge d(\det B)^{1/d}\)</span>, with equality
+iff <span class="arithmatex">\(C=B/(\det B)^{1/d}\)</span>.</p>
+<p><em>Proof.</em> The eigenvalues <span class="arithmatex">\(\mu_j\)</span> of <span class="arithmatex">\(C^{-1/2}BC^{-1/2}\)</span> multiply to
+<span class="arithmatex">\(\det B\)</span>. By AM-GM, <span class="arithmatex">\(\sum_j\mu_j\ge d(\prod_j\mu_j)^{1/d}\)</span>, with equality
+iff all <span class="arithmatex">\(\mu_j\)</span> are equal, i.e. <span class="arithmatex">\(B\propto C\)</span>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Lemma 2 (orientation)</p>
+<p>For symmetric <span class="arithmatex">\(W\)</span> with eigenvalues <span class="arithmatex">\(\omega_1\ge\dots\ge\omega_d\)</span> and
+<span class="arithmatex">\(a_1\ge\dots\ge a_d&gt;0\)</span>, over orthogonal <span class="arithmatex">\(D\)</span>:
+<span class="arithmatex">\(\operatorname{tr}(A^{-1}D^{\top}WD)\ge\sum_j\omega_j/a_j\)</span>, attained when
+the columns of <span class="arithmatex">\(D\)</span> are the eigenvectors of <span class="arithmatex">\(W\)</span> in decreasing eigenvalue
+order. (The diagonal of <span class="arithmatex">\(D^{\top}WD\)</span> is majorised by <span class="arithmatex">\(\omega\)</span> -- Schur-Horn --
+and increasing weights <span class="arithmatex">\(1/a_j\)</span> are minimised by pairing the largest
+<span class="arithmatex">\(\omega\)</span> with the largest <span class="arithmatex">\(a\)</span>.) This is why <code>tgmm</code> keeps shapes sorted in
+decreasing order.</p>
+</div>
+<h3 id="closed-form-models">Closed-form models<a class="headerlink" href="#closed-form-models" title="Permanent link">&para;</a></h3>
+<p>The six classic codes (<code>EII</code>, <code>VII</code>, <code>EEI</code>, <code>VVI</code>, <code>EEE</code>, <code>VVV</code>) have the
+closed forms of the
+<a href="../gaussian-mixture/#covariance-types-at-a-glance">Gaussian Mixture Model guide</a>. Three
+of the new ones do too:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Estimate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVI</code></td>
+<td><span class="arithmatex">\(A_k=B_k/\lvert B_k\rvert^{1/d}\)</span> with <span class="arithmatex">\(B_k=\operatorname{diag}(W_k)\)</span>; <span class="arithmatex">\(\lambda=\frac1n\sum_k\lvert B_k\rvert^{1/d}\)</span></td>
+</tr>
+<tr>
+<td><code>EEV</code></td>
+<td><span class="arithmatex">\(D_k\)</span> = eigenvectors of <span class="arithmatex">\(W_k\)</span> (eigenvalues <span class="arithmatex">\(\Omega_k\)</span>); with <span class="arithmatex">\(\Omega=\sum_k\Omega_k\)</span>: <span class="arithmatex">\(A=\Omega/\lvert\Omega\rvert^{1/d}\)</span>, <span class="arithmatex">\(\lambda=\lvert\Omega\rvert^{1/d}/n\)</span></td>
+</tr>
+<tr>
+<td><code>EVV</code></td>
+<td><span class="arithmatex">\(C_k=D_kA_kD_k^{\top}=W_k/\lvert W_k\rvert^{1/d}\)</span>; <span class="arithmatex">\(\lambda=\frac1n\sum_k\lvert W_k\rvert^{1/d}\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>(For <code>EVI</code>, only <span class="arithmatex">\(\operatorname{diag}(W_k)\)</span> enters <span class="arithmatex">\(\operatorname{tr}(A_k^{-1}W_k)\)</span>;
+Lemma 1 gives <span class="arithmatex">\(A_k\)</span> and <span class="arithmatex">\(J=nd\log\lambda+\frac d\lambda\sum_k|B_k|^{1/d}\)</span>, minimised
+at the stated <span class="arithmatex">\(\lambda\)</span>. <code>EEV</code> and <code>EVV</code> follow the same pattern, using
+Lemma 2 for <code>EEV</code>'s orientations.)</p>
+<h3 id="the-iterative-models-vei-vee-vev">The iterative models: <code>VEI</code>, <code>VEE</code>, <code>VEV</code><a class="headerlink" href="#the-iterative-models-vei-vee-vev" title="Permanent link">&para;</a></h3>
+<p>With per-component volumes and a shared shape, the factors are coupled but each
+has a closed form <em>given the other</em>, so tgmm alternates:</p>
+<ul>
+<li><em>given the shape</em>: <span class="arithmatex">\(\lambda_k=\operatorname{tr}(A^{-1}D_k^{\top}W_kD_k)/(n_k d)\)</span>;</li>
+<li><em>given the volumes</em>: <span class="arithmatex">\(A=B/|B|^{1/d}\)</span> (Lemma 1) with
+  <span class="arithmatex">\(B=\sum_kD_k^{\top}W_kD_k/\lambda_k\)</span> -- namely <span class="arithmatex">\(\operatorname{diag}(\sum_kW_k/\lambda_k)\)</span>
+  for <code>VEI</code>; <span class="arithmatex">\(\sum_kW_k/\lambda_k\)</span> for <code>VEE</code>, where the shared matrix
+  <span class="arithmatex">\(C=DAD^{\top}\)</span> is updated as a whole; and <span class="arithmatex">\(\sum_k\Omega_k/\lambda_k\)</span> for
+  <code>VEV</code>, where each <span class="arithmatex">\(D_k\)</span> is fixed once and for all to the eigenvectors of
+  <span class="arithmatex">\(W_k\)</span> (Lemma 2).</li>
+</ul>
+<p>Each sub-step is an exact minimiser, so <span class="arithmatex">\(J\)</span> is non-increasing
+(coordinate descent).</p>
+<h3 id="the-two-numerically-optimised-models-eve-vve">The two numerically-optimised models: <code>EVE</code>, <code>VVE</code><a class="headerlink" href="#the-two-numerically-optimised-models-eve-vve" title="Permanent link">&para;</a></h3>
+<p>Given a shared orientation <span class="arithmatex">\(D\)</span> everything else is closed-form: with
+<span class="arithmatex">\(B_k=\operatorname{diag}(D^{\top}W_kD)\)</span>,</p>
+<div class="arithmatex">\[
+A_k=\frac{B_k}{|B_k|^{1/d}},\qquad
+\lambda=\frac1n\sum_k|B_k|^{1/d}\ \ (\texttt{EVE}),\qquad
+\lambda_k=\frac{|B_k|^{1/d}}{n_k}\ \ (\texttt{VVE}).
+\]</div>
+<p>Given the shapes and volumes, the best <span class="arithmatex">\(D\)</span> minimises
+<span class="arithmatex">\(\sum_k\lambda_k^{-1}\operatorname{tr}(A_k^{-1}D^{\top}W_kD)\)</span> over orthogonal
+matrices -- the <em>common principal components</em> problem (Flury, 1984), which has
+no closed form for <span class="arithmatex">\(K&gt;1\)</span>. (Profiling out <span class="arithmatex">\(\lambda_k\)</span> and <span class="arithmatex">\(A_k\)</span> from <code>VVE</code>
+gives Flury's criterion <span class="arithmatex">\(\sum_kn_k\log|\operatorname{diag}(D^{\top}S_kD)|\)</span>,
+<span class="arithmatex">\(S_k=W_k/n_k\)</span>, which by Hadamard's inequality is bounded below by the <code>VVV</code>
+optimum, with equality iff one <span class="arithmatex">\(D\)</span> diagonalises every <span class="arithmatex">\(S_k\)</span>.) tgmm solves it
+with a few L-BFGS steps on the orthogonal manifold (PyTorch's <code>orthogonal</code>
+parametrisation), warm-started at the previous <span class="arithmatex">\(D\)</span>, and <strong>accepts the result
+only if the objective decreases</strong> -- a <em>generalised</em> EM step (Dempster, Laird
+&amp; Rubin, 1977): <span class="arithmatex">\(Q\)</span> is improved rather than exactly maximised, which keeps the
+log-likelihood monotone across EM iterations as for every other covariance
+type.</p>
+<h3 id="stopping-and-warm-starts">Stopping and warm starts<a class="headerlink" href="#stopping-and-warm-starts" title="Permanent link">&para;</a></h3>
+<p><code>VEI</code>, <code>VEE</code>, <code>VEV</code>, <code>EVE</code> and <code>VVE</code> repeat their inner alternation until the
+relative change in <span class="arithmatex">\(J\)</span> falls below <code>gpcm_tol</code> (default <code>1e-6</code>) or
+<code>gpcm_max_iter</code> (default <code>20</code>) sweeps are done:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'VEE'</span><span class="p">,</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                       <span class="n">gpcm_tol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">,</span> <span class="n">gpcm_max_iter</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Each EM iteration's alternation is <em>warm-started</em> from the previous EM
+iteration's decomposition, so in practice it usually takes only 1-2 sweeps to
+re-settle.</p>
+<h3 id="numerical-verification">Numerical verification<a class="headerlink" href="#numerical-verification" title="Permanent link">&para;</a></h3>
+<p>The tutorial compares every code's <code>mstep_gpcm</code> objective
+value with an independent brute-force L-BFGS minimisation of <span class="arithmatex">\(J\)</span> over each
+model's feasible set (log-volumes, mean-centred log-shapes for <span class="arithmatex">\(\det A=1\)</span>,
+orthogonal matrices from the matrix exponential of a skew-symmetric one): all
+14 agree to optimiser tolerance, including the alternating and
+orthogonal-manifold models.</p>
 <h2 id="whats-and-isnt-supported-for-the-8-new-codes">What's and isn't supported for the 8 new codes<a class="headerlink" href="#whats-and-isnt-supported-for-the-8-new-codes" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>MLE only.</strong> <code>mean_prior</code>/<code>covariance_prior</code> (MAP/NIW estimation) raise
@@ -2106,34 +2825,17 @@ mclust workflow); pass an explicit subset to narrow the search.</p>
   MLE of that starting point); <code>'eye'</code>/<code>'random'</code> just start from plain
   identity/random full matrices, since there's nothing to project yet.</li>
 </ul>
-<h2 id="the-5-iterative-models">The 5 iterative models<a class="headerlink" href="#the-5-iterative-models" title="Permanent link">&para;</a></h2>
-<p>9 of the 14 codes (the 6 pre-existing ones, plus <code>EVI</code>, <code>EEV</code>, <code>EVV</code>) have
-a closed-form M-step. <code>VEI</code>, <code>VEE</code>, <code>VEV</code>, <code>EVE</code>, and <code>VVE</code> alternate
-between sub-steps (volume/shape/orientation, whichever vary) until the
-model's own complete-data objective stops improving by more than
-<code>gpcm_tol</code> (default <code>1e-6</code>), or <code>gpcm_max_iter</code> (default <code>20</code>) inner
-iterations are reached:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'VEE'</span><span class="p">,</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                       <span class="n">gpcm_tol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">,</span> <span class="n">gpcm_max_iter</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
-</span></code></pre></div>
-<p>Each EM iteration's inner alternation is <em>warm-started</em> from the previous
-EM iteration's decomposition, so in practice it usually takes only 1-2
-inner iterations to re-settle, not the full <code>gpcm_max_iter</code>.</p>
-<p><code>EVE</code> and <code>VVE</code> additionally need to choose a shared orientation <code>D</code> that
-best serves every component's own (differently-shaped) scatter -- there's
-no closed form for this, so it's solved as a small orthogonal-manifold
-optimization (gradient-based, on the Stiefel manifold) each inner
-iteration, accepted only if it actually improves the fit (a generalized
-EM/GEM step, not a guaranteed-exact M-step) -- still monotone overall
-across EM iterations, as for every other covariance type.</p>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
 <p>Celeux, G. &amp; Govaert, G. (1995). Gaussian parsimonious clustering models.
-<em>Pattern Recognition</em>, 28(5), 781-793. <code>mclust</code>'s own naming and model
-definitions (Scrucca, Fop, Murphy &amp; Raftery, 2016, <em>The R Journal</em> 8(1))
-are followed here for compatibility, but every M-step in tgmm is derived
-independently from the papers' equations -- see
+<em>Pattern Recognition</em>, 28(5), 781-793. Banfield, J. D. &amp; Raftery, A. E.
+(1993). Model-based Gaussian and non-Gaussian clustering. <em>Biometrics</em>, 49(3),
+803-821. Flury, B. N. (1984). Common principal components in <span class="arithmatex">\(k\)</span> groups.
+<em>JASA</em>, 79(388), 892-898. <code>mclust</code>'s own naming and model definitions
+(Scrucca, Fop, Murphy &amp; Raftery, 2016, <em>The R Journal</em> 8(1)) are followed here
+for compatibility, but every M-step in tgmm is derived independently from the
+papers' equations -- see
 <code>docs/superpowers/specs/2026-10-14-phase3-gpcm-covariance-models-design.md</code>
-for the full derivation (tgmm is MIT-licensed; <code>mclust</code> is GPL, and its
+for the original derivation (tgmm is MIT-licensed; <code>mclust</code> is GPL, and its
 source was not read or ported).</p>
 
 

@@ -18,7 +18,7 @@
         <link rel="prev" href="../other-mixture-families/">
       
       
-        <link rel="next" href="../gmm-initializer/">
+        <link rel="next" href="../noise-missing-conditioning/">
       
       
         
@@ -65,7 +65,28 @@
 
     
     
-  </head>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/main.js"></script>
+<link
+    href="https://cdn.jsdelivr.net/npm/@marimo-team/islands@0.25.1/dist/style.css"
+    rel="stylesheet"
+    title="marimo-islands"
+    crossorigin="anonymous"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+/>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap" rel="stylesheet" />
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.18.5/dist/katex.min.css"
+    integrity="sha384-2dNi/m6JtSiviznrOIZ5fTiZ5As0In2QwkuXSgoqcQtCNplvJAbt+jveeN+8en73"
+    crossorigin="anonymous"
+/>
+<marimo-filename hidden></marimo-filename>
+</head>
   
   
     
@@ -302,6 +323,26 @@
   
   
   Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explainers/gpcm-shapes/" class="md-tabs__link">
+          
+  
+  
+  Explainers
 
         </a>
       </li>
@@ -744,16 +785,60 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#semi-supervised-mixture-modelling" class="md-nav__link">
+  <a href="#the-model-classes-own-blocks-of-components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Semi-supervised mixture modelling
+        The model: classes own blocks of components
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Semi-supervised mixture modelling">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fitting-with-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting with labels
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fitting with labels">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fully-labeled-no-1-no-iteration-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fully labeled (no -1): no iteration needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partially-labeled-some-1-semi-supervised-em" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partially labeled (some -1): semi-supervised EM
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-weighting-knobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two weighting knobs
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#more-than-one-component-per-class" class="md-nav__link">
@@ -784,10 +869,32 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#how-it-is-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it is fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#picking-anchor" class="md-nav__link">
     <span class="md-ellipsis">
       
         Picking anchor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
       
     </span>
   </a>
@@ -799,10 +906,49 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../noise-missing-conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Noise, Missing Values and Conditioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1380,14 +1526,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/15_gpcm_models/" class="md-nav__link">
+      <a href="../../notebooks/15_covariance_models/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    15. GPCM Covariance Models
+    15. Covariance Structures (Classic Types and the 14 GPCM Models)
   
 
     
@@ -1408,14 +1554,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/16_student_t_and_vmf/" class="md-nav__link">
+      <a href="../../notebooks/16_student_t/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    16. Student-t and von Mises-Fisher Mixtures
+    16. Student-t Mixtures
   
 
     
@@ -1436,14 +1582,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../../notebooks/17_semi_supervised_pu/" class="md-nav__link">
+      <a href="../../notebooks/17_von_mises_fisher/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    17. Semi-Supervised and Positive-Unlabeled Fitting
+    17. Von Mises-Fisher Mixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/18_semi_supervised_pu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    18. Semi-Supervised and Positive-Unlabeled Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notebooks/19_noise_missing_conditioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    19. Noise, Missing Values and Conditioning
   
 
     
@@ -1496,7 +1698,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Explainers
   
 
     
@@ -1509,6 +1711,207 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/gpcm-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPCM Covariance Shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/em-stepper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EM Step by Step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/annealing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deterministic Annealing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/metrics-intuition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustering Metrics and Model Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explainers/data-designer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Your Own Mixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1617,6 +2020,62 @@
     
   
     tgmm.StudentTMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/conditional-gaussian-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.ConditionalGaussianMixture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/generic-mixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.GenericMixture
   
 
     
@@ -1887,16 +2346,60 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#semi-supervised-mixture-modelling" class="md-nav__link">
+  <a href="#the-model-classes-own-blocks-of-components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Semi-supervised mixture modelling
+        The model: classes own blocks of components
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Semi-supervised mixture modelling">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fitting-with-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting with labels
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fitting with labels">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fully-labeled-no-1-no-iteration-needed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fully labeled (no -1): no iteration needed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partially-labeled-some-1-semi-supervised-em" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partially labeled (some -1): semi-supervised EM
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-weighting-knobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two weighting knobs
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#more-than-one-component-per-class" class="md-nav__link">
@@ -1927,6 +2430,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#how-it-is-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it is fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#picking-anchor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1937,8 +2451,30 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1966,13 +2502,40 @@
 <p>Every tgmm mixture family (<code>GaussianMixture</code>, <code>StudentTMixture</code>,
 <code>VonMisesFisherMixture</code>) can be fit with partial label information, from
 "every row has a known class" down to "I only know some rows are
-positive, and nothing about the rest." This page covers the terms, the
-API, and which option to reach for.</p>
-<h2 id="semi-supervised-mixture-modelling">Semi-supervised mixture modelling<a class="headerlink" href="#semi-supervised-mixture-modelling" title="Permanent link">&para;</a></h2>
-<p><strong>Semi-supervised mixture modelling</strong> means fitting with a <em>mix</em> of
-labeled and unlabeled rows -- the usual setting for clustering when you
-have a handful of confirmed examples per class but labeling the rest
-would be too expensive. Pass <code>-1</code> for the unknown rows:</p>
+positive, and nothing about the rest." This page covers the model, the
+algorithm (with the equations tgmm actually implements), the API, and which
+option to reach for.</p>
+<p><strong>Notation:</strong> <span class="arithmatex">\(n\)</span> samples <span class="arithmatex">\(x_i\)</span>, <span class="arithmatex">\(K\)</span> components with weights <span class="arithmatex">\(\pi_k\)</span> and
+densities <span class="arithmatex">\(f_k\)</span> (Gaussian, Student-t or von Mises-Fisher), responsibilities
+<span class="arithmatex">\(r_{ik}\)</span>, effective counts <span class="arithmatex">\(n_k = \sum_i r_{ik}\)</span>, log-likelihood <span class="arithmatex">\(\ell(\theta)\)</span>.</p>
+<h2 id="the-model-classes-own-blocks-of-components">The model: classes own blocks of components<a class="headerlink" href="#the-model-classes-own-blocks-of-components" title="Permanent link">&para;</a></h2>
+<p>Let the classes be <span class="arithmatex">\(c \in \{1, \dots, C\}\)</span> (these are <code>classes_</code>, the sorted
+distinct label values). The <span class="arithmatex">\(K\)</span> components are partitioned into contiguous
+<strong>blocks</strong> <span class="arithmatex">\(B_c\)</span>, one per class: with <code>components_per_class=m</code> every class
+owns <span class="arithmatex">\(m\)</span> components (so <span class="arithmatex">\(K = mC\)</span>), and with a dict, class <span class="arithmatex">\(c\)</span> owns
+<code>components_per_class[c]</code> components -- the same idea as mclust's MclustDA.
+<code>class_of_component_[k]</code> says which class component <span class="arithmatex">\(k\)</span> belongs to.</p>
+<p>The density of an observation <em>without</em> a label is the ordinary mixture</p>
+<div class="arithmatex">\[
+p(x) = \sum_{k=1}^{K} \pi_k f_k(x),
+\]</div>
+<p>and the joint density of an observation <span class="arithmatex">\(x\)</span> <em>with</em> known class <span class="arithmatex">\(c\)</span> is the
+restriction of that sum to class <span class="arithmatex">\(c\)</span>'s block:</p>
+<div class="arithmatex">\[
+p(x, c) = \sum_{k \in B_c} \pi_k f_k(x).
+\]</div>
+<p>So the weights <span class="arithmatex">\(\pi_k\)</span> are joint class-and-component probabilities
+(summing to one over <em>all</em> components), and class proportions in the
+labeled data influence them. With <span class="arithmatex">\(L\)</span> the set of labeled rows (class <span class="arithmatex">\(c_i\)</span>
+for <span class="arithmatex">\(i \in L\)</span>) and <span class="arithmatex">\(U\)</span> the unlabeled rows, the semi-supervised
+log-likelihood is</p>
+<div class="arithmatex">\[
+\ell_{\text{SS}}(\theta) = \sum_{i \in L} \log \sum_{k \in B_{c_i}} \pi_k f_k(x_i)
+\;+\; \sum_{i \in U} \log \sum_{k=1}^{K} \pi_k f_k(x_i).
+\]</div>
+<p>This is exactly what <code>lower_bound_</code> reports for a semi-supervised fit
+(averaged over rows).</p>
+<h2 id="fitting-with-labels">Fitting with labels<a class="headerlink" href="#fitting-with-labels" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">GaussianMixture</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
@@ -1983,44 +2546,112 @@ would be too expensive. Pass <code>-1</code> for the unknown rows:</p>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">gmm</span><span class="o">.</span><span class="n">predict_class</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># class labels, not raw component indices</span>
 </span></code></pre></div>
-<p>With <strong>no</strong> <code>-1</code> present, this is the fully-labeled case tgmm has always
-supported: one (or more, see below) components fit directly from each
-class's own data, no iteration needed. With <strong>any</strong> <code>-1</code> present, it runs
-semi-supervised EM: each labeled row's responsibility is clamped to its
-own class's components every E-step (so it can never "vote" for the wrong
-class), while unlabeled rows keep the full, ordinary posterior. A few
-labels per class are often enough to resolve ambiguity plain unsupervised
-EM can't -- which cluster is which class, and where the boundary falls on
-overlapping data.</p>
-<p>Two knobs refine this:</p>
+<p><code>n_components</code> must equal the total number of components the
+<code>components_per_class</code> layout implies (for the default <code>1</code>, the number of
+distinct labels). Label values needn't be contiguous integers.</p>
+<h3 id="fully-labeled-no-1-no-iteration-needed">Fully labeled (no <code>-1</code>): no iteration needed<a class="headerlink" href="#fully-labeled-no-1-no-iteration-needed" title="Permanent link">&para;</a></h3>
+<p>When every row is labeled, the class of each row never depends on the
+current parameters, so one M-step is exact:</p>
 <ul>
-<li><code>unlabeled_weight</code> (default <code>1.0</code>): down-weights unlabeled rows'
-  contribution to the fit. <code>0.0</code> ignores them entirely, recovering a fit
-  on the labeled rows alone.</li>
-<li><code>label_confidence</code> (default <code>1.0</code>): for labels you don't fully trust,
-  <code>c &lt; 1</code> keeps <code>c</code> of a labeled row's responsibility on its class and
-  lets the rest follow the unclamped posterior -- a soft correction for
-  occasional mislabeling.</li>
+<li>With one component per class, each row's responsibility is the one-hot
+  vector of its class, and a single M-step gives the per-class weight
+  <span class="arithmatex">\(\pi_c = n_c/n\)</span>, mean and covariance (or <span class="arithmatex">\(\mu_c\)</span>, <span class="arithmatex">\(\kappa_c\)</span>, ...). This
+  is the fully-labeled limit of Classification EM. <code>n_iter_</code> is <code>1</code>,
+  <code>converged_</code> is <code>True</code>.</li>
+<li>With <span class="arithmatex">\(m_c &gt; 1\)</span> components for a class, that class's block is fit by
+  ordinary unsupervised EM on <em>only</em> that class's rows, and its weights are
+  rescaled by <span class="arithmatex">\(n_c / n\)</span> so they sum to the class proportion.
+  (Tied covariance types can't be assembled from independent blocks and
+  raise a <code>ValueError</code> in this case.)</li>
 </ul>
+<p>Any configured <code>mean_prior</code>/<code>covariance_prior</code> (Gaussian) still applies,
+giving a regularized supervised fit for classes with few samples.</p>
+<h3 id="partially-labeled-some-1-semi-supervised-em">Partially labeled (some <code>-1</code>): semi-supervised EM<a class="headerlink" href="#partially-labeled-some-1-semi-supervised-em" title="Permanent link">&para;</a></h3>
+<p><strong>E-step.</strong> Compute the ordinary posterior
+<span class="arithmatex">\(r_{ik} \propto \pi_k f_k(x_i)\)</span> for every row, then <em>clamp</em> the labeled
+rows to their class block: for <span class="arithmatex">\(i \in L\)</span>,</p>
+<div class="arithmatex">\[
+r_{ik} \;\leftarrow\;
+\begin{cases}
+\dfrac{\pi_k f_k(x_i)}{\sum_{j \in B_{c_i}} \pi_j f_j(x_i)} &amp; k \in B_{c_i},\\[2mm]
+0 &amp; k \notin B_{c_i},
+\end{cases}
+\]</div>
+<p>(one-hot when the block has a single component). A labeled row can then
+never "vote" for another class, but with <span class="arithmatex">\(m_c &gt; 1\)</span> it still softly splits
+across its own class's components. Unlabeled rows keep the full, ordinary
+posterior. This is the exact EM E-step for <span class="arithmatex">\(\ell_{\text{SS}}\)</span>, because the
+posterior over components given that <span class="arithmatex">\(x_i\)</span> is known to belong to class <span class="arithmatex">\(c_i\)</span>
+is the in-block renormalization above.</p>
+<p><strong>M-step.</strong> The family's usual M-step, run on the (clamped) <span class="arithmatex">\(r_{ik}\)</span> -- for
+the Gaussian, <span class="arithmatex">\(n_k\)</span>, <span class="arithmatex">\(\bar y_k = \sum_i r_{ik}x_i / n_k\)</span> and
+<span class="arithmatex">\(W_k = \sum_i r_{ik}(x_i - \bar y_k)(x_i - \bar y_k)^\top\)</span> feed the same
+updates as in the <a href="../gaussian-mixture/">Gaussian guide</a>, and the
+Student-t/vMF M-steps are as in <a href="../other-mixture-families/">Other Mixture
+Families</a>.</p>
+<p>With <code>unlabeled_weight=1</code> and <code>label_confidence=1</code> this is plain EM on
+<span class="arithmatex">\(\ell_{\text{SS}}\)</span>, so the log-likelihood never decreases. A few labels per
+class are often enough to resolve what plain unsupervised EM can't --
+which cluster is which class, and where the boundary falls on overlapping
+data. (The initialization itself is still unsupervised, e.g. k-means; the
+clamping then pulls each block onto its class. Use <code>n_init &gt; 1</code> if a poor
+start matters.)</p>
+<h3 id="the-two-weighting-knobs">The two weighting knobs<a class="headerlink" href="#the-two-weighting-knobs" title="Permanent link">&para;</a></h3>
+<p><strong><code>unlabeled_weight</code> <span class="arithmatex">\(=w\)</span> (default <code>1.0</code>).</strong> Before the M-step, every
+unlabeled row's responsibilities are multiplied by <span class="arithmatex">\(w\)</span>:
+<span class="arithmatex">\(r_{ik} \leftarrow w\, r_{ik}\)</span> for <span class="arithmatex">\(i \in U\)</span>. Unlabeled rows then
+contribute <span class="arithmatex">\(w\sum_{i\in U} r_{ik}\)</span> to <span class="arithmatex">\(n_k\)</span>, <span class="arithmatex">\(\bar y_k\)</span> and <span class="arithmatex">\(W_k\)</span>, while
+labeled rows count fully. <span class="arithmatex">\(w = 0\)</span> ignores the unlabeled data (a fit on the
+labeled rows alone); <span class="arithmatex">\(w = 1\)</span> treats all rows equally. Small <span class="arithmatex">\(w\)</span> protects
+against a mis-specified component density letting the (typically much more
+numerous) unlabeled rows swamp the labels.</p>
+<p><strong><code>label_confidence</code> <span class="arithmatex">\(=c\)</span> (default <code>1.0</code>).</strong> For labels you don't fully
+trust, a labeled row's responsibility is the blend</p>
+<div class="arithmatex">\[
+r_{i\cdot} = c\; r^{\text{in-block}}_{i\cdot} + (1 - c)\; r^{\text{out-of-block}}_{i\cdot},
+\qquad
+r^{\text{out-of-block}}_{ik} = \frac{\pi_k f_k(x_i)\,\mathbb{1}[k \notin B_{c_i}]}{\sum_{j \notin B_{c_i}} \pi_j f_j(x_i)},
+\]</div>
+<p>i.e. mass <span class="arithmatex">\(c\)</span> stays on the stated class (renormalized inside the block, as
+above) and mass <span class="arithmatex">\(1-c\)</span> goes to the <em>other</em> classes' components in
+proportion to their posterior -- a soft correction for occasional
+mislabeling. It is a heuristic for noisy labels, not part of the
+likelihood: <code>lower_bound_</code> still evaluates <span class="arithmatex">\(\ell_{\text{SS}}\)</span> with the labels
+taken at face value.</p>
+<p><strong>CEM.</strong> With <code>algorithm='cem'</code>, unlabeled rows are hard-assigned to their
+highest-responsibility component each iteration; labeled rows keep their
+clamped (soft or one-hot) responsibilities.</p>
 <p><strong>Scope note:</strong> semi-supervised fitting (partial labels) currently
 supports <code>algorithm='em'</code>/<code>'cem'</code> only; <code>'sem'</code>/<code>'saem'</code>/online EM
 (<code>step_size</code> set) raise <code>NotImplementedError</code>. Gibbs-sampling mode
-(<code>n_components=None</code>) and tied covariance types combined with
-<code>components_per_class &gt; 1</code> (below) aren't supported either.</p>
+(<code>n_components=None</code>) is not supported with <code>labels</code>, and tied covariance
+types combined with <code>components_per_class &gt; 1</code> aren't supported either.</p>
 <h3 id="more-than-one-component-per-class">More than one component per class<a class="headerlink" href="#more-than-one-component-per-class" title="Permanent link">&para;</a></h3>
 <p>Real classes aren't always unimodal. <code>components_per_class</code> (an <code>int</code>, or
-a <code>dict</code> keyed by label value) gives a class more than one component --
-the same idea as mclust's MclustDA:</p>
+a <code>dict</code> keyed by label value) gives a class more than one component:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">components_per_class</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>  <span class="c1"># class 0 gets 2 components, class 1 gets 1</span>
 </span></code></pre></div>
+<p><code>predict(X)</code> returns raw component indices; <code>predict_class(X)</code> sums each
+row's responsibility over every class block and returns the class with the
+largest total, mapped back through <code>classes_</code>:</p>
+<div class="arithmatex">\[
+\hat c(x) = \arg\max_c \sum_{k \in B_c} r_k(x).
+\]</div>
+<p>When <code>components_per_class</code> is a dict, its <em>keys</em> define the full set of
+classes (a key needn't appear in <code>labels</code>); every labeled value must be one
+of those keys.</p>
 <h2 id="positive-unlabeled-pu-learning">Positive-unlabeled (PU) learning<a class="headerlink" href="#positive-unlabeled-pu-learning" title="Permanent link">&para;</a></h2>
 <p><strong>Positive-unlabeled learning</strong> is the more extreme case: you know some
 rows are positive (e.g. confirmed cancer cells), and <em>everything else is
 unlabeled</em> -- it could be positive or negative, you just don't know.
-<code>PositiveUnlabeledMixture</code> models the unlabeled density as
-<span class="arithmatex">\(\pi f_P(x) + (1-\pi) f_N(x)\)</span> and estimates both densities and <span class="arithmatex">\(\pi\)</span>
-jointly:</p>
+<code>PositiveUnlabeledMixture</code> models the unlabeled density as</p>
+<div class="arithmatex">\[
+p_U(x) = \pi\, f_P(x) + (1-\pi)\, f_N(x),
+\]</div>
+<p>with <span class="arithmatex">\(f_P\)</span> and <span class="arithmatex">\(f_N\)</span> themselves mixtures (a positive block of
+<code>n_components_positive</code> components and a negative block of
+<code>n_components_negative</code>), and estimates both densities and <span class="arithmatex">\(\pi\)</span> jointly:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tgmm</span><span class="w"> </span><span class="kn">import</span> <span class="n">PositiveUnlabeledMixture</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">pu</span> <span class="o">=</span> <span class="n">PositiveUnlabeledMixture</span><span class="p">(</span><span class="n">n_components_positive</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_components_negative</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
@@ -2030,24 +2661,46 @@ jointly:</p>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">pu</span><span class="o">.</span><span class="n">predict_proba_positive</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>     <span class="c1"># P(positive) for arbitrary X</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">pu</span><span class="o">.</span><span class="n">predict_positive</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
 </span></code></pre></div>
-<p>This assumes <strong>SCAR</strong> (Selected Completely At Random; Elkan &amp; Noto,
-2008): the labeled positives are a uniform random sample of <em>all</em> true
-positives, not a biased subset (e.g. "the easiest-to-confirm cases"). If
-your labeled positives were selected some other way, <code>class_prior_</code> and
-the fitted densities can be biased -- SCAR is a real assumption, not a
-formality.</p>
-<p>This is also sometimes called <strong>mixture proportion estimation</strong>: the
-whole point is estimating <span class="arithmatex">\(\pi\)</span>, the mixing proportion of the
-(fully-unobserved) positive class within the unlabeled pool. A related,
-distinct problem is <strong>semi-supervised novelty detection</strong> (Blanchard, Lee
-&amp; Scott, 2010): given a labeled "normal" sample and an unlabeled mix of
-normal and novel points, decide <em>which</em> unlabeled points are novel --
-closer to <code>anchor='fixed'</code> below (treating the labeled class as a known,
-unmoving reference density) than to PU's <code>'prior'</code> default.</p>
+<h3 id="how-it-is-fit">How it is fit<a class="headerlink" href="#how-it-is-fit" title="Permanent link">&para;</a></h3>
+<p><code>PositiveUnlabeledMixture</code> is a thin wrapper over the semi-supervised fit
+above: it builds the chosen <code>family</code>'s mixture with
+<code>components_per_class={1: n_components_positive, 0: n_components_negative}</code>
+(so the negative block comes <em>first</em> in component order, the positive block
+last), labels <code>1</code> on <code>positive_mask</code> and <code>-1</code> everywhere else, and fits it.
+The labeled positives are clamped to the positive block; each unlabeled row
+keeps the full posterior over both blocks. The estimates are</p>
+<div class="arithmatex">\[
+P(\text{positive} \mid x) = \sum_{k \in P} r_k(x) \quad(\texttt{predict\_proba\_positive}),
+\qquad
+\hat\pi = \frac{1}{|U|} \sum_{i \in U} \sum_{k \in P} r_{ik} \quad(\texttt{class\_prior\_}),
+\]</div>
+<p>i.e. <code>class_prior_</code> is the average total positive-block responsibility over
+the <em>unlabeled</em> rows only. (Do not read it off <code>weights_</code>: the mixture
+weights are estimated over <em>all</em> rows, labeled positives included, so the
+positive block's total weight is <span class="arithmatex">\(\approx (n_L + \hat\pi\,|U|)/n\)</span>, larger
+than <span class="arithmatex">\(\hat\pi\)</span>.)</p>
+<p>This assumes <strong>SCAR</strong> (Selected Completely At Random; Elkan &amp; Noto, 2008):
+the labeled positives are a uniform random sample of <em>all</em> true positives,
+not a biased subset (e.g. "the easiest-to-confirm cases"). Under SCAR the
+labeled positives are draws from <span class="arithmatex">\(f_P\)</span> itself, which is what lets them be
+clamped to the positive block. If your labeled positives were selected some
+other way, <code>class_prior_</code> and the fitted densities can be biased -- SCAR is
+a real assumption, not a formality.</p>
+<p>This is also sometimes called <strong>mixture proportion estimation</strong>: the whole
+point is estimating <span class="arithmatex">\(\pi\)</span>, the mixing proportion of the (fully-unobserved)
+positive class within the unlabeled pool. A related, distinct problem is
+<strong>semi-supervised novelty detection</strong> (Blanchard, Lee &amp; Scott, 2010): given
+a labeled "normal" sample and an unlabeled mix of normal and novel points,
+decide <em>which</em> unlabeled points are novel -- closer to <code>anchor='fixed'</code>
+below (treating the labeled class as a known, unmoving reference density)
+than to PU's <code>'prior'</code> default.</p>
 <h3 id="picking-anchor">Picking <code>anchor</code><a class="headerlink" href="#picking-anchor" title="Permanent link">&para;</a></h3>
 <p>The mixture proportion <span class="arithmatex">\(\pi\)</span> is only identifiable if the negative block
-can't simply absorb the positive one. <code>anchor</code> controls how tightly the
-positive block stays tied to the labeled positives:</p>
+can't simply absorb the positive one (a sufficiently flexible negative
+block can always explain every unlabeled point, driving <span class="arithmatex">\(\hat\pi \to 0\)</span>).
+<code>anchor</code> controls how tightly the positive block stays tied to the labeled
+positives. All three start from a first fit of the positive block on the
+labeled positives alone, <span class="arithmatex">\((\mu_P^{0}, \Sigma_P^{0})\)</span>:</p>
 <table>
 <thead>
 <tr>
@@ -2059,21 +2712,35 @@ positive block stays tied to the labeled positives:</p>
 <tbody>
 <tr>
 <td><code>'fixed'</code></td>
-<td>Fit once on labeled positives, then frozen completely; only <span class="arithmatex">\(\pi\)</span> and the negative block keep moving.</td>
+<td>Frozen at the labeled-only fit after every M-step; only the negative block (and the weights) keep moving.</td>
 <td>Classical mixture-proportion estimation / semi-supervised novelty detection (the "normal" class is a fixed reference).</td>
 </tr>
 <tr>
 <td><code>'prior'</code> (default)</td>
-<td>Fit once on labeled positives, then used as an NIW prior so unlabeled positives can still refine it without drifting toward the negatives. <strong>Gaussian-only.</strong></td>
+<td>Used as an NIW prior of strength <span class="arithmatex">\(n_L\)</span> (below), so unlabeled positives can still refine it without drifting toward the negatives. <strong>Gaussian-only.</strong></td>
 <td>A softer version of the same -- lets genuinely-positive-but-different-looking unlabeled points still pull the estimate, within reason.</td>
 </tr>
 <tr>
 <td><code>'free'</code></td>
-<td>Initialized from labeled positives, then plain semi-supervised EM, no further anchoring.</td>
+<td>Initialized from the labeled-only fit, then plain semi-supervised EM, no further anchoring.</td>
 <td>Plain PU learning with no identifiability safeguard -- can drift toward the negatives on strongly overlapping data.</td>
 </tr>
 </tbody>
 </table>
+<p>For <code>'prior'</code>, after each M-step the positive block's parameters are
+replaced by an NIW posterior (the same conjugate update as in the
+<a href="../gaussian-mixture/">Gaussian guide</a>) with prior mean <span class="arithmatex">\(\mu_P^0\)</span>, prior
+scale <span class="arithmatex">\(\Psi_0 = n_L\,\Sigma_P^0\)</span> and prior strength
+<span class="arithmatex">\(\lambda_0 = \nu_0 = n_L\)</span> (the number of labeled positives), using the
+positive block's current responsibilities:</p>
+<div class="arithmatex">\[
+\mu_P = \frac{\lambda_0 \mu_P^0 + n_P \bar y_P}{\lambda_0 + n_P}, \qquad
+\Sigma_P = \frac{\Psi_0 + W_P + \frac{\lambda_0 n_P}{\lambda_0 + n_P}(\bar y_P - \mu_P^0)(\bar y_P - \mu_P^0)^\top}{\nu_0 + n_P},
+\]</div>
+<p>where <span class="arithmatex">\(n_P\)</span>, <span class="arithmatex">\(\bar y_P\)</span>, <span class="arithmatex">\(W_P\)</span> are that block's effective count, weighted
+mean and scatter. The labeled positives therefore enter twice -- once
+through the prior, once as data with responsibility <span class="arithmatex">\(1\)</span> -- which anchors
+the block strongly; the prior is worth about <span class="arithmatex">\(n_L\)</span> pseudo-observations.</p>
 <p><code>family='gaussian'</code> (default), <code>'student_t'</code>, or <code>'vmf'</code> picks which
 mixture family models both blocks; <code>'student_t'</code> is a reasonable choice
 when either class has outliers, <code>'vmf'</code> when <code>X</code> is L2-normalized
@@ -2084,9 +2751,35 @@ with <code>family='student_t'</code>/<code>'vmf'</code>.</p>
 <code>max_iter</code>, ...) is forwarded to the underlying mixture's constructor;
 anything not defined on <code>PositiveUnlabeledMixture</code> itself (<code>bic</code>, <code>score</code>,
 <code>sample</code>, ...) is transparently forwarded to the fitted mixture
-(<code>pu.model_</code>) too.</p>
-<p>See notebook <code>17_semi_supervised_pu.ipynb</code> for a worked example of both
+(<code>pu.model_</code>) too. <code>n_components_negative=None</code> (an unbounded Gibbs
+sampler for the negative block) is not implemented and raises
+<code>NotImplementedError</code>.</p>
+<h3 id="caveats">Caveats<a class="headerlink" href="#caveats" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>class_prior_</code> quality</strong> depends on the negative block being able to
+  model the negative class without wandering into the positive region;
+  more negative components make that easier <em>and</em> make identifiability
+  harder -- use <code>anchor='fixed'</code>/<code>'prior'</code> and check <code>class_prior_</code> is
+  stable across <code>n_components_negative</code>.</li>
+<li>Labeled positives are clamped to the positive block, so (with the default
+  <code>label_confidence=1</code>) a mislabeled "positive" is never corrected. To allow
+  that, pass <code>label_confidence=c</code> with <code>c &lt; 1</code> through <code>**family_kwargs</code>;
+  the unlabeled rows are handled as usual.</li>
+<li><code>predict_proba_positive</code> uses the fitted mixture weights, which include
+  the labeled positives (see above); <code>class_prior_</code> is the right estimate
+  of the positive fraction in a fresh unlabeled sample.</li>
+</ul>
+<p>See notebook <code>18_semi_supervised_pu.ipynb</code> for a worked example of both
 features.</p>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Elkan, C. &amp; Noto, K. (2008). Learning classifiers from only positive and
+  unlabeled data. <em>KDD</em>.</li>
+<li>Fraley, C. &amp; Raftery, A. E. (2002). Model-based clustering, discriminant
+  analysis, and density estimation. <em>JASA</em>, 97(458), 611-631 (MclustDA).</li>
+<li>Blanchard, G., Lee, G. &amp; Scott, C. (2010). Semi-supervised novelty
+  detection. <em>JMLR</em>, 11, 2973-3009.</li>
+</ul>
 
 
 
