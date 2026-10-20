@@ -3,7 +3,199 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+## [0.4.1] -- 2026-10-19
+
+Supersedes 0.4.0. It fixes numerical and correctness bugs found after the 0.4.0 release (Student-t spherical variance,
+semi-supervised weights, metrics against scikit-learn, HDBSCAN `cluster_selection_epsilon`, the data generator, packaging,
+`tied_spherical` summation order), adds the first v0.5 features (uniform noise component, missing-value EM, marginal /
+conditional, frozen components and sample weights, the component protocol and `GenericMixture`), and moves the tutorials to
+marimo notebooks. Users of 0.4.0 should upgrade; fits can differ at rounding level, and a few results change (see *Fixed*).
+
+### Added (v0.5 Phase 1.6: documentation and acceptance)
+
+- User-guide page "Noise, Missing Values and Conditioning" (equations for the uniform noise component, missing-value EM,
+  marginals/conditionals, frozen components, sample weights and the component protocol) and tutorial
+  `19_noise_missing_conditioning` (marimo).
+- `tests/test_v05_phase1_acceptance.py`: cross-feature matrix over `em`/`cem`/`sem` and bit-identical-defaults checks for
+  `GaussianMixture`, `StudentTMixture` and `VonMisesFisherMixture`.
+
+### Added (v0.5 Phase 1.5: component protocol and `GenericMixture`)
+
+- `tgmm.mixtures.protocol.Component`: a runtime-checkable `typing.Protocol` for a mixture component
+  (`log_probability(X)`, `summarize(X, sample_weight)`, `from_summaries()`; optional `sample`, `n_parameters`,
+  `frozen`, `reseed`), after the pomegranate 1.x API (credited in the module docstring; tgmm does not import
+  pomegranate).
+- `tgmm.GenericMixture(components=[...])` (also the v0.4 section 4.4 `GenericMixture`): a `BaseMixture` over
+  user-supplied components. Protocol components are updated through `summarize` per row chunk and one
+  `from_summaries` per M-step, so `batch_size` works unchanged; `nn.Module` components with `log_prob(X)` get a
+  generalised EM step (`_gem_step`, accepted only on improvement), so the log-likelihood stays monotone.
+  Supports `em`/`cem`/`sem`, `temperature`, `batch_size`, `frozen_components` (and a component-level `frozen`
+  attribute), row `sample_weight`, a noise component with an explicit `noise_volume`, the semi-supervised `labels`
+  path, `bic`/`aic`/`icl` and `save`/`load`. Not supported (clear errors): `saem` and online EM (opaque state cannot be
+  blended), `n_init > 1` (restarts would start from the same components), `missing='em'`, per-feature weights.
+  Design: `docs/superpowers/specs/2026-10-15-v05-component-protocol-design.md`.
+
+### Added (v0.5 Phase 1.4: frozen components and sample weights)
+
+- `frozen_components=(...)` on `GaussianMixture`, `StudentTMixture` and `VonMisesFisherMixture`: the listed
+  components keep their *initial* `means_` / `covariances_` (and `dof_` / `kappa_`) for the whole fit while their
+  mixing weights (and the noise weight) still update. Priors never shrink them and SEM never re-seeds them. Not
+  available for tied covariances, the 8 GPCM codes without a classic name, `dof='shared'`,
+  `concentration='shared'` or Gibbs mode (`ValueError`). Persisted by save/load.
+- `fit(X, sample_weight=...)` for every family. Shape `(n,)`: row `i` counts `w_i` times (integer weights equal
+  duplicating rows, weight 0 equals dropping the row, an all-ones vector is bit-identical to no weights;
+  `n_eff = sum w` normalises the mixing weights and MAP priors, and `lower_bound_` is the weighted mean
+  log-likelihood). Shape `(n, d)`: per-feature weights for `GaussianMixture` `'diag'`/`'spherical'` and
+  `StudentTMixture` `'diag'` (maximum likelihood only); weight 0 on an entry hides that feature for that row.
+  Works with `em`/`cem`/`sem`/`saem`, `batch_size`, `n_init`, `warm_start`, `noise` and (row weights)
+  `missing='em'`; not with `labels=`, Gibbs mode or online EM. `inertia` is deliberately not added: `step_size`
+  is the same control.
+  Design: `docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md`.
+
+### Fixed
+
+- `PositiveUnlabeledMixture(anchor='fixed')` left `weights_` unnormalised (e.g. `[0.60, 1.00]`: the positive block's
+  block-local weight was copied back after every M-step), which biased `class_prior_`. The positive block is now
+  frozen through `frozen_components`, `weights_` sums to 1 and `class_prior_` follows. `frozen_components` can no
+  longer be passed through `PositiveUnlabeledMixture`'s `**family_kwargs`.
+
+### Added (v0.5 Phase 1.1: uniform noise component)
+
+- `noise=True` on `GaussianMixture` (all 14 covariance codes), `StudentTMixture` and `VonMisesFisherMixture`:
+  an extra, parameter-free uniform component (Banfield & Raftery, 1993). New arguments `noise_volume`
+  (`'bbox'` or a float hypervolume; the sphere's surface area for vMF), `noise_prior` (initial noise weight)
+  and `noise_init` (initial noise mask, or `HDBSCAN` labels with `-1` = noise). Responsibilities and
+  `predict_proba` gain a last column; `predict` returns `-1` for noise; new `noise_proba(X)`,
+  `noise_weight_`, `noise_bounds_`; `sample` draws noise points (index `-1`); `bic`/`aic`/`icl`/`select_model`
+  count the extra weight. Works with `em`/`cem`/`sem`/`saem`, `temperature`, `batch_size`, `n_init`,
+  `warm_start` and save/load. Not supported (raises): Gibbs mode, `labels=`, online EM/`partial_fit`,
+  `weight_concentration_prior`, constrained `sample`. Default fits are bit-identical with `noise=False`.
+  Design: `docs/superpowers/specs/2026-10-15-v05-noise-component-design.md`.
+
+### Added (v0.5 Phase 1.2: missing values)
+
+- `missing='em'` on `GaussianMixture` (all six classic covariance types and the 14 GPCM codes) and
+  `StudentTMixture`: `NaN` entries of `X` are missing-at-random and EM maximises the likelihood of the observed
+  entries (Ghahramani & Jordan, 1994; Hunt & Jorgensen, 2003). Rows are grouped by missingness pattern; the E-step uses
+  the observed-block marginal and the M-step statistics the conditional mean/covariance of the missing block, so MAP/NIW
+  priors, `batch_size`, `cem`/`sem`/`saem` and `temperature` work unchanged. For `StudentTMixture` the weights use the
+  number of observed entries and the degrees of freedom are updated with the exact (textbook) conditional step.
+  `predict`, `predict_proba`, `score_samples`, `score`, `bic`/`aic`/`icl` accept incomplete rows; new `impute(X)`
+  (posterior-weighted conditional means) and `StudentTMixture.sample_weights` accept them too. Initialisation uses the
+  column-mean-imputed data. A warning is raised for more than 1000 distinct patterns.
+  Not supported (raises): `noise=True`, Gibbs mode, `labels=`, online EM / `partial_fit`,
+  `StudentTMixture(scale_update='ecme')`; rows or columns with no observed entry are rejected at fit time.
+  Design: `docs/superpowers/specs/2026-10-15-v05-missing-values-design.md`.
+- Behaviour note: with the default `missing='error'`, a `NaN` in `X` now raises `ValueError` (in `fit`, `predict`,
+  `score_samples`, ... of every family, including `VonMisesFisherMixture`) instead of silently producing `NaN`
+  parameters. Fits on finite data are bit-identical to before, and `missing='em'` on data without `NaN` is identical
+  to `'error'`.
+
+### Added (v0.5 Phase 1.3: `marginal` and `condition`)
+
+- `GaussianMixture.marginal(dims)`: the marginal mixture over a subset of coordinates (a new fitted
+  `GaussianMixture`; `diag`/`spherical`/`tied_*` keep their type, `full` and the GPCM codes give `full`).
+  `GaussianMixture.condition(x_obs, obs_dims)`: Gaussian conditioning component by component, returning the new
+  `ConditionalGaussianMixture` with per-sample weights `weights_ (n, K)`, conditional means `means_ (n, K, d_m)`,
+  sample-independent conditional covariances `covariances_ (K, d_m, d_m)` and `mean()` (Gaussian mixture
+  regression), `log_prob(Y)`, `sample(n_draws)`, `as_gmm(i)`. Works for every covariance type and GPCM code;
+  `StudentTMixture.marginal` is exact, `StudentTMixture.condition` raises `NotImplementedError` (the conditional t
+  needs a sample-dependent scale and `nu + d_obs` degrees of freedom). Gibbs-mode and `noise=True` models raise.
+  Design: `docs/superpowers/specs/2026-10-15-v05-marginal-condition-design.md`.
+
+### Fixed
+
+- `GaussianMixture(covariance_type='tied_spherical')`: the v0.4 sufficient-statistics refactor summed the pooled scatter per
+  component first, which differs from tgmm <= 0.3.0 in the last digit; iterated fits (training loops, warm starts) amplified that
+  into a different model. The single-reduction order of 0.3.0 is restored for the unchunked path, and fits are bit-identical to
+  0.3.0 again (float32 and float64). Other covariance types still differ from 0.3.0 at rounding level; see
+  `docs/superpowers/specs/2026-10-19-tied-spherical-summation-order.md`.
+- `StudentTMixture(covariance_type='spherical')` divided the scale update by `n_k` instead of `d * n_k`, making the variance
+  `d` times too large (also under `missing='em'` and `sample_weight`).
+- `GaussianMixture` NIW update for `tied_spherical` added `reg_covar * n * d` instead of `reg_covar * d` to the scale matrix
+  (a ~1e-7 relative change).
+- Semi-supervised fitting: `weights_` summed to less than 1 when `unlabeled_weight < 1`, and labeled rows whose class-block
+  posterior underflowed (below `1e-20`) silently lost their responsibility mass. Weights are renormalised and those rows are
+  computed in log space.
+- k-means++ / k-means initialisation produced `NaN` for empty clusters and when `k` exceeded the number of distinct points,
+  and the empirical covariance init produced `NaN` for singleton clusters (e.g. `GaussianMixture(n_components=25,
+  algorithm='sem')` on ~180 points).
+- `save` / `load` / `to_dict` / `save_state_dict` / `load_state_dict` of `GaussianMixture`, `StudentTMixture` and
+  `VonMisesFisherMixture` now keep `components_per_class`, `unlabeled_weight`, `label_confidence`, `noise_init`, `classes_`
+  and `class_of_component_` (and vMF `missing`).
+- `generate_gmm_data` sampled `X = Z @ cov`, so a component's actual covariance was `cov.T @ cov` (the square of the
+  requested one). It now samples with a Cholesky factor, so `covs` really are the covariances. **Data generated with a given
+  `random_state` changes for any `covs` other than the identity**; pass the old effective covariance (`cov.T @ cov`) to
+  reproduce earlier data. Tutorials were re-run accordingly.
+- `ClusteringMetrics.roc_auc_score` is now the rank-based AUC with average ranks for ties (equal to scikit-learn, independent
+  of sample order); this also corrects the `roc_auc` entry of `classification_report`.
+- `ClusteringMetrics.confusion_matrix` no longer drops predicted labels that do not occur in `labels_true` (the matrix covers
+  the sorted union of labels; new optional `labels=`), and `classification_report` lists predicted-only labels with support 0.
+- `ClusteringMetrics.adjusted_mutual_info_score` uses the exact expected mutual information (Vinh, Epps & Bailey 2010) and
+  matches scikit-learn; it and `normalized_mutual_info_score` accept `average_method`; new `expected_mutual_information`.
+- `ClusteringMetrics.calinski_harabasz_score` computes in float64. Rand, ARI, MI, NMI and Fowlkes-Mallows use a float64
+  contingency table with exact entropies, accept non-contiguous labels and follow scikit-learn's edge cases; Fowlkes-Mallows
+  returns 0.0 instead of `nan` when no pair agrees.
+- `HDBSCAN(cluster_selection_epsilon=...)` was accepted but ignored; it now merges clusters born below the given distance,
+  following scikit-learn-contrib/hdbscan. `allow_single_cluster=True` now follows the reference (a root-only result labels only
+  points that stayed in the root until a high enough density, and `max_cluster_size` applies to the root); this changes results
+  for `allow_single_cluster=True`. `HDBSCAN` no longer raises `IndexError` for fewer points than `min_samples`. Docstring:
+  `min_cluster_size` defaults to 10 and `min_samples` counts the point itself (reference `min_samples=k-1`).
+- Packaging: `pip install tgmm` now installs everything `import tgmm` needs (scipy, matplotlib, seaborn, tqdm were missing) and
+  `python_requires` is `>=3.9`.
+- Docstrings: the Student-t and vMF class docstrings no longer claim supervised fitting is Gaussian-only, the ECME note says
+  ECM and ECME reach the same fit, and the MAP covariance docstrings describe what the code does.
+
+### Added (HDBSCAN)
+
+- `cluster_selection_method='leaf'` alongside `'eom'` (the default), combinable with `cluster_selection_epsilon`.
+
+### Changed (tutorials are marimo notebooks)
+
+- The 18 tutorials are now [marimo](https://marimo.io) notebooks, `notebooks/NN_name.py` (the only committed form);
+  `.ipynb` pages are generated in CI into `docs/notebooks/` (git-ignored) and rendered by `mkdocs-jupyter`, so the
+  published URLs are unchanged. Conventions: `notebooks/README.md`; design: `docs/superpowers/specs/2026-10-15-marimo-integration-design.md`.
+- `.github/workflows/docs.yml` runs the notebooks as tests on every PR (`pytest -m notebooks`, `TGMM_DOCS_FAST=1`,
+  `marimo check`), executes and exports them with CPU PyTorch, builds the site with `mkdocs build --strict` and
+  deploys on pushes to `main`. `make docs` reproduces the build locally. `pytest.ini` excludes the notebook tests from
+  the default run.
+- Every tutorial page gets an "Open in molab" badge (`scripts/postprocess_notebooks.py`).
+- The Student-t / von Mises-Fisher tutorial is split into `16_student_t` and `17_von_mises_fisher`; semi-supervised
+  fitting is now `18_semi_supervised_pu`.
+- `docs/notebooks` is no longer a symlink to `notebooks/`.
+
+### Added (interactive explainers)
+
+- Four in-browser explainer pages (`docs/explainers/`, `mkdocs-marimo` islands running NumPy/SciPy/matplotlib through
+  Pyodide): GPCM covariance shapes, EM step by step, deterministic annealing, clustering metrics and model selection.
+
+### Added
+
+- `tgmm.plot_vmf` (circle / sphere view of a `VonMisesFisherMixture`: points, mean
+  directions, spherical caps holding a chosen probability mass),
+  `tgmm.plot_vmf_cosine` (angle-to-mean histograms vs. the fitted density, any
+  dimension), and the helpers `vmf_angle_density` / `vmf_cap_angle`. Tutorial 16
+  gains a gallery of vMF distributions and these plots.
+
+### Changed
+
+- Documentation: detailed derivations (E-step, M-step per covariance type,
+  MAP/NIW, EM variants, Gibbs sampler, Student-t/vMF, semi-supervised/PU,
+  metrics, information criteria) in the user guide; index/README/quickstart
+  updated for v0.4.
+- Tutorials: all 17 notebooks share one format (title/intro, setup cell,
+  summary); `15_gpcm_models.ipynb` is replaced by
+  `15_covariance_models.ipynb` (the six classic covariance types, the 14
+  GPCM models and how each is estimated); `01_gmm.ipynb` no longer carries the
+  covariance-type comparison.
+- `mstep_gpcm` (`VEE`): the inner-loop stopping test now evaluates the
+  objective at the updated parameters (it previously used a stale inverse).
+
 ## [0.4.0] -- 2026-10-14
+
+> Superseded by 0.4.1, which fixes bugs found after this release (see the *Fixed* section there).
 
 ### Added (Phase 5: semi-supervised and positive-unlabeled fitting)
 
@@ -101,7 +293,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   compatible -- `GaussianMixture` never sets it, and `__add__`/`scale`
   are no-ops on it when absent.
 - New user guide page "Other Mixture Families" and notebook
-  `16_student_t_and_vmf.ipynb` (t-mixture vs Gaussian under contamination
+  `16_student_t.ipynb` / `17_von_mises_fisher.ipynb` (t-mixture vs Gaussian under contamination
   with the outlier-weight map; vMF vs `GaussianMixture(covariance_type=
   'diag')` on simulated 768-d unit-norm embeddings).
 

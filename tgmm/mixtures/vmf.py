@@ -162,9 +162,11 @@ class VonMisesFisherMixture(BaseMixture):
     Shares its entire EM/CEM/SEM/SAEM/online-EM loop, `n_init` best-run
     selection, and `predict`/`predict_proba`/`score`/`bic`/`aic`/`icl` with
     every other `BaseMixture` subclass (wrapped here only to normalize `X`
-    first -- see `_check_unit_norm`). Gibbs-sampling mode and supervised
-    fitting (`fit(X, labels=...)`) are Gaussian-only, same as
-    `StudentTMixture`.
+    first -- see `_check_unit_norm`). Semi-supervised and fully supervised
+    fitting (`fit(X, labels=...)`, `components_per_class`, `unlabeled_weight`,
+    `label_confidence`) live in `BaseMixture` and work here as for
+    `GaussianMixture`; only Gibbs-sampling mode (`n_components=None`) remains
+    Gaussian-only.
 
     Parameters
     ----------
@@ -185,12 +187,37 @@ class VonMisesFisherMixture(BaseMixture):
         for `GaussianMixture`/`StudentTMixture`. `'random'` draws uniform
         random points on the sphere; `'points'` picks random rows of `X`
         (already unit-norm). A tensor is normalized and used directly.
+    frozen_components : sequence of int, optional
+        Components whose mean direction and concentration are held at their initial values for the whole
+        fit (mixing weights still update). Not available with `concentration='shared'`. (default: ())
     init_weights : see `BaseMixture`.
     max_iter, tol, reg_covar, n_init, random_state, warm_start, algorithm,
     batch_size, temperature, convergence, step_size, sem_burn_in,
     sem_estimate, verbose, verbose_interval, device : see `BaseMixture`.
-    `reg_covar` is accepted for interface parity but unused -- there is no
-    covariance here to regularize.
+        `reg_covar` is accepted for interface parity but unused -- there is no
+        covariance here to regularize.
+
+    noise : bool, optional
+        Add a uniform **noise component** (Banfield & Raftery, 1993): a parameter-free
+        extra mixture component with density `1 / V`. Responsibilities then have shape
+        `(n_samples, n_components + 1)` (last column = noise), `predict` returns `-1` for
+        points the noise component explains best, and `weights_` holds the component
+        weights, which sum to `1 - noise_weight_`. Not supported with Gibbs mode,
+        `labels=`, online EM / `partial_fit`, `weight_concentration_prior` or constrained
+        `sample`. (default: False)
+    noise_volume : 'bbox' or float, optional
+        Volume `V` of the noise region: the bounding box of the fit data, or a user-supplied
+        hypervolume. Ignored by `VonMisesFisherMixture` (uniform on the sphere). (default: 'bbox')
+    noise_prior : float, optional
+        Initial noise weight `pi_0`, in `(0, 1)`. (default: 0.05)
+    noise_init : array-like, optional
+        Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
+        with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
+        parameters are computed from the unflagged rows. (default: None)
+    missing : {'error'}, optional
+        `NaN` in `X` raises `ValueError`; `missing='em'` is only available for `GaussianMixture`
+        and `StudentTMixture` (a von Mises-Fisher density has no marginal over a subset of the
+        coordinates of a unit vector). (default: 'error')
 
     Attributes
     ----------
@@ -225,6 +252,12 @@ class VonMisesFisherMixture(BaseMixture):
         components_per_class=1,
         unlabeled_weight: float = 1.0,
         label_confidence: float = 1.0,
+        noise: bool = False,
+        noise_volume='bbox',
+        noise_prior: float = 0.05,
+        noise_init=None,
+        missing: str = 'error',
+        frozen_components=(),
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -237,6 +270,8 @@ class VonMisesFisherMixture(BaseMixture):
             step_size=step_size, sem_burn_in=sem_burn_in, sem_estimate=sem_estimate,
             components_per_class=components_per_class, unlabeled_weight=unlabeled_weight,
             label_confidence=label_confidence,
+            noise=noise, noise_volume=noise_volume, noise_prior=noise_prior, noise_init=noise_init,
+            missing=missing, frozen_components=frozen_components,
             verbose=verbose, verbose_interval=verbose_interval, device=device,
         )
 
@@ -245,6 +280,16 @@ class VonMisesFisherMixture(BaseMixture):
         self.concentration = concentration
         self.kappa_init = kappa_init
         self.kappa_ = None
+        self.__dict__['_frozen_ready'] = True
+        if self.frozen_components:
+            self._check_frozen_supported()
+
+    def _check_frozen_supported(self):
+        if self.concentration == 'shared':
+            raise ValueError(
+                "frozen_components is not supported with concentration='shared': one concentration is shared "
+                "by every component. Use concentration='per_component'."
+            )
 
     # ===================================================================
     # Unit-norm input handling: every public entry point that takes raw X
@@ -264,10 +309,11 @@ class VonMisesFisherMixture(BaseMixture):
             X = X / norms.clamp(min=1e-12).unsqueeze(1)
         return X
 
-    def fit(self, X: torch.Tensor, labels=None, max_iter=None, tol=None, random_state=None, warm_start=None):
+    def fit(self, X: torch.Tensor, labels=None, max_iter=None, tol=None, random_state=None, warm_start=None,
+            sample_weight=None):
         return super().fit(
             self._check_unit_norm(X), labels=labels, max_iter=max_iter, tol=tol,
-            random_state=random_state, warm_start=warm_start,
+            random_state=random_state, warm_start=warm_start, sample_weight=sample_weight,
         )
 
     def predict(self, X: torch.Tensor) -> torch.Tensor:
@@ -364,11 +410,29 @@ class VonMisesFisherMixture(BaseMixture):
     # (there is no covariances_ for this family).
     # ===================================================================
     def _get_param_snapshot(self) -> dict:
-        return {
+        snapshot = {
             'weights_': self.weights_.clone(),
             'means_': self.means_.clone(),
             'kappa_': self.kappa_.clone(),
         }
+        if self.noise:
+            snapshot['noise_weight_'] = self.noise_weight_.clone()
+        return snapshot
+
+    # ===================================================================
+    # Noise component: uniform on the unit sphere (not a bounding box), so
+    # the density is -log(surface area of S^{d-1}) and no bounds are stored.
+    # ===================================================================
+    _noise_uses_bbox = False
+
+    def _noise_log_density(self, X: torch.Tensor) -> torch.Tensor:
+        d = self.n_features
+        log_area = math.log(2.0) + 0.5 * d * math.log(math.pi) - math.lgamma(0.5 * d)
+        return torch.full((X.shape[0],), -log_area, dtype=X.dtype, device=X.device)
+
+    def _sample_noise(self, n: int) -> torch.Tensor:
+        z = torch.randn(n, self.n_features, dtype=self.dtype, device=self.device)
+        return z / z.norm(dim=1, keepdim=True)
 
     # ===================================================================
     # E-step hook
@@ -421,7 +485,8 @@ class VonMisesFisherMixture(BaseMixture):
         weight_params = K - 1
         mean_params = K * (d - 1)  # each mu_k lives on a (d-1)-sphere
         kappa_params = K if self.concentration == 'per_component' else 1
-        return int(weight_params + mean_params + kappa_params)
+        noise_params = 1 if self.noise else 0
+        return int(weight_params + mean_params + kappa_params + noise_params)
 
     def _rotate_to(self, x: torch.Tensor, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         r"""Householder reflection mapping unit vector `a` to unit vector `b`, applied to each row of `x`."""
@@ -498,6 +563,14 @@ class VonMisesFisherMixture(BaseMixture):
             'sem_estimate': self.sem_estimate,
             'verbose': self.verbose,
             'verbose_interval': self.verbose_interval,
+            'noise': self.noise,
+            'noise_volume': self.noise_volume,
+            'noise_prior': self.noise_prior,
+            'noise_weight_': self.noise_weight_,
+            'noise_bounds_': self.noise_bounds_,
+            'missing': self.missing,
+            'frozen_components': list(self.frozen_components),
+            **self._semisupervised_state(),
             'weights_': self.weights_,
             'means_': self.means_,
             'kappa_': self.kappa_,
@@ -529,7 +602,14 @@ class VonMisesFisherMixture(BaseMixture):
             batch_size=state['batch_size'], temperature=state['temperature'], convergence=state['convergence'],
             step_size=state['step_size'], sem_burn_in=state['sem_burn_in'], sem_estimate=state['sem_estimate'],
             verbose=state['verbose'], verbose_interval=state['verbose_interval'], device=device,
+            noise=state.get('noise', False), noise_volume=state.get('noise_volume', 'bbox'),
+            noise_prior=state.get('noise_prior', 0.05), missing=state.get('missing', 'error'),
+            frozen_components=state.get('frozen_components', ()),
+            **cls._semisupervised_kwargs(state),
         )
+        model.noise_weight_ = state.get('noise_weight_')
+        model.noise_bounds_ = state.get('noise_bounds_')
+        model._load_semisupervised_state(state)
         model.weights_ = state['weights_']
         model.means_ = state['means_']
         model.kappa_ = state['kappa_']
@@ -546,6 +626,17 @@ class VonMisesFisherMixture(BaseMixture):
 
     def load_state_dict(self, state_dict: dict):
         r"""In-place counterpart to `load`: restores this instance's fitted state from `state_dict`."""
+        self.noise = state_dict.get('noise', False)
+        self.noise_volume = state_dict.get('noise_volume', 'bbox')
+        self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.missing = state_dict.get('missing', 'error')
+        self.frozen_components = state_dict.get('frozen_components', ())
+        self._load_semisupervised_state(state_dict)
+        for name in ('concentration', 'kappa_init', 'max_iter', 'tol', 'reg_covar', 'n_init', 'init_means', 'init_weights', 'random_state', 'warm_start', 'algorithm', 'batch_size', 'temperature', 'convergence', 'step_size', 'sem_burn_in', 'sem_estimate', 'verbose', 'verbose_interval'):
+            if name in state_dict:
+                setattr(self, name, state_dict[name])
+        self.noise_weight_ = state_dict.get('noise_weight_')
+        self.noise_bounds_ = state_dict.get('noise_bounds_')
         self.weights_ = state_dict['weights_']
         self.means_ = state_dict['means_']
         self.kappa_ = state_dict['kappa_']

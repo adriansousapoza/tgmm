@@ -1,6 +1,19 @@
 from setuptools import setup, find_packages
 import os
 
+# Everything `import tgmm` loads at import time: the plotting module (matplotlib, seaborn), the metrics and
+# initialization code (scipy) and the progress bars (tqdm). scikit-learn and pandas are only needed by tests
+# and tutorials (see the extras below). Keep in sync with requirements.txt.
+INSTALL_REQUIRES = [
+    "torch>=2.5.1",
+    "numpy>=1.23.0",
+    "scipy>=1.10.1",
+    "matplotlib>=3.10.1",
+    "seaborn>=0.12.2",
+    "tqdm",
+]
+
+
 def read_requirements():
     """Read requirements from requirements.txt and filter for core dependencies."""
     requirements_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
@@ -110,7 +123,7 @@ def read_test_requirements():
 
 setup(
     name="tgmm",
-    version="0.4.0",
+    version="0.4.1",
     author="Adrián A. Sousa-Poza",
     author_email="adrian.sousapoza@gmail.com",
     description="A Gaussian Mixture Model (GMM) based on Expectation-Maximisation (EM) implemented in PyTorch",
@@ -118,7 +131,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/adriansousapoza/tgmm",
     packages=find_packages(),
-    install_requires=read_requirements(),
+    install_requires=INSTALL_REQUIRES,
     extras_require={
         "docs": read_docs_requirements(),
         "examples": read_examples_requirements(),
@@ -130,5 +143,5 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.9',
 )

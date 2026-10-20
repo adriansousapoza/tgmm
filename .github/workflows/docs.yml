@@ -1,33 +1,96 @@
-name: Deploy Documentation
+name: Documentation
+
+# Tutorials are marimo notebooks (notebooks/*.py). This workflow
+#   1. runs them as tests (every PR and push),
+#   2. executes them with CPU PyTorch, exports them to .ipynb with outputs, builds the MkDocs site with
+#      --strict, and deploys it to gh-pages (pushes to main only).
+# See notebooks/README.md and docs/superpowers/specs/2026-10-15-marimo-integration-design.md.
 
 on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TGMM_DOCS_FAST: "1"
+  MPLBACKEND: Agg
+
 jobs:
-  deploy:
+  notebooks-test:
+    name: Notebooks run as scripts
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Install dependencies (CPU PyTorch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . -r docs/requirements.txt pytest
+
+      - name: marimo check
+        run: marimo check notebooks/
+
+      - name: Run every notebook (TGMM_DOCS_FAST=1, 180 s each)
+        run: python -m pytest -m notebooks tests/test_notebooks.py -v
+
+  build:
+    name: Build and deploy the docs site
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
 
-      - name: Install dependencies
+      - name: Install dependencies (CPU PyTorch)
         run: |
-          pip install --upgrade pip
-          pip install -r docs/requirements.txt
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . -r docs/requirements.txt
 
-      - name: Build and deploy documentation
+      # Notebook outputs are regenerated on every build (never cached), so the site always reflects the
+      # current package. --sort top-down keeps the page order equal to the file order.
+      - name: Execute and export the notebooks to .ipynb (with outputs)
+        run: |
+          mkdir -p docs/notebooks
+          for nb in notebooks/[0-9][0-9]_*.py; do
+            echo "::group::$nb"
+            marimo export ipynb "$nb" -o "docs/notebooks/$(basename "${nb%.py}").ipynb" \
+                --include-outputs --sort top-down
+            echo "::endgroup::"
+          done
+
+      - name: Hide plumbing cells and add the molab badges
+        run: python scripts/postprocess_notebooks.py docs/notebooks
+
+      - name: Build the site (strict mode fails on broken links or missing nav entries)
+        run: mkdocs build --strict
+
+      - name: Deploy to gh-pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name github-actions[bot]
           git config user.email github-actions[bot]@users.noreply.github.com

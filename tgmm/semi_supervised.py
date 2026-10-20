@@ -163,6 +163,11 @@ class PositiveUnlabeledMixture:
                     f"{forbidden} is set internally by PositiveUnlabeledMixture "
                     f"(from n_components_positive/n_components_negative); do not pass it."
                 )
+        if 'frozen_components' in family_kwargs:
+            raise ValueError(
+                "frozen_components is set internally by PositiveUnlabeledMixture (anchor='fixed' freezes the "
+                "positive block); do not pass it."
+            )
 
         self.n_components_positive = n_components_positive
         self.n_components_negative = n_components_negative
@@ -228,8 +233,16 @@ class PositiveUnlabeledMixture:
         )
 
         if self.anchor == 'fixed':
+            # The positive block is frozen at its labeled-only fit through `frozen_components` (the M-step
+            # restores its per-component parameters), so only the initial assignment is needed here. Its
+            # block-local mixing weight (1.0 for a one-component block) must NOT be copied into `weights_`: the
+            # weights keep updating and sum to 1 (this was a bug of the earlier hook-based implementation).
+            model.frozen_components = tuple(range(self.n_components_negative, n_total))
+            fixed_snapshot = {k: v for k, v in positive_snapshot.items() if k not in ('weights_', 'noise_weight_')}
+
             def hook(X_full, resp):
-                _assign_slice(model, positive_snapshot, positive_idx)
+                if resp is None:
+                    _assign_slice(model, fixed_snapshot, positive_idx)
         elif self.anchor == 'free':
             def hook(X_full, resp):
                 if resp is None:

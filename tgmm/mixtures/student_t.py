@@ -20,6 +20,8 @@ import torch
 from ..gmm_init import GMMInitializer
 from ..stats import SufficientStats
 from .base import BaseMixture
+from . import missing as _missing
+from .conditional import _validate_dims
 
 _VALID_COVARIANCE_TYPES = ('full', 'diag', 'spherical', 'tied_full')
 _VALID_SCALE_UPDATES = ('ecm', 'ecme')
@@ -94,9 +96,10 @@ class StudentTMixture(BaseMixture):
     Shares its entire EM/CEM/SEM/SAEM/online-EM loop, `n_init` best-run
     selection, `predict`/`predict_proba`/`score`/`bic`/`aic`/`icl`, and
     generic `sample` with every other `BaseMixture` subclass -- see that
-    class. Gibbs-sampling mode (`n_components=None`) and supervised fitting
-    (`fit(X, labels=...)`) are intentionally Gaussian-only; neither is
-    available here.
+    class. Semi-supervised and fully supervised fitting (`fit(X, labels=...)`,
+    `components_per_class`, `unlabeled_weight`, `label_confidence`) live in
+    `BaseMixture` and work here exactly as for `GaussianMixture`; only
+    Gibbs-sampling mode (`n_components=None`) remains Gaussian-only.
 
     Parameters
     ----------
@@ -122,9 +125,17 @@ class StudentTMixture(BaseMixture):
         `(lo, hi)` clamp applied to every fitted `nu_k`.
     scale_update : {'ecm', 'ecme'}, default='ecm'
         `'ecm'`: :math:`\Sigma_k = \sum_i \tau_{ik} u_{ik} (x_i-\mu_k)(x_i-\mu_k)^T / \sum_i \tau_{ik}`
-        (the standard ECM update). `'ecme'`: divide by
-        :math:`\sum_i \tau_{ik} u_{ik}` instead, which converges faster
-        (Liu & Rubin, 1995) but is a different fixed point in general.
+        (the standard ECM update; for `covariance_type='spherical'` the scatter is the squared norm and the
+        divisor carries an extra factor `d`). `'ecme'`: divide by
+        :math:`\sum_i \tau_{ik} u_{ik}` instead (Liu & Rubin, 1995). At a
+        maximum-likelihood fixed point the two coincide (stationarity gives
+        :math:`\sum_i \tau_{ik} u_{ik}\delta_{ik} = d\,n_k`, hence
+        :math:`\sum_i \tau_{ik} u_{ik} = n_k`), so both reach the same fit
+        and differ only in the path they take.
+    frozen_components : sequence of int, optional
+        Components whose `means_`, `covariances_` (scale matrix) and `dof_` are held at their initial values
+        for the whole fit; their mixing weights still update. Not available with `covariance_type='tied_full'`
+        or `dof='shared'`. See `BaseMixture`. (default: ())
     init_means, init_weights : see `BaseMixture`.
     init_covariances : str or torch.Tensor, default='empirical'
         Initial `Sigma_k`: `'empirical'` (per-component empirical
@@ -134,6 +145,32 @@ class StudentTMixture(BaseMixture):
     max_iter, tol, reg_covar, n_init, random_state, warm_start, algorithm,
     batch_size, temperature, convergence, step_size, sem_burn_in,
     sem_estimate, verbose, verbose_interval, device : see `BaseMixture`.
+
+    noise : bool, optional
+        Add a uniform **noise component** (Banfield & Raftery, 1993): a parameter-free
+        extra mixture component with density `1 / V`. Responsibilities then have shape
+        `(n_samples, n_components + 1)` (last column = noise), `predict` returns `-1` for
+        points the noise component explains best, and `weights_` holds the component
+        weights, which sum to `1 - noise_weight_`. Not supported with Gibbs mode,
+        `labels=`, online EM / `partial_fit`, `weight_concentration_prior` or constrained
+        `sample`. (default: False)
+    noise_volume : 'bbox' or float, optional
+        Volume `V` of the noise region: the bounding box of the fit data, or a user-supplied
+        hypervolume. Ignored by `VonMisesFisherMixture` (uniform on the sphere). (default: 'bbox')
+    noise_prior : float, optional
+        Initial noise weight `pi_0`, in `(0, 1)`. (default: 0.05)
+    noise_init : array-like, optional
+        Per-sample initial noise indicator: a bool mask (`True` = noise) or cluster labels
+        with `-1` = noise (e.g. `HDBSCAN(...).labels_`). Overrides `noise_prior`; the initial
+        parameters are computed from the unflagged rows. (default: None)
+    missing : {'error', 'em'}, optional
+        `'error'` (default): `NaN` in `X` raises `ValueError`. `'em'`: `NaN` marks missing-at-random
+        entries; the E-step uses the marginal t density of the observed block (`d -> p`, the number of
+        observed entries) and the ECM statistics use the conditional mean / covariance of the missing
+        block (see docs/superpowers/specs/2026-10-15-v05-missing-values-design.md). `predict`, `score`,
+        `sample_weights`, `bic`/`aic`/`icl` accept incomplete rows; `impute(X)` fills them in.
+        Requires `scale_update='ecm'`; not supported with `noise=True`, `labels=`, online EM or
+        `partial_fit`. Identical to `'error'` on data without `NaN`. (default: 'error')
 
     Attributes
     ----------
@@ -175,6 +212,12 @@ class StudentTMixture(BaseMixture):
         components_per_class=1,
         unlabeled_weight: float = 1.0,
         label_confidence: float = 1.0,
+        noise: bool = False,
+        noise_volume='bbox',
+        noise_prior: float = 0.05,
+        noise_init=None,
+        missing: str = 'error',
+        frozen_components=(),
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -187,6 +230,8 @@ class StudentTMixture(BaseMixture):
             step_size=step_size, sem_burn_in=sem_burn_in, sem_estimate=sem_estimate,
             components_per_class=components_per_class, unlabeled_weight=unlabeled_weight,
             label_confidence=label_confidence,
+            noise=noise, noise_volume=noise_volume, noise_prior=noise_prior, noise_init=noise_init,
+            missing=missing, frozen_components=frozen_components,
             verbose=verbose, verbose_interval=verbose_interval, device=device,
         )
 
@@ -207,9 +252,32 @@ class StudentTMixture(BaseMixture):
 
         if scale_update not in _VALID_SCALE_UPDATES:
             raise ValueError(f"scale_update must be one of {_VALID_SCALE_UPDATES}, got {scale_update!r}")
+        if self.missing == 'em' and scale_update == 'ecme':
+            raise NotImplementedError(
+                "missing='em' requires scale_update='ecm': the 'ecme' normalisation relies on a fixed-point "
+                "identity that does not hold when rows have different numbers of observed entries."
+            )
         self.scale_update = scale_update
 
         self.dof_ = None
+        self.__dict__['_frozen_ready'] = True
+        if self.frozen_components:
+            self._check_frozen_supported()
+
+    def _check_frozen_supported(self):
+        if self.covariance_type == 'tied_full':
+            raise ValueError(
+                "frozen_components is not supported with covariance_type='tied_full': the scale matrix is "
+                "shared across components, so a single component cannot be held fixed."
+            )
+        if self.dof == 'shared':
+            raise ValueError(
+                "frozen_components is not supported with dof='shared': one degrees-of-freedom value is shared "
+                "by every component. Use dof='per_component' or a fixed float."
+            )
+
+    def _feature_weights_supported(self) -> bool:
+        return self.covariance_type == 'diag'
 
     # ===================================================================
     # Parameter allocation
@@ -343,6 +411,10 @@ class StudentTMixture(BaseMixture):
                 - \ln\Gamma\!\left(\tfrac{\nu_k}{2}\right) - \tfrac{d}{2}\ln(\nu_k\pi)
                 - \tfrac12 \ln|\Sigma_k| - \tfrac{\nu_k+d}{2}\ln\!\left(1 + \tfrac{\delta_{ik}}{\nu_k}\right)
         """
+        if self._missing_active(X):
+            return self._component_log_prob_missing(X)
+        if self._fw_cur is not None:
+            return self._component_log_prob_feature_weighted(X, self._fw_cur)
         delta, logdet = _mahalanobis_and_logdet(X, self.means_, self.covariances_, self.covariance_type)
         d = self.n_features
         nu = self.dof_  # (K,)
@@ -355,9 +427,159 @@ class StudentTMixture(BaseMixture):
         return const.unsqueeze(0) + tail
 
     # ===================================================================
+    # Per-feature sample weights (v0.5 item 1.4, `'diag'` only)
+    # ===================================================================
+    def _feature_weighted_delta(self, X: torch.Tensor, W: torch.Tensor):
+        r"""`delta_ik = sum_j w_ij (x_ij - m_kj)^2 / s_kj` `(n, K)` and the effective dimension `p_i = sum_j w_ij` `(n, 1)`."""
+        diff2 = (X.unsqueeze(1) - self.means_.unsqueeze(0)).pow(2)
+        delta = torch.einsum('nj,nkj,kj->nk', W, diff2, 1.0 / self.covariances_)
+        return delta, W.sum(dim=1, keepdim=True)
+
+    def _component_log_prob_feature_weighted(self, X: torch.Tensor, W: torch.Tensor) -> torch.Tensor:
+        r"""
+        The t log-density with entry weights (the independent-feature marginalisation of item 1.4): :math:`d\to p_i=\sum_j w_{ij}`,
+        :math:`\log|\Sigma|\to\sum_j w_{ij}\log s_{kj}`, :math:`\delta\to\sum_j w_{ij}(x_{ij}-m_{kj})^2/s_{kj}`.
+        """
+        delta, p = self._feature_weighted_delta(X, W)
+        nu = self.dof_.unsqueeze(0)  # (1, K)
+        logdet = W @ torch.log(self.covariances_).t()  # (n, K)
+        return (torch.lgamma((nu + p) / 2) - torch.lgamma(nu / 2) - 0.5 * p * torch.log(nu * math.pi)
+                - 0.5 * logdet - 0.5 * (nu + p) * torch.log1p(delta / nu))
+
+    def _compute_stats_feature_weighted(self, X: torch.Tensor, resp: torch.Tensor, W: torch.Tensor) -> SufficientStats:
+        r"""
+        ECM statistics with entry weights: :math:`u_{ik}=(\nu_k+p_i)/(\nu_k+\delta_{ik})`;
+        ``s1`` :math:`=\sum_i\tau_{ik}u_{ik}w_{ij}x_{ij}`, ``s2`` the matching weighted scatter, ``aux['nk_feat']``
+        :math:`=\sum_i\tau_{ik}w_{ij}` and ``aux['mf_feat']`` :math:`=\sum_i\tau_{ik}u_{ik}w_{ij}`; the `nu` statistic
+        is the exact per-row digamma form (``aux['dof_exact']``) with :math:`d\to p_i`.
+        """
+        n_samples = X.shape[0]
+        delta, p = self._feature_weighted_delta(X, W)
+        nu = self.dof_.unsqueeze(0)
+        u = (nu + p) / (nu + delta)
+        tau_u = resp * u
+        ybar = (tau_u.t() @ (W * X)) / ((tau_u.t() @ W) + 1e-20)
+        s1 = tau_u.t() @ (W * X)
+        s2 = torch.einsum('nk,nj,nkj->kj', tau_u, W, (X.unsqueeze(1) - ybar.unsqueeze(0)).pow(2))
+        half = (nu + p) / 2
+        e = torch.special.digamma(half) - torch.log(half) + torch.log(u) - u
+        aux = {
+            'tau_u_sum': tau_u.sum(dim=0),
+            'nk_feat': resp.t() @ W,
+            'mf_feat': tau_u.t() @ W,
+            'log_u_minus_u': (resp * e).sum(dim=0),
+            'dof_exact': torch.ones((), dtype=X.dtype, device=X.device),
+        }
+        return SufficientStats(nk=resp.sum(dim=0), s1=s1, s2=s2, n_samples=n_samples, aux=aux)
+
+    # ===================================================================
+    # Missing values (v0.5 item 1.2): see tgmm/mixtures/missing.py and
+    # docs/superpowers/specs/2026-10-15-v05-missing-values-design.md.
+    # ===================================================================
+    _supports_missing = True
+
+    def _missing_cov_repr(self):
+        r"""`(kind, cov)` for `missing.gaussian_blocks`: dense `(K, d, d)` or per-feature variances `(K, d)`."""
+        K, d = self.n_components, self.n_features
+        if self.covariance_type == 'full':
+            return 'dense', self.covariances_
+        if self.covariance_type == 'tied_full':
+            return 'dense', self.covariances_.unsqueeze(0).expand(K, d, d)
+        if self.covariance_type == 'diag':
+            return 'diag', self.covariances_
+        return 'diag', self.covariances_.unsqueeze(1).expand(K, d)  # spherical
+
+    def _missing_u(self, X: torch.Tensor):
+        r"""
+        Observed-block quantities for incomplete data: the blocks, per-row number of observed
+        entries `p` `(n, 1)`, and the robustness weights
+        :math:`u_{ik} = (\nu_k + p_i)/(\nu_k + \delta_{o,ik})`, shape `(n, K)`.
+        """
+        kind, cov = self._missing_cov_repr()
+        blocks = _missing.gaussian_blocks(X, self.means_, cov, kind, need_conditional=True)
+        n, K = X.shape[0], self.means_.shape[0]
+        delta = torch.empty(n, K, dtype=X.dtype, device=X.device)
+        p = torch.empty(n, 1, dtype=X.dtype, device=X.device)
+        for b in blocks:
+            delta[b.rows] = b.delta
+            p[b.rows] = float(b.obs.numel())
+        nu = self.dof_.unsqueeze(0)
+        return blocks, p, (nu + p) / (nu + delta)
+
+    def _component_log_prob_missing(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Marginal t log-density of the observed block (:math:`d \to p`, :math:`\delta \to \delta_o`):
+
+        .. math::
+            \ln\Gamma\!\left(\tfrac{\nu+p}{2}\right) - \ln\Gamma\!\left(\tfrac{\nu}{2}\right)
+            - \tfrac p2\ln(\nu\pi) - \tfrac12\ln|\Sigma_{oo}| - \tfrac{\nu+p}{2}\ln\!\left(1+\tfrac{\delta_o}{\nu}\right)
+        """
+        kind, cov = self._missing_cov_repr()
+        nu = self.dof_
+        out = torch.empty(X.shape[0], self.means_.shape[0], dtype=X.dtype, device=X.device)
+        for b in _missing.gaussian_blocks(X, self.means_, cov, kind, need_conditional=False):
+            p = float(b.obs.numel())
+            const = (
+                torch.lgamma((nu + p) / 2) - torch.lgamma(nu / 2) - (p / 2.0) * torch.log(nu * math.pi) - 0.5 * b.logdet
+            )
+            out[b.rows] = const.unsqueeze(0) - ((nu + p) / 2).unsqueeze(0) * torch.log1p(b.delta / nu.unsqueeze(0))
+        return out
+
+    def _compute_stats_missing(self, X: torch.Tensor, resp: torch.Tensor) -> SufficientStats:
+        r"""
+        ECM statistics given the observed entries (Lin, Lee & Ho 2006), at the current parameters:
+        :math:`u_{ik}=(\nu_k+p_i)/(\nu_k+\delta_{o,ik})`, :math:`s1_k=\sum_i\tau_{ik}u_{ik}\tilde x_{ik}`,
+
+        .. math::
+            s2_k = \sum_i \tau_{ik}u_{ik}(\tilde x_{ik}-\bar y_k)(\tilde x_{ik}-\bar y_k)^\top
+                   + \sum_i \tau_{ik} C_{k,\mathrm{pattern}(i)}
+
+        (the conditional covariance `C` carries **no** `u` factor because :math:`E[w\cdot 1/w]=1`), and
+        `aux['log_u_minus_u']` holds :math:`\sum_i\tau_{ik}[\psi(\tfrac{\nu_k+p_i}2)-\ln\tfrac{\nu_k+p_i}2
+        +\ln u_{ik}-u_{ik}]`, i.e. :math:`\sum\tau(E[\ln w]-E[w])`, for the exact `nu` update
+        (marked by `aux['dof_exact']`). `batch_size` does not chunk this path (as in the complete-data one).
+        """
+        n_samples, d = X.shape
+        n_components = resp.shape[1]
+        kind, _ = self._missing_cov_repr()
+        blocks, p, u = self._missing_u(X)
+        nu = self.dof_.unsqueeze(0)
+
+        tau = resp
+        tau_u = tau * u
+        nk = tau.sum(dim=0)
+        m_k = tau_u.sum(dim=0)
+        Xhat = _missing.complete_rows(X, blocks, n_components)  # (n, K, d)
+        s1 = torch.einsum('nk,nkd->kd', tau_u, Xhat)
+        ybar = s1 / (m_k + 1e-20).unsqueeze(1)
+
+        base_type = self.covariance_type.replace('tied_', '', 1)
+        diff = Xhat - ybar.unsqueeze(0)
+        if base_type == 'full':
+            s2 = torch.einsum('nk,nkd,nke->kde', tau_u, diff, diff)
+        elif base_type == 'diag':
+            s2 = torch.einsum('nk,nkd->kd', tau_u, diff.pow(2))
+        else:  # spherical
+            s2 = torch.einsum('nk,nk->k', tau_u, diff.pow(2).sum(dim=2))
+        extra = _missing.conditional_cov_sum(blocks, tau, kind, d)
+        if base_type == 'spherical':
+            extra = extra.sum(dim=-1)
+        s2 = s2 + extra
+
+        half = (nu + p) / 2
+        e = torch.special.digamma(half) - torch.log(half) + torch.log(u) - u
+        aux = {
+            'tau_u_sum': m_k,
+            'log_u_minus_u': (tau * e).sum(dim=0),
+            'dof_exact': torch.ones((), dtype=X.dtype, device=X.device),
+        }
+        return SufficientStats(nk=nk, s1=s1, s2=s2, n_samples=n_samples, aux=aux)
+
+    # ===================================================================
     # M-step hooks
     # ===================================================================
-    def _compute_stats(self, X: torch.Tensor, resp: torch.Tensor, batch_size: Optional[int] = None) -> SufficientStats:
+    def _compute_stats(self, X: torch.Tensor, resp: torch.Tensor, batch_size: Optional[int] = None,
+                       feature_weights: Optional[torch.Tensor] = None) -> SufficientStats:
         r"""
         Accumulates the ECM statistics: :math:`s1 = \sum_i \tau_{ik} u_{ik} x_i`,
         :math:`s2 = \sum_i \tau_{ik} u_{ik} (x_i - \bar y_k)(x_i - \bar y_k)^T`
@@ -375,6 +597,10 @@ class StudentTMixture(BaseMixture):
         memory at once, so chunking rows would save only the final
         reduction, not the dominant cost.
         """
+        if feature_weights is not None:
+            return self._compute_stats_feature_weighted(X, resp, feature_weights)
+        if self._missing_active(X):
+            return self._compute_stats_missing(X, resp)
         n_samples, d = X.shape
         delta, _ = _mahalanobis_and_logdet(X, self.means_, self.covariances_, self.covariance_type)
         nu = self.dof_  # (K,)
@@ -406,6 +632,9 @@ class StudentTMixture(BaseMixture):
 
     def _m_step_from_stats(self, stats: SufficientStats):
         n_samples = stats.n_samples
+        if 'nk_feat' in stats.aux:
+            self._m_step_feature_weighted(stats)
+            return
         nk = stats.nk + 1e-20  # sum_i tau_ik
         m_k = stats.aux['tau_u_sum'] + 1e-20  # sum_i tau_ik u_ik
 
@@ -433,10 +662,24 @@ class StudentTMixture(BaseMixture):
                 cov = cov + self.reg_covar * eye
             elif base_type == 'diag':
                 cov = stats.s2 / denom.unsqueeze(1) + self.reg_covar
-            else:  # spherical
-                cov = stats.s2 / denom + self.reg_covar
+            else:  # spherical: sigma_k^2 = sum_i tau_ik u_ik ||x_i - mu_k||^2 / (d * denom_k)
+                cov = stats.s2 / (self.n_features * denom) + self.reg_covar
             self.covariances_ = cov
 
+        self._update_dof(stats, nk)
+
+    def _m_step_feature_weighted(self, stats: SufficientStats):
+        r"""
+        ECM M-step with entry weights (`'diag'`): :math:`m_{kj}=s1_{kj}/\sum_i\tau_{ik}u_{ik}w_{ij}` and
+        :math:`s_{kj}=s2_{kj}/\sum_i\tau_{ik}w_{ij}` (`'ecm'`) or divided by :math:`\sum_i\tau_{ik}u_{ik}w_{ij}` (`'ecme'`).
+        """
+        nk = stats.nk + 1e-20
+        nkf = stats.aux['nk_feat'] + 1e-20
+        mf = stats.aux['mf_feat'] + 1e-20
+        self.weights_ = (stats.nk / stats.n_samples).clamp(min=1e-20)
+        self.means_ = stats.s1 / mf
+        denom = nkf if self.scale_update == 'ecm' else mf
+        self.covariances_ = stats.s2 / denom + self.reg_covar
         self._update_dof(stats, nk)
 
     def _update_dof(self, stats: SufficientStats, nk: torch.Tensor):
@@ -445,15 +688,16 @@ class StudentTMixture(BaseMixture):
             return  # fixed dof: never updated
 
         log_u_minus_u = stats.aux['log_u_minus_u']
+        exact = 'dof_exact' in stats.aux  # incomplete data: textbook form, see `_solve_dof`
         if self.dof == 'per_component':
             c = log_u_minus_u / nk
-            self.dof_ = self._solve_dof(c, d)
+            self.dof_ = self._solve_dof(c, d, exact=exact)
         else:  # 'shared'
             c_shared = log_u_minus_u.sum() / nk.sum()
-            nu_shared = self._solve_dof(c_shared.unsqueeze(0), d)
+            nu_shared = self._solve_dof(c_shared.unsqueeze(0), d, exact=exact)
             self.dof_ = nu_shared.expand(self.n_components).clone()
 
-    def _solve_dof(self, c: torch.Tensor, d: int) -> torch.Tensor:
+    def _solve_dof(self, c: torch.Tensor, d: int, exact: bool = False) -> torch.Tensor:
         r"""
         Solve, elementwise over `c`'s shape,
 
@@ -466,12 +710,17 @@ class StudentTMixture(BaseMixture):
         `polygamma` for the derivative). Bisection alone would already be
         accurate enough in practice; the Newton polish tightens it per the
         plan's "bisection then Newton" spec.
+
+        With `exact=True` (incomplete data, where `c` already contains the
+        :math:`\psi((\nu_{old}+p_i)/2)-\ln((\nu_{old}+p_i)/2)` terms of each row's own
+        number of observed entries `p_i`) the last two terms are dropped:
+        :math:`1-\psi(\nu/2)+\ln(\nu/2)+c=0`.
         """
         def f(nu):
-            return (
-                1.0 - torch.special.digamma(nu / 2) + torch.log(nu / 2) + c
-                + torch.special.digamma((nu + d) / 2) - torch.log((nu + d) / 2)
-            )
+            val = 1.0 - torch.special.digamma(nu / 2) + torch.log(nu / 2) + c
+            if exact:
+                return val
+            return val + torch.special.digamma((nu + d) / 2) - torch.log((nu + d) / 2)
 
         lo = torch.full_like(c, self.dof_bounds[0])
         hi = torch.full_like(c, self.dof_bounds[1])
@@ -491,10 +740,9 @@ class StudentTMixture(BaseMixture):
         for _ in range(4):
             nu_cur = torch.exp(log_nu)
             f_val = f(nu_cur)
-            fprime = (
-                -0.5 * torch.special.polygamma(1, nu_cur / 2) + 1.0 / nu_cur
-                + 0.5 * torch.special.polygamma(1, (nu_cur + d) / 2) - 1.0 / (nu_cur + d)
-            )
+            fprime = -0.5 * torch.special.polygamma(1, nu_cur / 2) + 1.0 / nu_cur
+            if not exact:
+                fprime = fprime + 0.5 * torch.special.polygamma(1, (nu_cur + d) / 2) - 1.0 / (nu_cur + d)
             d_f_d_lognu = nu_cur * fprime
             step = f_val / (d_f_d_lognu - torch.sign(d_f_d_lognu) * 1e-20 - 1e-20)
             log_nu = torch.clamp(log_nu - step, log_lo, log_hi)
@@ -524,7 +772,8 @@ class StudentTMixture(BaseMixture):
 
         mean_params = K * d
         weight_params = K - 1
-        return int(cov_params + mean_params + weight_params + dof_params)
+        noise_params = 1 if self.noise else 0
+        return int(cov_params + mean_params + weight_params + dof_params + noise_params)
 
     def _sample_component(self, k: int, n: int) -> torch.Tensor:
         d = self.n_features
@@ -546,6 +795,77 @@ class StudentTMixture(BaseMixture):
         g = gamma.sample((n,)).to(device=self.device, dtype=self.dtype)
         return mean.unsqueeze(0) + z / torch.sqrt(g).unsqueeze(-1)
 
+    # ===================================================================
+    # Marginalising and conditioning (v0.5 item 1.3)
+    # ===================================================================
+    def marginal(self, dims) -> "StudentTMixture":
+        r"""
+        The marginal mixture over a subset of the coordinates. Exact: a
+        multivariate t marginal has the same degrees of freedom
+        :math:`\nu_k` and the restricted scale matrix
+        :math:`\Sigma_k[\text{dims},\text{dims}]`; weights, means and `dof_` are
+        carried over.
+
+        Parameters
+        ----------
+        dims : sequence of int
+            Distinct coordinates in ``[0, n_features)``; output coordinate
+            ``j`` is input coordinate ``dims[j]``.
+
+        Returns
+        -------
+        StudentTMixture
+            A new fitted model with the same `covariance_type`.
+        """
+        if self.noise:
+            raise NotImplementedError(
+                "marginal is not supported for noise=True models: the uniform noise component has no "
+                "counterpart after marginalising."
+            )
+        if not self.fitted_ or self.means_ is None:
+            raise RuntimeError("marginal requires a fitted model: call fit() first.")
+        K, d = self.means_.shape
+        dims = _validate_dims(dims, d, 'dims')
+        idx = torch.tensor(dims, dtype=torch.long, device=self.means_.device)
+        cov, t = self.covariances_, self.covariance_type
+        if t == 'full':
+            new_cov = cov[:, idx][:, :, idx]
+        elif t == 'diag':
+            new_cov = cov[:, idx]
+        elif t == 'spherical':
+            new_cov = cov.clone()
+        else:  # 'tied_full'
+            new_cov = cov[idx][:, idx]
+        model = StudentTMixture(
+            n_components=K, n_features=len(dims), covariance_type=t, dof=self.dof, dof_init=self.dof_init,
+            dof_bounds=self.dof_bounds, scale_update=self.scale_update, reg_covar=self.reg_covar,
+            missing=self.missing, device=self.device,
+        )
+        model.dtype = self.dtype
+        model.weights_ = self.weights_.clone()
+        model.means_ = self.means_[:, idx].clone()
+        model.covariances_ = new_cov.clone()
+        model.dof_ = self.dof_.clone()
+        model.fitted_ = True
+        model.converged_ = True
+        model.n_components_ = K
+        model.n_iter_ = 0
+        model.lower_bound_ = float('nan')
+        return model
+
+    def condition(self, x_obs, obs_dims):
+        r"""
+        Not implemented: the conditional of a multivariate t given observed
+        coordinates is a t with :math:`\nu_k + d_o` degrees of freedom and a
+        scale inflated by :math:`(\nu_k + \delta_o)/(\nu_k + d_o)` that depends
+        on the sample, so it is not a member of `ConditionalGaussianMixture`.
+        """
+        raise NotImplementedError(
+            "condition is not implemented for StudentTMixture: the conditional t needs adjusted degrees of freedom "
+            "(nu + d_obs) and a per-sample scale ((nu + delta_obs)/(nu + d_obs)). Use marginal(), or "
+            "a GaussianMixture for Gaussian mixture regression."
+        )
+
     def sample_weights(self, X: torch.Tensor) -> torch.Tensor:
         r"""
         The robustness weight :math:`u_{i\hat z_i}` at each sample's
@@ -562,6 +882,12 @@ class StudentTMixture(BaseMixture):
         -------
         torch.Tensor, shape (n_samples,)
         """
+        if self._missing_active(X.to(self.device)):
+            X = X.to(self.device)
+            resp, _ = self._e_step(X)
+            z_hat = torch.argmax(resp, dim=1)
+            _, _, u = self._missing_u(X)
+            return u[torch.arange(X.shape[0], device=self.device), z_hat]
         X = X.to(self.device)
         resp, _ = self._e_step(X)
         z_hat = torch.argmax(resp, dim=1)
@@ -599,6 +925,14 @@ class StudentTMixture(BaseMixture):
             'sem_estimate': self.sem_estimate,
             'verbose': self.verbose,
             'verbose_interval': self.verbose_interval,
+            'noise': self.noise,
+            'noise_volume': self.noise_volume,
+            'noise_prior': self.noise_prior,
+            'noise_weight_': self.noise_weight_,
+            'noise_bounds_': self.noise_bounds_,
+            'missing': self.missing,
+            'frozen_components': list(self.frozen_components),
+            **self._semisupervised_state(),
             'weights_': self.weights_,
             'means_': self.means_,
             'covariances_': self.covariances_,
@@ -633,7 +967,14 @@ class StudentTMixture(BaseMixture):
             temperature=state['temperature'], convergence=state['convergence'], step_size=state['step_size'],
             sem_burn_in=state['sem_burn_in'], sem_estimate=state['sem_estimate'],
             verbose=state['verbose'], verbose_interval=state['verbose_interval'], device=device,
+            noise=state.get('noise', False), noise_volume=state.get('noise_volume', 'bbox'),
+            noise_prior=state.get('noise_prior', 0.05), missing=state.get('missing', 'error'),
+            frozen_components=state.get('frozen_components', ()),
+            **cls._semisupervised_kwargs(state),
         )
+        model.noise_weight_ = state.get('noise_weight_')
+        model.noise_bounds_ = state.get('noise_bounds_')
+        model._load_semisupervised_state(state)
         model.weights_ = state['weights_']
         model.means_ = state['means_']
         model.covariances_ = state['covariances_']
@@ -651,6 +992,17 @@ class StudentTMixture(BaseMixture):
 
     def load_state_dict(self, state_dict: dict):
         r"""In-place counterpart to `load`: restores this instance's fitted state from `state_dict`."""
+        self.noise = state_dict.get('noise', False)
+        self.noise_volume = state_dict.get('noise_volume', 'bbox')
+        self.noise_prior = state_dict.get('noise_prior', 0.05)
+        self.missing = state_dict.get('missing', 'error')
+        self.frozen_components = state_dict.get('frozen_components', ())
+        self._load_semisupervised_state(state_dict)
+        for name in ('covariance_type', 'dof', 'dof_init', 'dof_bounds', 'scale_update', 'init_covariances', 'max_iter', 'tol', 'reg_covar', 'n_init', 'init_means', 'init_weights', 'random_state', 'warm_start', 'algorithm', 'batch_size', 'temperature', 'convergence', 'step_size', 'sem_burn_in', 'sem_estimate', 'verbose', 'verbose_interval'):
+            if name in state_dict:
+                setattr(self, name, state_dict[name])
+        self.noise_weight_ = state_dict.get('noise_weight_')
+        self.noise_bounds_ = state_dict.get('noise_bounds_')
         self.weights_ = state_dict['weights_']
         self.means_ = state_dict['means_']
         self.covariances_ = state_dict['covariances_']

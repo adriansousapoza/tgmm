@@ -595,6 +595,308 @@ def plot_gmm(
 # Helper functions
 ##############################################################################
 
+##############################################################################
+# von Mises-Fisher visualisation
+##############################################################################
+
+_trapezoid = getattr(np, 'trapezoid', None) or np.trapz  # np.trapz was renamed in NumPy 2
+
+
+def vmf_angle_density(kappa, n_features, theta):
+    r"""
+    Density of the *angle* :math:`\theta=\arccos(\mu^\top x)` between a
+    point drawn from a von Mises-Fisher distribution with concentration
+    ``kappa`` on :math:`S^{d-1}` and its mean direction :math:`\mu`:
+
+    .. math::
+        f(\theta)\;\propto\;e^{\kappa\cos\theta}\,\sin^{d-2}\theta,
+        \qquad \theta\in[0,\pi],
+
+    normalised numerically to integrate to 1. (The :math:`\sin^{d-2}\theta`
+    factor is the surface-area element of the sphere: in high dimension it
+    pushes the typical angle well away from 0 even for large ``kappa``.)
+
+    Parameters
+    ----------
+    kappa : float
+        Concentration, ``>= 0``.
+    n_features : int
+        Ambient dimension ``d >= 2``.
+    theta : array-like
+        Angles in radians at which to evaluate the density.
+
+    Returns
+    -------
+    numpy.ndarray
+        ``f(theta)``, same shape as ``theta``.
+    """
+    theta = np.asarray(theta, dtype=np.float64)
+    grid = np.linspace(0.0, np.pi, 20001)
+    log_f = kappa * (np.cos(grid) - 1.0) + (n_features - 2) * np.log(np.clip(np.sin(grid), 1e-300, None))
+    f = np.exp(log_f - log_f.max())
+    f /= _trapezoid(f, grid)
+    return np.interp(theta, grid, f)
+
+
+def vmf_cap_angle(kappa, n_features, mass):
+    r"""
+    Angular radius :math:`\theta_m` of the spherical cap around the mean
+    direction that contains probability ``mass`` of a von Mises-Fisher
+    distribution: :math:`P(\theta\le\theta_m)=m`. The vMF analogue of a
+    confidence ellipse.
+    """
+    if not 0.0 < mass < 1.0:
+        raise ValueError(f"mass must be in (0, 1), got {mass}")
+    grid = np.linspace(0.0, np.pi, 20001)
+    f = vmf_angle_density(kappa, n_features, grid)
+    cdf = np.concatenate([[0.0], np.cumsum(0.5 * (f[1:] + f[:-1]) * np.diff(grid))])
+    cdf /= cdf[-1]
+    return float(np.interp(mass, cdf, grid))
+
+
+def _vmf_colors(vmf, X, true_labels, color_by_cluster, n_clusters_hint):
+    if true_labels is not None:
+        labels = ensure_tensor_on_cpu(true_labels).long().numpy()
+    elif vmf is not None and color_by_cluster:
+        labels = ensure_tensor_on_cpu(vmf.predict(torch.as_tensor(X, dtype=vmf.means_.dtype, device=vmf.means_.device))).long().numpy()
+    else:
+        return None, None
+    n_colors = max(int(labels.max()) + 1, n_clusters_hint)
+    palette = create_colormap(CATEGORICAL_PALETTE, n_colors)
+    return labels, palette
+
+
+def plot_vmf(
+    X,
+    vmf=None,
+    ax=None,
+    true_labels=None,
+    color_by_cluster=True,
+    show_means=True,
+    show_caps=True,
+    cap_masses=(0.5, 0.9),
+    point_size=12,
+    point_alpha=0.6,
+    title=None,
+    legend_labels=None,
+    show_legend=True,
+    view_elev=20,
+    view_azim=35,
+):
+    r"""
+    Plot unit-norm data and a fitted `VonMisesFisherMixture` on the circle
+    (``n_features=2``) or the sphere (``n_features=3``) -- the vMF
+    counterpart of `plot_gmm`.
+
+    Points are coloured by predicted component (or by ``true_labels`` if
+    given). Each component's mean direction :math:`\mu_k` is drawn as an
+    arrow from the origin, and its concentration :math:`\kappa_k` as nested
+    **spherical caps** around it -- the vMF analogue of confidence ellipses:
+    the cap of angular radius :math:`\theta_m` contains probability ``m`` of
+    that component (see `vmf_cap_angle`). On the circle the caps are arcs
+    drawn just outside the unit circle; on the sphere they are circles of
+    constant angular distance from :math:`\mu_k`.
+
+    Parameters
+    ----------
+    X : array-like or torch.Tensor, shape (n, 2) or (n, 3)
+        Rows should have unit L2 norm (they are drawn as given).
+    vmf : VonMisesFisherMixture, optional
+        A fitted model (``means_``, ``kappa_``, ``predict``). Without it only
+        the points are drawn (coloured by ``true_labels`` if given).
+    ax : matplotlib Axes, optional
+        For ``n_features=3`` it must be a 3-D axes
+        (``fig.add_subplot(projection='3d')``); if omitted a new figure /
+        axes of the right kind is created.
+    true_labels : array-like, optional
+        Colour points by these labels instead of the model's predictions.
+    color_by_cluster : bool, default=True
+        Colour by predicted component (needs ``vmf``).
+    show_means : bool, default=True
+        Draw each :math:`\mu_k` as an arrow plus a marker where it pierces
+        the sphere.
+    show_caps : bool, default=True
+        Draw the concentration caps (needs ``vmf``).
+    cap_masses : sequence of float, default=(0.5, 0.9)
+        Probability mass enclosed by each cap, in ``(0, 1)``.
+    point_size, point_alpha : float
+        Marker styling.
+    title : str, optional
+    legend_labels : list of str, optional
+        One label per component (default ``Component 1`` ...).
+    show_legend : bool, default=True
+    view_elev, view_azim : float
+        Camera angles for the 3-D plot.
+
+    Returns
+    -------
+    matplotlib Axes
+    """
+    X_t = ensure_tensor_on_cpu(X, dtype=torch.float64)
+    d = X_t.shape[1]
+    if d not in (2, 3):
+        raise ValueError(
+            f"plot_vmf draws the circle (n_features=2) or sphere (n_features=3); got n_features={d}. "
+            "For higher dimensions use plot_vmf_cosine."
+        )
+    Xn = X_t.numpy()
+    K_hint = int(vmf.n_components) if vmf is not None else 0
+    labels, palette = _vmf_colors(vmf, X_t, true_labels, color_by_cluster, K_hint)
+
+    if d == 3:
+        if ax is None:
+            fig = plt.figure(figsize=(6.5, 6))
+            ax = fig.add_subplot(projection='3d')
+        elif not hasattr(ax, 'get_zlim'):
+            raise ValueError("For n_features=3, `ax` must be a 3-D axes: fig.add_subplot(projection='3d').")
+    elif ax is None:
+        _, ax = plt.subplots(figsize=(5.5, 5.5))
+
+    means = kappas = None
+    if vmf is not None:
+        means = ensure_tensor_on_cpu(vmf.means_, dtype=torch.float64).numpy()
+        kappas = ensure_tensor_on_cpu(vmf.kappa_, dtype=torch.float64).numpy()
+    K = len(means) if means is not None else (int(labels.max()) + 1 if labels is not None else 0)
+
+    grey = '#898781'
+    if d == 2:
+        t = np.linspace(0, 2 * np.pi, 400)
+        ax.plot(np.cos(t), np.sin(t), color=grey, lw=1, zorder=1)
+        ax.set_aspect('equal')
+        lim = 1.35 if (show_caps and vmf is not None) else 1.2
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_xlabel('$x_1$')
+        ax.set_ylabel('$x_2$')
+    else:
+        u, v = np.mgrid[0:2 * np.pi:40j, 0:np.pi:20j]
+        ax.plot_wireframe(np.cos(u) * np.sin(v), np.sin(u) * np.sin(v), np.cos(v),
+                          color='#d9d8d0', lw=0.4, alpha=0.6)
+        ax.set_box_aspect((1, 1, 1))
+        ax.set_xlim(-1.1, 1.1); ax.set_ylim(-1.1, 1.1); ax.set_zlim(-1.1, 1.1)
+        ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$'); ax.set_zlabel('$x_3$')
+        ax.view_init(elev=view_elev, azim=view_azim)
+
+    def _scatter(pts, **kw):
+        return ax.scatter(*[pts[:, j] for j in range(d)], **kw)
+
+    handles = []
+    names = legend_labels or [f'Component {k + 1}' for k in range(max(K, 1))]
+    if labels is None:
+        _scatter(Xn, s=point_size, alpha=point_alpha, color='#2a78d6', zorder=2)
+    else:
+        for k in range(len(palette)):
+            m = labels == k
+            if m.any():
+                _scatter(Xn[m], s=point_size, alpha=point_alpha, color=palette[k], zorder=2)
+
+    if means is not None:
+        for k in range(K):
+            color = palette[k] if palette is not None else CATEGORICAL_PALETTE[k % len(CATEGORICAL_PALETTE)]
+            mu = means[k]
+            if show_caps:
+                for rank, m in enumerate(cap_masses):
+                    theta = vmf_cap_angle(float(kappas[k]), d, m)
+                    if d == 2:
+                        phi0 = np.arctan2(mu[1], mu[0])
+                        phi = np.linspace(phi0 - theta, phi0 + theta, 100)
+                        r = 1.05 + 0.06 * rank
+                        ax.plot(r * np.cos(phi), r * np.sin(phi), color=color, lw=3, solid_capstyle='butt', zorder=3)
+                    else:
+                        a = np.cross(mu, [1.0, 0.0, 0.0] if abs(mu[0]) < 0.9 else [0.0, 1.0, 0.0])
+                        a /= np.linalg.norm(a)
+                        b = np.cross(mu, a)
+                        phi = np.linspace(0, 2 * np.pi, 120)[:, None]
+                        ring = np.cos(theta) * mu + np.sin(theta) * (np.cos(phi) * a + np.sin(phi) * b)
+                        ax.plot(ring[:, 0], ring[:, 1], ring[:, 2], color=color, lw=2.0, zorder=3)
+            if show_means:
+                if d == 2:
+                    ax.annotate('', xy=mu, xytext=(0, 0),
+                                arrowprops=dict(arrowstyle='-|>', color=color, lw=2), zorder=4)
+                else:
+                    ax.plot([0, mu[0]], [0, mu[1]], [0, mu[2]], color=color, lw=2.5, zorder=4)
+                _scatter(mu[None, :], s=60, color=color, edgecolor='black', linewidth=1.2, zorder=5)
+            handles.append(plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+                                      markersize=8, label=f'{names[k]} ($\\kappa$={kappas[k]:.1f})'))
+
+    if title:
+        ax.set_title(title)
+    if show_legend and handles:
+        ax.legend(handles=handles, loc='upper right')
+    return ax
+
+
+def plot_vmf_cosine(X, vmf, ax=None, bins=40, title=None, legend_labels=None, show_legend=True):
+    r"""
+    Compare the data's angular distribution with the fitted von Mises-Fisher
+    mixture, for **any** dimension.
+
+    For every component :math:`k`, the angle
+    :math:`\theta_i=\arccos(\mu_k^\top x_i)` of its assigned points to its
+    mean direction is histogrammed (filled) and overlaid with the fitted
+    distribution's angle density :math:`f_{\kappa_k}(\theta)\propto
+    e^{\kappa_k\cos\theta}\sin^{d-2}\theta` (dashed; see `vmf_angle_density`).
+    A good fit has the histogram under the curve; note how in high dimension
+    the typical angle sits far from 0 even when :math:`\kappa` is large.
+
+    Parameters
+    ----------
+    X : array-like or torch.Tensor, shape (n, d)
+        Unit-norm rows.
+    vmf : VonMisesFisherMixture
+        A fitted model.
+    ax : matplotlib Axes, optional
+    bins : int, default=40
+    title : str, optional
+    legend_labels : list of str, optional
+    show_legend : bool, default=True
+
+    Returns
+    -------
+    matplotlib Axes
+    """
+    if ax is None:
+        _, ax = plt.subplots(figsize=(7, 4.5))
+    X_t = ensure_tensor_on_cpu(X, dtype=torch.float64)
+    means = ensure_tensor_on_cpu(vmf.means_, dtype=torch.float64)
+    kappas = ensure_tensor_on_cpu(vmf.kappa_, dtype=torch.float64).numpy()
+    labels = ensure_tensor_on_cpu(vmf.predict(X_t.to(device=vmf.means_.device, dtype=vmf.means_.dtype))).long().numpy()
+    d = X_t.shape[1]
+    K = means.shape[0]
+    palette = create_colormap(CATEGORICAL_PALETTE, K)
+    names = legend_labels or [f'Component {k + 1}' for k in range(K)]
+    all_theta = []
+    for k in range(K):
+        m = labels == k
+        if not m.any():
+            continue
+        cos = (X_t[m] @ means[k]).clamp(-1.0, 1.0)
+        all_theta.append(torch.arccos(cos).numpy())
+    lo = min(t.min() for t in all_theta)
+    hi = max(t.max() for t in all_theta)
+    pad = 0.15 * (hi - lo + 1e-9)
+    grid = np.linspace(max(lo - pad, 0.0), min(hi + pad, np.pi), 600)
+    i = 0
+    for k in range(K):
+        m = labels == k
+        if not m.any():
+            continue
+        theta = all_theta[i]; i += 1
+        ax.hist(np.degrees(theta), bins=bins, density=True, color=palette[k], alpha=0.45,
+                label=f'{names[k]} ($\\kappa$={kappas[k]:.1f})')
+        # density per degree = per-radian density * (pi/180)
+        ax.plot(np.degrees(grid), vmf_angle_density(float(kappas[k]), d, grid) * np.pi / 180.0,
+                color=palette[k], ls='--', lw=2)
+    ax.plot([], [], color='#52514e', ls='--', lw=2, label='fitted vMF density')
+    ax.set_xlabel('angle to assigned mean direction (degrees)')
+    ax.set_ylabel('density')
+    if title:
+        ax.set_title(title)
+    if show_legend:
+        ax.legend()
+    return ax
+
+
 def dynamic_figsize(rows, cols, base_width=7, base_height=4.5):
     """
     Scale a `plt.subplots` figure size to the grid shape, so each subplot

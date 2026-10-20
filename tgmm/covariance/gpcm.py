@@ -47,7 +47,12 @@ class GPCMResult:
         Scalar (E-volume models) or shape `(K,)` (V-volume models).
     shape : torch.Tensor
         Shape `(d,)` (E-shape models) or `(K, d)` (V-shape models).
-        Diagonal of `A_k`, determinant 1.
+        Diagonal of `A_k`, determinant 1 for the 8 codes `GaussianMixture`
+        actually uses this for (`VEI`, `EVI`, `VEE`, `EVE`, `EEV`, `VVE`,
+        `VEV`, `EVV`). The 6 classic codes (`EII`, `VII`, `EEI`, `VVI`,
+        `EEE`, `VVV`) are also available through `mstep_gpcm`, but there
+        `volume` is 1 and `shape` holds the unnormalized variances /
+        eigenvalues (the decomposition is trivially absorbed into `shape`).
     orientation : torch.Tensor
         Shape `(d, d)` (E- or I-orientation models) or `(K, d, d)`
         (V-orientation models).
@@ -247,6 +252,7 @@ def mstep_gpcm(
             det_B = torch.linalg.det(B).clamp_min(1e-300)
             C = B / det_B.pow(1.0 / d)
 
+            C_inv = torch.linalg.inv(C)  # J is evaluated at the *updated* (lam_k, C)
             J = (nk * d * torch.log(lam_k)).sum() + torch.einsum('kij,ji->k', W, C_inv).div(lam_k).sum()
             if prev_J is not None and abs(prev_J - J) < gpcm_tol * abs(prev_J).clamp_min(1e-300):
                 break

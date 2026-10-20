@@ -1,8 +1,11 @@
 # Plotting and Visualization
 
-The `tgmm.plotting` module provides one flexible function, `plot_gmm`, for visualizing 2D GMM
-clustering results, plus two small helpers: `dynamic_figsize` and
-`match_predicted_to_true_labels`.
+The `tgmm.plotting` module provides `plot_gmm` for visualizing 2D mixture-model clustering results,
+[`plot_vmf` and `plot_vmf_cosine`](#von-mises-fisher-mixtures) for directional (unit-norm) data, plus a few small helpers: `dynamic_figsize`, `match_predicted_to_true_labels`,
+`confidence_ellipse_std_devs` and `gmm_proxy`. `plot_gmm` accepts any fitted `tgmm` mixture (it only needs
+`means_`, `covariances_`, `weights_`, `covariance_type` and `predict`), including every GPCM covariance
+code, and the module exports the colour constants `CATEGORICAL_PALETTE`, `SEQUENTIAL_CMAP` and
+`STATUS_CRITICAL` used as its defaults.
 
 ## Overview
 
@@ -84,6 +87,19 @@ plot_gmm(
     ellipse_alpha=0.3,
     ellipse_fill=True
 )
+```
+
+### Ellipses that enclose a given probability
+
+`ellipse_std_devs` is in units of standard deviations (Mahalanobis radius). In $d=2$ a radius of $r$ encloses
+$1-e^{-r^2/2}$ of a Gaussian's mass -- 39% for $r=1$, 86.5% for $r=2$, 98.9% for $r=3$ -- not the 68/95/99.7% of the 1-D rule.
+To draw ellipses with a chosen coverage $q$, convert it through the $\chi^2_2$ quantile, $r=\sqrt{\chi^2_{2,q}}$,
+with `confidence_ellipse_std_devs`:
+
+```python
+from tgmm import confidence_ellipse_std_devs
+
+plot_gmm(X, gmm, ellipse_std_devs=confidence_ellipse_std_devs([0.5, 0.95]))  # 50% and 95% regions
 ```
 
 ## Initial vs Final Means
@@ -201,3 +217,54 @@ and a fitted `gmm` are supplied.
 ## Complete API Reference
 
 For full details on `plot_gmm` and its helpers, see the [API Reference](../api/plotting.md).
+
+## von Mises-Fisher Mixtures
+
+`plot_gmm` draws Euclidean ellipses, so it cannot represent a
+[`VonMisesFisherMixture`](other-mixture-families.md#vonmisesfishermixture-directional-data), whose data live on
+the unit sphere and whose components are described by a mean *direction* $\mu_k$ and a concentration $\kappa_k$.
+Two functions cover that case.
+
+### `plot_vmf`: the circle ($d=2$) and the sphere ($d=3$)
+
+```python
+from tgmm import VonMisesFisherMixture, plot_vmf
+
+vmf = VonMisesFisherMixture(n_components=3).fit(X_unit)   # X_unit: (n, 3), rows of unit norm
+
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')                      # a 3-D axes for d=3; omit `ax` to create one
+plot_vmf(X_unit, vmf, ax=ax, cap_masses=(0.5, 0.9))
+```
+
+Points are coloured by predicted component (or by `true_labels=`). Each mean direction is an arrow from the
+origin, and each concentration is drawn as nested **spherical caps** -- the vMF analogue of confidence
+ellipses. A cap of angular radius $\theta_m$ around $\mu_k$ contains probability $m$ of the component, where
+$\theta_m$ solves $P(\theta\le\theta_m)=m$ under the angle density
+
+$$
+f_\kappa(\theta)\;\propto\;e^{\kappa\cos\theta}\sin^{d-2}\theta,\qquad\theta=\arccos(\mu^{\top}x)\in[0,\pi].
+$$
+
+(The $\sin^{d-2}\theta$ factor is the surface area of the ring at angle $\theta$; the density is normalised
+numerically.) On the circle the caps are arcs just outside the unit circle, on the sphere they are rings of
+constant angular distance from $\mu_k$. `show_means`, `show_caps`, `cap_masses`, `legend_labels`,
+`view_elev` and `view_azim` control the rest.
+
+### `plot_vmf_cosine`: any dimension
+
+```python
+from tgmm import plot_vmf_cosine
+
+plot_vmf_cosine(X_embeddings, vmf)   # works for d = 768 just as for d = 5
+```
+
+For every component it histograms the angle between each assigned point and the component's mean direction
+and overlays the fitted $f_{\kappa_k}(\theta)$ (dashed). If the vMF assumption holds, histogram and curve
+agree. In high dimension the typical angle is far from $0^\circ$ even for large $\kappa$: the mode solves
+$\kappa\sin^2\theta=(d-2)\cos\theta$.
+
+The helpers `vmf_angle_density(kappa, n_features, theta)` and `vmf_cap_angle(kappa, n_features, mass)` expose the
+angle density and cap radius directly. See the
+[von Mises-Fisher tutorial](../notebooks/17_von_mises_fisher.ipynb) for a gallery of vMF distributions on the
+circle and the sphere and worked examples of all three.

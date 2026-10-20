@@ -21,15 +21,17 @@ arguments -- its own `__init__`, unchanged by this phase, remains the
 sole source of truth for its ~90-attribute configuration.
 """
 import math
+import numbers
 import warnings
 from abc import ABC, abstractmethod
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from ..stats import SufficientStats
+from . import missing as _missing
 
 _VALID_ALGORITHMS = ('em', 'cem', 'sem', 'saem')
 _VALID_CONVERGENCE = ('relative', 'aitken')
@@ -73,6 +75,10 @@ class BaseMixture(nn.Module, ABC):
         over the other components according to its own unclamped
         posterior -- a knob for labels that might themselves be noisy.
         `1.0` (default) fully clamps labeled rows to their class block.
+    frozen_components : sequence of int, default=()
+        Indices of components whose per-component parameters (`means_`, `covariances_`,
+        `dof_`, `kappa_`) are held at their initial values for the whole fit; their mixing
+        weights still update. See `docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md`.
     """
 
     def __init__(
@@ -97,6 +103,12 @@ class BaseMixture(nn.Module, ABC):
         components_per_class=1,
         unlabeled_weight: float = 1.0,
         label_confidence: float = 1.0,
+        noise: bool = False,
+        noise_volume='bbox',
+        noise_prior: float = 0.05,
+        noise_init=None,
+        missing: str = 'error',
+        frozen_components: Sequence[int] = (),
         verbose: bool = False,
         verbose_interval: int = 10,
         device: Optional[str] = None,
@@ -163,6 +175,10 @@ class BaseMixture(nn.Module, ABC):
         self.classes_ = None
         self.class_of_component_ = None
 
+        self._init_noise(noise, noise_volume, noise_prior, noise_init)
+        self._init_missing(missing)
+        self._init_frozen(frozen_components)
+
         # Optional callable(X, resp_or_None), called once right after
         # _allocate_parameters (with resp=None) and once after every M-step
         # (with the resp actually used) during semi-supervised fitting
@@ -197,6 +213,400 @@ class BaseMixture(nn.Module, ABC):
         self.n_empty_components_ = 0
         self._online_running_stats_ = None
         self._online_step_count_ = 0
+
+    # ===================================================================
+    # Frozen components and sample weights (v0.5 item 1.4). See
+    # docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md.
+    # ===================================================================
+    _fit_sw = None        # row weights (n,) during a weighted fit, else None
+    _fit_fw = None        # per-feature weights (n, d) during a per-feature-weighted fit, else None
+    _fit_n_eff = None     # sum of the row weights during a weighted fit
+    _fw_cur = None        # the chunk of `_fit_fw` the current E-step chunk uses
+
+    @property
+    def frozen_components(self) -> Tuple[int, ...]:
+        r"""Sorted indices of the components held fixed (see the constructor argument)."""
+        return self.__dict__.get('_frozen_components', ())
+
+    @frozen_components.setter
+    def frozen_components(self, value):
+        self._init_frozen(value)
+
+    def _init_frozen(self, frozen_components):
+        r"""Validate (indices distinct integers in ``[0, K)``) and store `frozen_components`; then let the
+        family reject the configurations it cannot freeze (`_check_frozen_supported`)."""
+        if frozen_components is None:
+            frozen_components = ()
+        try:
+            items = list(frozen_components)
+        except TypeError:
+            raise TypeError(f"frozen_components must be a sequence of component indices, got {frozen_components!r}.")
+        for item in items:
+            is_int = isinstance(item, numbers.Integral) and not isinstance(item, bool)
+            is_int_tensor = torch.is_tensor(item) and item.dim() == 0 and not torch.is_floating_point(item)
+            if not (is_int or is_int_tensor):
+                raise ValueError(f"frozen_components must contain integers, got {item!r}.")
+        idx = tuple(sorted(int(i) for i in items))
+        if len(set(idx)) != len(idx):
+            raise ValueError(f"frozen_components must not contain duplicates, got {frozen_components!r}.")
+        if idx:
+            if self.n_components is None:
+                raise ValueError(
+                    "frozen_components requires a fixed n_components (it is not available in Gibbs mode, "
+                    "n_components=None)."
+                )
+            if idx[0] < 0 or idx[-1] >= self.n_components:
+                raise ValueError(
+                    f"frozen_components indices must lie in [0, {self.n_components}), got {frozen_components!r}."
+                )
+        self.__dict__['_frozen_components'] = idx
+        if idx and self.__dict__.get('_frozen_ready', False):
+            self._check_frozen_supported()
+
+    def _check_frozen_supported(self):
+        r"""Family hook: raise `ValueError` if the current configuration cannot hold a component fixed
+        (a parameter shared across components). Called when `frozen_components` is set and at fit time."""
+
+    def _frozen_mask(self) -> torch.Tensor:
+        mask = torch.zeros(self.n_components, dtype=torch.bool, device=self.device)
+        if self.frozen_components:
+            mask[list(self.frozen_components)] = True
+        return mask
+
+    def _frozen_param_names(self):
+        K = self.n_components
+        names = []
+        for name in ('means_', 'covariances_', 'dof_', 'kappa_'):
+            value = getattr(self, name, None)
+            if torch.is_tensor(value) and value.dim() >= 1 and value.shape[0] == K:
+                names.append(name)
+        return names
+
+    def _m_step_frozen(self, stats: SufficientStats):
+        r"""`_m_step_from_stats`, then restore the frozen components' per-component parameters (the mixing
+        weights, and the noise weight, are left as updated)."""
+        frozen = self.frozen_components
+        if not frozen:
+            self._m_step_from_stats(stats)
+            return
+        idx = torch.tensor(frozen, dtype=torch.long, device=self.device)
+        saved = {name: getattr(self, name)[idx].clone() for name in self._frozen_param_names()}
+        self._m_step_from_stats(stats)
+        for name, value in saved.items():
+            getattr(self, name)[idx] = value
+
+    # ---- sample weights -------------------------------------------------
+    def _feature_weights_supported(self) -> bool:
+        r"""Family hook: whether `sample_weight` of shape `(n, d)` is supported (per-feature factorisation)."""
+        return False
+
+    def _has_priors(self) -> bool:
+        return False
+
+    def _prepare_sample_weight(self, sample_weight, X: torch.Tensor, labels):
+        r"""Validate `sample_weight` and set the per-fit weight context. Returns the row-keep mask
+        (rows with weight > 0, for initialisation) or `None`."""
+        n, d = X.shape
+        w = torch.as_tensor(sample_weight)
+        if not torch.is_floating_point(w):
+            w = w.to(torch.get_default_dtype())
+        w = w.to(device=self.device, dtype=X.dtype)
+        if w.dim() not in (1, 2) or w.shape[0] != n or (w.dim() == 2 and w.shape[1] != d):
+            raise ValueError(
+                f"sample_weight must have shape (n_samples,) = ({n},) or (n_samples, n_features) = ({n}, {d}), "
+                f"got {tuple(w.shape)}."
+            )
+        if not bool(torch.isfinite(w).all()):
+            raise ValueError("sample_weight must be finite.")
+        if bool((w < 0).any()):
+            raise ValueError("sample_weight must be non-negative.")
+        if not bool(w.sum() > 0):
+            raise ValueError("sample_weight must have a positive sum.")
+        if labels is not None:
+            raise NotImplementedError("sample_weight is not supported together with labels=... (semi-supervised fitting).")
+        if self.algorithm in ('em', 'cem') and self.step_size is not None:
+            raise NotImplementedError("sample_weight is not supported with online EM (step_size set).")
+        if w.dim() == 2:
+            if not self._feature_weights_supported():
+                raise ValueError(
+                    f"per-feature sample_weight (shape (n_samples, n_features)) is not supported by this "
+                    f"{type(self).__name__} configuration: the statistics must factorise per feature "
+                    "(GaussianMixture / StudentTMixture with a diagonal covariance, GaussianMixture 'spherical'). "
+                    "Use sample_weight of shape (n_samples,) instead."
+                )
+            if self.noise:
+                raise NotImplementedError("per-feature sample_weight cannot be combined with noise=True.")
+            if self.missing == 'em':
+                raise NotImplementedError("per-feature sample_weight cannot be combined with missing='em'.")
+            if self._has_priors():
+                raise NotImplementedError(
+                    "per-feature sample_weight supports maximum likelihood only (no weight / mean / covariance priors)."
+                )
+        if bool((w == 1).all()):
+            return None  # all-ones is exactly the unweighted fit
+        if w.dim() == 1:
+            self._fit_sw = w
+            self._fit_n_eff = float(w.sum().item())
+            return w > 0
+        self._fit_fw = w
+        return None
+
+    def _clear_sample_weight(self):
+        self._fit_sw = None
+        self._fit_fw = None
+        self._fit_n_eff = None
+        self._fw_cur = None
+
+    def _mean_ll(self, log_prob_norm: torch.Tensor) -> float:
+        r"""Mean log-likelihood of a fit's E-step: weighted by the row weights when present."""
+        sw = self._fit_sw
+        if sw is None or sw.shape[0] != log_prob_norm.shape[0]:
+            return log_prob_norm.mean().item()
+        return ((sw * log_prob_norm).sum() / sw.sum()).item()
+
+    def _fit_stats(self, X: torch.Tensor, resp_k: torch.Tensor) -> SufficientStats:
+        r"""Sufficient statistics of the current fit: row weights scale the responsibilities and the effective
+        sample count; per-feature weights are passed to the family's `_compute_stats`."""
+        sw = self._fit_sw
+        if sw is not None:
+            resp_k = resp_k * sw.unsqueeze(1)
+        if self._fit_fw is None:
+            stats = self._compute_stats(X, resp_k, batch_size=self.batch_size)
+        else:
+            stats = self._compute_stats(X, resp_k, batch_size=self.batch_size, feature_weights=self._fit_fw)
+        if sw is not None:
+            stats.n_samples = self._fit_n_eff
+        return stats
+
+    # ===================================================================
+    # Missing values (v0.5 item 1.2). See
+    # docs/superpowers/specs/2026-10-15-v05-missing-values-design.md.
+    # With missing='error' (default) NaN input raises; with missing='em' (families
+    # that set `_supports_missing`) NaN marks missing-at-random entries. On data
+    # without NaN both settings take exactly the same code path.
+    # ===================================================================
+    _supports_missing = False
+
+    def _init_missing(self, missing):
+        r"""Validate and store `missing`; reject combinations the EM-with-missing-values path cannot serve."""
+        if missing not in ('error', 'em'):
+            raise ValueError(f"missing must be 'error' or 'em', got {missing!r}.")
+        self.missing = missing
+        if missing != 'em':
+            return
+        if not self._supports_missing:
+            raise ValueError(
+                f"missing='em' is not supported by {type(self).__name__} (it is available for GaussianMixture "
+                "and StudentTMixture)."
+            )
+        if self.noise:
+            raise NotImplementedError(
+                "missing='em' cannot be combined with noise=True: the noise density needs the volume of each "
+                "row's observed subspace, which is not supported."
+            )
+        if self.algorithm in ('em', 'cem') and self.step_size is not None:
+            raise NotImplementedError(
+                "missing='em' does not support online EM (step_size set); use batch_size alone or algorithm='saem'."
+            )
+
+    def _missing_active(self, X: torch.Tensor) -> bool:
+        r"""True if `missing='em'` and `X` actually contains NaN (otherwise the ordinary path runs)."""
+        return self.missing == 'em' and _missing.has_missing(X)
+
+    def _check_nan_input(self, X: torch.Tensor):
+        r"""`missing='error'`: raise on NaN input (called at the top of every E-step and of `fit`)."""
+        if self.missing == 'em' or not torch.is_floating_point(X):
+            return
+        if bool(torch.isnan(X).any().item()):
+            hint = (
+                "pass missing='em' to treat NaN as missing-at-random values"
+                if self._supports_missing else
+                "this model does not support missing values (missing='em' is available for "
+                "GaussianMixture and StudentTMixture); impute or drop the NaN rows first"
+            )
+            raise ValueError(f"X contains NaN; {hint}.")
+
+    def _prepare_missing_fit(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Fit-time checks for incomplete data; returns the column-mean-imputed copy used for
+        initialisation (k-means etc. never see NaN) and for SEM re-seeding.
+        """
+        _missing.check_incomplete_rows_and_columns(X)
+        n_patterns = _missing.count_patterns(X)
+        if n_patterns > 1000:
+            warnings.warn(
+                f"X has {n_patterns} distinct missingness patterns; the E-step loops over patterns in Python, "
+                "so fitting will be slow.",
+                UserWarning,
+            )
+        return _missing.fill_columns_with_means(X)
+
+    def _missing_cov_repr(self):
+        r"""Family hook: `(kind, cov)` with `kind in {'dense', 'diag'}` (see `missing.gaussian_blocks`)."""
+        raise NotImplementedError
+
+    def _completed_rows(self, X: torch.Tensor) -> torch.Tensor:
+        r"""Per-component completed data `x_tilde`, shape `(n, K, d)`, with the *current* parameters."""
+        kind, cov = self._missing_cov_repr()
+        blocks = _missing.gaussian_blocks(X, self.means_, cov, kind, need_conditional=True)
+        return _missing.complete_rows(X, blocks, self.means_.shape[0])
+
+    def impute(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Replace every NaN of `X` by its posterior-weighted conditional mean
+        :math:`\sum_k \tau_{ik}\hat x_{ik}`, where :math:`\hat x_{ik}` is the conditional mean of the missing
+        block given the observed entries under component `k` (observed entries are returned unchanged).
+
+        Requires `missing='em'`.
+        """
+        if self.missing != 'em':
+            raise RuntimeError("impute requires a model constructed with missing='em'.")
+        X = X.to(self.device)
+        if X.dim() == 1:
+            X = X.unsqueeze(1)
+        if not _missing.has_missing(X):
+            return X.clone()
+        resp, _ = self._e_step(X)
+        completed = (resp.unsqueeze(-1) * self._completed_rows(X)).sum(dim=1)
+        return torch.where(torch.isnan(X), completed, X)
+
+    # ===================================================================
+    # Uniform noise component (v0.5 item 1.1). See
+    # docs/superpowers/specs/2026-10-15-v05-noise-component-design.md.
+    # Inert unless `noise=True`: every hook below is a no-op / pass-through
+    # when `self.noise` is False, so default fits are bit-identical.
+    # ===================================================================
+    # Families whose noise density is a uniform over the data's bounding box
+    # (rather than e.g. over the sphere) need `noise_bounds_` at fit time.
+    _noise_uses_bbox = True
+
+    # ===================================================================
+    # Persistence helpers shared by every family's save / load / state dict
+    # ===================================================================
+    def _semisupervised_state(self) -> dict:
+        r"""Constructor arguments and fitted state that every family's `to_dict` must keep: the semi-supervised
+        options, the init-only `noise_init`, and the class bookkeeping (`classes_`, `class_of_component_`) a labeled
+        fit produces (needed by `predict_class`)."""
+        return {
+            'components_per_class': self.components_per_class,
+            'unlabeled_weight': self.unlabeled_weight,
+            'label_confidence': self.label_confidence,
+            'noise_init': self.noise_init,
+            'classes_': self.classes_,
+            'class_of_component_': self.class_of_component_,
+        }
+
+    @staticmethod
+    def _semisupervised_kwargs(state: dict) -> dict:
+        r"""Constructor keyword arguments recovered from a saved state (defaults for files written before v0.5)."""
+        return {
+            'components_per_class': state.get('components_per_class', 1),
+            'unlabeled_weight': state.get('unlabeled_weight', 1.0),
+            'label_confidence': state.get('label_confidence', 1.0),
+            'noise_init': state.get('noise_init'),
+        }
+
+    def _load_semisupervised_state(self, state: dict):
+        r"""In-place counterpart of `_semisupervised_kwargs` plus the fitted class bookkeeping."""
+        for key, value in self._semisupervised_kwargs(state).items():
+            setattr(self, key, value)
+        self.classes_ = state.get('classes_')
+        self.class_of_component_ = state.get('class_of_component_')
+
+    def _init_noise(self, noise, noise_volume, noise_prior, noise_init):
+        r"""Validate and store the noise arguments (see the module docs / spec)."""
+        if not (0.0 < float(noise_prior) < 1.0):
+            raise ValueError(f"noise_prior must be in (0, 1), got {noise_prior}.")
+        if isinstance(noise_volume, str):
+            if noise_volume != 'bbox':
+                raise ValueError(f"noise_volume must be 'bbox' or a positive float, got {noise_volume!r}.")
+        elif isinstance(noise_volume, bool) or not float(noise_volume) > 0.0:
+            raise ValueError(f"noise_volume must be 'bbox' or a positive float, got {noise_volume!r}.")
+        self.noise = bool(noise)
+        self.noise_volume = noise_volume
+        self.noise_prior = float(noise_prior)
+        self.noise_init = noise_init
+        self.noise_weight_ = None
+        self.noise_bounds_ = None
+
+    def _noise_log_volume(self) -> float:
+        r"""`log V` of the uniform noise region (bounding box or the user-supplied volume)."""
+        if not isinstance(self.noise_volume, str):
+            return math.log(float(self.noise_volume))
+        if self.noise_bounds_ is None:
+            raise RuntimeError("noise_bounds_ is not set; fit the model first.")
+        extent = (self.noise_bounds_[1] - self.noise_bounds_[0]).clamp(min=1e-12)
+        return torch.log(extent).sum().item()
+
+    def _noise_log_density(self, X: torch.Tensor) -> torch.Tensor:
+        r"""
+        Log-density of the noise component at each row of `X`, shape `(n_samples,)`.
+
+        Default (`GaussianMixture`, every GPCM code, `StudentTMixture`): the
+        constant `-log V`, with `V` the volume of the bounding box of the fit
+        data (or `noise_volume`). Families override it: `VonMisesFisherMixture`
+        uses the uniform density on the sphere; discrete/count families must
+        raise ``ValueError('noise component requires bounded continuous support')``.
+        """
+        return torch.full((X.shape[0],), -self._noise_log_volume(), dtype=X.dtype, device=X.device)
+
+    def _sample_noise(self, n: int) -> torch.Tensor:
+        r"""Draw `n` points from the noise component: uniform in the stored bounding box."""
+        if self.noise_bounds_ is None:
+            raise RuntimeError("noise_bounds_ is not set; fit the model first.")
+        lo, hi = self.noise_bounds_[0], self.noise_bounds_[1]
+        u = torch.rand(n, self.n_features, dtype=lo.dtype, device=lo.device)
+        return lo + (hi - lo) * u
+
+    def _prepare_noise(self, X: torch.Tensor) -> Optional[torch.Tensor]:
+        r"""
+        Fit-time setup for `noise=True`: store the bounding box and resolve
+        `noise_init` into a boolean mask over the rows of `X` (or `None`).
+        """
+        if self._noise_uses_bbox:
+            self.noise_bounds_ = torch.stack([X.min(dim=0).values, X.max(dim=0).values]).detach()
+        init = self.noise_init
+        if init is None:
+            return None
+        if not torch.is_tensor(init):
+            init = torch.as_tensor(init)
+        init = init.to(self.device)
+        if init.dim() != 1 or init.shape[0] != X.shape[0]:
+            raise ValueError(
+                f"noise_init must be a 1D array of length n_samples={X.shape[0]}, got shape {tuple(init.shape)}."
+            )
+        mask = init if init.dtype == torch.bool else (init == -1)
+        if bool(mask.all()):
+            raise ValueError("noise_init flags every row as noise; at least some rows must be clustered.")
+        return mask
+
+    def _init_noise_weights(self, noise_mask: Optional[torch.Tensor]):
+        r"""After `_allocate_parameters`: set `pi_0` and rescale `weights_` to sum to `1 - pi_0`."""
+        if noise_mask is not None:
+            pi0 = min(max(noise_mask.double().mean().item(), 1e-3), 0.9)
+        else:
+            pi0 = self.noise_prior
+        self.noise_weight_ = torch.tensor(pi0, dtype=self.weights_.dtype, device=self.weights_.device)
+        self.weights_ = self.weights_ * (1.0 - self.noise_weight_)
+
+    def _split_noise(self, resp: torch.Tensor):
+        r"""`(resp[:, :K], resp[:, K])` when noise is on, else `(resp, None)`."""
+        if not self.noise:
+            return resp, None
+        return resp[:, :-1], resp[:, -1]
+
+    def _check_noise_supported(self, labels=None):
+        if not self.noise:
+            return
+        if labels is not None:
+            raise NotImplementedError(
+                "noise=True does not support fit(X, labels=...): a point cannot be labelled as known "
+                "noise in v0.5 (-1 already means 'unlabelled')."
+            )
+        if self.algorithm in ('em', 'cem') and self.step_size is not None:
+            raise NotImplementedError(
+                "noise=True does not support online EM (step_size set); use algorithm='saem' or batch_size alone."
+            )
 
     # ===================================================================
     # Abstract methods -- every subclass implements these
@@ -243,11 +653,14 @@ class BaseMixture(nn.Module, ABC):
     # extra keys an override adds, no further changes needed anywhere else.
     # ===================================================================
     def _get_param_snapshot(self) -> dict:
-        return {
+        snapshot = {
             'weights_': self.weights_.clone(),
             'means_': self.means_.clone(),
             'covariances_': self.covariances_.clone(),
         }
+        if self.noise:
+            snapshot['noise_weight_'] = self.noise_weight_.clone()
+        return snapshot
 
     def _apply_snapshot(self, snapshot: dict):
         for key, value in snapshot.items():
@@ -271,8 +684,19 @@ class BaseMixture(nn.Module, ABC):
     # M-step
     # ===================================================================
     def _m_step(self, X: torch.Tensor, resp: torch.Tensor):
-        r"""Thin wrapper over `_compute_stats`/`_m_step_from_stats`."""
-        self._m_step_from_stats(self._compute_stats(X, resp, batch_size=self.batch_size))
+        r"""Thin wrapper over `_compute_stats`/`_m_step_from_stats`.
+
+        With `noise=True`, `resp` has an extra last (noise) column: the K
+        components are updated from `resp[:, :K]` and `pi_0` is the mean
+        noise responsibility."""
+        resp_k, resp_noise = self._split_noise(resp)
+        self._m_step_frozen(self._fit_stats(X, resp_k))
+        if resp_noise is not None:
+            if self._fit_sw is not None:
+                noise_mass = (resp_noise.reshape(-1) * self._fit_sw).sum()
+                self.noise_weight_ = (noise_mass / self._fit_n_eff).to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
+            else:
+                self.noise_weight_ = (resp_noise.sum() / resp.shape[0]).to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
 
     # ===================================================================
     # E-step, C-step, S-step
@@ -294,14 +718,27 @@ class BaseMixture(nn.Module, ABC):
         resp : torch.Tensor, shape (n_samples, n_components)
         log_prob_norm : torch.Tensor, shape (n_samples,)
         """
+        self._check_nan_input(X)
+        fw = self._fit_fw if (self._fit_fw is not None and self._fit_fw.shape[0] == X.shape[0]) else None
         if self.batch_size is None or self.batch_size >= X.shape[0]:
-            return self._e_step_chunk(X, beta=beta)
+            if fw is None:
+                return self._e_step_chunk(X, beta=beta)
+            self._fw_cur = fw
+            try:
+                return self._e_step_chunk(X, beta=beta)
+            finally:
+                self._fw_cur = None
 
         resp_chunks = []
         log_prob_norm_chunks = []
         for start in range(0, X.shape[0], self.batch_size):
             end = min(start + self.batch_size, X.shape[0])
-            resp_chunk, log_prob_norm_chunk = self._e_step_chunk(X[start:end], beta=beta)
+            if fw is not None:
+                self._fw_cur = fw[start:end]
+            try:
+                resp_chunk, log_prob_norm_chunk = self._e_step_chunk(X[start:end], beta=beta)
+            finally:
+                self._fw_cur = None
             resp_chunks.append(resp_chunk)
             log_prob_norm_chunks.append(log_prob_norm_chunk)
         return torch.cat(resp_chunks, dim=0), torch.cat(log_prob_norm_chunks, dim=0)
@@ -310,6 +747,9 @@ class BaseMixture(nn.Module, ABC):
         log_prob = self._component_log_prob(X)
         log_weights = torch.log(self.weights_ + 1e-20)
         log_prob = log_prob + log_weights.unsqueeze(0)
+        if self.noise:
+            noise_col = torch.log(self.noise_weight_ + 1e-20) + self._noise_log_density(X)
+            log_prob = torch.cat([log_prob, noise_col.unsqueeze(1).to(log_prob.dtype)], dim=1)
         if beta != 1.0:
             log_prob = beta * log_prob
 
@@ -402,7 +842,7 @@ class BaseMixture(nn.Module, ABC):
         beta = self._beta_for_iteration(0)
         betas_used = [beta]
         resp, log_prob_norm = self._e_step(X, beta=beta)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         ll_history = [self.lower_bound_]
 
         for n_iter in range(max_iter):
@@ -423,7 +863,7 @@ class BaseMixture(nn.Module, ABC):
             beta = self._beta_for_iteration(n_iter + 1)
             betas_used.append(beta)
             resp, log_prob_norm = self._e_step(X, beta=beta)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
             ll_history.append(self.lower_bound_)
 
             if self.verbose and (n_iter % self.verbose_interval == 0):
@@ -434,7 +874,7 @@ class BaseMixture(nn.Module, ABC):
             resp, log_prob_norm = self._e_step(X, beta=beta)
             if self.algorithm == 'cem':
                 resp = self._c_step(resp)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
         else:
             import warnings
             warnings.warn(
@@ -461,16 +901,21 @@ class BaseMixture(nn.Module, ABC):
         beta = self._beta_for_iteration(0)
         betas_used.append(beta)
         resp, log_prob_norm = self._e_step(X, beta=beta)
-        ll = log_prob_norm.mean().item()
+        ll = self._mean_ll(log_prob_norm)
         ll_history.append(ll)
 
         for n_iter in range(max_iter):
             z_onehot = self._s_step(resp)
 
             nk = z_onehot.sum(dim=0)
+            if self.noise:
+                nk = nk[:-1]  # the noise column is never "empty" in the re-seeding sense
             empty_mask = nk < 1
+            if self.frozen_components:
+                empty_mask = empty_mask & ~self._frozen_mask()
             if torch.any(empty_mask):
-                n_empty_this_sweep = self._reseed_empty_components(X, log_prob_norm, empty_mask)
+                X_reseed = _missing.fill_columns_with_means(X) if self._missing_active(X) else X
+                n_empty_this_sweep = self._reseed_empty_components(X_reseed, log_prob_norm, empty_mask)
                 n_empty_total += n_empty_this_sweep
                 warnings.warn(
                     f"[Run {run_idx + 1}] Sweep {n_iter}: {n_empty_this_sweep} component(s) "
@@ -484,7 +929,7 @@ class BaseMixture(nn.Module, ABC):
             beta = self._beta_for_iteration(n_iter + 1)
             betas_used.append(beta)
             resp, log_prob_norm = self._e_step(X, beta=beta)
-            ll = log_prob_norm.mean().item()
+            ll = self._mean_ll(log_prob_norm)
             ll_history.append(ll)
 
             if n_iter >= sem_burn_in:
@@ -508,7 +953,7 @@ class BaseMixture(nn.Module, ABC):
             self._apply_snapshot(mean_snapshot)
 
         _, log_prob_norm = self._e_step(X)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         self.converged_ = True
         self.n_iter_ = max_iter
         self.log_likelihood_history_ = torch.tensor(ll_history)
@@ -563,11 +1008,11 @@ class BaseMixture(nn.Module, ABC):
                         new_scale=n_samples / batch_stats.n_samples,
                     )
 
-                self._m_step_from_stats(running_stats)
+                self._m_step_frozen(running_stats)
                 t += 1
 
             _, log_prob_norm = self._e_step(X)
-            ll = log_prob_norm.mean().item()
+            ll = self._mean_ll(log_prob_norm)
             ll_history.append(ll)
             self.lower_bound_ = ll
 
@@ -583,28 +1028,39 @@ class BaseMixture(nn.Module, ABC):
     def _fit_single_run_saem(self, X: torch.Tensor, max_iter: int, tol: float, run_idx: int = 0):
         r"""SAEM (Delyon, Lavielle & Moulines, 1999): SEM blended into a running accumulator."""
         import warnings
-        n_samples = X.shape[0]
+        n_samples = X.shape[0] if self._fit_n_eff is None else self._fit_n_eff
         gamma_fn = self._resolve_step_size_fn()
 
         prev_lower_bound = -float("inf")
         prev_prev_lower_bound = None
         running_stats = None
+        running_noise = None
 
         resp, log_prob_norm = self._e_step(X)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         ll_history = [self.lower_bound_]
 
         for n_iter in range(max_iter):
             z_onehot = self._s_step(resp)
-            batch_stats = self._compute_stats(X, z_onehot, batch_size=self.batch_size)
+            z_k, z_noise = self._split_noise(z_onehot)
+            batch_stats = self._fit_stats(X, z_k)
             gamma = gamma_fn(n_iter)
+            noise_frac = None
+            if z_noise is not None:
+                noise_mass = z_noise.sum() if self._fit_sw is None else (z_noise.reshape(-1) * self._fit_sw).sum()
+                noise_frac = noise_mass / n_samples
 
             if running_stats is None:
                 running_stats = batch_stats
+                running_noise = noise_frac
             else:
                 running_stats = self._blend_stats(running_stats, batch_stats, gamma, n_samples, new_scale=1.0)
+                if z_noise is not None:
+                    running_noise = (1.0 - gamma) * running_noise + gamma * noise_frac
 
-            self._m_step_from_stats(running_stats)
+            self._m_step_frozen(running_stats)
+            if z_noise is not None:
+                self.noise_weight_ = running_noise.to(self.weights_.dtype).clamp(1e-12, 1.0 - 1e-12)
 
             if self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
                 self.converged_ = True
@@ -616,7 +1072,7 @@ class BaseMixture(nn.Module, ABC):
             prev_prev_lower_bound = prev_lower_bound
             prev_lower_bound = self.lower_bound_
             resp, log_prob_norm = self._e_step(X)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
             ll_history.append(self.lower_bound_)
 
             if self.verbose and (n_iter % self.verbose_interval == 0):
@@ -626,7 +1082,7 @@ class BaseMixture(nn.Module, ABC):
 
         if self.converged_:
             resp, log_prob_norm = self._e_step(X)
-            self.lower_bound_ = log_prob_norm.mean().item()
+            self.lower_bound_ = self._mean_ll(log_prob_norm)
         else:
             warnings.warn(
                 f"Run {run_idx + 1}: SAEM did not converge after {max_iter} iterations.",
@@ -643,6 +1099,12 @@ class BaseMixture(nn.Module, ABC):
                 "fit() on a first batch, or set weights_/means_/covariances_ "
                 "explicitly, before the first partial_fit call."
             )
+        if self.noise:
+            raise NotImplementedError(
+                "partial_fit is not supported with noise=True (online EM does not track the noise weight)."
+            )
+        if self.missing == 'em':
+            raise NotImplementedError("partial_fit is not supported with missing='em'.")
         X_batch = X_batch.to(self.device)
         if X_batch.dim() == 1:
             X_batch = X_batch.unsqueeze(1)
@@ -660,11 +1122,11 @@ class BaseMixture(nn.Module, ABC):
                 batch_stats.n_samples, new_scale=1.0,
             )
 
-        self._m_step_from_stats(self._online_running_stats_)
+        self._m_step_frozen(self._online_running_stats_)
         self._online_step_count_ += 1
 
         _, log_prob_norm = self._e_step(X_batch)
-        self.lower_bound_ = log_prob_norm.mean().item()
+        self.lower_bound_ = self._mean_ll(log_prob_norm)
         return self
 
     # ===================================================================
@@ -680,9 +1142,39 @@ class BaseMixture(nn.Module, ABC):
         tol: Optional[float] = None,
         random_state: Optional[int] = None,
         warm_start: Optional[bool] = None,
+        sample_weight: Optional[torch.Tensor] = None,
     ):
+        r"""
+        Fit the mixture by EM / CEM / SEM / SAEM (see `GaussianMixture.fit` for the shared arguments).
+
+        Parameters
+        ----------
+        sample_weight : torch.Tensor, optional
+            Row weights of shape `(n_samples,)` (row `i` counts `w_i` times: integer weights equal
+            duplicating rows, weight 0 equals dropping the row, an all-ones vector is bit-identical to
+            `None`), or per-feature weights of shape `(n_samples, n_features)` for models whose statistics
+            factorise per feature (`GaussianMixture` with `'diag'`/`'spherical'` covariance and
+            `StudentTMixture` with `'diag'`; maximum likelihood only): weight 0 on entry `(i, j)` hides
+            feature `j` of row `i`. Not supported with `labels=...`, Gibbs mode or online EM. See
+            `docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md`. (default: None)
+        """
+        self._clear_sample_weight()
+        if sample_weight is None:
+            return self._fit_main(X, labels, max_iter, tol, random_state, warm_start, None)
+        Xw = X.to(self.device)
+        if Xw.dim() == 1:
+            Xw = Xw.unsqueeze(1)
+        keep = self._prepare_sample_weight(sample_weight, Xw, labels)
+        try:
+            return self._fit_main(X, labels, max_iter, tol, random_state, warm_start, keep)
+        finally:
+            self._clear_sample_weight()
+
+    def _fit_main(self, X, labels, max_iter, tol, random_state, warm_start, keep):
         import warnings
 
+        if self.frozen_components:
+            self._check_frozen_supported()
         if X.size(0) < self.n_components:
             raise ValueError(f"n_components={self.n_components} must be <= n_samples={X.size(0)}.")
         if self.n_components <= 0:
@@ -706,6 +1198,16 @@ class BaseMixture(nn.Module, ABC):
             X = X.unsqueeze(1)
         if X.shape[1] != self.n_features:
             raise ValueError(f"X has {X.shape[1]} features, but expected {self.n_features}.")
+
+        self._check_nan_input(X)
+        if self.missing == 'em' and labels is not None:
+            raise NotImplementedError(
+                "missing='em' does not support fit(X, labels=...) (supervised / semi-supervised fitting)."
+            )
+        X_fill = self._prepare_missing_fit(X) if self._missing_active(X) else None
+
+        self._check_noise_supported(labels)
+        noise_mask = self._prepare_noise(X) if self.noise else None
 
         # ===============================================================
         # (Semi-)supervised fitting (Phase 5): bypass the unsupervised
@@ -755,7 +1257,17 @@ class BaseMixture(nn.Module, ABC):
                     torch.cuda.manual_seed_all(current_random_state)
 
             if not warm_start or not self.fitted_ or init_idx > 0:
-                self._allocate_parameters(X, set_random_state=False)
+                X_init = X if noise_mask is None else X[~noise_mask]
+                if X_fill is not None:
+                    X_init = X_fill  # k-means etc. must not see NaN (column-mean imputed copy)
+                if keep is not None:  # weight-0 rows are dropped from the initialisation
+                    if X_fill is not None or noise_mask is None:
+                        X_init = X_init[keep]
+                    else:
+                        X_init = X[~noise_mask & keep]
+                self._allocate_parameters(X_init, set_random_state=False)
+                if self.noise:
+                    self._init_noise_weights(noise_mask)
 
             self._fit_single_run(X, max_iter, tol, run_idx=init_idx)
 
@@ -983,6 +1495,7 @@ class BaseMixture(nn.Module, ABC):
 
     def _clamp_responsibilities(
         self, resp: torch.Tensor, is_labeled: torch.Tensor, block_mask: torch.Tensor,
+        X: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         r"""
         For labeled rows, zero responsibility outside the row's class block
@@ -991,6 +1504,14 @@ class BaseMixture(nn.Module, ABC):
         renormalized in-block posterior with `1 - label_confidence` on the
         *original* (unclamped) out-of-block posterior, rescaled to sum to
         that remainder. Unlabeled rows pass through untouched.
+
+        Rows whose in-block posterior mass is below `1e-20` (a labeled point
+        far from every component of its class block, e.g. before the class
+        blocks have moved onto their classes) cannot be renormalized from the
+        already-computed `resp` without losing their mass entirely (the old
+        `clamp(min=1e-20)` shrank such a row to ~0); when `X` is given they
+        are recomputed exactly in log space from the component log-densities.
+        All other rows use the original arithmetic, bit-for-bit.
         """
         if not bool(is_labeled.any()):
             return resp
@@ -1002,14 +1523,53 @@ class BaseMixture(nn.Module, ABC):
         clamped = torch.where(block, labeled_resp / within_mass.clamp(min=1e-20), torch.zeros_like(labeled_resp))
 
         if self.label_confidence >= 1.0:
-            resp[is_labeled] = clamped
-            return resp
+            outside_part = None
+            blended = clamped
+        else:
+            outside_mass = (1.0 - within_mass).clamp(min=1e-20)
+            outside_part = torch.where(block, torch.zeros_like(labeled_resp), labeled_resp) / outside_mass
+            blended = self.label_confidence * clamped + (1.0 - self.label_confidence) * outside_part
 
-        outside_mass = (1.0 - within_mass).clamp(min=1e-20)
-        outside_part = torch.where(block, torch.zeros_like(labeled_resp), labeled_resp) / outside_mass
-        blended = self.label_confidence * clamped + (1.0 - self.label_confidence) * outside_part
+        if X is not None:
+            degenerate = within_mass.squeeze(1) < 1e-20
+            if self.label_confidence < 1.0:
+                degenerate = degenerate | ((1.0 - within_mass).squeeze(1) < 1e-10)
+            if bool(degenerate.any()):
+                blended = blended.clone()
+                log_joint = (
+                    self._component_log_prob(X[is_labeled][degenerate])
+                    + torch.log(self.weights_ + 1e-20).unsqueeze(0)
+                )
+                blk = block[degenerate]
+                exact_in = torch.softmax(log_joint.masked_fill(~blk, float('-inf')), dim=1)
+                if self.label_confidence >= 1.0:
+                    blended[degenerate] = exact_in
+                else:
+                    has_out = (~blk).any(dim=1, keepdim=True)
+                    out_lj = torch.where(blk, torch.full_like(log_joint, float('-inf')), log_joint)
+                    out_lj = torch.where(has_out, out_lj, torch.zeros_like(out_lj))
+                    exact_out = torch.where(has_out, torch.softmax(out_lj, dim=1), torch.zeros_like(out_lj))
+                    blended[degenerate] = (
+                        self.label_confidence * exact_in + (1.0 - self.label_confidence) * exact_out
+                    )
+
         resp[is_labeled] = blended
         return resp
+
+    def _renormalise_weighted_mass(self):
+        r"""
+        After an M-step on down-weighted unlabeled responsibilities
+        (`unlabeled_weight != 1`) the plain `n_k / n` weights sum to the *weighted* mass over `n`, not to 1.
+        Rescale `weights_` (and `noise_weight_`, when present) so that the mixing proportions sum to 1:
+        :math:`\pi_k = n_k / \sum_j n_j`. With a Dirichlet weight prior the same rescaling reproduces the MAP update
+        :math:`(n_k + \alpha_k - 1) / (\sum_j n_j + \sum_j\alpha_j - K)`.
+        """
+        total = self.weights_.sum()
+        noise_w = getattr(self, 'noise_weight_', None)
+        if self.noise and noise_w is not None:
+            total = total + noise_w
+            self.noise_weight_ = noise_w / total
+        self.weights_ = self.weights_ / total
 
     def _semisupervised_log_likelihood(
         self, X: torch.Tensor, is_labeled: torch.Tensor, block_mask: torch.Tensor,
@@ -1048,7 +1608,7 @@ class BaseMixture(nn.Module, ABC):
         prev_prev_lower_bound = None
 
         resp, _ = self._e_step(X)
-        resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+        resp = self._clamp_responsibilities(resp, is_labeled, block_mask, X=X)
         self.lower_bound_ = self._semisupervised_log_likelihood(X, is_labeled, block_mask)
         ll_history = [self.lower_bound_]
 
@@ -1065,6 +1625,8 @@ class BaseMixture(nn.Module, ABC):
             self._m_step(X, resp_for_mstep)
             if self._post_mstep_hook is not None:
                 self._post_mstep_hook(X, resp_for_mstep)
+            if self.unlabeled_weight != 1.0:
+                self._renormalise_weighted_mass()
 
             if self._check_convergence(self.lower_bound_, prev_lower_bound, prev_prev_lower_bound, tol):
                 self.converged_ = True
@@ -1076,7 +1638,7 @@ class BaseMixture(nn.Module, ABC):
             prev_prev_lower_bound = prev_lower_bound
             prev_lower_bound = self.lower_bound_
             resp, _ = self._e_step(X)
-            resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+            resp = self._clamp_responsibilities(resp, is_labeled, block_mask, X=X)
             self.lower_bound_ = self._semisupervised_log_likelihood(X, is_labeled, block_mask)
             ll_history.append(self.lower_bound_)
 
@@ -1085,7 +1647,7 @@ class BaseMixture(nn.Module, ABC):
 
         if self.converged_:
             resp, _ = self._e_step(X)
-            resp = self._clamp_responsibilities(resp, is_labeled, block_mask)
+            resp = self._clamp_responsibilities(resp, is_labeled, block_mask, X=X)
             if self.algorithm == 'cem':
                 hard = self._c_step(resp)
                 resp = torch.where(is_labeled.unsqueeze(1), resp, hard)
@@ -1199,10 +1761,14 @@ class BaseMixture(nn.Module, ABC):
         elif not self.converged_:
             warnings.warn("Model did not converge. Results may be unreliable.", UserWarning)
         resp, _ = self._e_step(X.to(self.device))
-        return torch.argmax(resp, dim=1)
+        labels = torch.argmax(resp, dim=1)
+        if self.noise:
+            labels = torch.where(labels == resp.shape[1] - 1, torch.full_like(labels, -1), labels)
+        return labels
 
     def predict_proba(self, X: torch.Tensor) -> torch.Tensor:
-        r"""Soft cluster assignment (responsibilities)."""
+        r"""Soft cluster assignment (responsibilities); shape `(n, K + 1)` with `noise=True`
+        (the last column is the noise responsibility, see `noise_proba`)."""
         import warnings
         if not self.fitted_:
             warnings.warn("Model has not been fitted. Results may be unreliable.", UserWarning)
@@ -1210,6 +1776,12 @@ class BaseMixture(nn.Module, ABC):
             warnings.warn("Model did not converge. Results may be unreliable.", UserWarning)
         resp, _ = self._e_step(X.to(self.device))
         return resp
+
+    def noise_proba(self, X: torch.Tensor) -> torch.Tensor:
+        r"""Posterior probability that each row of `X` is noise, shape `(n,)` (needs `noise=True`)."""
+        if not self.noise:
+            raise RuntimeError("noise_proba requires a model constructed with noise=True.")
+        return self.predict_proba(X)[:, -1]
 
     def predict_class(self, X: torch.Tensor) -> torch.Tensor:
         r"""
@@ -1310,13 +1882,24 @@ class BaseMixture(nn.Module, ABC):
         samples : torch.Tensor, shape (n_samples, n_features)
         component_indices : torch.Tensor, shape (n_samples,)
         """
-        component_indices = torch.multinomial(self.weights_, n_samples, replacement=True)
+        if self.noise:
+            probs = torch.cat([self.weights_, self.noise_weight_.reshape(1)])
+            component_indices = torch.multinomial(probs, n_samples, replacement=True)
+        else:
+            component_indices = torch.multinomial(self.weights_, n_samples, replacement=True)
         samples = torch.empty(n_samples, self.n_features, dtype=self.dtype, device=self.device)
-        for k in range(self.n_components_ or self.n_components):
+        K = self.n_components_ or self.n_components
+        for k in range(K):
             mask = component_indices == k
             count = int(mask.sum().item())
             if count > 0:
                 samples[mask] = self._sample_component(k, count)
+        if self.noise:
+            noise_mask = component_indices == K
+            count = int(noise_mask.sum().item())
+            if count > 0:
+                samples[noise_mask] = self._sample_noise(count).to(samples.dtype)
+            component_indices = torch.where(noise_mask, torch.full_like(component_indices, -1), component_indices)
         return samples, component_indices
 
     # ===================================================================

@@ -5,6 +5,18 @@ import torch
 from typing import List, Union, Optional
 
 
+def _matrix_square_root(cov) -> np.ndarray:
+    """A factor L with L @ L.T == cov: Cholesky if cov is positive definite, else the symmetric eigen-root."""
+    cov = np.asarray(cov, dtype=np.float64)
+    try:
+        return np.linalg.cholesky(cov)
+    except np.linalg.LinAlgError:
+        eigvals, eigvecs = np.linalg.eigh((cov + cov.T) / 2.0)
+        if eigvals.min() < -1e-10 * max(1.0, abs(eigvals).max()):
+            raise ValueError("covariance matrices must be positive semi-definite")
+        return eigvecs * np.sqrt(np.clip(eigvals, 0.0, None))
+
+
 def generate_gmm_data(
     centers: Union[List[np.ndarray], np.ndarray],
     covs: Union[List[np.ndarray], np.ndarray],
@@ -23,8 +35,9 @@ def generate_gmm_data(
         List of mean vectors for each component. Each element should be a 1D array
         of shape (n_features,).
     covs : list of np.ndarray or np.ndarray
-        List of covariance matrices for each component. Each element should be a 
-        2D array of shape (n_features, n_features).
+        List of covariance matrices for each component. Each element should be a
+        symmetric positive semi-definite 2D array of shape (n_features, n_features);
+        the generated component has exactly this covariance.
     n_samples : list of int or np.ndarray
         Number of samples to generate for each component.
     device : str, default='cpu'
@@ -84,9 +97,9 @@ def generate_gmm_data(
     # Generate samples for each component
     components = []
     for n, center, cov in zip(n_samples, centers, covs):
-        # Generate samples: X = Z @ cov + center
-        # where Z ~ N(0, I)
-        samples = np.dot(np.random.randn(n, len(center)), cov) + center
+        # X = Z @ L^T + center with Z ~ N(0, I) and L L^T = cov, so Cov(X) = cov exactly.
+        # (Earlier versions used X = Z @ cov, whose covariance is cov^T cov -- the *square* of cov.)
+        samples = np.random.randn(n, len(center)) @ _matrix_square_root(cov).T + center
         components.append(samples)
     
     # Combine all components
