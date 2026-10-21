@@ -3937,8 +3937,8 @@ class GaussianMixture(BaseMixture):
         # ===============================================================
         # Component-specific covariances
         # ===============================================================
-        if self.covariance_type == 'full':
-            # Already in full format
+        if self.covariance_type == 'full' or self.covariance_type_ in _NEW_GPCM_CODES:
+            # Already in full format (the 8 GPCM-only codes are stored assembled as dense matrices too)
             return self.covariances_[indices]
 
         elif self.covariance_type == 'diag':
@@ -3999,7 +3999,7 @@ class GaussianMixture(BaseMixture):
         """
         z = torch.randn(means.shape, device=self.device, dtype=self.dtype)
 
-        if self.covariance_type == 'full':
+        if self.covariance_type == 'full' or self.covariance_type_ in _NEW_GPCM_CODES:
             samples = torch.empty_like(means)
             for comp in torch.unique(indices).tolist():
                 mask = indices == comp
@@ -4118,8 +4118,8 @@ class GaussianMixture(BaseMixture):
         # ===============================================================
         # Compute d² = diff^T Σ⁻¹ diff (depends on covariance type)
         # ===============================================================
-        if self.covariance_type == 'full':
-            # Component-specific full covariances
+        if self.covariance_type == 'full' or self.covariance_type_ in _NEW_GPCM_CODES:
+            # Component-specific full covariances (also the 8 GPCM-only codes, stored as dense matrices)
             covs = self.covariances_[component_indices]  # (n_samples, n_features, n_features)
             diff_expanded = diff.unsqueeze(-1)  # (n_samples, n_features, 1)
             try:

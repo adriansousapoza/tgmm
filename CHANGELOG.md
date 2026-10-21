@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.2] -- 2026-10-21
+
+Patch release for a bug in 0.4.1.
+
+### Fixed
+
+- `GaussianMixture.sample()` raised `ValueError: Unsupported covariance type` for the eight GPCM-only covariance codes (`'VEI'`, `'EVI'`,
+  `'VEE'`, `'EVE'`, `'EEV'`, `'VVE'`, `'VEV'`, `'EVV'`): plain sampling, per-component sampling (`component=`) and constrained sampling
+  (`std_radius=`, `std_range=`, `confidence=`, ...) only recognised `'full'`, although these codes store dense `(K, d, d)` covariances like
+  `'full'`. The documentation already said sampling works unchanged for all 14 codes.
+
 ## [0.4.1] -- 2026-10-19
 
 Supersedes 0.4.0. It fixes numerical and correctness bugs found after the 0.4.0 release (Student-t spherical variance,
