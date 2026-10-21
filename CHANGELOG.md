@@ -5,6 +5,10 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.4.3] -- 2026-10-21
+
+Adds fixed values and bounds for `GaussianMixture` parameters. Purely additive: with the new arguments off, fits are bit-identical to 0.4.2.
+
 ### Added (constraints)
 
 - `GaussianMixture` can **fix** or **bound** its parameters: `weight_bounds=(lo, hi)`, `fixed_weights`, `mean_bounds=(lo, hi)`,
