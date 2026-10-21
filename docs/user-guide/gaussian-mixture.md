@@ -683,6 +683,75 @@ Gibbs-sampling math, a step-by-step walkthrough and a comparison against classic
 [design document](https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md)
 for the full derivation.
 
+## Fixed values and bounds
+
+Sometimes part of the model is known (the class proportions from a census, a reference population's mean) or has to stay
+physically sensible (means inside the measurement range, variances below a noise ceiling). Six constructor arguments express this;
+all are off by default and a fit without them is bit-identical to earlier versions.
+
+| Argument | Effect |
+| --- | --- |
+| `weight_bounds=(lo, hi)` | $lo_k\le\pi_k\le hi_k$ (scalars or `(K,)` tensors), weights still sum to 1 |
+| `fixed_weights=w` | $\pi=w$ for the whole fit (positive, sums to 1; not together with `weight_bounds`) |
+| `mean_bounds=(lo, hi)` | $lo\le\mu_k\le hi$ element-wise (scalar, `(d,)` or `(K, d)`; use `-inf` / `inf` for one side) |
+| `covariance_bounds=(lo, hi)` | bounds on the **variances** (`diag`, `spherical`, `tied_diag`, `tied_spherical`) or on the **eigenvalues** of $\Sigma_k$ (`full`, `tied_full`); $lo\ge0$ |
+| `frozen_means=[k, ...]` | those components' means stay at `init_means` (a tensor); their covariances are still estimated |
+| `frozen_covariances=[k, ...]` | those components' covariances stay at `init_covariances` (a tensor) |
+
+```python
+gmm = GaussianMixture(
+    n_components=3, covariance_type='diag',
+    mean_bounds=(0.0, 1.0),            # every mean inside the unit square
+    covariance_bounds=(0.0, 0.5),      # variances at most 0.5
+    weight_bounds=(0.1, 0.6),
+).fit(X)
+gmm.active_constraints_                # which bounds are binding
+```
+
+**Does EM still work?** Yes, and the log-likelihood stays monotone. The expected complete-data log-likelihood splits into one term per
+parameter block,
+
+$$
+Q=\sum_k n_k\log\pi_k-\tfrac12\sum_k\Big[n_k(\mu_k-\bar y_k)^\top\Sigma_k^{-1}(\mu_k-\bar y_k)+n_k\log|\Sigma_k|+\operatorname{tr}\big(\Sigma_k^{-1}W_k\big)\Big]+\text{const},
+$$
+
+with $n_k=\sum_ir_{ik}$, $\bar y_k=\sum_ir_{ik}x_i/n_k$ and $W_k$ the scatter about $\bar y_k$. The constrained M-step maximises $Q$ over
+one block at a time, each **exactly** given the others (an ECM step), so $Q$ never decreases and neither does the likelihood. Fixed values
+are simply blocks that are not updated.
+
+* **Weights.** Maximise $\sum_kn_k\log\pi_k$ subject to $\sum_k\pi_k=1$ and $lo_k\le\pi_k\le hi_k$. The Lagrangian gives
+  $\pi_k=\operatorname{clip}(n_k/\nu,\,lo_k,\,hi_k)$, where the multiplier $\nu>0$ is the root of
+  $\sum_k\operatorname{clip}(n_k/\nu,lo_k,hi_k)=1$ (a decreasing function of $\nu$: bracketed by doubling, then bisection). The solution
+  is exact; the unconstrained $n_k/n$ is recovered when it is feasible.
+* **Means.** The part of $Q$ in $\mu_k$ is $-\tfrac12n_k(\mu_k-\bar y_k)^\top\Sigma_k^{-1}(\mu_k-\bar y_k)$. For diagonal and spherical
+  covariances it separates by coordinate and the maximiser over the box is $\operatorname{clip}(\bar y_k,lo,hi)$ (exact). For full
+  covariances it is a box-constrained quadratic program; each coordinate update
+  $\mu_j=\operatorname{clip}\big(\bar y_j-\sum_{l\ne j}P_{jl}(\mu_l-\bar y_l)/P_{jj},\,lo_j,\,hi_j\big)$ with $P=\Sigma^{-1}$ is the exact
+  conditional maximiser, so a few sweeps (started from the previous feasible mean) never decrease $Q$ and converge to the box-QP optimum.
+* **Covariances.** With $T_k$ the scatter about the *new* (clipped or frozen) mean, the unconstrained estimate is $T_k/n_k$ (plus
+  `reg_covar`). A scalar variance $s$ minimises $n\log s+t/s$, which is unimodal, so the bounded optimum is $\operatorname{clip}(t/n,lo,hi)$.
+  For matrices with $lo\,I\preceq\Sigma\preceq hi\,I$ the minimiser of $n\log|\Sigma|+\operatorname{tr}(\Sigma^{-1}T)$ shares the
+  eigenvectors of $T$ (von Neumann's trace inequality) and has its eigenvalues clipped to $[lo,hi]$: the problem reduces to the scalar one
+  per eigenvalue (see also Won, Lim, Kim & Rubin, *Condition-number-regularized covariance estimation*, 2013). Both are exact. `reg_covar` is added first, so `lo` is a
+  hard floor.
+* **Frozen means / covariances.** A frozen mean is restored *before* the covariance update, so the covariance is estimated from the
+  scatter about the fixed mean (the parallel-axis identity $T_k=W_k+n_k(\bar y_k-\mu_k)(\bar y_k-\mu_k)^\top$); a frozen covariance leaves
+  the mean update unchanged.
+
+Things to know:
+
+* Initial parameters are projected into the feasible set; a `UserWarning` says so when a tensor you passed had to change.
+* Bounds give a **constrained maximum-likelihood** fit. Where a bound binds, the estimate sits on the boundary and is not an unbiased
+  estimate of the unconstrained value; `active_constraints_` (boolean masks `weights_at_lower`, `means_at_upper`, `covariances_at_lower`, ...)
+  shows where that happens.
+* `bic` / `aic` count free parameters: `fixed_weights` removes $K-1$, each frozen mean $d$, each frozen covariance its own parameter count;
+  bounds do not change the count (`frozen_components` keeps its earlier accounting).
+* Works with `em`, `cem`, `sem`, `saem`, `batch_size`, online EM / `partial_fit`, row `sample_weight`, `missing='em'`, `noise=True` (mean and
+  covariance bounds only), `select_model(..., **kwargs)` and save / load.
+* Not supported (each raises a clear error): Gibbs mode, mean / covariance bounds or frozen values together with a mean or covariance prior,
+  `covariance_bounds` for the 8 GPCM codes without a classic name, `frozen_covariances` for the tied types and those 8 codes, weight constraints
+  together with `noise=True` or `labels=`, and any of these with per-feature `(n, d)` `sample_weight`.
+
 ## Frozen components and sample weights
 
 `frozen_components=(1, 3)` holds those components' parameters at their *initial* values for the whole fit
@@ -777,6 +846,7 @@ After fitting, the model exposes:
 | `classes_`, `class_of_component_` | label values seen by a `fit(X, labels=...)` call and each component's class; `None` otherwise |
 | `n_components_`, `active_` | inferred component count and active-slot mask (Gibbs mode; `n_components_` equals `n_components` in EM mode) |
 | `n_components_history_` | Gibbs mode, unbounded variant: active-component trace after `burn_in` |
+| `active_constraints_` | dict of boolean masks saying which `weight_bounds` / `mean_bounds` / `covariance_bounds` bind at the solution; `None` when no bound is set |
 | `fitted_` | whether the model has been fitted |
 
 ## Related models

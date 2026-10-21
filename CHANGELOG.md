@@ -5,6 +5,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (constraints)
+
+- `GaussianMixture` can **fix** or **bound** its parameters: `weight_bounds=(lo, hi)`, `fixed_weights`, `mean_bounds=(lo, hi)`,
+  `covariance_bounds=(lo, hi)` (variances for `diag`/`spherical`/`tied_diag`/`tied_spherical`, eigenvalues for `full`/`tied_full`),
+  `frozen_means` and `frozen_covariances`. The constrained M-step maximises the expected complete-data log-likelihood block by block, each block
+  exactly (water-filling for the weights, clipping or coordinate ascent for the means, variance / eigenvalue clipping for the covariances), so the
+  log-likelihood stays monotone. Works with every algorithm, `batch_size`, online EM, `sample_weight`, `missing='em'`, `select_model` and
+  save / load; `bic` / `aic` discount the fixed parameters; `active_constraints_` reports the binding bounds. With the new arguments off a
+  fit is bit-identical to 0.4.2. See "Fixed values and bounds" in the user guide.
+- New module `tgmm.constraints` with the block solvers (`water_fill_weights`, `box_qp_coordinate_ascent`, `clip_eigenvalues`).
+
 ## [0.4.2] -- 2026-10-21
 
 Patch release for a bug in 0.4.1.

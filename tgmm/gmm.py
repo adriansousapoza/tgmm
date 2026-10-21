@@ -3,10 +3,12 @@ from torch import nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 from typing import Callable, Optional, Sequence, Tuple, Union
+import dataclasses
 import warnings
 import math
 from .gmm_init import GMMInitializer
 from .stats import SufficientStats
+from .constraints import water_fill_weights, box_qp_coordinate_ascent, clip_eigenvalues
 from .covariance.gpcm import mstep_gpcm, GPCMResult
 from .mixtures.base import BaseMixture
 from .mixtures import missing as _missing
@@ -285,6 +287,28 @@ class GaussianMixture(BaseMixture):
         weights still update, and priors never shrink them. Not available for the tied covariance types or
         the 8 GPCM codes without a classic name (a factor is shared across components) and not in Gibbs
         mode. (default: ())
+    weight_bounds : tuple (lo, hi), optional
+        Each a scalar or a `(n_components,)` tensor: the mixing weights are kept in `[lo_k, hi_k]` (and sum to 1).
+        The M-step solves the constrained maximisation exactly (water-filling). Requires `sum(lo) <= 1 <= sum(hi)`.
+        (default: None)
+    fixed_weights : torch.Tensor, shape (n_components,), optional
+        Hold the mixing weights at these values (positive, summing to 1). Cannot be combined with `weight_bounds`.
+        (default: None)
+    mean_bounds : tuple (lo, hi), optional
+        Box constraint on every component mean; each bound is a scalar, a `(n_features,)` or a
+        `(n_components, n_features)` tensor (`-inf` / `inf` for a one-sided bound). Exact clipping for the
+        diagonal and spherical covariance types, an ECM coordinate-ascent step for the others. (default: None)
+    covariance_bounds : tuple (lo, hi), optional
+        Bounds on the *variances*: the variances themselves for `'diag'`, `'spherical'`, `'tied_diag'` and
+        `'tied_spherical'`, the *eigenvalues* of each covariance for `'full'` and `'tied_full'`. Scalars or
+        `(n_components,)` tensors (scalars for the tied types); `lo >= 0`. Applied after `reg_covar` is added, so `lo`
+        is a hard floor. Not available for the 8 GPCM codes without a classic name. (default: None)
+    frozen_means : sequence of int, optional
+        Components whose *mean* is held at its initial value (`init_means` must be a tensor); their covariance is
+        still estimated, from the scatter about the fixed mean. (default: ())
+    frozen_covariances : sequence of int, optional
+        Components whose *covariance* is held at its initial value (`init_covariances` must be a tensor); not
+        available for the tied types and the 8 GPCM-only codes. (default: ())
     missing : {'error', 'em'}, optional
         How `NaN` entries of `X` are handled. `'error'` (default): `NaN` raises `ValueError`.
         `'em'`: `NaN` marks missing-at-random values and the likelihood of the *observed* entries
@@ -464,9 +488,24 @@ class GaussianMixture(BaseMixture):
         verbose_interval: int = 10,
         device: str = None,
 
+        # Fixed values and bounds (see _init_constraints; docs/superpowers/specs/2026-10-21-gmm-constraints-design.md)
+        weight_bounds: Optional[Tuple] = None,
+        fixed_weights: Optional[torch.Tensor] = None,
+        mean_bounds: Optional[Tuple] = None,
+        covariance_bounds: Optional[Tuple] = None,
+        frozen_means: Sequence[int] = (),
+        frozen_covariances: Sequence[int] = (),
+
         **kwargs  # Catch deprecated parameters
     ):
         super().__init__()
+        if n_components is None and (weight_bounds is not None or fixed_weights is not None
+                                     or mean_bounds is not None or covariance_bounds is not None
+                                     or frozen_means or frozen_covariances):
+            raise NotImplementedError(
+                "fixed values and bounds (weight_bounds, fixed_weights, mean_bounds, covariance_bounds, "
+                "frozen_means, frozen_covariances) are not supported in Gibbs mode (n_components=None)."
+            )
         
         # ===================================================================
         # 1. Validate deprecated parameters
@@ -760,6 +799,9 @@ class GaussianMixture(BaseMixture):
                 covariance_prior,
                 degrees_of_freedom_prior
             )
+
+        self._init_constraints(weight_bounds, fixed_weights, mean_bounds, covariance_bounds,
+                               frozen_means, frozen_covariances)
 
         # ===================================================================
         # 10. Initialize model state variables
@@ -1388,6 +1430,8 @@ class GaussianMixture(BaseMixture):
                 f"got {type(self.init_covariances)}"
             )
 
+        self._project_initial_parameters()
+
         # Store the initial covariances for later access
         self.initial_covariances_ = self.covariances_.clone().detach()
 
@@ -1615,8 +1659,325 @@ class GaussianMixture(BaseMixture):
         # this re-does X/parameter validation idempotently and nothing
         # about the result changes.
         # ===============================================================
+        if self._constraints_any():
+            if labels is not None and self._weight_constraint_active():
+                raise NotImplementedError(
+                    "weight_bounds / fixed_weights are not supported together with labels=: the labelled fit "
+                    "rescales the mixing weights after the M-step."
+                )
+            if sample_weight is not None and torch.as_tensor(sample_weight).dim() == 2:
+                raise NotImplementedError(
+                    "weight/mean/covariance constraints are not supported with per-feature sample_weight of shape "
+                    "(n_samples, n_features); pass a (n_samples,) row weight instead."
+                )
         return super().fit(X, labels=labels, max_iter=max_iter, tol=tol, random_state=random_state,
                            warm_start=warm_start, sample_weight=sample_weight)
+
+    # ===================================================================
+    # Fixed values and bounds (docs/superpowers/specs/2026-10-21-gmm-constraints-design.md)
+    # ===================================================================
+    @staticmethod
+    def _as_bound_pair(value, name):
+        try:
+            lo, hi = value
+        except (TypeError, ValueError):
+            raise ValueError(f"{name} must be a (lower, upper) pair, got {value!r}.")
+        lo = torch.as_tensor(lo, dtype=torch.float64)
+        hi = torch.as_tensor(hi, dtype=torch.float64)
+        if bool((torch.isnan(lo) | torch.isnan(hi)).any()):
+            raise ValueError(f"{name} must not contain NaN.")
+        try:
+            ok = bool((lo <= hi).all())
+        except RuntimeError:
+            raise ValueError(f"{name}: the lower and upper bounds have incompatible shapes {tuple(lo.shape)} and "
+                             f"{tuple(hi.shape)}.")
+        if not ok:
+            raise ValueError(f"{name} requires lower <= upper everywhere, got lower={lo.tolist()}, upper={hi.tolist()}.")
+        return lo, hi
+
+    @staticmethod
+    def _as_index_list(value, name, K):
+        items = [] if value is None else list(value)
+        for item in items:
+            is_int = isinstance(item, int) and not isinstance(item, bool)
+            is_int_tensor = torch.is_tensor(item) and item.dim() == 0 and not torch.is_floating_point(item)
+            if not (is_int or is_int_tensor):
+                raise ValueError(f"{name} must contain integers, got {item!r}.")
+        idx = tuple(sorted(int(i) for i in items))
+        if len(set(idx)) != len(idx):
+            raise ValueError(f"{name} must not contain duplicates, got {value!r}.")
+        if idx and (idx[0] < 0 or idx[-1] >= K):
+            raise ValueError(f"{name} indices must lie in [0, {K}), got {value!r}.")
+        return idx
+
+    def _init_constraints(self, weight_bounds, fixed_weights, mean_bounds, covariance_bounds,
+                          frozen_means, frozen_covariances):
+        r"""Validate and store the fixed-value / bound arguments (all default to 'off')."""
+        K = self.n_components
+        self.weight_bounds = weight_bounds
+        self.fixed_weights = fixed_weights
+        self.mean_bounds = mean_bounds
+        self.covariance_bounds = covariance_bounds
+        self.frozen_means = tuple(frozen_means) if frozen_means is not None else ()
+        self.frozen_covariances = tuple(frozen_covariances) if frozen_covariances is not None else ()
+        if not self._constraints_any():
+            return
+        if K is None:
+            raise NotImplementedError(
+                "fixed values and bounds (weight_bounds, fixed_weights, mean_bounds, covariance_bounds, "
+                "frozen_means, frozen_covariances) are not supported in Gibbs mode (n_components=None)."
+            )
+        if fixed_weights is not None and weight_bounds is not None:
+            raise ValueError("fixed_weights and weight_bounds cannot be used both at once; use fixed_weights to pin "
+                             "the weights or weight_bounds to confine them.")
+        if (fixed_weights is not None or weight_bounds is not None) and self.noise:
+            raise NotImplementedError(
+                "weight_bounds / fixed_weights are not supported with noise=True: the noise weight rescales the "
+                "component weights after the M-step."
+            )
+        if weight_bounds is not None:
+            lo, hi = self._as_bound_pair(weight_bounds, 'weight_bounds')
+            for t in (lo, hi):
+                if t.dim() > 1 or (t.dim() == 1 and t.numel() != K):
+                    raise ValueError(f"weight_bounds entries must be scalars or tensors of shape ({K},), "
+                                     f"got shape {tuple(t.shape)}.")
+            lo_k, hi_k = lo.expand(K), hi.expand(K)
+            if bool((lo_k < 0).any()) or bool((hi_k > 1).any()):
+                raise ValueError("weight_bounds must lie within [0, 1].")
+            if float(lo_k.sum()) > 1.0 + 1e-9 or float(hi_k.sum()) < 1.0 - 1e-9:
+                raise ValueError(
+                    f"infeasible weight_bounds: need sum(lower) <= 1 <= sum(upper), got sum(lower)="
+                    f"{float(lo_k.sum()):.6g} and sum(upper)={float(hi_k.sum()):.6g}."
+                )
+        if fixed_weights is not None:
+            w = torch.as_tensor(fixed_weights, dtype=torch.float64)
+            if w.shape != (K,):
+                raise ValueError(f"fixed_weights must have shape ({K},), got {tuple(w.shape)}.")
+            if bool((w <= 0).any()) or abs(float(w.sum()) - 1.0) > 1e-6:
+                raise ValueError("fixed_weights must be positive and sum to 1.")
+        if mean_bounds is not None:
+            lo, hi = self._as_bound_pair(mean_bounds, 'mean_bounds')
+            for t in (lo, hi):
+                if t.dim() > 2 or (t.dim() == 2 and t.shape[0] != K):
+                    raise ValueError(f"mean_bounds entries must be scalars, (n_features,) or ({K}, n_features) "
+                                     f"tensors, got shape {tuple(t.shape)}.")
+        if covariance_bounds is not None:
+            if self.covariance_type_ in _NEW_GPCM_CODES:
+                raise NotImplementedError(
+                    f"covariance_bounds is not supported for the GPCM code {self.covariance_type_!r}: its "
+                    "covariances are parameterised by volume, shape and orientation. Use 'full', 'diag', "
+                    "'spherical' or one of the 'tied_*' types."
+                )
+            lo, hi = self._as_bound_pair(covariance_bounds, 'covariance_bounds')
+            if bool((lo < 0).any()):
+                raise ValueError("covariance_bounds: the lower bound must be >= 0.")
+            tied = self.covariance_type.startswith('tied_')
+            for t in (lo, hi):
+                if t.dim() > 1 or (t.dim() == 1 and (tied or t.numel() != K)):
+                    raise ValueError(
+                        "covariance_bounds entries must be scalars" + ("" if tied else f" or ({K},) tensors")
+                        + f", got shape {tuple(t.shape)}."
+                    )
+        self.frozen_means = self._as_index_list(frozen_means, 'frozen_means', K)
+        self.frozen_covariances = self._as_index_list(frozen_covariances, 'frozen_covariances', K)
+        if self.frozen_means and not torch.is_tensor(self.init_means):
+            raise ValueError("frozen_means needs init_means to be a tensor holding the fixed values.")
+        if self.frozen_covariances:
+            if not torch.is_tensor(self.init_covariances):
+                raise ValueError("frozen_covariances needs init_covariances to be a tensor holding the fixed values.")
+            if self.covariance_type.startswith('tied_'):
+                raise ValueError(
+                    f"frozen_covariances is not supported with covariance_type={self.covariance_type!r}: the "
+                    "covariance is shared across components, so a single component cannot be held fixed."
+                )
+            if self.covariance_type_ in _NEW_GPCM_CODES:
+                raise ValueError(
+                    f"frozen_covariances is not supported with the GPCM code {self.covariance_type_!r}: it shares "
+                    "volume, shape or orientation across components."
+                )
+        if (mean_bounds is not None or covariance_bounds is not None or self.frozen_means
+                or self.frozen_covariances) and (self.use_mean_prior or self.use_covariance_prior):
+            raise NotImplementedError(
+                "mean_bounds / covariance_bounds / frozen_means / frozen_covariances cannot be combined with a "
+                "mean or covariance prior (MAP / NIW updates); use the unconstrained maximum-likelihood M-step."
+            )
+
+    def _constraints_any(self) -> bool:
+        return bool(self.weight_bounds is not None or self.fixed_weights is not None
+                    or self.mean_bounds is not None or self.covariance_bounds is not None
+                    or self.frozen_means or self.frozen_covariances)
+
+    def _weight_constraint_active(self) -> bool:
+        return self.weight_bounds is not None or self.fixed_weights is not None
+
+    def _mean_constraint_active(self) -> bool:
+        return self.mean_bounds is not None or bool(self.frozen_means)
+
+    def _resolved_weight_bounds(self):
+        K = self.n_components
+        lo, hi = self._as_bound_pair(self.weight_bounds, 'weight_bounds')
+        kw = dict(device=self.device, dtype=self.dtype)
+        return lo.to(**kw).expand(K).clone(), hi.to(**kw).expand(K).clone()
+
+    def _resolved_mean_bounds(self):
+        K, d = self.n_components, self.n_features
+        lo, hi = self._as_bound_pair(self.mean_bounds, 'mean_bounds')
+        kw = dict(device=self.device, dtype=self.dtype)
+        out = []
+        for t in (lo, hi):
+            t = t.to(**kw)
+            if t.dim() == 1 and t.numel() != d:
+                raise ValueError(f"mean_bounds entries given per feature must have length n_features={d}, "
+                                 f"got {t.numel()}.")
+            out.append(t.expand(K, d).clone())
+        return out
+
+    def _resolved_covariance_bounds(self):
+        K = self.n_components
+        lo, hi = self._as_bound_pair(self.covariance_bounds, 'covariance_bounds')
+        kw = dict(device=self.device, dtype=self.dtype)
+        if self.covariance_type.startswith('tied_'):
+            return lo.to(**kw), hi.to(**kw)
+        return lo.to(**kw).expand(K).clone(), hi.to(**kw).expand(K).clone()
+
+    def _clip_covariances(self, covs, lo, hi):
+        r"""Project covariances into the bounds: elementwise for the variance-valued types, eigenvalue clipping for
+        the matrix-valued ones."""
+        t = self.covariance_type
+        if t in ('full', 'tied_full'):
+            return clip_eigenvalues(covs, lo, hi)
+        if t == 'diag':
+            return torch.minimum(torch.maximum(covs, lo.unsqueeze(-1)), hi.unsqueeze(-1))
+        return torch.minimum(torch.maximum(covs, lo), hi)
+
+    def _cov_stack(self, covs):
+        r"""`(K, d, d)` view of the stored covariances, for the types whose mean update is not separable."""
+        if self.covariance_type == 'tied_full':
+            return covs.unsqueeze(0).expand(self.n_components, -1, -1)
+        return covs
+
+    def _constrained_weights(self, nk):
+        if self.fixed_weights is not None:
+            return torch.as_tensor(self.fixed_weights, device=self.device, dtype=self.dtype).clone()
+        lo, hi = self._resolved_weight_bounds()
+        if self.use_weight_prior:
+            counts = (nk + self.weight_concentration_prior - 1.0).clamp(min=0.0)
+        else:
+            counts = nk
+        return water_fill_weights(counts, lo, hi)
+
+    def _constrained_means(self, ybar, prev_means, prev_covariances):
+        mu = ybar
+        if self.mean_bounds is not None:
+            lo, hi = self._resolved_mean_bounds()
+            if self.covariance_type in ('diag', 'spherical', 'tied_diag', 'tied_spherical'):
+                mu = torch.minimum(torch.maximum(ybar, lo), hi)
+            else:
+                feasible = ((ybar >= lo) & (ybar <= hi)).all(dim=1, keepdim=True)
+                if not bool(feasible.all()):
+                    precision = torch.linalg.inv(self._cov_stack(prev_covariances))
+                    x0 = torch.minimum(torch.maximum(prev_means, lo), hi)
+                    qp = box_qp_coordinate_ascent(ybar, precision, lo, hi, x0)
+                    mu = torch.where(feasible, ybar, qp)
+        if self.frozen_means:
+            idx = torch.tensor(self.frozen_means, dtype=torch.long, device=self.device)
+            mu = mu.clone()
+            mu[idx] = prev_means[idx]
+        return mu
+
+    def _constrained_covariance_update(self, stats, nk, ybar, prev_covariances):
+        r"""Covariance block of the constrained M-step: the usual estimate about the (new) means, then the bounds,
+        then the frozen components restored."""
+        if self.covariance_type_ in _NEW_GPCM_CODES:
+            if self._mean_constraint_active():
+                delta = ybar - self.means_
+                shifted = stats.s2 + nk.view(-1, 1, 1) * torch.einsum('kd,ke->kde', delta, delta)
+                stats = dataclasses.replace(stats, s2=shifted)
+            self._update_covariances_gpcm(stats, nk)
+            return
+        self._update_covariances_mle(stats, nk, ybar)
+        if self.covariance_bounds is not None:
+            lo, hi = self._resolved_covariance_bounds()
+            self.covariances_ = self._clip_covariances(self.covariances_, lo, hi)
+        if self.frozen_covariances:
+            idx = torch.tensor(self.frozen_covariances, dtype=torch.long, device=self.device)
+            covs = self.covariances_.clone()
+            covs[idx] = prev_covariances[idx]
+            self.covariances_ = covs
+
+    def _project_initial_parameters(self):
+        r"""Project the freshly initialised parameters into the feasible set (called at the end of
+        `_allocate_parameters`); a `UserWarning` is issued when a user-given initial tensor had to change."""
+        if not self._constraints_any():
+            return
+        changed = []
+        kw = dict(device=self.device, dtype=self.dtype)
+        if self.fixed_weights is not None:
+            w = torch.as_tensor(self.fixed_weights, **kw).clone()
+            if torch.is_tensor(self.init_weights) and not torch.allclose(self.weights_, w):
+                changed.append('init_weights')
+            self.weights_ = w
+        elif self.weight_bounds is not None:
+            lo, hi = self._resolved_weight_bounds()
+            w = water_fill_weights(self.weights_.clamp(min=1e-12), lo, hi)
+            if torch.is_tensor(self.init_weights) and not torch.allclose(self.weights_, w, atol=1e-12):
+                changed.append('init_weights')
+            self.weights_ = w
+        if self.mean_bounds is not None:
+            lo, hi = self._resolved_mean_bounds()
+            mu = torch.minimum(torch.maximum(self.means_, lo), hi)
+            if torch.is_tensor(self.init_means) and not torch.equal(mu, self.means_):
+                changed.append('init_means')
+            self.means_ = mu
+        if self.covariance_bounds is not None:
+            lo, hi = self._resolved_covariance_bounds()
+            covs = self._clip_covariances(self.covariances_, lo, hi)
+            if torch.is_tensor(self.init_covariances) and not torch.allclose(covs, self.covariances_, atol=1e-12, rtol=0):
+                changed.append('init_covariances')
+            self.covariances_ = covs
+        self.initial_means_ = self.means_.clone().detach()
+        self.initial_weights_ = self.weights_.clone().detach()
+        if changed:
+            warnings.warn(
+                f"{', '.join(changed)} violated the constraints and was projected into the feasible set "
+                "(weight_bounds / fixed_weights / mean_bounds / covariance_bounds).", UserWarning, stacklevel=3
+            )
+
+    @property
+    def active_constraints_(self):
+        r"""Which bounds bind at the fitted solution (`None` when no bound is set): a dict of boolean masks
+        `weights_at_lower`, `weights_at_upper` (shape `(K,)`), `means_at_lower`, `means_at_upper` (`(K, d)`),
+        `covariances_at_lower`, `covariances_at_upper` (shape of `covariances_` for the variance types,
+        eigenvalue masks of shape `(K, d)` for `'full'` / `'tied_full'`). Only the masks of bounds that were set
+        exist."""
+        if self.weight_bounds is None and self.mean_bounds is None and self.covariance_bounds is None:
+            return None
+        if self.weights_ is None:
+            return None
+        out = {}
+        tol = 1e-9
+        if self.weight_bounds is not None:
+            lo, hi = self._resolved_weight_bounds()
+            out['weights_at_lower'] = self.weights_ <= lo + tol
+            out['weights_at_upper'] = self.weights_ >= hi - tol
+        if self.mean_bounds is not None:
+            lo, hi = self._resolved_mean_bounds()
+            out['means_at_lower'] = self.means_ <= lo + tol
+            out['means_at_upper'] = self.means_ >= hi - tol
+        if self.covariance_bounds is not None:
+            lo, hi = self._resolved_covariance_bounds()
+            covs = self.covariances_
+            if self.covariance_type in ('full', 'tied_full'):
+                covs = torch.linalg.eigvalsh(covs)
+                lo_b = lo.unsqueeze(-1) if lo.dim() else lo
+                hi_b = hi.unsqueeze(-1) if hi.dim() else hi
+            elif self.covariance_type == 'diag':
+                lo_b, hi_b = lo.unsqueeze(-1), hi.unsqueeze(-1)
+            else:
+                lo_b, hi_b = lo, hi
+            out['covariances_at_lower'] = covs <= lo_b + tol
+            out['covariances_at_upper'] = covs >= hi_b - tol
+        return out
 
     def _is_tied_covariance(self) -> bool:
         return self.covariance_type in ('tied_full', 'tied_diag', 'tied_spherical')
@@ -2351,6 +2712,10 @@ class GaussianMixture(BaseMixture):
         # 1. Compute effective sample counts per component
         # ===============================================================
         nk = stats.nk + 1e-20  # (n_components,)
+        constrained = self._constraints_any()
+        if constrained:
+            prev_means = self.means_.clone()
+            prev_covariances = self.covariances_.clone() if torch.is_tensor(self.covariances_) else self.covariances_
 
         # ===============================================================
         # 2. Update mixing weights
@@ -2364,6 +2729,8 @@ class GaussianMixture(BaseMixture):
             # MLE update
             self.weights_ = nk / n_samples
 
+        if constrained and self._weight_constraint_active():
+            self.weights_ = self._constrained_weights(nk)
         self.weights_.clamp_(min=1e-20)  # Ensure numerical stability
 
         # ===============================================================
@@ -2385,9 +2752,13 @@ class GaussianMixture(BaseMixture):
             else:
                 # MLE update
                 self.means_ = ybar
+            if constrained and self._mean_constraint_active():
+                self.means_ = self._constrained_means(ybar, prev_means, prev_covariances)
 
             # Update covariances
-            if self.covariance_type_ in _NEW_GPCM_CODES:
+            if constrained:
+                self._constrained_covariance_update(stats, nk, ybar, prev_covariances)
+            elif self.covariance_type_ in _NEW_GPCM_CODES:
                 # GPCM covariance types have no MAP path (validated at
                 # __init__; use_covariance_prior is guaranteed False here).
                 self._update_covariances_gpcm(stats, nk)
@@ -2800,7 +3171,8 @@ class GaussianMixture(BaseMixture):
 
     def _update_mle_tied_spherical(self, stats, nk, ybar):
         r"""MLE update for tied spherical covariance (single variance for all)."""
-        if stats.aux is not None and 's2_total' in stats.aux and not self.use_mean_prior:
+        if (stats.aux is not None and 's2_total' in stats.aux and not self.use_mean_prior
+                and not self._mean_constraint_active()):
             # means_ == ybar here, so the pooled scatter about means_ is the single-reduction total
             sum_diff = stats.aux['s2_total']
         else:
@@ -3365,7 +3737,15 @@ class GaussianMixture(BaseMixture):
         mean_params = n_features * n_components
         weight_params = n_components - 1
         noise_params = 1 if self.noise else 0  # the noise weight pi_0
-        return int(cov_params + mean_params + weight_params + noise_params)
+        total = cov_params + mean_params + weight_params + noise_params
+        if self.fixed_weights is not None:
+            total -= weight_params
+        total -= n_features * len(self.frozen_means)
+        if self.frozen_covariances:
+            per_component = {'full': n_features * (n_features + 1) / 2.0, 'diag': n_features,
+                             'spherical': 1}[self.covariance_type]
+            total -= per_component * len(self.frozen_covariances)
+        return int(total)
 
     def _active_score(self, X: torch.Tensor) -> float:
         r"""
@@ -4239,6 +4619,12 @@ class GaussianMixture(BaseMixture):
             'noise_bounds_': self.noise_bounds_,
             'missing': self.missing,
             'frozen_components': list(self.frozen_components),
+            'weight_bounds': self.weight_bounds,
+            'fixed_weights': self.fixed_weights,
+            'mean_bounds': self.mean_bounds,
+            'covariance_bounds': self.covariance_bounds,
+            'frozen_means': list(self.frozen_means),
+            'frozen_covariances': list(self.frozen_covariances),
             **self._semisupervised_state(),
 
             # ===============================================================
@@ -4365,6 +4751,12 @@ class GaussianMixture(BaseMixture):
             noise_prior=state_dict.get('noise_prior', 0.05),
             missing=state_dict.get('missing', 'error'),
             frozen_components=state_dict.get('frozen_components', ()),
+            weight_bounds=state_dict.get('weight_bounds'),
+            fixed_weights=state_dict.get('fixed_weights'),
+            mean_bounds=state_dict.get('mean_bounds'),
+            covariance_bounds=state_dict.get('covariance_bounds'),
+            frozen_means=state_dict.get('frozen_means', ()),
+            frozen_covariances=state_dict.get('frozen_covariances', ()),
             **cls._semisupervised_kwargs(state_dict),
         )
         model.noise_weight_ = state_dict.get('noise_weight_')
@@ -4479,6 +4871,12 @@ class GaussianMixture(BaseMixture):
             'noise_bounds_': self.noise_bounds_,
             'missing': self.missing,
             'frozen_components': list(self.frozen_components),
+            'weight_bounds': self.weight_bounds,
+            'fixed_weights': self.fixed_weights,
+            'mean_bounds': self.mean_bounds,
+            'covariance_bounds': self.covariance_bounds,
+            'frozen_means': list(self.frozen_means),
+            'frozen_covariances': list(self.frozen_covariances),
             **self._semisupervised_state(),
 
             # ===============================================================
@@ -4592,6 +4990,12 @@ class GaussianMixture(BaseMixture):
         self.noise_prior = state_dict.get('noise_prior', 0.05)
         self.missing = state_dict.get('missing', 'error')
         self.frozen_components = state_dict.get('frozen_components', ())
+        self.weight_bounds = state_dict.get('weight_bounds')
+        self.fixed_weights = state_dict.get('fixed_weights')
+        self.mean_bounds = state_dict.get('mean_bounds')
+        self.covariance_bounds = state_dict.get('covariance_bounds')
+        self.frozen_means = tuple(state_dict.get('frozen_means', ()))
+        self.frozen_covariances = tuple(state_dict.get('frozen_covariances', ()))
         self._load_semisupervised_state(state_dict)
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')
