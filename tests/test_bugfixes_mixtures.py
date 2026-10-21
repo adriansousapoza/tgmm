@@ -353,6 +353,12 @@ FAMILIES = {
         dict(n_components=3, n_features=2, covariance_type='diag', gpcm_tol=1e-4, gpcm_max_iter=7, init_means='kpp',
              init_covariances='global', algorithm='sem', cem=False, temperature=(0.5, 5), noise=True, missing='error',
              frozen_components=(1,)),
+        dict(n_components=3, n_features=2, covariance_type='diag', weight_bounds=(0.1, 0.6),
+             mean_bounds=(torch.tensor([0.0, -1.0]), torch.tensor([1.0, 2.0])), covariance_bounds=(0.01, 0.5),
+             frozen_means=(0,), frozen_covariances=(2,),
+             init_means=torch.tensor([[0.2, 0.2], [0.5, 0.5], [0.8, 0.8]]),
+             init_covariances=torch.full((3, 2), 0.1)),
+        dict(n_components=3, n_features=2, fixed_weights=torch.tensor([0.5, 0.3, 0.2])),
     ]),
     'student_t': (StudentTMixture, [
         dict(n_components=3, n_features=2, covariance_type='diag', dof=3.5, dof_init=3.0, dof_bounds=(0.5, 500.0),

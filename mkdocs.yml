@@ -187,5 +187,6 @@ nav:
       - tgmm.ClusteringMetrics: api/clustering-metrics.md
       - tgmm.plotting: api/plotting.md
       - tgmm.SufficientStats: api/sufficient-stats.md
+      - tgmm.constraints: api/constraints.md
       - Model Selection: api/model-selection.md
   - Contributing: contributing.md
