@@ -2094,6 +2094,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/model-selection/" class="md-nav__link">
         
   
@@ -2202,7 +2230,7 @@ assignment from <span class="arithmatex">\(r_{i\cdot}\)</span> (seeded, so the p
 </div>
 
 <div markdown="0">
-<marimo-island data-app-id=main data-cell-id=MJUe data-reactive=true><marimo-cell-output><div style="display: flex;flex: 1;flex-direction: row;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem"><marimo-ui-element object-id=MJUe-0 random-id=4af7c55b-0c00-30f1-6434-f81fc5720ce2><marimo-dropdown data-initial-value='["EM"]' data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003ealgorithm\u003c/span\u003e\u003c/span\u003e"' data-options='["EM","CEM","SEM"]' data-allow-select-none=false data-searchable=false data-full-width=false data-disabled=false></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id=MJUe-1 random-id=4824bd8f-a01b-81b0-2257-a0a2a4b1815c><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eE-step\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element><marimo-ui-element object-id=MJUe-2 random-id=78c65420-2668-39c7-3d7f-d538736b98cf><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eM-step\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element><marimo-ui-element object-id=MJUe-3 random-id=95c2acbb-c49b-77c7-7be5-1743c372a734><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eRun 10\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element><marimo-ui-element object-id=MJUe-4 random-id=4d01f573-7a96-740e-3108-d2e90ea78b4d><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eReset\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element></div></marimo-cell-output><marimo-cell-code hidden>mode%20%3D%20mo.ui.dropdown(%5B%22EM%22%2C%20%22CEM%22%2C%20%22SEM%22%5D%2C%20value%3D%22EM%22%2C%20label%3D%22algorithm%22%2C%20on_change%3Dlambda%20_%3A%20set_s(INIT))%0Ab_e%20%3D%20mo.ui.button(label%3D%22E-step%22%2C%20on_click%3Dlambda%20_%3A%20set_s(lambda%20p%3A%20step(p%2C%20mode.value%2C%20%22E%22)))%0Ab_m%20%3D%20mo.ui.button(label%3D%22M-step%22%2C%20on_click%3Dlambda%20_%3A%20set_s(lambda%20p%3A%20step(p%2C%20mode.value%2C%20%22M%22)))%0Ab_run%20%3D%20mo.ui.button(label%3D%22Run%2010%22%2C%20on_click%3Dlambda%20_%3A%20set_s(lambda%20p%3A%20step(p%2C%20mode.value%2C%20%22run%22)))%0Ab_reset%20%3D%20mo.ui.button(label%3D%22Reset%22%2C%20on_click%3Dlambda%20_%3A%20set_s(INIT))%0Amo.hstack(%5Bmode%2C%20b_e%2C%20b_m%2C%20b_run%2C%20b_reset%5D%2C%20justify%3D%22start%22)</marimo-cell-code></marimo-island>
+<marimo-island data-app-id=main data-cell-id=MJUe data-reactive=true><marimo-cell-output><div style="display: flex;flex: 1;flex-direction: row;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem"><marimo-ui-element object-id=MJUe-0 random-id=5097aced-0738-d0f1-5435-9634f1d996fe><marimo-dropdown data-initial-value='["EM"]' data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003ealgorithm\u003c/span\u003e\u003c/span\u003e"' data-options='["EM","CEM","SEM"]' data-allow-select-none=false data-searchable=false data-full-width=false data-disabled=false></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id=MJUe-1 random-id=7587e294-c8c2-9cd5-cfac-a004c3a234a8><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eE-step\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element><marimo-ui-element object-id=MJUe-2 random-id=f79db692-b5cd-89b6-d901-5390b663aca6><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eM-step\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element><marimo-ui-element object-id=MJUe-3 random-id=7a2a13c8-bb26-46ff-8d4a-6ec1d2a1d5c8><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eRun 10\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element><marimo-ui-element object-id=MJUe-4 random-id=f04f32ff-be58-6f7a-7a01-7e6c35bae852><marimo-button data-initial-value=0 data-label='"\u003cspan class=\"markdown prose dark:prose-invert contents\"\u003e\u003cspan class=\"paragraph\"\u003eReset\u003c/span\u003e\u003c/span\u003e"' data-kind='"neutral"' data-disabled=false data-full-width=false></marimo-button></marimo-ui-element></div></marimo-cell-output><marimo-cell-code hidden>mode%20%3D%20mo.ui.dropdown(%5B%22EM%22%2C%20%22CEM%22%2C%20%22SEM%22%5D%2C%20value%3D%22EM%22%2C%20label%3D%22algorithm%22%2C%20on_change%3Dlambda%20_%3A%20set_s(INIT))%0Ab_e%20%3D%20mo.ui.button(label%3D%22E-step%22%2C%20on_click%3Dlambda%20_%3A%20set_s(lambda%20p%3A%20step(p%2C%20mode.value%2C%20%22E%22)))%0Ab_m%20%3D%20mo.ui.button(label%3D%22M-step%22%2C%20on_click%3Dlambda%20_%3A%20set_s(lambda%20p%3A%20step(p%2C%20mode.value%2C%20%22M%22)))%0Ab_run%20%3D%20mo.ui.button(label%3D%22Run%2010%22%2C%20on_click%3Dlambda%20_%3A%20set_s(lambda%20p%3A%20step(p%2C%20mode.value%2C%20%22run%22)))%0Ab_reset%20%3D%20mo.ui.button(label%3D%22Reset%22%2C%20on_click%3Dlambda%20_%3A%20set_s(INIT))%0Amo.hstack(%5Bmode%2C%20b_e%2C%20b_m%2C%20b_run%2C%20b_reset%5D%2C%20justify%3D%22start%22)</marimo-cell-code></marimo-island>
 </div>
 
 <p>Changing the algorithm resets the fit. <strong>M-step</strong> first runs an E-step if the responsibilities are stale, so <em>E then M</em> is one EM iteration, and <strong>Run 10</strong> does ten.</p>

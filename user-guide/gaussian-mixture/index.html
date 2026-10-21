@@ -995,6 +995,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#fixed-values-and-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed values and bounds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#frozen-components-and-sample-weights" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2513,6 +2524,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tgmm.constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/model-selection/" class="md-nav__link">
         
   
@@ -2885,6 +2924,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fixed-values-and-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed values and bounds
+      
+    </span>
+  </a>
   
 </li>
       
@@ -3666,6 +3716,94 @@ extra GPCM codes are not supported (a coupling across components breaks the per-
 Gibbs-sampling math, a step-by-step walkthrough and a comparison against classical EM, and the
 <a href="https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md">design document</a>
 for the full derivation.</p>
+<h2 id="fixed-values-and-bounds">Fixed values and bounds<a class="headerlink" href="#fixed-values-and-bounds" title="Permanent link">&para;</a></h2>
+<p>Sometimes part of the model is known (the class proportions from a census, a reference population's mean) or has to stay
+physically sensible (means inside the measurement range, variances below a noise ceiling). Six constructor arguments express this;
+all are off by default and a fit without them is bit-identical to earlier versions.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>weight_bounds=(lo, hi)</code></td>
+<td><span class="arithmatex">\(lo_k\le\pi_k\le hi_k\)</span> (scalars or <code>(K,)</code> tensors), weights still sum to 1</td>
+</tr>
+<tr>
+<td><code>fixed_weights=w</code></td>
+<td><span class="arithmatex">\(\pi=w\)</span> for the whole fit (positive, sums to 1; not together with <code>weight_bounds</code>)</td>
+</tr>
+<tr>
+<td><code>mean_bounds=(lo, hi)</code></td>
+<td><span class="arithmatex">\(lo\le\mu_k\le hi\)</span> element-wise (scalar, <code>(d,)</code> or <code>(K, d)</code>; use <code>-inf</code> / <code>inf</code> for one side)</td>
+</tr>
+<tr>
+<td><code>covariance_bounds=(lo, hi)</code></td>
+<td>bounds on the <strong>variances</strong> (<code>diag</code>, <code>spherical</code>, <code>tied_diag</code>, <code>tied_spherical</code>) or on the <strong>eigenvalues</strong> of <span class="arithmatex">\(\Sigma_k\)</span> (<code>full</code>, <code>tied_full</code>); <span class="arithmatex">\(lo\ge0\)</span></td>
+</tr>
+<tr>
+<td><code>frozen_means=[k, ...]</code></td>
+<td>those components' means stay at <code>init_means</code> (a tensor); their covariances are still estimated</td>
+</tr>
+<tr>
+<td><code>frozen_covariances=[k, ...]</code></td>
+<td>those components' covariances stay at <code>init_covariances</code> (a tensor)</td>
+</tr>
+</tbody>
+</table>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>    <span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">'diag'</span><span class="p">,</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">mean_bounds</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>            <span class="c1"># every mean inside the unit square</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">covariance_bounds</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>      <span class="c1"># variances at most 0.5</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">weight_bounds</span><span class="o">=</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">),</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="n">gmm</span><span class="o">.</span><span class="n">active_constraints_</span>                <span class="c1"># which bounds are binding</span>
+</span></code></pre></div>
+<p><strong>Does EM still work?</strong> Yes, and the log-likelihood stays monotone. The expected complete-data log-likelihood splits into one term per
+parameter block,</p>
+<div class="arithmatex">\[
+Q=\sum_k n_k\log\pi_k-\tfrac12\sum_k\Big[n_k(\mu_k-\bar y_k)^\top\Sigma_k^{-1}(\mu_k-\bar y_k)+n_k\log|\Sigma_k|+\operatorname{tr}\big(\Sigma_k^{-1}W_k\big)\Big]+\text{const},
+\]</div>
+<p>with <span class="arithmatex">\(n_k=\sum_ir_{ik}\)</span>, <span class="arithmatex">\(\bar y_k=\sum_ir_{ik}x_i/n_k\)</span> and <span class="arithmatex">\(W_k\)</span> the scatter about <span class="arithmatex">\(\bar y_k\)</span>. The constrained M-step maximises <span class="arithmatex">\(Q\)</span> over
+one block at a time, each <strong>exactly</strong> given the others (an ECM step), so <span class="arithmatex">\(Q\)</span> never decreases and neither does the likelihood. Fixed values
+are simply blocks that are not updated.</p>
+<ul>
+<li><strong>Weights.</strong> Maximise <span class="arithmatex">\(\sum_kn_k\log\pi_k\)</span> subject to <span class="arithmatex">\(\sum_k\pi_k=1\)</span> and <span class="arithmatex">\(lo_k\le\pi_k\le hi_k\)</span>. The Lagrangian gives
+  <span class="arithmatex">\(\pi_k=\operatorname{clip}(n_k/\nu,\,lo_k,\,hi_k)\)</span>, where the multiplier <span class="arithmatex">\(\nu&gt;0\)</span> is the root of
+  <span class="arithmatex">\(\sum_k\operatorname{clip}(n_k/\nu,lo_k,hi_k)=1\)</span> (a decreasing function of <span class="arithmatex">\(\nu\)</span>: bracketed by doubling, then bisection). The solution
+  is exact; the unconstrained <span class="arithmatex">\(n_k/n\)</span> is recovered when it is feasible.</li>
+<li><strong>Means.</strong> The part of <span class="arithmatex">\(Q\)</span> in <span class="arithmatex">\(\mu_k\)</span> is <span class="arithmatex">\(-\tfrac12n_k(\mu_k-\bar y_k)^\top\Sigma_k^{-1}(\mu_k-\bar y_k)\)</span>. For diagonal and spherical
+  covariances it separates by coordinate and the maximiser over the box is <span class="arithmatex">\(\operatorname{clip}(\bar y_k,lo,hi)\)</span> (exact). For full
+  covariances it is a box-constrained quadratic program; each coordinate update
+  <span class="arithmatex">\(\mu_j=\operatorname{clip}\big(\bar y_j-\sum_{l\ne j}P_{jl}(\mu_l-\bar y_l)/P_{jj},\,lo_j,\,hi_j\big)\)</span> with <span class="arithmatex">\(P=\Sigma^{-1}\)</span> is the exact
+  conditional maximiser, so a few sweeps (started from the previous feasible mean) never decrease <span class="arithmatex">\(Q\)</span> and converge to the box-QP optimum.</li>
+<li><strong>Covariances.</strong> With <span class="arithmatex">\(T_k\)</span> the scatter about the <em>new</em> (clipped or frozen) mean, the unconstrained estimate is <span class="arithmatex">\(T_k/n_k\)</span> (plus
+  <code>reg_covar</code>). A scalar variance <span class="arithmatex">\(s\)</span> minimises <span class="arithmatex">\(n\log s+t/s\)</span>, which is unimodal, so the bounded optimum is <span class="arithmatex">\(\operatorname{clip}(t/n,lo,hi)\)</span>.
+  For matrices with <span class="arithmatex">\(lo\,I\preceq\Sigma\preceq hi\,I\)</span> the minimiser of <span class="arithmatex">\(n\log|\Sigma|+\operatorname{tr}(\Sigma^{-1}T)\)</span> shares the
+  eigenvectors of <span class="arithmatex">\(T\)</span> (von Neumann's trace inequality) and has its eigenvalues clipped to <span class="arithmatex">\([lo,hi]\)</span>: the problem reduces to the scalar one
+  per eigenvalue (see also Won, Lim, Kim &amp; Rubin, <em>Condition-number-regularized covariance estimation</em>, 2013). Both are exact. <code>reg_covar</code> is added first, so <code>lo</code> is a
+  hard floor.</li>
+<li><strong>Frozen means / covariances.</strong> A frozen mean is restored <em>before</em> the covariance update, so the covariance is estimated from the
+  scatter about the fixed mean (the parallel-axis identity <span class="arithmatex">\(T_k=W_k+n_k(\bar y_k-\mu_k)(\bar y_k-\mu_k)^\top\)</span>); a frozen covariance leaves
+  the mean update unchanged.</li>
+</ul>
+<p>Things to know:</p>
+<ul>
+<li>Initial parameters are projected into the feasible set; a <code>UserWarning</code> says so when a tensor you passed had to change.</li>
+<li>Bounds give a <strong>constrained maximum-likelihood</strong> fit. Where a bound binds, the estimate sits on the boundary and is not an unbiased
+  estimate of the unconstrained value; <code>active_constraints_</code> (boolean masks <code>weights_at_lower</code>, <code>means_at_upper</code>, <code>covariances_at_lower</code>, ...)
+  shows where that happens.</li>
+<li><code>bic</code> / <code>aic</code> count free parameters: <code>fixed_weights</code> removes <span class="arithmatex">\(K-1\)</span>, each frozen mean <span class="arithmatex">\(d\)</span>, each frozen covariance its own parameter count;
+  bounds do not change the count (<code>frozen_components</code> keeps its earlier accounting).</li>
+<li>Works with <code>em</code>, <code>cem</code>, <code>sem</code>, <code>saem</code>, <code>batch_size</code>, online EM / <code>partial_fit</code>, row <code>sample_weight</code>, <code>missing='em'</code>, <code>noise=True</code> (mean and
+  covariance bounds only), <code>select_model(..., **kwargs)</code> and save / load.</li>
+<li>Not supported (each raises a clear error): Gibbs mode, mean / covariance bounds or frozen values together with a mean or covariance prior,
+  <code>covariance_bounds</code> for the 8 GPCM codes without a classic name, <code>frozen_covariances</code> for the tied types and those 8 codes, weight constraints
+  together with <code>noise=True</code> or <code>labels=</code>, and any of these with per-feature <code>(n, d)</code> <code>sample_weight</code>.</li>
+</ul>
 <h2 id="frozen-components-and-sample-weights">Frozen components and sample weights<a class="headerlink" href="#frozen-components-and-sample-weights" title="Permanent link">&para;</a></h2>
 <p><code>frozen_components=(1, 3)</code> holds those components' parameters at their <em>initial</em> values for the whole fit
 (give them with tensor <code>init_means</code> / <code>init_covariances</code>, or with <code>warm_start</code>); their mixing weights still update,
@@ -3687,36 +3825,36 @@ pomegranate) is not provided: <code>step_size</code> (online EM / SAEM) is the s
 <h2 id="sampling-from-the-model">Sampling from the model<a class="headerlink" href="#sampling-from-the-model" title="Permanent link">&para;</a></h2>
 <p>Generate new samples from the fitted mixture: pick <span class="arithmatex">\(z\sim\operatorname{Categorical}(\pi)\)</span>, then draw
 <span class="arithmatex">\(x=\mu_z+L_zg\)</span> with <span class="arithmatex">\(g\sim\mathcal{N}(0,I)\)</span> and <span class="arithmatex">\(L_zL_z^\top=\Sigma_z\)</span>.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">samples</span><span class="p">,</span> <span class="n">component_ids</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>                          <span class="c1"># basic sampling</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>                          <span class="c1"># one component only</span>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">confidence</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>                     <span class="c1"># within the 95% region</span>
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">))</span>                <span class="c1"># Mahalanobis radius in [1, 2]</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="n">outliers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">3.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s1">'inf'</span><span class="p">)))</span>       <span class="c1"># beyond 3 standard deviations</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">samples</span><span class="p">,</span> <span class="n">component_ids</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>                          <span class="c1"># basic sampling</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>                          <span class="c1"># one component only</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">confidence</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>                     <span class="c1"># within the 95% region</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="n">samples</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">))</span>                <span class="c1"># Mahalanobis radius in [1, 2]</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">outliers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">std_range</span><span class="o">=</span><span class="p">(</span><span class="mf">3.0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s1">'inf'</span><span class="p">)))</span>       <span class="c1"># beyond 3 standard deviations</span>
 </span></code></pre></div>
 <p>Constraints are applied by rejection sampling on the Mahalanobis distance
 <span class="arithmatex">\(\sqrt{(x-\mu_k)^\top\Sigma_k^{-1}(x-\mu_k)}\)</span>; <code>confidence</code> <span class="arithmatex">\(q\)</span> is converted to a radius through the
 <span class="arithmatex">\(\chi^2_d\)</span> quantile, <span class="arithmatex">\(\sqrt{\chi^2_{d,q}}\)</span> (so in <span class="arithmatex">\(d=2\)</span>, 95% is a radius of about 2.45, not 2). See the
 <a href="../../notebooks/07_sampling/">Sampling tutorial</a>.</p>
 <h2 id="large-datasets-batch_size">Large datasets: <code>batch_size</code><a class="headerlink" href="#large-datasets-batch_size" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4096</span><span class="p">)</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># same result as batch_size=None, bounded peak memory</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">4096</span><span class="p">)</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># same result as batch_size=None, bounded peak memory</span>
 </span></code></pre></div>
 <p>As explained under <a href="#mini-batch-and-online-em">online EM</a>, <code>batch_size</code> alone changes nothing about the
 result (up to floating-point summation order) -- it is purely a memory/speed knob.</p>
 <h2 id="model-persistence">Model persistence<a class="headerlink" href="#model-persistence" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">gmm</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">)</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">loaded_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">'cuda'</span><span class="p">)</span>
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">state_dict</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">save_state_dict</span><span class="p">()</span>          <span class="c1"># PyTorch-style</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="s1">'model_state.pth'</span><span class="p">)</span>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="n">new_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="n">new_gmm</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'model_state.pth'</span><span class="p">))</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">gmm</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">)</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">loaded_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'my_model.pth'</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s1">'cuda'</span><span class="p">)</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">state_dict</span> <span class="o">=</span> <span class="n">gmm</span><span class="o">.</span><span class="n">save_state_dict</span><span class="p">()</span>          <span class="c1"># PyTorch-style</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="s1">'model_state.pth'</span><span class="p">)</span>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="n">new_gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="n">new_gmm</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">'model_state.pth'</span><span class="p">))</span>
 </span></code></pre></div>
 <p><code>classes_</code> / <code>class_of_component_</code> are not persisted.</p>
 <h2 id="gpu-acceleration">GPU acceleration<a class="headerlink" href="#gpu-acceleration" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">device</span> <span class="o">=</span> <span class="s1">'cuda'</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">'cpu'</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># X can be on CPU or GPU; it is moved to `device`</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">device</span> <span class="o">=</span> <span class="s1">'cuda'</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s1">'cpu'</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">gmm</span> <span class="o">=</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">n_features</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">gmm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>  <span class="c1"># X can be on CPU or GPU; it is moved to `device`</span>
 </span></code></pre></div>
 <h2 id="fitted-attributes">Fitted attributes<a class="headerlink" href="#fitted-attributes" title="Permanent link">&para;</a></h2>
 <p>After fitting, the model exposes:</p>
@@ -3787,6 +3925,10 @@ result (up to floating-point summation order) -- it is purely a memory/speed kno
 <tr>
 <td><code>n_components_history_</code></td>
 <td>Gibbs mode, unbounded variant: active-component trace after <code>burn_in</code></td>
+</tr>
+<tr>
+<td><code>active_constraints_</code></td>
+<td>dict of boolean masks saying which <code>weight_bounds</code> / <code>mean_bounds</code> / <code>covariance_bounds</code> bind at the solution; <code>None</code> when no bound is set</td>
 </tr>
 <tr>
 <td><code>fitted_</code></td>
