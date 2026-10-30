@@ -146,10 +146,10 @@ def _(SEED, device, generate_gmm_data, np, plot_gmm, plt):
                np.array([0, 0]),
                np.array([2, 2])]
     covs = [
-        1.0 * np.eye(2),                    # spherical
-        0.5 * np.eye(2),                    # spherical, smaller and with fewer points
-        np.array([[2, 0], [0, 0.5]]),       # diagonal (axis-aligned, elongated)
-        np.array([[0.2, 0.5], [0.5, 2]]),   # full (tilted, correlated)
+        0.6 * np.eye(2),                    # spherical
+        0.3 * np.eye(2),                    # spherical, smaller and with fewer points
+        np.array([[1.2, 0], [0, 0.3]]),       # diagonal (axis-aligned, elongated)
+        np.array([[0.12, 0.3], [0.3, 1.2]]),   # full (tilted, correlated)
     ]
 
     X, y_true = generate_gmm_data(centers, covs, n_samples, device=device, random_state=SEED)

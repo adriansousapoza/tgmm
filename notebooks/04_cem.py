@@ -168,7 +168,7 @@ def _(FAST, GaussianMixture, SEED, device, generate_gmm_data, np, time):
         return (best_gmm, average_time / iters, average_iters / iters, average_log_likelihood / iters)
     _n_samples = [1000, 1000, 1000, 1000]
     _centers = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
-    _covs = [1.0 * np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
+    _covs = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
     _X_tensor, _y_tensor = generate_gmm_data(_centers, _covs, _n_samples, device=device, random_state=SEED)
     X = _X_tensor.cpu().numpy()
     labels = _y_tensor.cpu().numpy()
@@ -246,7 +246,7 @@ def _(mo):
 def _(device, fit_and_evaluate_gmm, np, torch):
     _n_samples = [1000, 1000, 1000, 1000]
     _centers = [np.array([0, 10]), np.array([10, -20]), np.array([0, 0]), np.array([10, 10])]
-    _covs = [1.0 * np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
+    _covs = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
     _components = []
     for _n, _center, _cov in zip(_n_samples, _centers, _covs):
         _samples = np.random.randn(_n, 2) @ np.linalg.cholesky(_cov).T + _center
