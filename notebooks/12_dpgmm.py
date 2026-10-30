@@ -49,14 +49,14 @@ def _(mo):
 
     **What you'll learn**
 
-    1. the underlying math -- the stick-breaking construction, its concentration parameter $\alpha$, and the Chinese Restaurant Process view that Gibbs sampling relies on -- with a runnable visualization of each piece (the NIW prior parameters that plug into this are introduced in [09 -- Priors](10_priors.ipynb); here we only cover how Gibbs sampling *uses* them),
+    1. the underlying math -- the stick-breaking construction, its concentration parameter $\alpha$, and the Chinese Restaurant Process view that Gibbs sampling relies on -- with a runnable visualization of each piece (the NIW prior parameters that plug into this are introduced in [10 -- Priors](10_priors.ipynb); here we only cover how Gibbs sampling *uses* them),
     2. how to read a Gibbs run: hard cluster assignments and the active component count evolving sweep by sweep, and why truncated and unbounded Gibbs agree when seeded from the same starting partition,
     3. how it compares at scale: synthetic 10-dimensional data at three true cluster counts (5, 10, 20), comparing a classical `GaussianMixture` (K chosen by minimum BIC over a `K=1..30` sweep) against truncated and unbounded Gibbs-mode `GaussianMixture` on well-separated data, on genuinely overlapping clusters, and on overlapping *non-Gaussian* cluster shapes -- to see what happens when the Gaussian-component assumption itself is wrong.
 
     All plotting goes through the library's official [`plot_gmm`](05_visualise.ipynb) tooling, projecting the 10-d Gaussians to 2D via PCA for visualization only -- the sampler itself never sees that projection.
 
-    **Prerequisites:** [02 -- EM Algorithm](01_introduction.ipynb), [03 -- Visualization](05_visualise.ipynb), [09 -- Priors](10_priors.ipynb).
-    See also the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md#gibbs-sampling-inferring-the-number-of-components).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [05 -- Visualization](05_visualise.ipynb), [10 -- Priors](10_priors.ipynb).
+    See also [20 -- Constraints and Weights](20_constraints_and_weights.ipynb) for the other `GaussianMixture` options that are not available in Gibbs mode.
     """)
     return
 
@@ -188,8 +188,9 @@ def _(mo):
     $x_i \mid z_i = k \sim \mathcal{N}(\mu_k, \Sigma_k)$. These NIW
     hyperparameters $(\mu_0, \lambda_0, \Psi_0, \nu_0)$ are a **fixed prior**
     -- either supplied, or resolved once from the data via `suggest_priors`
-    (prior mean = data mean, weak precision, `degrees_of_freedom_prior = d + 2`,
-    prior covariance = empirical covariance). Nothing about the prior is
+    (prior mean = data mean, weak precision $\lambda_0=0.1$, `degrees_of_freedom_prior` $\nu_0=d+2$,
+    prior covariance $\Psi_0$ = the *pooled within-cluster* scatter of a $k$-means partition,
+    not the marginal data covariance). Nothing about the prior is
     learned; what Gibbs sampling infers, per component, every sweep, is the NIW
     **posterior** $(\mu_n, \lambda_n, \nu_n, \Psi_n)$ given that fixed prior and
     whichever points currently belong to the component. See
@@ -260,6 +261,76 @@ def _(mo):
     walkthrough below, we watch **hard cluster assignments** change sweep by
     sweep, and the **number of components** rise and fall as the sampler
     explores, then settle.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### The posterior predictive, and what the fit returns
+
+    Writing $n_k$ for the number of points at table $k$ (excluding point $i$), $\bar x_k$ for their mean and
+    $S_k=\sum_{j\in k}(x_j-\bar x_k)(x_j-\bar x_k)^\top$ for their scatter, the NIW posterior is
+
+    $$\lambda_n=\lambda_0+n_k,\quad \nu_n=\nu_0+n_k,\quad
+    \mu_n=\frac{\lambda_0\mu_0+n_k\bar x_k}{\lambda_n},\quad
+    \Psi_n=\Psi_0+S_k+\frac{\lambda_0n_k}{\lambda_n}(\bar x_k-\mu_0)(\bar x_k-\mu_0)^\top
+    \;(+\,\texttt{reg\_covar}\cdot I),$$
+
+    and integrating $(\mu_k,\Sigma_k)$ out of $x_i\mid\mu_k,\Sigma_k$ leaves a multivariate Student-$t$:
+
+    $$x_i\mid X_k^{-i}\ \sim\ t_{\nu_n-d+1}\!\Big(\mu_n,\ \frac{\lambda_n+1}{\lambda_n(\nu_n-d+1)}\,\Psi_n\Big).$$
+
+    A brand-new table is the same formula with $n_k=0$, i.e. with the prior alone. The three covariance types
+    that Gibbs mode supports differ only in this predictive:
+
+    - `full`: the formula above.
+    - `diag`: a product over coordinates of univariate Student-$t$ densities with $\nu_n$ degrees of freedom
+      (there is no "$-d+1$": each coordinate marginalises a scalar variance, not a joint $d\times d$ matrix),
+      location $\mu_{n,j}$ and scale $\frac{\lambda_n+1}{\lambda_n\nu_n}\Psi_{n,j}$.
+    - `spherical`: one isotropic $d$-dimensional Student-$t$ with $\nu_0+n_kd$ degrees of freedom (all $d$
+      coordinates feed one shared variance) and scale $\frac{\lambda_n+1}{\lambda_n(\nu_0+n_kd)}\Psi_n\,I$.
+
+    `tied_*` types and the eight extra GPCM codes are not supported: tying couples the components, which breaks
+    the per-table factorisation the collapsed sampler relies on.
+
+    The cell below checks the `full` formula in one dimension by simulation (draw $\sigma^2\sim\Psi_n/\chi^2_{\nu_n}$, then
+    $\mu\mid\sigma^2\sim\mathcal N(\mu_n,\sigma^2/\lambda_n)$, then $x\sim\mathcal N(\mu,\sigma^2)$) and compares the draws with the closed-form $t$:
+    """)
+    return
+
+
+@app.cell
+def _(SEED, np):
+    from scipy import stats as _stats
+
+    _rng = np.random.default_rng(SEED)
+    _mu_n, _lam_n, _nu_n, _psi_n = 1.5, 4.0, 7.0, 3.0
+    _m = 200_000
+    _sigma2 = _psi_n / _rng.chisquare(_nu_n, size=_m)
+    _mu = _mu_n + np.sqrt(_sigma2 / _lam_n) * _rng.standard_normal(_m)
+    _x = _mu + np.sqrt(_sigma2) * _rng.standard_normal(_m)
+    _t_scale = np.sqrt((_lam_n + 1) * _psi_n / (_lam_n * _nu_n))   # d = 1, so nu_n - d + 1 = nu_n
+    _ks = _stats.kstest(_x, _stats.t(df=_nu_n, loc=_mu_n, scale=_t_scale).cdf)
+    print(f'Student-t predictive, d=1: t_{_nu_n:g}(loc={_mu_n}, scale={_t_scale:.4f}); KS distance to {_m:,} simulated draws = {_ks.statistic:.4f}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **What `fit` returns.** The fitted parameters come from the partition of the **final sweep** only: one posterior draw, not an average
+    (averaging over sweeps is meaningless because the labels permute between sweeps). For `full` this is $\mu_k=\mu_n$, $\Sigma_k=\Psi_n/\nu_n$,
+    $\pi_k=n_k/n$ (for `diag` the division is coordinate-wise, for `spherical` $\Sigma_k=\Psi_n/(\nu_nd)\,I$). A slot is *active* (and counted in `n_components_` / `active_`)
+    when its expected count $\pi_kn$ exceeds `weight_threshold` (default `1.0`).
+
+    - `max_iter` is an **exact sweep count** (no convergence test, `converged_` is always `True`). Each sweep is an $O(n)$ Python loop,
+      so the EM default of 1000 is far too slow here: pass a small explicit `max_iter`.
+    - The unbounded variant seeds the sampler with `init_k` components (default $\max(2,\min(20,n/2))$) and records the number of
+      active tables per sweep after `burn_in` (default `max_iter // 5`) in `n_components_history_`; the truncated variant (default `max_components=20`) has no history.
+    - Gibbs mode needs an explicit NIW prior (`GaussianMixture.suggest_priors(X, n_components)` gives a sensible start from a $k$-means pass) and
+      does not support supervised fitting (`labels=`), the constraints of [20 -- Constraints and Weights](20_constraints_and_weights.ipynb), or online EM.
     """)
     return
 
@@ -1101,7 +1172,7 @@ def _(mo):
     - Truncated (`max_components=K`) and unbounded (`max_components=None`) samplers share the same occupancy-driven logic and agree when given the same starting partition (`init_k`); remaining differences are a mixing effect.
     - Compared with classical EM plus a BIC sweep, Gibbs mode lands at or close to the true cluster count on separated data (a short chain or a small sample can leave a few extra small components), tends to be more variable when clusters overlap, and inherits every shortcoming of the Gaussian assumption on non-Gaussian shapes.
 
-    **Next:** [12 -- HDBSCAN](13_hdbscan.ipynb) for a nonparametric alternative that needs no component count and no Gaussian assumption, and [13 -- Model Selection](14_model_selection.ipynb) for the classical BIC/AIC/ICL route.
+    **Next:** [13 -- HDBSCAN](13_hdbscan.ipynb) for a nonparametric alternative that needs no component count and no Gaussian assumption, and [14 -- Model Selection](14_model_selection.ipynb) for the classical BIC/AIC/ICL route.
     """)
     return
 

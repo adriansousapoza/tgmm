@@ -56,9 +56,11 @@ def _(mo):
     - how `frozen_components` pins a known component and how integer `sample_weight`s equal duplicating rows;
     - how to plug a hand-written component (here an exponential) into `GenericMixture` by implementing three methods.
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [02 -- The EM Algorithm](01_introduction.ipynb).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model and EM) and [02 -- Covariance Types](02_covariance_types.ipynb).
 
-    **See also:** the [Noise, Missing Values and Conditioning](../user-guide/noise-missing-conditioning.md) user guide for the equations.
+    **Notation:** $n$ samples, $d$ features, $K$ components, responsibilities $r_{ik}$, $n_k=\sum_i r_{ik}$.
+
+    **See also:** the API pages for [`ConditionalGaussianMixture`](../api/conditional-gaussian-mixture.md) and [`GenericMixture`](../api/generic-mixture.md).
     """)
     return
 
@@ -248,6 +250,59 @@ def _(GaussianMixture, HDBSCAN, MAX_ITER, SEED, X_noise, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### Arguments, families and limits
+
+    The noise log-density is the same constant $-\log V$ at every $x$, **also outside the data's bounding box**: a new point far from everything is
+    given to the noise component, not rejected. The M-step is $\pi_0=\sum_i\tau_{i0}/n$, and `weights_` $=n_k/n$ keeps shape $(K,)$ and sums to
+    $1-\pi_0$, which is why `sample`, `plot_gmm`, `plot_vmf` and `save`/`load` work unchanged.
+
+    | argument | default | meaning |
+    | --- | --- | --- |
+    | `noise` | `False` | switch the component on; with `False` every fit is bit-identical to a model without the feature |
+    | `noise_volume` | `'bbox'` | `'bbox'`: volume of the axis-aligned bounding box of the fit data, $\prod_j(\max_j-\min_j)$ (each extent floored at $10^{-12}$), stored in `noise_bounds_`; or a positive float, a hypervolume you supply |
+    | `noise_prior` | `0.05` | the initial $\pi_0\in(0,1)$ |
+    | `noise_init` | `None` | per-sample initial flag of length $n$: a `bool` tensor is a mask (`True` = noise), any other dtype is read as cluster labels with `-1` = noise. It overrides `noise_prior`, and the initial means and covariances come from the unflagged rows only |
+
+    **Families.** The noise log-density is $-\log V$ for `GaussianMixture` (all covariance types and GPCM codes) and `StudentTMixture`. For `VonMisesFisherMixture`
+    it is $-\log A_d$ with $A_d=2\pi^{d/2}/\Gamma(d/2)$ the surface area of the unit sphere $S^{d-1}$, i.e. the uniform density on the sphere, independent of
+    `noise_volume`. Families without bounded continuous support raise `ValueError`.
+
+    **Behaviour.** `predict_proba(X)` has shape $(n,K+1)$. `score_samples`, `bic`, `aic`, `icl` and `select_model` include the noise term, which costs **one extra
+    parameter**. `sample` draws a noise point with probability $\pi_0$, uniformly in the stored bounding box (uniformly on the sphere for vMF), with component
+    index `-1`. It works with `em`, `cem`, `sem`, `saem`, `temperature`, `batch_size`, `n_init`, `warm_start` and persistence. The cell below checks the
+    parameter count, the density outside the box, `noise_volume` and the vMF constant.
+
+    **Unsupported combinations (they raise):** Gibbs mode (`n_components=None`); `fit(X, labels=...)` (a point cannot be labelled "known noise", since `-1` already means
+    unlabelled); online EM (`step_size`) and `partial_fit`; `weight_concentration_prior`; the constrained `GaussianMixture.sample` variants (`component=`, `confidence=`, ...);
+    and `missing='em'`.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, MAX_ITER, SEED, X_noise, gmm_noise, gmm_plain, math, torch):
+    from tgmm import VonMisesFisherMixture as _VMF
+
+    _n = X_noise.shape[0]
+    _implied = lambda g: (g.bic(X_noise) + 2 * g.score_samples(X_noise).sum().item()) / math.log(_n)
+    print(f'free parameters implied by bic(): plain {_implied(gmm_plain):.1f}, noise model {_implied(gmm_noise):.1f}  (one more: pi_0)')
+
+    _V = float((gmm_noise.noise_bounds_[1] - gmm_noise.noise_bounds_[0]).prod())
+    print(f'bounding-box volume V = {_V:.1f}; noise density 1/V = {1 / _V:.4f} everywhere')
+    print('noise_proba at (100, 100), far outside the box:', float(gmm_noise.noise_proba(torch.tensor([[100.0, 100.0]]))))
+
+    _small_V = GaussianMixture(n_components=3, noise=True, noise_volume=50.0, noise_prior=0.1, random_state=SEED, max_iter=MAX_ITER).fit(X_noise)
+    print(f'pi_0 with the default bbox volume {float(gmm_noise.noise_weight_):.3f}; with noise_volume=50 (denser noise) {float(_small_V.noise_weight_):.3f}')
+
+    _U = torch.nn.functional.normalize(torch.randn(300, 3, generator=torch.Generator().manual_seed(SEED)), dim=1)
+    _vmf = _VMF(n_components=2, noise=True, random_state=SEED).fit(_U)
+    print(f'vMF noise log-density {float(_vmf._noise_log_density(_U[:1])):.4f}  =  -log(4 pi) = {-math.log(4 * math.pi):.4f}  (A_3 = 4 pi, the area of S^2)')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 2. Missing values
 
     With `missing='em'`, `NaN` entries are treated as **missing at random** and the likelihood is maximised over the entries that
@@ -258,7 +313,24 @@ def _(mo):
       $\hat x_m=\mu_{k,m}+\Sigma_{k,mo}\Sigma_{k,oo}^{-1}(x_o-\mu_{k,o})$ and adds the **conditional covariance**
       $C_k=\Sigma_{k,mm}-\Sigma_{k,mo}\Sigma_{k,oo}^{-1}\Sigma_{k,om}$ to the second moment, so the variance is not underestimated.
 
-    Rows are grouped by missingness pattern, so the cost is one batched solve per pattern, not per row. Below, 20% of the entries
+    In full, with $A_k=\Sigma_{k,mo}\Sigma_{k,oo}^{-1}$ and $p=|o|$ (a Gaussian-mixture treatment going back to Ghahramani & Jordan, 1994, and Hunt & Jorgensen, 2003):
+
+    - **E-step (marginal likelihood):** $\log p(x_i\mid k)=-\tfrac12\big[p\log2\pi+\log|\Sigma_{k,oo}|+\delta_o\big]$ with
+      $\delta_o=(x_o-\mu_{k,o})^\top\Sigma_{k,oo}^{-1}(x_o-\mu_{k,o})$.
+    - **Conditional mean and covariance of the hole:** $\hat x_m=\mu_{k,m}+A_k(x_o-\mu_{k,o})$ and $C_k=\Sigma_{k,mm}-A_k\Sigma_{k,om}$.
+    - **Completed statistics.** Let $\tilde x_{ik}$ be the row with the hole replaced by $\hat x_m$. Then $n_k=\sum_ir_{ik}$, $s_{1,k}=\sum_ir_{ik}\tilde x_{ik}$, $\bar y_k=s_{1,k}/n_k$ and
+
+    $$
+    s_{2,k}=\sum_i r_{ik}(\tilde x_{ik}-\bar y_k)(\tilde x_{ik}-\bar y_k)^\top+\sum_i r_{ik}\,C_{k,\text{pattern}(i)}\qquad(C\text{ placed in the }m\times m\text{ block}),
+    $$
+
+      which is exactly $\mathbb E\big[\sum_ir_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top\mid x_o,\theta^{\text{old}}\big]$. Every M-step formula of
+      [01 -- Introduction](01_introduction.ipynb), [02 -- Covariance Types](02_covariance_types.ipynb) and [10 -- Priors](10_priors.ipynb) (MLE, MAP/NIW, the 14 GPCM models) reads
+      only $(n_k,s_1,s_2)$, so it applies unchanged.
+
+    Rows are grouped by **missingness pattern** (`torch.unique(torch.isnan(X), dim=0)`), so the cost is one batched solve per pattern per component, not per row (a
+    `UserWarning` is raised when there are more than 1000 distinct patterns). For `diag` and `spherical` types $\Sigma_{mo}=0$, hence $\hat x_m=\mu_m$ and
+    $C=\operatorname{diag}\Sigma_{mm}$: no solves at all. Initialisation runs on the column-mean-imputed data. Below, 20% of the entries
     of a two-cluster dataset are deleted completely at random (keeping at least one observed entry per row: a row with nothing observed
     carries no information and is rejected).
     """)
@@ -335,6 +407,38 @@ def _(
     plt.legend()
     plt.title('Imputed rows sit on the cluster structure')
     plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Student-t, defaults and limits
+
+    **Student-t.** `missing='em'` is available for `GaussianMixture` (all six classic covariance types and all 14 GPCM codes) and `StudentTMixture`. With the scale-mixture form
+    ($w\sim\mathrm{Gamma}(\nu/2,\nu/2)$, $x\mid w\sim\mathcal N(\mu,\Sigma/w)$) the observed block is a $t_p$ and the weights
+    $u_{ik}=(\nu_k+p)/(\nu_k+\delta_o)$ use the number $p$ of *observed* entries. The conditional mean does not depend on $w$, so
+    $\mathbb E[w\,x_m\mid x_o]=u\,\hat x_m$ and $\mathbb E[w(x_m-c)(x_m-c)^\top\mid x_o]=u(\hat x_m-c)(\hat x_m-c)^\top+C_k$: the conditional covariance carries **no** factor $u$. The
+    degrees of freedom use the textbook update per row with that row's own $p$, and `scale_update='ecme'` is not available together with `missing='em'`.
+
+    **Defaults.** With `missing='error'` (the default) a `NaN` raises a `ValueError` that points at `missing='em'`; earlier versions silently propagated `NaN` into the parameters.
+    `missing='em'` on data without `NaN` gives results identical to `'error'`.
+
+    **What raises.** Rows with no observed entry and entirely-`NaN` columns (`ValueError`: they carry no information); `noise=True`, Gibbs mode, `labels=`, online EM and
+    `partial_fit` (`NotImplementedError`); `VonMisesFisherMixture` (`ValueError`).
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, X_holes, gmm_missing, holes_mask):
+    try:
+        GaussianMixture(n_components=2).fit(X_holes)
+    except ValueError as _err:
+        print('missing="error" (default):', _err)
+
+    _X_imputed = gmm_missing.impute(X_holes)
+    print('impute leaves observed entries untouched:', bool((_X_imputed[~holes_mask] == X_holes[~holes_mask]).all()), '| NaN left:', bool(_X_imputed.isnan().any()))
     return
 
 
@@ -454,12 +558,46 @@ def _(cond_cross):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### Details and limits
+
+    **`marginal(dims)`**: component $k$ becomes $\mathcal N(\mu_k[\text{dims}],\Sigma_k[\text{dims},\text{dims}])$ with the same weights. `diag`, `spherical` and `tied_*` keep their type; `full`
+    and the GPCM codes without a classic name return `full`, because the volume/shape/orientation decomposition does not survive restriction. `StudentTMixture.marginal` is exact too
+    (same $\nu$, restricted scale matrix).
+
+    **`condition(x_obs, obs_dims)`**: all steps are batched Cholesky solves, with no loop over samples. `obs_dims` keeps the order you give (column $j$ of `x_obs` is coordinate
+    `obs_dims[j]`); the conditional is over the **sorted complement**. The result carries `weights_` $(n,K)$, `means_` $(n,K,d_m)$, `covariances_` $(K,d_m,d_m)$, `obs_dims` and
+    `missing_dims`. Besides `mean()`, `log_prob(Y)` (a single-row conditional broadcasts against many `Y`) and `as_gmm(i)`, `sample(n_draws)` returns $(n,n_\text{draws},d_m)$.
+
+    **Not supported:** Gibbs-mode and `noise=True` models (a noise component has no Gaussian-mixture form after conditioning); `StudentTMixture.condition` (the conditional $t$ has
+    $\nu+d_o$ degrees of freedom and a sample-dependent scale, so it is not a member of this class); `VonMisesFisherMixture`.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, MAX_ITER, SEED, torch):
+    _g = torch.Generator().manual_seed(SEED + 6)
+    _X3 = torch.cat([torch.randn(200, 3, generator=_g), torch.randn(200, 3, generator=_g) + 3.0])
+    _gmm3 = GaussianMixture(n_components=3, random_state=SEED, max_iter=MAX_ITER).fit(_X3)
+    _c = _gmm3.condition(torch.tensor([[0.5, 0.1]]), obs_dims=[2, 0])        # column 0 of x_obs is coordinate 2, column 1 is coordinate 0
+    print('obs_dims', _c.obs_dims, '| missing_dims', _c.missing_dims, '(sorted complement)')
+    print('weights_', tuple(_c.weights_.shape), '| means_', tuple(_c.means_.shape), '| covariances_', tuple(_c.covariances_.shape))
+    _gd = GaussianMixture(n_components=3, covariance_type='diag', random_state=SEED, max_iter=MAX_ITER).fit(_X3)
+    print('marginal types:', f"full -> {_gmm3.marginal([0, 2]).covariance_type}", '|', f"diag -> {_gd.marginal([0, 1]).covariance_type}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 4. Controlling what EM changes: `frozen_components` and `sample_weight`
 
     **Frozen components.** `frozen_components=[k, ...]` keeps those components' means and covariances (or `dof_` / `kappa_` for the other families)
     at their **initial** values for the whole fit; the mixing weights still update (and so does the noise weight). Use it to pin a component you already
     know -- a calibrated background, a reference population -- and let the others adapt around it. Priors never shrink a frozen component and SEM never
-    re-seeds it. The initial values come from `init_means` / `init_covariances`.
+    re-seeds it. The initial values come from `init_means` / `init_covariances` or `warm_start`; $\sum_k\pi_k+\pi_0=1$ is preserved. Not supported (`ValueError`): tied covariance types and GPCM codes
+    without a classic name, `dof='shared'`, `concentration='shared'` and Gibbs mode. `PositiveUnlabeledMixture(anchor='fixed')`, in
+    [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb), is built on it.
     """)
     return
 
@@ -485,6 +623,22 @@ def _(mo):
     before the sufficient statistics, so $n_k$, $s_1$, $s_2$ and the mixing weights are weighted. Integer weights are therefore *equivalent to duplicating
     rows* -- a handy way to fit pre-aggregated data -- and a weight of 0 removes a row. Per-feature weights of shape $(n,d)$ are accepted by the models whose
     likelihood factorises over features (`'diag'` / `'spherical'` Gaussians, diagonal Student-t); a zero entry hides one feature of one row.
+
+    In detail, **row weights** (shape $(n,)$) make the effective sample count $n_\text{eff}=\sum_iw_i$: the mixing weights are $\pi_k=n_k/n_\text{eff}$, MAP priors use $n_\text{eff}$, and
+    `lower_bound_` is $\sum_iw_i\log p(x_i)/\sum_iw_i$. Hence a weight of 0 drops the row, a constant rescaling changes nothing, and all-ones is bit-identical to no weights. Initialisation
+    ignores the weights (except to exclude zero-weight rows), and `bic`, `aic`, `icl` and `score` take only `X`. Row weights work with `em`/`cem`/`sem`/`saem`, `batch_size`, `n_init`,
+    `warm_start`, `noise=True` and `missing='em'` (each on its own: the last two cannot be combined); they raise `NotImplementedError` in Gibbs mode, with `labels=` and with online EM.
+
+    **Per-feature weights** (shape $(n,d)$) are for maximum likelihood only. A weight $w_{ij}=0$ hides feature $j$ of row $i$ (exact marginalisation). For `'diag'`:
+
+    $$
+    \log p(x_i\mid k)=-\tfrac12\sum_jw_{ij}\Big[\log2\pi+\log s_{kj}+\frac{(x_{ij}-m_{kj})^2}{s_{kj}}\Big],\qquad
+    m_{kj}=\frac{\sum_ir_{ik}w_{ij}x_{ij}}{N_{kj}},\quad s_{kj}=\frac{\sum_ir_{ik}w_{ij}(x_{ij}-m_{kj})^2}{N_{kj}},
+    $$
+
+    with $N_{kj}=\sum_ir_{ik}w_{ij}$. Other models raise `ValueError`. This is the same likelihood as `missing='em'` for a diagonal model, which the last cell of this section checks.
+
+    pomegranate's `inertia` is deliberately not added: `step_size` (online EM / SAEM) is the same control on the statistics.
     """)
     return
 
@@ -500,6 +654,29 @@ def _(GaussianMixture, MAX_ITER, SEED, X_pair, init_pair, torch):
     print('weights with sample_weight :', gmm_weighted.weights_.numpy().round(4).tolist())
     print('weights with duplicated rows:', gmm_duplicated.weights_.numpy().round(4).tolist())
     print('largest difference in the fitted means:', f'{float((gmm_weighted.means_ - gmm_duplicated.means_).abs().max()):.1e}', '(float32 round-off)')
+    return
+
+
+@app.cell
+def _(GaussianMixture, SEED, torch):
+    _g = torch.Generator().manual_seed(SEED + 7)
+    _X = torch.cat([torch.randn(200, 2, generator=_g) * 0.7, torch.randn(200, 2, generator=_g) * 0.7 + torch.tensor([4.0, 3.0])])
+    _hole = torch.rand(_X.shape, generator=_g) < 0.2
+    _hole[_hole.all(1), 0] = False
+    _X_nan = _X.clone()
+    _X_nan[_hole] = float('nan')
+    _start = torch.tensor([[0.0, 0.0], [4.0, 3.0]])
+    _kw = dict(n_components=2, covariance_type='diag', init_means=_start, random_state=SEED, tol=1e-8, max_iter=500)
+
+    _em = GaussianMixture(missing='em', **_kw).fit(_X_nan)
+    _pf = GaussianMixture(**_kw).fit(torch.where(_hole, torch.zeros_like(_X), _X), sample_weight=(~_hole).float())   # w_ij = 0 hides entry (i, j)
+    print('diag model: per-feature weights vs missing="em" on the same holes')
+    print('  largest difference in means      :', f'{float((_em.means_ - _pf.means_).abs().max()):.1e}')
+    print('  largest difference in variances  :', f'{float((_em.covariances_ - _pf.covariances_).abs().max()):.1e}')
+
+    _w = torch.rand(len(_X), generator=_g) + 0.5
+    _gw = GaussianMixture(n_components=2, random_state=SEED).fit(_X, sample_weight=_w)
+    print(f'lower_bound_ {_gw.lower_bound_:.5f}  vs  sum(w * log p) / sum(w) = {float((_w * _gw.score_samples(_X)).sum() / _w.sum()):.5f}')
     return
 
 
@@ -520,6 +697,17 @@ def _(mo):
     The M-step calls `summarize` once per data chunk and `from_summaries` once, so `batch_size` works for free. Optional members are `sample(n)`,
     `n_parameters()` (needed for `bic`/`aic`/`icl`) and a `frozen` flag. A plain `torch.nn.Module` with a `log_prob(X)` method is also accepted: it is
     updated by a few L-BFGS steps that are kept only if they improve the expected complete-data log-likelihood.
+
+    **M-step.** For every data chunk and every non-frozen component, `summarize(X_chunk, resp_chunk[:, k])` is called, then `from_summaries()` once. Because `summarize` accumulates, chunked equals
+    unchunked; mixing weights are $\pi_k=n_k/n$ as in every family. The protocol is `tgmm.mixtures.protocol.Component`, a runtime-checkable `typing.Protocol` whose shape is borrowed from
+    pomegranate 1.x (MIT); tgmm does not import pomegranate. Optional members: `sample(n)`, `n_parameters()` (fallback: the number of scalar entries in the object's public tensors), `frozen` and `reseed(x)`.
+
+    **Autograd components.** A `torch.nn.Module` with learnable parameters and a `log_prob(X)` method (and no `summarize`) is wrapped automatically. Its M-step maximises
+    $Q_k(\theta_k)=\sum_iw_{ik}\log f_k(x_i\mid\theta_k)\big/\sum_iw_{ik}$ with a few L-BFGS steps and **keeps the update only if $Q_k$ increases**, so the log-likelihood stays monotone (a generalised EM step).
+
+    **Decisions.** The components you pass *are* the starting point (no k-means) and `n_init` must be 1; frozen parameters still count in BIC; `em`, `cem`, `sem` (with `sem_estimate='best'`) and
+    `temperature` work, while `saem`, online EM and `partial_fit` raise `NotImplementedError` (opaque `summarize` state cannot be blended); `noise=True` needs a float `noise_volume`; per-feature
+    weights and `missing='em'` raise `ValueError`; and `save`/`load` pickle the components, so their classes must be importable.
 
     Here is a tiny mixture of an **exponential** (waiting times) and a **normal** (a burst around 6) over positive data -- neither is a `GaussianMixture` component.
     """)
@@ -648,8 +836,16 @@ def _(mo):
     - `GenericMixture` fits any family that implements `log_probability`, `summarize` and `from_summaries` (or any `nn.Module` with `log_prob`), with `batch_size`,
       `sample_weight`, frozen components and information criteria included.
 
-    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for another way of steering the fit, or the
-    [user guide](../user-guide/noise-missing-conditioning.md) for the equations behind this tutorial.
+    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for another way of steering the fit, or back to the [tutorial overview](../tutorials/index.md).
+
+    **References**
+
+    - Banfield, J. D. & Raftery, A. E. (1993). Model-based Gaussian and non-Gaussian clustering. *Biometrics*, 49(3).
+    - Ghahramani, Z. & Jordan, M. I. (1994). Supervised learning from incomplete data via an EM approach. *NeurIPS 6*.
+    - Hunt, L. & Jorgensen, M. (2003). Mixture model clustering for mixed data with missing information. *CSDA*, 41.
+    - Lin, T. I., Lee, J. C. & Ho, H. J. (2006). On fast supervised learning for normal mixture models with missing information. *Pattern Recognition*, 39.
+    - McLachlan, G. & Krishnan, T. (2008). *The EM Algorithm and Extensions*, ch. 5.
+    - Sung, H. G. (2004). *Gaussian Mixture Regression and Classification*. PhD thesis, Rice University.
     """)
     return
 

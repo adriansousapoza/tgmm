@@ -18,10 +18,7 @@ which is git-ignored -- never commit an `.ipynb`.
 - `make notebooks-check` runs `marimo check notebooks/` (must be clean) and `make notebooks-test` runs every notebook
   as a script with `TGMM_DOCS_FAST=1` (each must finish in under 3 minutes). CI runs both on every pull request.
 - `make docs` exports the notebooks and serves the site locally, exactly as CI builds it.
-- The interactive explainer pages (`docs/explainers/`) run in the reader's browser through `mkdocs-marimo`
-  (Pyodide), so they may import only NumPy, SciPy, matplotlib and marimo -- never `tgmm` or `torch`.
-- **Wrap every explainer fence in `<div markdown="0">`.** `mkdocs-marimo` inserts each island as an inline tag, which
-  Markdown puts in a `<p>`; browsers close a `<p>` when they meet a `<div>`, so any output built from `mo.hstack`,
-  `mo.vstack` or other layout elements silently loses its island (the cells then fail with `NameError` in Pyodide).
-  `<div markdown="0">` around the fence prevents the paragraph.
+- Interactivity lives in the notebooks themselves: use `mo.ui` controls, mark the control cells with `# docs: hide-cell`, and make
+  sure every control has a default so the static export and `python notebooks/NN_name.py` still work. Each tutorial page links to a
+  molab session, where the controls run with real tgmm.
 

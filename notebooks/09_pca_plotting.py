@@ -50,7 +50,7 @@ def _(mo):
     - Project samples from the high-dimensional model (core and tail regions) into the same plane
     - Why "projecting a fitted model" and "fitting a model to projected data" are different things
 
-    **Prerequisites:** [03 -- Visualization](05_visualise.ipynb).
+    **Prerequisites:** [05 -- Visualization](05_visualise.ipynb).
 
     **See also:** the [Plotting & Visualization user guide](../user-guide/plotting.md).
     """)
@@ -302,7 +302,7 @@ def _(mo):
     - Samples from the high-dimensional model (e.g. via `confidence_range`) can be pushed through the same PCA to compare core and tail regions in the plane.
     - A linear projection of a GMM is again a GMM with parameters $(\pi_k, A\mu_k, A\Sigma_k A^\top)$; this differs from refitting a GMM to the projected points, which is only equivalent for invertible maps.
 
-    **Next:** [09 -- Priors](10_priors.ipynb) for regularizing mixture fits, or [07 -- Sampling](04_sampling.ipynb) for the sampling options used here.
+    **Next:** [10 -- Priors](10_priors.ipynb) for regularizing mixture fits, or [04 -- Sampling](04_sampling.ipynb) for the sampling options used here.
     """)
     return
 

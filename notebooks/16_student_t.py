@@ -61,10 +61,12 @@ def _(mo):
     - the ECM updates for $\mu_k$, $\Sigma_k$ and $\nu_k$ that `StudentTMixture` performs;
     - how much better the model resists contamination than `GaussianMixture`, and how to flag outliers with `sample_weights`;
     - how to recover a known degrees-of-freedom value, choose between `per_component` / `shared` / fixed `dof`, and
-      compare information criteria with a Gaussian fit.
+      compare information criteria with a Gaussian fit;
+    - which parts of the EM loop every mixture family shares (E-step, `algorithm`, annealing, BIC/AIC/ICL), how many free
+      parameters a t-mixture has for each `covariance_type` and `dof`, and the caveats to keep in mind.
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb) and [02 -- The EM Algorithm](01_introduction.ipynb).
-    See also the [Other Mixture Families](../user-guide/other-mixture-families.md) user guide.
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model, EM and `GaussianMixture`).
+    See also the [`StudentTMixture` API reference](../api/student-t-mixture.md).
     """)
     return
 
@@ -108,6 +110,67 @@ def _():
         stats,
         torch,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## What every mixture family shares
+
+    `GaussianMixture`, `StudentTMixture` and `VonMisesFisherMixture` (and `GenericMixture`, for your own families) are all finite
+    mixtures
+
+    $$
+    p(x)=\sum_{k=1}^{K}\pi_k\,f_k(x\mid\theta_k),\qquad
+    \ell(\theta)=\sum_{i=1}^{n}\log\sum_{k=1}^{K}\pi_k\,f_k(x_i\mid\theta_k),
+    $$
+
+    and `BaseMixture` implements the EM loop once. A family only supplies the component log-density $\log f_k$, the
+    accumulation of its sufficient statistics and its M-step. Everything else -- the E-step, the algorithm variants,
+    annealing, mini-batches, restarts, information criteria -- is shared, exactly as in the
+    [introduction](01_introduction.ipynb).
+
+    **E-step.** Responsibilities are computed in log space (a softmax over components), so nothing under- or overflows:
+
+    $$
+    r_{ik}=\frac{\pi_kf_k(x_i)}{\sum_j\pi_jf_j(x_i)}
+    =\exp\!\Big(\log\pi_k+\log f_k(x_i)-\operatorname{logsumexp}_j\big(\log\pi_j+\log f_j(x_i)\big)\Big).
+    $$
+
+    The normaliser $\log\sum_j\pi_jf_j(x_i)$ is what `score_samples` returns, and its mean is what `score` returns (the average
+    log-likelihood that `tol` is checked against). The weights are always $\pi_k=n_k/n$ with $n_k=\sum_ir_{ik}$.
+
+    **Variants of the loop.** The `algorithm` option replaces the soft $r_{ik}$ that is fed to the M-step:
+
+    | `algorithm` | what the M-step receives |
+    | --- | --- |
+    | `'em'` | $r_{ik}$ itself |
+    | `'cem'` | the one-hot $\mathbb{1}[k=\arg\max_jr_{ij}]$ (Classification EM) |
+    | `'sem'` | a one-hot *sample* $z_i\sim\mathrm{Categorical}(r_{i\cdot})$ (Stochastic EM) |
+    | `'saem'` | a running average of sampled-assignment statistics with a decaying step size |
+
+    `temperature=(beta_0, n_anneal)` is deterministic annealing: the E-step uses $r_{ik}\propto(\pi_kf_k(x_i))^{\beta}$ with
+    $\beta$ rising geometrically from `beta_0` to 1 over the first `n_anneal` iterations,
+    $\beta_t=\beta_0^{\,1-t/n_{\text{anneal}}}$. `step_size` switches to online/mini-batch EM. The variants are demonstrated for the
+    Gaussian in [15 -- Stochastic EM, Annealing and SAEM](15_stochastic_em.ipynb) and work unchanged for the t-mixture.
+
+    **Model selection.** With $p$ the number of free parameters (family-specific) and $\hat z_i=\arg\max_kr_{ik}$,
+
+    $$
+    \mathrm{BIC}=-2\ell(\hat\theta)+p\ln n,\qquad \mathrm{AIC}=-2\ell(\hat\theta)+2p,\qquad
+    \mathrm{ICL}=\mathrm{BIC}+2\,\mathrm{EN}(r),
+    $$
+
+    $$
+    \mathrm{EN}(r)=-\sum_i\ln r_{i\hat z_i}\ \ (\texttt{mode='hard'}),\qquad
+    \mathrm{EN}(r)=-\sum_{i,k}r_{ik}\ln r_{ik}\ \ (\texttt{mode='soft'}),
+    $$
+
+    all "lower is better". The entropy term is $\ge0$ and vanishes when every responsibility is one-hot, so
+    $\mathrm{ICL}\ge\mathrm{BIC}$ with equality only for perfectly separated clusters. See
+    [14 -- Model Selection](14_model_selection.ipynb) for how the three criteria behave in practice.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -260,8 +323,23 @@ def _(mo):
     $$
 
     ($\psi$ the digamma function), clamped to `dof_bounds`. `dof='shared'` pools $c$ across components and solves for one
-    $\nu$; a numeric `dof` fixes it. The details, including where tgmm's step differs from the textbook one while
-    sharing its fixed point, are in the [user guide](../user-guide/other-mixture-families.md).
+    $\nu$; a numeric `dof` fixes it. tgmm solves the equation by 60 bisection steps inside `dof_bounds` (default
+    `(0.1, 1000)`) followed by 4 Newton steps on $\ln\nu$; if the root lies outside the bounds the fit lands on the bound.
+    This is the first-order condition, in $\nu$, of the expected complete-data log-likelihood (the Gamma$(\nu/2,\nu/2)$ part).
+
+    **Other covariance types.** The same weights $u_{ik}$ go into every scatter. For `covariance_type='diag'` the scatter and
+    the denominator are the per-feature versions, `'spherical'` uses
+    $\sigma_k^2=\sum_ir_{ik}u_{ik}\lVert x_i-\mu_k\rVert^2/(d\,n_k)$, and `'tied_full'` pools scatter and denominator across
+    components,
+    $\Sigma=\sum_k\sum_ir_{ik}u_{ik}(x_i-\mu_k)(x_i-\mu_k)^{\top}\big/\sum_kn_k$. (The GPCM covariance codes of
+    [02 -- Covariance Types](02_covariance_types.ipynb) are `GaussianMixture`-only.)
+
+    !!! note "Where this deviates from the textbook"
+        The textbook update (Peel & McLachlan, 2000) evaluates the last two terms,
+        $\psi\big(\tfrac{\nu^{(t)}+d}{2}\big)-\ln\big(\tfrac{\nu^{(t)}+d}{2}\big)$, at the *previous* iterate $\nu^{(t)}$.
+        tgmm evaluates them at the candidate $\nu$ itself. The two share the same fixed point (at convergence
+        $\nu^{(t)}=\nu$), so the final estimate is the same maximum-likelihood solution, but the per-iteration step is not
+        literally the textbook EM step.
     """)
     return
 
@@ -443,7 +521,7 @@ def _(SEED, StudentTMixture, torch, true_centers):
             _rows.append((_name, _dof, _m.dof_.numpy().round(2), round(_m.bic(_data), 1)))
     for _r in _rows:
         print(f'{_r[0]:<10} dof={str(_r[1]):<14} fitted dof_={_r[2]}   BIC={_r[3]}')
-    return
+    return (X_gauss,)
 
 
 @app.cell(hide_code=True)
@@ -467,6 +545,84 @@ def _(SEED, StudentTMixture, X):
     for _update in ['ecm', 'ecme']:
         _m = StudentTMixture(n_components=2, scale_update=_update, random_state=SEED, tol=1e-08, max_iter=500).fit(X)
         print(f"scale_update='{_update}': iterations={_m.n_iter_:>3}  log-likelihood/sample={_m.lower_bound_:.6f}  dof_={_m.dof_.numpy().round(3)}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Options, attributes and parameter counts
+
+    ```python
+    from tgmm import StudentTMixture
+
+    stm = StudentTMixture(n_components=3, covariance_type='full', dof='per_component')
+    stm.fit(X)
+    ```
+
+    - `covariance_type`: `'full'`, `'diag'`, `'spherical'` or `'tied_full'`.
+    - `dof`: `'per_component'` (default, one $\nu_k$ per component), `'shared'` (one $\nu$ for all) or a fixed float.
+      `dof_init` (default 5) is the starting value and `dof_bounds` the clamp.
+    - `scale_update`: `'ecm'` (default) or `'ecme'`.
+
+    | attribute | shape | meaning |
+    | --- | --- | --- |
+    | `weights_` | $(K,)$ | $\pi_k$ |
+    | `means_` | $(K,d)$ | $\mu_k$ |
+    | `covariances_` | by `covariance_type` | the **scale matrix** $\Sigma_k$ (not the covariance) |
+    | `dof_` | $(K,)$ | fitted $\nu_k$ (all entries equal for `'shared'` or a fixed float) |
+
+    The number of free parameters behind `bic`/`aic`/`icl` is $p=(K-1)+Kd+p_\Sigma+p_\nu$, with $p_\Sigma=K\,d(d+1)/2$ (`full`),
+    $Kd$ (`diag`), $K$ (`spherical`) or $d(d+1)/2$ (`tied_full`), and $p_\nu=K$ (`per_component`), $1$ (`shared`) or $0$ (fixed
+    `dof`). The next cell fits every combination to the contaminated data and recovers $p$ from the library's own `bic`
+    (since $\mathrm{BIC}=-2n\cdot\texttt{score}+p\ln n$) to check the formula.
+    """)
+    return
+
+
+@app.cell
+def _(SEED, StudentTMixture, X, np):
+    def p_formula(K, d, cov, dof):
+        p_cov = {'full': K * d * (d + 1) // 2, 'diag': K * d, 'spherical': K, 'tied_full': d * (d + 1) // 2}[cov]
+        p_dof = K if dof == 'per_component' else 1 if dof == 'shared' else 0
+        return (K - 1) + K * d + p_cov + p_dof
+
+    _n_obs, _d_obs = X.shape
+    _max_gap = 0.0
+    for _cov in ['full', 'diag', 'spherical', 'tied_full']:
+        for _dof in ['per_component', 'shared', 5.0]:
+            _m = StudentTMixture(n_components=2, covariance_type=_cov, dof=_dof, random_state=SEED).fit(X)
+            _p_implied = (_m.bic(X) + 2 * _m.score(X) * _n_obs) / np.log(_n_obs)
+            _p = p_formula(2, _d_obs, _cov, _dof)
+            _max_gap = max(_max_gap, abs(_p_implied - _p))
+            if _dof == 'per_component':
+                print(f"covariance_type={_cov:<9} covariances_ {tuple(_m.covariances_.shape)!s:<9} dof_ {tuple(_m.dof_.shape)}  p={_p}")
+    print(f'max |p implied by bic() - p formula| over all 12 combinations: {_max_gap:.2e}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Caveats
+
+    - A fitted $\nu_k$ near the upper bound (`dof_bounds[1]`) means that component is indistinguishable from a Gaussian; near the
+      lower bound it means a very heavy tail (the mean is infinite for $\nu\le1$, the covariance for $\nu\le2$).
+    - Each iteration needs the full $(n,K)$ matrix of Mahalanobis distances in memory (`batch_size` only chunks the E-step's
+      reduction, not this).
+    - With `dof=1e4` the model is effectively Gaussian, which makes an easy sanity check against `GaussianMixture`; the
+      next cell compares the fitted parameters on the effectively Gaussian clusters generated in the degrees-of-freedom section.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, SEED, StudentTMixture, X_gauss):
+    _g = GaussianMixture(n_components=2, random_state=SEED, n_init=2).fit(X_gauss)
+    _t = StudentTMixture(n_components=2, dof=10000.0, random_state=SEED, n_init=2).fit(X_gauss)
+    print(f'max |means_ difference|:       {(_g.means_ - _t.means_).abs().max().item():.2e}')
+    print(f'max |covariances_ difference|: {(_g.covariances_ - _t.covariances_).abs().max().item():.2e}')
+    print(f'max |weights_ difference|:     {(_g.weights_ - _t.weights_).abs().max().item():.2e}')
     return
 
 
@@ -498,6 +654,25 @@ def _(ClusteringMetrics, X, gmm, n_per, stm, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    The shared `algorithm` option and the ICL entropy term work as for the Gaussian. Fitting the contaminated data with each loop
+    variant, and checking $\mathrm{ICL}\ge\mathrm{BIC}$ for both entropy modes:
+    """)
+    return
+
+
+@app.cell
+def _(SEED, StudentTMixture, X, match_err, stm):
+    for _alg in ['em', 'cem', 'sem']:
+        _m = StudentTMixture(n_components=2, algorithm=_alg, random_state=SEED, max_iter=200).fit(X)
+        print(f"algorithm='{_alg}': iterations={_m.n_iter_:>3}  log-likelihood/sample={_m.score(X):.4f}  mean error={match_err(_m.means_):.3f}")
+    _bic = stm.bic(X)
+    print(f"BIC={_bic:.1f}  ICL(hard)={stm.icl(X):.1f}  ICL(soft)={stm.icl(X, mode='soft'):.1f}  ->  ICL >= BIC: {stm.icl(X) >= _bic and stm.icl(X, mode='soft') >= _bic}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Summary
 
     - A Student-t is a Gaussian with a random precision; its heavy tails are controlled by the degrees of freedom $\nu$
@@ -510,6 +685,19 @@ def _(mo):
     - `dof_` recovers the tail heaviness of the data; a large `dof_` says the data are effectively Gaussian.
     - `covariances_` holds the scale matrix, not the covariance; information criteria are comparable with a
       `GaussianMixture` fit on the same data.
+    - The EM loop, `algorithm`, `temperature`, `step_size`, `n_init` and the information criteria are shared by every
+      family through `BaseMixture`.
+    - Labels, noise, missing values and your own families work here too:
+      `fit(X, labels=...)` for supervised and semi-supervised fitting ([18](18_semi_supervised_pu.ipynb)); `noise=True`,
+      `missing='em'`, `frozen_components`, `sample_weight` and the `Component` protocol with `GenericMixture`
+      ([19](19_noise_missing_conditioning.ipynb)). Gibbs mode (`n_components=None`), the GPCM covariance codes and MAP/NIW priors stay
+      `GaussianMixture`-only.
+
+    **References**
+
+    - Peel, D. & McLachlan, G. J. (2000). Robust mixture modelling using the t distribution. *Statistics and Computing*, 10, 339-348.
+    - Liu, C. & Rubin, D. B. (1995). ML estimation of the t distribution using EM and its extensions, ECM and ECME. *Statistica Sinica*, 5, 19-39.
+    - Biernacki, C., Celeux, G. & Govaert, G. (2000). Assessing a mixture model for clustering with the integrated completed likelihood. *IEEE TPAMI*, 22(7), 719-725.
 
     **Next:** [17 -- Von Mises-Fisher Mixtures](17_von_mises_fisher.ipynb) for directional data, or
     [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb).

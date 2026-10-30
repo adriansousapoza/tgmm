@@ -3,8 +3,7 @@
 `VonMisesFisherMixture` fits a mixture of von Mises-Fisher distributions
 (Banerjee, Dhillon, Ghosh & Sra, 2005) on the unit hypersphere -- the
 natural model for L2-normalized embeddings (text, image, or any other
-cosine-similarity-based representation). See the [Other Mixture
-Families](../user-guide/other-mixture-families.md) user guide page.
+cosine-similarity-based representation). See the [Von Mises-Fisher tutorial](../notebooks/17_von_mises_fisher.ipynb).
 
 ::: tgmm.mixtures.vmf.VonMisesFisherMixture
     options:

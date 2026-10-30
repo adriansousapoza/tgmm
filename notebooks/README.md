@@ -28,6 +28,12 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
   `sys_platform != 'emscripten'` (PyTorch has no WebAssembly wheel), which keeps marimo's WASM lint
   (MW003) quiet and `marimo edit --sandbox` working. Add any other import (`scipy`, `pandas`, `seaborn`, ...)
   to the `dependencies` list. The file uses `app = marimo.App(width="medium")`.
+- **Interactive controls.** `mo.ui` controls (sliders, dropdowns, the blob designer in `01_introduction`) go in their own cells,
+  marked `# docs: hide-cell` so the static docs page does not show widgets that cannot work there. Every control needs a default, so the
+  exported page and `python notebooks/NN_name.py` show the default result. The controls run in the molab link at the top of every
+  docs page (real tgmm, so the sliders work) and in `marimo edit` locally.
+- **One narrative.** The tutorials are the documentation (there is no separate user guide or explainer set): put the mathematics, the
+  code and the figures in the notebook, and link to the API reference (`../api/*.md`) for signatures.
 - **Plumbing cells.** The first two code cells (`import marimo as mo`, and the `FAST` / `MAX_ITER` / `N_INIT`
   config cell) start with the comment `# docs: hide-cell`; the docs build strips them from the rendered page.
 - **Page layout.** Title and introduction (`# Title`, "What you'll learn", "Prerequisites", "See also"),

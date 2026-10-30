@@ -154,6 +154,6 @@ pip install tgmm
 ## Next Steps
 
 - **[Quick Start Guide](quickstart.md)** - Fit your first model
-- **[User Guide](../user-guide/gaussian-mixture.md)** - The models and the mathematics behind them
+- **[Tutorials](../tutorials/index.md)** - The models and the mathematics behind them, with an interactive version of each
 - **[Tutorials](../tutorials/index.md)** - Runnable notebooks
 - **[API Reference](../api/gaussian-mixture.md)** - Complete API documentation

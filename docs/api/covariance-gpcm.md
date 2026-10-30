@@ -4,8 +4,7 @@
 new GPCM covariance types (`'VEI'`, `'EVI'`, `'VEE'`, `'EVE'`, `'EEV'`,
 `'VVE'`, `'VEV'`, `'EVV'`) -- most users won't call it directly, just pass
 the code as `covariance_type`. See the
-[GPCM Covariance Models](../user-guide/gpcm-covariance-models.md) user
-guide for an overview.
+[Covariance Types](../notebooks/02_covariance_types.ipynb) tutorial for an overview.
 
 ::: tgmm.covariance.gpcm.mstep_gpcm
     options:

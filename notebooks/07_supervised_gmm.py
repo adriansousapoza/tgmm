@@ -45,17 +45,18 @@ def _(mo):
 
     - **EM**: standard soft-assignment fitting, no label information.
     - **CEM**: Classification EM -- hard assignment via `argmax(resp)` each iteration, no label information.
-    - **Supervised**: `fit(X, labels=y)` -- the assignment comes from the true label instead of `argmax(resp)`, converging in a single M-step (see the Supervised Fitting section of the [user guide](../user-guide/gaussian-mixture.md); the approach follows Celeux & Govaert 1992, McLachlan & Peel 2000 and Fraley & Raftery 2002).
+    - **Supervised**: `fit(X, labels=y)` -- the assignment comes from the true label instead of `argmax(resp)`, converging in a single M-step (the approach follows Celeux & Govaert 1992, McLachlan & Peel 2000 and Fraley & Raftery 2002).
 
-    The data reuses all 4 Gaussian components from [01 -- Gaussian Mixture Models](01_introduction.ipynb) (same centers, covariances and sample counts), but two of them share one label -- so there are only 3 classes even though there are 4 physical blobs. That is deliberate: EM and CEM don't see labels, so with `n_components=3` they are free to find whichever 3-way split fits the data best (which turns out *not* to match the label grouping), while the supervised fit is bound by the label and has to force a single Gaussian across two blobs it is told belong together. This is what makes the three methods diverge visibly instead of agreeing trivially.
+    The data reuses all 4 Gaussian components from [01 -- Introduction](01_introduction.ipynb) (same centers, covariances and sample counts), but two of them share one label -- so there are only 3 classes even though there are 4 physical blobs. That is deliberate: EM and CEM don't see labels, so with `n_components=3` they are free to find whichever 3-way split fits the data best (which turns out *not* to match the label grouping), while the supervised fit is bound by the label and has to force a single Gaussian across two blobs it is told belong together. This is what makes the three methods diverge visibly instead of agreeing trivially.
 
     **What you'll learn**
 
     - How `fit(X, labels=y)` differs from unsupervised EM/CEM, and why it needs no iteration
     - Why unsupervised components need not line up with class labels (and how `match_labels_to_true` handles arbitrary component indices)
     - How to read misclassifications and 95% confidence regions in `plot_gmm` panels
+    - What the labelled fit computes (the equations), `predict` vs `predict_class`, `components_per_class`, and how a *partially* labelled fit blends labels with the data (`unlabeled_weight`, `label_confidence`)
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb) and [04 -- Classification EM](06_cem.ipynb).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) and [06 -- Classification EM](06_cem.ipynb).
 
     **See also:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb), where only some labels are known.
     """)
@@ -112,7 +113,7 @@ def _(mo):
     mo.md(r"""
     ## Data: 4 Gaussians from `01_introduction.ipynb`, 2 sharing one label
 
-    Same 4 centers/covariances/sample counts as in [01 -- Gaussian Mixture Models](01_introduction.ipynb). The
+    Same 4 centers/covariances/sample counts as in [01 -- Introduction](01_introduction.ipynb). The
     two spatially farthest-apart components -- `(2, -2)` and `(2, 2)`,
     distance 4.0 -- share `Class 2`; `(0, 2)` and `(0, 0)` keep their own
     labels. The *closest* pair, `(0, 2)` and `(0, 0)` (distance 2.0), is
@@ -304,14 +305,127 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## What the labelled fit computes
+
+    Write $c_i$ for the known class of point $i$ and give each class its own component, $k = c_i$. The responsibilities are then not estimated, they are *given*:
+
+    $$
+    r_{ik} = \mathbb{1}[c_i = k].
+    $$
+
+    With one-hot $r_{ik}$ the E-step no longer depends on the parameters, so the M-step is a fixed point and a single pass finishes the fit. For `covariance_type='full'` it reads
+
+    $$
+    \pi_k = \frac{n_k}{n},\qquad
+    \mu_k = \frac{1}{n_k}\sum_{i:\,c_i=k} x_i,\qquad
+    \Sigma_k = \frac{1}{n_k}\sum_{i:\,c_i=k}(x_i-\mu_k)(x_i-\mu_k)^{\top},
+    $$
+
+    which maximises the *complete-data* log-likelihood $\sum_i \log \pi_{c_i}\,\mathcal N(x_i\mid\mu_{c_i},\Sigma_{c_i})$ of a generative classifier (quadratic discriminant analysis for `full`, linear discriminant analysis for `tied_full`). Other covariance types use their usual M-step on the same one-hot responsibilities (see [02 -- Covariance Types](02_covariance_types.ipynb)). This is exactly where CEM ([06 -- CEM](06_cem.ipynb)) ends up when it is started from the correct partition. Priors, if given, are applied in the same M-step.
+
+    The next cell checks the closed form against the fitted model. The differences are of the order of `reg_covar` (default $10^{-6}$), which is added to every covariance diagonal for numerical stability.
+    """)
+    return
+
+
+@app.cell
+def _(gmm_sup, np, y_true, X):
+    _y = y_true
+    _pi = np.array([(_y == _c).mean() for _c in range(3)])
+    _mu = np.stack([X[_y == _c].mean(0) for _c in range(3)])
+    _S = np.stack([np.cov(X[_y == _c].T, bias=True) for _c in range(3)])
+    print('max |pi_k    - n_k/n|      =', abs(gmm_sup.weights_.cpu().numpy() - _pi).max())
+    print('max |mu_k    - class mean| =', abs(gmm_sup.means_.cpu().numpy() - _mu).max())
+    print('max |Sigma_k - class cov|  =', abs(gmm_sup.covariances_.cpu().numpy() - _S).max())
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Class labels, component indices and `components_per_class`
+
+    `n_components` must equal the number of distinct labels times `components_per_class` (an `int`, or a `dict` from class label to a number of components). Label values need not be contiguous; `classes_` maps the internal class index back to the value you passed. `predict` returns a *component* index, `predict_class` sums the responsibilities over each class's block of components and returns the original *label*.
+
+    A class that is really two blobs (here Class 2, made of the blobs at $(2,-2)$ and $(2,2)$) is badly described by one Gaussian. Giving it two components, `components_per_class={0: 1, 1: 1, 2: 2}`, fits each class's block by ordinary EM on that class's rows only (weights scaled by the class fraction), so the labels still decide which rows belong to which class. Tied covariance types are not supported in this mode, because one shared covariance cannot be assembled from independently fitted blocks.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, X_tensor, gmm_sup, torch, y_tensor):
+    gmm_cpc = GaussianMixture(n_components=4, components_per_class={0: 1, 1: 1, 2: 2}, random_state=0, n_init=3)
+    gmm_cpc.fit(X_tensor, labels=y_tensor)
+
+    print('class_of_component_      :', gmm_cpc.class_of_component_.tolist(), '(components 2 and 3 both belong to the class with index 2)')
+    print('mean log-lik, 1 comp/class:', round(gmm_sup.score(X_tensor), 4))
+    print('mean log-lik, class 2 x 2 :', round(gmm_cpc.score(X_tensor), 4))
+    print('predict (component)      :', gmm_cpc.predict(X_tensor[-5:]).tolist())
+    print('predict_class (label)    :', gmm_cpc.predict_class(X_tensor[-5:]).tolist())
+
+    # non-contiguous label values: classes_ records them, predict_class returns them
+    gmm_lab = GaussianMixture(n_components=3).fit(X_tensor, labels=torch.tensor([10, 20, 30])[y_tensor])
+    print('classes_ for labels {10,20,30}:', gmm_lab.classes_.tolist(), ' predict_class:', gmm_lab.predict_class(X_tensor[:3]).tolist())
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Partially labelled data
+
+    Mark an unknown label with `-1`. Let $\mathcal L$ be the labelled rows and $\mathcal U$ the rest. Semi-supervised EM maximises
+
+    $$
+    \sum_{i\in\mathcal L}\log\!\!\sum_{k\in\text{block}(c_i)}\!\!\pi_k\,\mathcal N(x_i\mid\mu_k,\Sigma_k)\;+\;\sum_{i\in\mathcal U}\log\sum_{k=1}^{K}\pi_k\,\mathcal N(x_i\mid\mu_k,\Sigma_k),
+    $$
+
+    by *clamping* each labelled row's responsibility to its class's block of components (zero outside, renormalised inside) and leaving unlabelled rows with the full posterior. Two knobs change that:
+
+    - `unlabeled_weight` $u\ge0$ multiplies the unlabelled rows' responsibilities before the M-step. $u=0$ fits from the labelled rows alone, $u=1$ is the likelihood above, and for $u\ne1$ the update is a weighted likelihood (the weights are renormalised to sum to 1).
+    - `label_confidence` $c<1$ keeps mass $c$ on the class block and gives $1-c$ to the unclamped posterior *outside* the block, which tolerates noisy labels.
+
+    Only `algorithm='em'` and `'cem'` support partial labels (`'sem'`/`'saem'` raise `NotImplementedError`). The class-to-blob structure here is deliberately awkward (Class 2 is two distant blobs), so we can watch the two sources of information compete: with 10% of the labels known, the unlabelled rows pull the components toward the data's own geometry as $u$ grows.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, X_tensor, n_components, torch, y_tensor):
+    _gen = torch.Generator().manual_seed(0)
+    _known = torch.rand(len(y_tensor), generator=_gen) < 0.1
+    y_partial = torch.where(_known, y_tensor, torch.full_like(y_tensor, -1))
+    print(f'labelled rows: {int(_known.sum())} of {len(y_tensor)}')
+    print(f"{'setting':22s} {'iters':>5s} {'accuracy (all rows)':>20s} {'mean log-lik':>13s}")
+    for _name, _kw in [('u = 0 (labelled only)', dict(unlabeled_weight=0.0)), ('u = 0.2', dict(unlabeled_weight=0.2)),
+                       ('u = 1 (full likelihood)', dict()), ('u = 1, confidence 0.8', dict(label_confidence=0.8))]:
+        _g = GaussianMixture(n_components=n_components, random_state=0, n_init=3, **_kw).fit(X_tensor, labels=y_partial)
+        _acc = (_g.predict_class(X_tensor) == y_tensor).float().mean().item()
+        print(f'{_name:22s} {_g.n_iter_:5d} {_acc:20.3f} {_g.score(X_tensor):13.4f}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Accuracy is measured against the full labels. Adding the unlabelled rows raises the likelihood but can lower the agreement with the labels, because the data's natural structure disagrees with the labelling; a smaller $u$ trusts the labels more. For noisy labels, positive-unlabelled problems and the details of every option see [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Summary
 
     - Supervised fitting (`fit(X, labels=y)`) takes the assignment from the labels, so one M-step already gives the per-class mean, covariance and weight; `n_iter_` is always 1.
     - EM and CEM never see the labels, so with a label grouping that disagrees with the data's geometry they find a different 3-way split.
     - Unsupervised component indices are arbitrary; `match_labels_to_true=True` Hungarian-matches them to the labels so errors can be visualized.
     - Supervised fits trade the flexibility of unsupervised fitting for fidelity to the labels -- useful when the labels are trusted.
+    - The labelled M-step is the class-conditional maximum likelihood (QDA/LDA-style), checked numerically above; `predict_class` returns labels, `predict` component indices, and `components_per_class` gives a class several components.
+    - With partial labels, `unlabeled_weight` and `label_confidence` set how strongly the labels compete with the data.
 
-    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for partially labeled data, or [06 -- Clustering Metrics](08_metrics.ipynb) to quantify agreement with labels.
+    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for the full treatment of partially labeled data and `PositiveUnlabeledMixture`, or [08 -- Clustering Metrics](08_metrics.ipynb) to quantify agreement with labels.
     """)
     return
 

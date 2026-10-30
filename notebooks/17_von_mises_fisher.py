@@ -58,11 +58,14 @@ def _(mo):
       numerically against the library;
     - how to visualise a fitted mixture: mean directions, concentration caps, and angle-to-mean histograms in any dimension;
     - how to cluster high-dimensional unit-norm embeddings and compare with a Gaussian baseline -- and which comparisons
-      are, and are not, meaningful.
+      are, and are not, meaningful;
+    - how the density is evaluated stably in high dimension, how vMF relates to spherical k-means, how sampling works, how many
+      free parameters the model has, and the caveats to keep in mind.
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb) and [02 -- The EM Algorithm](01_introduction.ipynb).
-    See also the [Other Mixture Families](../user-guide/other-mixture-families.md) user guide and the
-    [plotting guide](../user-guide/plotting.md#von-mises-fisher-mixtures).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model, EM and `GaussianMixture`) and
+    [16 -- Student-t Mixtures](16_student_t.ipynb), which lists what every mixture family shares (the E-step, `algorithm`,
+    annealing, BIC/AIC/ICL). See also the [`VonMisesFisherMixture`](../api/vmf-mixture.md) and
+    [plotting](../api/plotting.md) API references.
     """)
     return
 
@@ -361,7 +364,7 @@ def _(
     print('kappa  (root of A_d):  ', np.round(kappa_exact, 3))
     print('kappa  (Banerjee only):', banerjee_kappa(R_bar.numpy(), 5).round(3))
     print('true kappa:            ', [30.0, 60.0, 15.0], '(components may be permuted)')
-    return (sample_vmf_mixture,)
+    return X5, sample_vmf_mixture, vmf5
 
 
 @app.cell(hide_code=True)
@@ -457,6 +460,150 @@ def _(
         _m = VonMisesFisherMixture(n_components=3, concentration=_conc, random_state=SEED, n_init=min(3, N_INIT)).fit(X_sphere)
         _ari = ClusteringMetrics.adjusted_rand_score(y_sphere, _m.predict(X_sphere))
         print(f'{_conc:<14} kappa_={_m.kappa_.numpy().round(1)}  BIC={_m.bic(X_sphere):9.1f}  ICL={_m.icl(X_sphere):9.1f}  ARI={_ari:.3f}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Evaluating the density in high dimension
+
+    The log-density `tgmm` evaluates is $\log C_d(\kappa_k)+\kappa_k\,x^{\top}\mu_k$. The only expensive part is
+    $\log I_\nu(\kappa)$ with $\nu=d/2-1$. It is computed from `scipy.special.ive` (the exponentially scaled Bessel function
+    $I_\nu(\kappa)e^{-\kappa}$, which does not overflow), with the uniform large-order asymptotic expansion (Abramowitz &
+    Stegun 9.7.7) as a fallback when `ive` underflows to 0. That happens in high dimension at modest $\kappa$, exactly the regime of text
+    embeddings. The cell checks both: a one-component fit in $d=5$ against `scipy.stats.vonmises_fisher`, and the density at the mean
+    direction in $d=768$ for a $\kappa$ where `ive` still works ($\kappa=300$) and one where it underflows ($\kappa=20$).
+    """)
+    return
+
+
+@app.cell
+def _(SEED, VonMisesFisherMixture, X5, ive, np, torch):
+    try:
+        from scipy.stats import vonmises_fisher
+    except ImportError:  # scipy < 1.11
+        vonmises_fisher = None
+    if vonmises_fisher is None:
+        print('scipy.stats.vonmises_fisher needs scipy >= 1.11; skipping the comparison.')
+    else:
+        _m1 = VonMisesFisherMixture(n_components=1, random_state=SEED).fit(X5.double())
+        _logpdf = vonmises_fisher(_m1.means_[0].double().numpy(), float(_m1.kappa_[0])).logpdf(X5.double().numpy())
+        print(f'd=5: max |tgmm log-density - scipy| over {X5.shape[0]} points = {np.abs(_m1.score_samples(X5.double()).numpy() - _logpdf).max():.2e}')
+        _d = 768
+        _mu = np.zeros(_d)
+        _mu[0] = 1.0
+        for _kappa in (300.0, 20.0):
+            _model = VonMisesFisherMixture(n_components=1, n_features=_d)
+            _model.weights_ = torch.ones(1)
+            _model.means_ = torch.tensor(_mu, dtype=torch.float32)[None]
+            _model.kappa_ = torch.tensor([_kappa])
+            _x = torch.tensor(_mu, dtype=torch.float32)[None]
+            with np.errstate(all='ignore'):
+                _ref = vonmises_fisher(_mu, _kappa).logpdf(_mu)
+            print(f'd={_d}, kappa={_kappa:>5}: ive(d/2-1, kappa) = {ive(_d / 2 - 1, _kappa):.3e}   '
+                  f'tgmm log f(mu) = {_model.score_samples(_x).item():.4f}   scipy = {_ref:.4f}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    At $\kappa=20$ the scaled Bessel function underflows to 0, so scipy's formula returns `inf`, while `tgmm` still returns a finite
+    value (an independent arbitrary-precision evaluation of $\log C_{768}(20)+20$ gives 1478.4608, which the float32 result matches to
+    about $10^{-4}$).
+
+    ## Relation to spherical k-means
+
+    With `algorithm='cem'`, equal weights and a common $\kappa$, the E/C-step assigns each point to the component of
+    **largest cosine similarity** $\mu_k^{\top}x$ (the $\kappa$ and the normaliser are the same for every component, so only the dot product
+    decides), and the M-step sets each mean direction to the normalised sum of its members. That is **spherical k-means**
+    (Dhillon & Modha, 2001). `tgmm`'s default `init_means='kmeans'` runs exactly that, seeded with a cosine-distance k-means++ scheme
+    (the next centre is drawn with probability proportional to $1-\max_{\text{chosen}}\cos$), which avoids two initial centres landing in
+    one true cluster. The cell fits the three balanced clusters of the sphere example with CEM and a shared $\kappa$ and checks that the
+    hard assignment is the nearest mean in cosine similarity:
+    """)
+    return
+
+
+@app.cell
+def _(SEED, VonMisesFisherMixture, X_sphere):
+    _cem = VonMisesFisherMixture(n_components=3, algorithm='cem', concentration='shared', random_state=SEED).fit(X_sphere)
+    _nearest = (X_sphere @ _cem.means_.T).argmax(dim=1)
+    print('weights_:', _cem.weights_.numpy().round(3))
+    print(f'fraction of points whose predicted component is the one with the largest cosine similarity: {(_cem.predict(X_sphere) == _nearest).float().mean().item():.3f}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Sampling
+
+    `sample(n)` draws from the fitted mixture: a component is chosen with probability $\pi_k$, then a point is drawn from
+    $\mathrm{vMF}(\mu_k,\kappa_k)$ by **Wood's (1994) rejection sampler** (which draws the cosine $w=\mu_k^{\top}x$ by rejection from a Beta-based
+    envelope and then a uniformly random direction orthogonal to $\mu_k$). A quick correctness check: the mean resultant length of the points
+    drawn from component $k$ should be $A_d(\kappa_k)=I_{d/2}(\kappa_k)/I_{d/2-1}(\kappa_k)$, the same function that defines the M-step.
+    """)
+    return
+
+
+@app.cell
+def _(A_d, np, vmf5):
+    _samples, _which = vmf5.sample(30000)
+    print(f"{'k':<3}{'kappa_k':>9}{'mean resultant length of the samples':>40}{'A_d(kappa_k)':>16}")
+    for _k in range(3):
+        _r = _samples[_which == _k].double().mean(0).norm().item()
+        print(f'{_k:<3}{vmf5.kappa_[_k].item():>9.2f}{_r:>40.4f}{A_d(vmf5.kappa_[_k].item(), 5):>16.4f}')
+    print('all sampled points have unit norm:', bool(np.allclose(_samples.norm(dim=1).numpy(), 1.0, atol=1e-5)))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Options, attributes and parameter counts
+
+    ```python
+    from tgmm import VonMisesFisherMixture
+
+    vmf = VonMisesFisherMixture(n_components=5, concentration='per_component')
+    vmf.fit(X_normalized)          # rows should have unit L2 norm
+    ```
+
+    - `concentration`: `'per_component'` (default) or `'shared'` (one $\kappa$ for every component); `kappa_init` (default 10) is the starting value.
+    - `init_means`: `'kmeans'` (default; spherical k-means as above), `'random'` (uniform on the sphere), `'points'` (random rows of `X`) or a tensor (normalised and
+      used directly).
+    - `reg_covar` is accepted for interface parity but unused: there is no covariance to regularise.
+    - If `X` is not unit-norm, `fit`/`predict`/`score` normalise it automatically and warn once per call (shown below). Fitting on data that is already
+      normalised is still the right thing to do, since that is what the density assumes.
+
+    | attribute | shape | meaning |
+    | --- | --- | --- |
+    | `weights_` | $(K,)$ | $\pi_k$ |
+    | `means_` | $(K,d)$ | unit-norm mean directions $\mu_k$ |
+    | `kappa_` | $(K,)$ | fitted concentrations $\kappa_k$ (all equal for `'shared'`) |
+
+    Each $\mu_k$ lives on a $(d-1)$-sphere, so the number of free parameters behind `bic`/`aic`/`icl` is $p=(K-1)+K(d-1)+p_\kappa$ with $p_\kappa=K$
+    (`per_component`) or $1$ (`shared`). The cell recovers $p$ from the library's own `bic` (since $\mathrm{BIC}=-2n\cdot\texttt{score}+p\ln n$) and
+    shows the automatic normalisation warning:
+    """)
+    return
+
+
+@app.cell
+def _(SEED, VonMisesFisherMixture, X5, X_sphere, np):
+    import warnings as _warnings
+    _X = X5.double()
+    for _conc, _p_kappa in [('per_component', 3), ('shared', 1)]:
+        _m = VonMisesFisherMixture(n_components=3, concentration=_conc, random_state=SEED).fit(_X)
+        _p_implied = (_m.bic(_X) + 2 * _m.score(_X) * _X.shape[0]) / np.log(_X.shape[0])
+        print(f'concentration={_conc:<14} p implied by bic() = {_p_implied:.4f}   formula (K-1)+K(d-1)+p_kappa = {(3 - 1) + 3 * (5 - 1) + _p_kappa}')
+    with _warnings.catch_warnings(record=True) as _caught:
+        _warnings.simplefilter('always')
+        _m = VonMisesFisherMixture(n_components=3, random_state=SEED).fit(X_sphere * 2.5)
+    print(f'fitting on rows of norm 2.5 -> {len(_caught)} warning: "{_caught[0].message}"')
+    print('norms of the fitted means_:', _m.means_.norm(dim=1).numpy().round(4))
     return
 
 
@@ -590,6 +737,23 @@ def _(mo):
     On real embeddings, where classes overlap more, the vMF model's advantage is that it does not spend parameters modelling variation in vector
     *length*, which L2-normalisation has already thrown away.
 
+    ## Caveats
+
+    - $\kappa$ is clamped to $[10^{-3},10^{5}]$: an extremely tight cluster (or duplicate points, $\bar R\to1$) lands on the upper bound.
+    - The Bessel normaliser is evaluated per component in Python at every E-step. That is cheap ($K$ scalars) but not GPU-resident.
+    - A vMF component has no notion of cluster *shape*: every component is isotropic around its mean direction. For elongated clusters on the
+      sphere, consider reducing the dimension with PCA ([09 -- PCA Plotting](09_pca_plotting.ipynb)) and fitting a `GaussianMixture` or
+      `StudentTMixture` instead.
+    - Gibbs mode (`n_components=None`), the GPCM covariance codes and MAP/NIW priors are `GaussianMixture`-only.
+
+    ## Labels, noise, missing values and custom families
+
+    Because `fit(X, labels=...)` lives in `BaseMixture`, the vMF mixture also supports supervised and semi-supervised fitting
+    (see [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb)). `noise=True` works too (the noise density is
+    uniform on the sphere), as do `frozen_components` and `sample_weight`; missing-value EM (`missing='em'`) is for `GaussianMixture` and
+    `StudentTMixture`. To fit a family that `tgmm` does not ship, implement the three-method `Component` protocol and use `GenericMixture`
+    ([19 -- Noise, Missing Values and Conditioning](19_noise_missing_conditioning.ipynb)).
+
     ## Summary
 
     - A vMF density depends on $x$ only through $\mu^{\top}x$; $\kappa$ sets the width, $\kappa=0$ is the uniform distribution on the sphere, and in
@@ -600,6 +764,16 @@ def _(mo):
       dimension by comparing angle histograms with the fitted density.
     - Information criteria are comparable only *within* the vMF family; use cosine-based metrics or labels to compare with a Gaussian baseline.
     - The model shares `GaussianMixture`'s EM toolkit (`algorithm`, `temperature`, `step_size`, `n_init`) and its semi-supervised `fit(X, labels=...)`.
+    - The density is evaluated stably even where `scipy.special.ive` underflows; with `algorithm='cem'` and a shared $\kappa$ the fit is spherical
+      k-means; `sample` uses Wood's rejection sampler; the model has $(K-1)+K(d-1)+p_\kappa$ free parameters.
+
+    **References**
+
+    - Banerjee, A., Dhillon, I. S., Ghosh, J. & Sra, S. (2005). Clustering on the unit hypersphere using von Mises-Fisher distributions. *JMLR*, 6, 1345-1382.
+    - Sra, S. (2012). A short note on parameter approximation for von Mises-Fisher distributions. *Computational Statistics*, 27, 177-190.
+    - Wood, A. T. A. (1994). Simulation of the von Mises Fisher distribution. *Communications in Statistics -- Simulation and Computation*, 23(1), 157-164.
+    - Dhillon, I. S. & Modha, D. S. (2001). Concept decompositions for large sparse text data using clustering. *Machine Learning*, 42, 143-175.
+    - Biernacki, C., Celeux, G. & Govaert, G. (2000). Assessing a mixture model for clustering with the integrated completed likelihood. *IEEE TPAMI*, 22(7), 719-725.
 
     **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb), or back to
     [16 -- Student-t Mixtures](16_student_t.ipynb).

@@ -52,8 +52,26 @@ def _(mo):
     - why an inverse-Wishart (or inverse-Gamma) prior is the natural choice for covariances, and how `covariance_prior` and `degrees_of_freedom_prior` change a fit
     - how the conjugate Normal-Inverse-Wishart (NIW) prior couples means and covariances, and the exact posterior update tgmm uses
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [02 -- EM Algorithm](01_introduction.ipynb), [03 -- Visualization](05_visualise.ipynb) (for `plot_gmm`).
-    See also the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model and the EM updates this notebook modifies), [05 -- Visualization](05_visualise.ipynb) (for `plot_gmm`).
+    See also the [`GaussianMixture` API reference](../api/gaussian-mixture.md).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## The priors at a glance
+
+    All priors are conjugate, and each one only changes the corresponding M-step update (the E-step is untouched; see [01](01_introduction.ipynb)). Throughout, $n_k=\sum_i r_{ik}$ is the effective size of component $k$, $\bar y_k=\frac1{n_k}\sum_i r_{ik}x_i$ its responsibility-weighted mean and $W_k=\sum_i r_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top$ its scatter.
+
+    | parameter | prior | constructor arguments | MAP update (`covariance_type='full'`) |
+    | --- | --- | --- | --- |
+    | weights $\pi$ | $\operatorname{Dirichlet}(\alpha_1,\dots,\alpha_K)$ | `weight_concentration_prior` $=\alpha$ | $\pi_k=\dfrac{n_k+\alpha_k-1}{n+\sum_j\alpha_j-K}$ |
+    | mean $\mu_k$ | $\mathcal N(\mu_{0,k},\,\Sigma_k/\kappa_0)$ | `mean_prior` $=\mu_0$, `mean_precision_prior` $=\kappa_0$ | $\mu_k=\dfrac{n_k\bar y_k+\kappa_0\mu_{0,k}}{n_k+\kappa_0}$ |
+    | covariance $\Sigma_k$ | $\operatorname{Inverse\text{-}Wishart}(\Psi_0,\nu_0)$ | `covariance_prior` $=\Psi_0$, `degrees_of_freedom_prior` $=\nu_0$ | $\Sigma_k=\dfrac{\Psi_0+W_k+\varepsilon I}{\nu_0+n_k}$ |
+
+    A prior is only active when *both* of its arguments are given (`mean_prior` needs `mean_precision_prior`, `covariance_prior` needs `degrees_of_freedom_prior`). Passing **both** a mean and a covariance prior switches to the *joint* Normal-Inverse-Wishart update, which is the subject of [11 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb). `weight_concentration_prior` is independent of all this and works with every covariance type, including the 14 GPCM codes; `mean_prior` / `covariance_prior` work with the six classic types only (the 8 GPCM-only codes raise `NotImplementedError`).
     """)
     return
 
@@ -81,7 +99,7 @@ def _():
     from tgmm import GaussianMixture, GMMInitializer, dynamic_figsize, plot_gmm
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
+    plt.rcParams['figure.dpi'] = 55  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
 
     SEED = 42
     np.random.seed(SEED)
@@ -374,6 +392,8 @@ def _(mo):
     $$
 
     a weighted average of the data mean $\bar y_k$ (weight $n_k$) and the prior mean $\mu_0$ (weight $\kappa_0$).
+
+    With a mean prior *only*, the covariance update stays maximum likelihood, but its scatter is taken about the *shrunk* mean $\mu_k$, not about $\bar y_k$. By the parallel-axis identity $\sum_i r_{ik}(x_i-\mu_k)(x_i-\mu_k)^\top=W_k+n_k(\bar y_k-\mu_k)(\bar y_k-\mu_k)^\top$, so a component whose mean is pulled away from its data gets a slightly wider covariance.
 
     ### Impact of the Mean Precision Prior
 
@@ -727,13 +747,25 @@ def _(mo):
     Here, the DOF is fixed and the covariance prior strength is varied.
     ### How the covariance prior enters the M-step
 
-    With an inverse-Wishart prior $\Sigma_k \sim \mathcal{IW}(\Psi_0, \nu_0)$ (`covariance_prior` $=\Psi_0$, `degrees_of_freedom_prior` $=\nu_0$), tgmm's MAP covariance update for `covariance_type='full'` is
+    With an inverse-Wishart prior $\Sigma_k \sim \mathcal{IW}(\Psi_0, \nu_0)$ (`covariance_prior` $=\Psi_0$, `degrees_of_freedom_prior` $=\nu_0$) and **no** mean prior, tgmm's MAP covariance update for `covariance_type='full'` is
 
     $$
-    \Sigma_k = \frac{\Psi_0 + \sum_i r_{ik}(x_i-\mu_k)(x_i-\mu_k)^\top + \text{(mean-shrinkage term)} + \varepsilon I}{\nu_0 + n_k},
+    \Sigma_k = \frac{\Psi_0 + W_k + \varepsilon I}{\nu_0 + n_k},
     $$
 
-    where the mean-shrinkage term only appears when a mean prior is supplied as well, and $\varepsilon$ is `reg_covar`. Read it as a weighted average: the prior contributes $\nu_0$ pseudo-observations with total scatter $\Psi_0$, so the prior's best guess for $\Sigma_k$ is $\Psi_0/\nu_0$. To encode a prior covariance guess $\Sigma^{\ast}$ with strength $\nu_0$, pass `covariance_prior`$=\nu_0\,\Sigma^{\ast}$.
+    where $W_k$ is the scatter about the (unshrunk) mean and $\varepsilon$ is `reg_covar`. Read it as a weighted average: the prior contributes $\nu_0$ pseudo-observations with total scatter $\Psi_0$, so the prior's best guess for $\Sigma_k$ is $\Psi_0/\nu_0$. To encode a prior covariance guess $\Sigma^{\ast}$ with strength $\nu_0$, pass `covariance_prior`$=\nu_0\,\Sigma^{\ast}$.
+
+    The other covariance types use the same recipe in structured form (`covariance_prior` has the shape of `covariances_`; $\nu_0$ is a float):
+
+    | `covariance_type` | $\Sigma$ |
+    | --- | --- |
+    | `full` | $(\Psi_0+W_k+\varepsilon I)/(\nu_0+n_k)$ |
+    | `diag` | per coordinate $j$: $(\psi_{0,j}+(W_k)_{jj}+\varepsilon)/(\nu_0+n_k)$ |
+    | `spherical` | $\sigma_k^2=(\psi_0+\operatorname{tr}W_k+\varepsilon)/\big((\nu_0+n_k)\,d\big)$ |
+    | `tied_full`, `tied_diag` | the same with $W_k$ summed over $k$ and $\nu_0+\sum_kn_k$ in the denominator |
+    | `tied_spherical` | $(\psi_0+\sum_k\operatorname{tr}W_k+\varepsilon)/\big((\nu_0+\sum_kn_k)\,d\big)$ |
+
+    The cells below pass only `covariance_prior` and `degrees_of_freedom_prior`, so they exercise exactly this update.
 
     !!! note
         The denominator is $\nu_0 + n_k$, not the textbook inverse-Wishart posterior mode $\nu_0 + n_k + d + 1$ (nor the mean's $\nu_0 + n_k - d - 1$). tgmm deliberately uses the simple ratio $\Psi_n/\nu_n$: unlike the textbook formulas it stays finite and positive for every $\nu_n > 0$, and the two agree closely when $\nu_n \gg d$.
@@ -767,12 +799,10 @@ def _(
     _fig.suptitle('Covariance Priors: Varying Strength')
     for _ax, _strength in zip(_axs, _prior_strengths):
         _cov_prior = _data_covariance * _strength
-        _dummy_mean_prior = torch.zeros(n_components, n_features, device=device)
-        _dummy_mean_precision_prior = 1e-10
-        _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=degrees_of_freedom_prior, mean_prior=_dummy_mean_prior, mean_precision_prior=_dummy_mean_precision_prior)
+        _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
         _gmm_cov_prior.fit(X_tensor)
         _title = f'DOF={degrees_of_freedom_prior}, Strength={_strength}\nLL={_gmm_cov_prior.lower_bound_:.2f}'
-        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='green', ellipse_std_devs=[1, 2, 3])  # effectively no strong push on means
+        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='green', ellipse_std_devs=[1, 2, 3])
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
     return
@@ -817,12 +847,10 @@ def _(
     _fig.suptitle('Covariance Priors: Varying DOF')
     for _ax, _dof in zip(_axs, _dof_values):
         _cov_prior = _data_covariance * fixed_strength
-        _dummy_mean_prior = torch.zeros(n_components, n_features, device=device)
-        _dummy_mean_precision_prior = 1e-10
-        _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=_dof, mean_prior=_dummy_mean_prior, mean_precision_prior=_dummy_mean_precision_prior)
+        _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=_dof)
         _gmm_cov_prior.fit(X_tensor)
         _title = f'DOF={_dof}, Strength={fixed_strength}\nLL={_gmm_cov_prior.lower_bound_:.2f}'
-        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='red', ellipse_std_devs=[1, 2, 3])  # negligible influence on means
+        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='red', ellipse_std_devs=[1, 2, 3])
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
     return
@@ -870,13 +898,11 @@ def _(
             _ax = _axs[_i, _j]
     # Loop over DOF values (rows) and prior strengths (columns)
             _cov_prior = _data_covariance * _strength
-            _dummy_mean_prior = torch.zeros(n_components, n_features, device=device)
-            _dummy_mean_precision_prior = 1e-10
-            _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=_dof, mean_prior=_dummy_mean_prior, mean_precision_prior=_dummy_mean_precision_prior)  # Compute covariance prior for this combination.
+            _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=_dof)  # Compute covariance prior for this combination.
             _gmm_cov_prior.fit(X_tensor)
             _title = f'DOF={_dof}, Strength={_strength}\nLL={_gmm_cov_prior.lower_bound_:.2f}'
             plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='orange', ellipse_std_devs=[1, 2, 3])
-    plt.tight_layout(rect=[0, 0, 1, 0.98])  # negligible influence on means
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
     return
 
@@ -884,137 +910,55 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Normal-Inverse-Wishart (NIW) Conjugate Prior
+    ## All Three Priors Together
 
-    The Normal-Inverse-Wishart (NIW) prior is a **conjugate prior** for the parameters of a multivariate Gaussian distribution when both the mean $\boldsymbol{\mu}$ and covariance matrix $\boldsymbol{\Sigma}$ are unknown. This is fundamentally different from specifying separate priors for means and covariances.
-
-    ### Mathematical Formulation
-
-    For a multivariate Gaussian component with parameters $(\boldsymbol{\mu}, \boldsymbol{\Sigma})$, the NIW prior is defined as:
-
-    $$p(\boldsymbol{\mu}, \boldsymbol{\Sigma}^{-1}) = \mathcal{N}\!\left(\boldsymbol{\mu} \,\middle|\, \boldsymbol{m}_0, \tfrac{1}{\lambda_0}\boldsymbol{\Sigma}\right) \cdot \mathcal{W}(\boldsymbol{\Sigma}^{-1} | \nu_0, \boldsymbol{\Psi}_0^{-1})$$
-
-    Where:
-    - $\boldsymbol{m}_0$: prior mean (hyperparameter)
-    - $\lambda_0$: prior precision parameter (`mean_precision_prior`; controls how tightly the mean is constrained around $\boldsymbol{m}_0$ -- the prior covariance of $\boldsymbol{\mu}$ is $\boldsymbol{\Sigma}/\lambda_0$)
-    - $\nu_0$: degrees of freedom for the Wishart distribution (`degrees_of_freedom_prior`)
-    - $\boldsymbol{\Psi}_0$: scale matrix for the Wishart distribution (`covariance_prior`)
-
-    ### Key Properties of NIW Prior
-
-    1. **Conjugacy**: The posterior distribution is also NIW, making Bayesian inference analytically tractable.
-
-    2. **Coupling**: The mean and covariance are coupled through the precision parameter $\lambda_0$. When $\boldsymbol{\Sigma}$ is large (uncertain), the mean prior becomes less informative automatically.
-
-    3. **Natural Parameterization**: The NIW prior naturally captures the relationship between mean uncertainty and covariance uncertainty.
-
-    ### Posterior Updates in tgmm
-
-    Given the effective sample count $n_k$, data mean $\bar y_k$ and scatter $W_k = \sum_i r_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top$ of component $k$, the NIW posterior parameters are
-
-    $$
-    \lambda_n = \lambda_0 + n_k, \qquad \nu_n = \nu_0 + n_k, \qquad
-    \boldsymbol{m}_n = \frac{\lambda_0 \boldsymbol{m}_0 + n_k \bar y_k}{\lambda_0 + n_k},
-    $$
-
-    $$
-    \boldsymbol{\Psi}_n = \boldsymbol{\Psi}_0 + W_k + \frac{\lambda_0 n_k}{\lambda_0 + n_k}(\bar y_k - \boldsymbol{m}_0)(\bar y_k - \boldsymbol{m}_0)^\top .
-    $$
-
-    tgmm sets $\mu_k = \boldsymbol{m}_n$ and $\Sigma_k = \boldsymbol{\Psi}_n / \nu_n$ (plus `reg_covar` on the diagonal of $\boldsymbol{\Psi}_n$). This is *not* the textbook inverse-Wishart posterior mean $\boldsymbol{\Psi}_n/(\nu_n - d - 1)$, which is undefined once $\nu_n \le d + 1$; the plain ratio stays finite and positive for any $\nu_n > 0$.
-
-    ### Why NIW ≠ Separate Mean + Covariance Priors
-
-    When using **separate priors**:
-    - Mean prior: $p(\boldsymbol{\mu}) = \mathcal{N}(\boldsymbol{\mu} | \boldsymbol{m}_0, \tau_0^2 \mathbf{I})$
-    - Covariance prior: $p(\boldsymbol{\Sigma}^{-1}) = \mathcal{W}(\boldsymbol{\Sigma}^{-1} | \nu_0, \boldsymbol{\Psi}_0^{-1})$
-
-    The key differences are:
-
-    1. **Independence vs. Coupling**: Separate priors assume independence between mean and covariance uncertainty, while NIW couples them naturally.
-
-    2. **Prior Strength Interpretation**: In NIW, $\lambda_0$ controls how much the mean prior strength depends on the current covariance estimate. In separate priors, mean and covariance prior strengths are fixed independently.
-
-    3. **Bayesian Updates**: NIW updates both parameters simultaneously with proper coupling, while separate priors update them independently.
-
-    In tgmm, supplying only `mean_prior` leaves the covariance update as maximum likelihood, supplying only `covariance_prior` leaves the mean update as maximum likelihood, and supplying both switches to the joint NIW update above.
-
-    ### Demonstration
-
-    We'll compare three scenarios:
-    1. **Mean Prior Only**: Prior on means, MLE for covariances
-    2. **Covariance Prior Only**: Prior on covariances, MLE for means
-    3. **NIW Prior**: Coupled prior on both parameters
-
-    This will highlight how the coupling in NIW differs from independent priors.
+    Give a weight prior, a mean prior and a covariance prior at once and `tgmm` applies the Dirichlet MAP update to the weights and the *joint* Normal-Inverse-Wishart update to means and covariances (the mean and covariance priors are not applied independently once both are present; [11 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb) explains the difference). Here every component gets the same weakly informative prior:
     """)
     return
 
 
 @app.cell
-def _(GaussianMixture, MAX_ITER, device, np, plot_gmm, plt, torch):
-    np.random.seed(42)
-    torch.manual_seed(42)
-    n_samples_per_component = 150
-    true_means = np.array([[2.0, 2.0], [-2.0, -2.0], [2.0, -2.0]])
-    true_covs = np.array([[[0.5, 0.2], [0.2, 0.3]], [[0.8, -0.1], [-0.1, 0.4]], [[0.3, 0.0], [0.0, 0.6]]])
-    X_list = []
-    for _i, (mean, _cov) in enumerate(zip(true_means, true_covs)):
-        X_component = np.random.multivariate_normal(mean, _cov, n_samples_per_component)
-        X_list.append(X_component)
-    X_1 = np.vstack(X_list)
-    X_tensor_1 = torch.tensor(X_1, dtype=torch.float32, device=device)
-    _n_samples, _n_features = X_1.shape
-    _n_components = 3
-    lambda0 = 10
-    nu0 = _n_features + 100
-    m0 = torch.zeros(_n_components, _n_features, device=device)
-    Psi0 = torch.eye(_n_features, device=device).unsqueeze(0).expand(_n_components, -1, -1) * 10
-    print('NIW Hyperparameters:')
-    print(f'λ₀ (precision parameter): {lambda0}')
-    print(f'ν₀ (degrees of freedom): {nu0}')
-    print(f'm₀ (prior mean): {m0[0].cpu().numpy()}')
-    print(f'Ψ₀ (scale matrix): \n{Psi0[0].cpu().numpy()}')
-    _fig, _axes = plt.subplots(2, 2, figsize=(15, 12))
-    _fig.suptitle('Comparison: Separate Priors vs. NIW Conjugate Prior', fontsize=16)
-    _ax = _axes[0, 0]
-    gmm_mean_only = GaussianMixture(n_features=_n_features, n_components=_n_components, covariance_type='full', max_iter=MAX_ITER, device=device, mean_prior=m0, mean_precision_prior=lambda0)
-    gmm_mean_only.fit(X_tensor_1)
-    plot_gmm(X=X_1, gmm=gmm_mean_only, ax=_ax, title=f'Mean Prior Only\nLL: {gmm_mean_only.lower_bound_:.2f}', ellipse_colors='blue', ellipse_std_devs=[1, 2])
-    _ax = _axes[0, 1]
-    gmm_cov_only = GaussianMixture(n_features=_n_features, n_components=_n_components, covariance_type='full', max_iter=MAX_ITER, device=device, covariance_prior=Psi0, degrees_of_freedom_prior=nu0)
-    gmm_cov_only.fit(X_tensor_1)
-    plot_gmm(X=X_1, gmm=gmm_cov_only, ax=_ax, title=f'Covariance Prior Only\nLL: {gmm_cov_only.lower_bound_:.2f}', ellipse_colors='red', ellipse_std_devs=[1, 2])
-    _ax = _axes[1, 0]
-    gmm_separate = GaussianMixture(n_features=_n_features, n_components=_n_components, covariance_type='full', max_iter=MAX_ITER, device=device, mean_prior=m0, mean_precision_prior=lambda0, covariance_prior=Psi0, degrees_of_freedom_prior=nu0)
-    gmm_separate.fit(X_tensor_1)
-    plot_gmm(X=X_1, gmm=gmm_separate, ax=_ax, title=f'Separate Mean + Cov Priors\nLL: {gmm_separate.lower_bound_:.2f}', ellipse_colors='purple', ellipse_std_devs=[1, 2])
-    _ax = _axes[1, 1]
-    gmm_niw = GaussianMixture(n_features=_n_features, n_components=_n_components, covariance_type='full', max_iter=MAX_ITER, device=device, mean_prior=m0, mean_precision_prior=lambda0, covariance_prior=Psi0, degrees_of_freedom_prior=nu0)
-    gmm_niw.fit(X_tensor_1)
-    plot_gmm(X=X_1, gmm=gmm_niw, ax=_ax, title=f'NIW Conjugate Prior\nLL: {gmm_niw.lower_bound_:.2f}', ellipse_colors='green', ellipse_std_devs=[1, 2])
-    plt.tight_layout()
+def _(GaussianMixture, MAX_ITER, SEED, X, X_tensor, device, legend_labels, plot_gmm, plt, torch):
+    gmm_map = GaussianMixture(n_components=4, n_features=2, covariance_type='full', weight_concentration_prior=torch.ones(4) * 2.0, mean_prior=torch.zeros(4, 2), mean_precision_prior=0.1, covariance_prior=torch.eye(2).unsqueeze(0).repeat(4, 1, 1), degrees_of_freedom_prior=3.0, max_iter=10 * MAX_ITER, tol=1e-9, device=device, random_state=SEED, init_means='random')
+    gmm_map.fit(X_tensor)
+    print(f'Converged: {gmm_map.converged_}, log-likelihood={gmm_map.lower_bound_:.4f}')
+    _fig, _ax = plt.subplots()
+    plot_gmm(X, gmm=gmm_map, ax=_ax, title='MAP Estimation (Weight + NIW Mean/Covariance Priors)', legend_labels=legend_labels)
     plt.gcf()
-    return gmm_cov_only, gmm_mean_only, gmm_niw, gmm_separate, m0
+    return (gmm_map,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Checking the Weight and Mean Updates by Hand
+
+    At convergence EM is at a fixed point: feeding the final responsibilities $r_{ik}$ back into the M-step formulas must reproduce the fitted parameters. We check the two scalar-prior updates from the table at the top of this notebook for the fit above, with $\alpha_k=2$, $\kappa_0=0.1$ and $\mu_0=0$. (The covariance update is covered in the next notebook, because with both priors present it is the NIW form.) The differences below are the distance to that fixed point, so they shrink with `tol` and are not exactly zero.
+    """)
+    return
 
 
 @app.cell
-def _(gmm_cov_only, gmm_mean_only, gmm_niw, gmm_separate, m0, torch):
-    print('\n' + '=' * 80)
-    print('PARAMETER COMPARISON')
-    print('=' * 80)
-    print(f'\n1. Mean Prior Only - Final Means:')
-    print(gmm_mean_only.means_.cpu().numpy())
-    print(f'   Mean distances from prior: {torch.norm(gmm_mean_only.means_ - m0, dim=1).cpu().numpy()}')
-    print(f'\n2. Covariance Prior Only - Final Means:')
-    print(gmm_cov_only.means_.cpu().numpy())
-    print(f'   Mean distances from prior: {torch.norm(gmm_cov_only.means_ - m0, dim=1).cpu().numpy()}')
-    print(f'\n3. Separate Priors - Final Means:')
-    print(gmm_separate.means_.cpu().numpy())
-    print(f'   Mean distances from prior: {torch.norm(gmm_separate.means_ - m0, dim=1).cpu().numpy()}')
-    print(f'\n4. NIW Conjugate - Final Means:')
-    print(gmm_niw.means_.cpu().numpy())
-    print(f'   Mean distances from prior: {torch.norm(gmm_niw.means_ - m0, dim=1).cpu().numpy()}')
+def _(X_tensor, gmm_map, torch):
+    _r = gmm_map.predict_proba(X_tensor)  # (n, K) responsibilities at the fitted parameters
+    _n = X_tensor.shape[0]
+    _nk = _r.sum(0)
+    _ybar = (_r.T @ X_tensor) / _nk[:, None]
+    _alpha, _kappa0 = 2.0, 0.1
+    _pi_map = (_nk + _alpha - 1) / (_n + 4 * _alpha - 4)
+    _mu_map = (_nk[:, None] * _ybar + _kappa0 * 0.0) / (_nk + _kappa0)[:, None]
+    print(f'max |weights_ - Dirichlet MAP weights| = {(gmm_map.weights_ - _pi_map).abs().max().item():.2e}')
+    print(f'max |means_   - shrunk-mean formula|   = {(gmm_map.means_ - _mu_map).abs().max().item():.2e}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## When Both Priors Are Present: Normal-Inverse-Wishart
+
+    The mean prior $\mathcal N(\mu_0,\Sigma_k/\kappa_0)$ is written in terms of the component covariance $\Sigma_k$, which is exactly the coupling of a **Normal-Inverse-Wishart (NIW)** prior $\operatorname{NIW}(\mu_0,\kappa_0,\Psi_0,\nu_0)$. With both `mean_prior` and `covariance_prior` given, the M-step uses its closed-form posterior, which adds one extra term to $\Psi$ that penalizes a data mean far from $\mu_0$. The next notebook, [11 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb), derives that update, lists it for every covariance type and probes how sensitive a fit is to each hyperparameter.
+    """)
     return
 
 
@@ -1027,9 +971,10 @@ def _(mo):
     - Small Dirichlet concentrations favor a few dominant components; large ones favor balanced weights; unbalanced concentrations push the fit toward the favored component.
     - The mean precision $\kappa_0$ (and the covariance prior's degrees of freedom $\nu_0$) behave like pseudo-observation counts: the larger they are relative to $n_k$, the stronger the pull toward the prior.
     - The inverse-Wishart / inverse-Gamma family is used for covariances because its density vanishes at singular covariances and keeps a heavy right tail.
-    - When both a mean and a covariance prior are given, tgmm uses the coupled NIW update with $\Sigma_k = \Psi_n/\nu_n$.
+    - A mean prior alone or a covariance prior alone changes just that update; when both are given, tgmm uses the coupled NIW update with $\Sigma_k = \Psi_n/\nu_n$ (next notebook). The covariance prior's denominator is $\nu_0+n_k$, not a textbook posterior mode or mean.
+    - `mean_prior` / `covariance_prior` support the six classic covariance types; `weight_concentration_prior` works with all 14 GPCM models too.
 
-    **Next:** [10 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb) compares the coupled NIW update against separate priors in more detail, and [11 -- Dirichlet Process Mixtures](12_dpgmm.ipynb) uses the same NIW prior inside a nonparametric sampler.
+    **Next:** [11 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb) derives and probes the joint update used when both a mean and a covariance prior are given, and [12 -- Dirichlet Process Mixtures](12_dpgmm.ipynb) uses the same NIW prior inside a nonparametric sampler.
     """)
     return
 

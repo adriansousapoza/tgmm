@@ -52,8 +52,8 @@ def _(mo):
     - how $\lambda_0$, $\nu_0$, $\boldsymbol{\Psi}_0$ and $\boldsymbol{m}_0$ interact, over a grid of values
     - how the prior's influence fades as the number of points per component grows, and how it behaves for unequal component sizes
 
-    **Prerequisites:** [09 -- Priors](10_priors.ipynb) (which introduces each prior separately).
-    See also the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md).
+    **Prerequisites:** [10 -- Priors](10_priors.ipynb) (which introduces each prior separately and the MAP updates for weights, means and covariances).
+    See also the [`GaussianMixture` API reference](../api/gaussian-mixture.md).
     """)
     return
 
@@ -127,6 +127,21 @@ def _(mo):
 
     where $\bar{\boldsymbol{x}}_k$ is the responsibility-weighted mean, $n_k$ the effective sample count and $\mathbf{S}_k$ the scatter matrix of component $k$ about $\bar{\boldsymbol{x}}_k$. tgmm sets $\boldsymbol{\mu}_k = \boldsymbol{m}_n$ and $\boldsymbol{\Sigma}_k = \boldsymbol{\Psi}_n / \nu_n$ -- *not* the textbook inverse-Wishart posterior mean $\boldsymbol{\Psi}_n/(\nu_n - d - 1)$, which is undefined once $\nu_n \le d + 1$. Note that $\boldsymbol{\Psi}_0/\nu_0$ is therefore the prior's best guess for the covariance.
 
+    $\boldsymbol{\Psi}_n$ also receives `reg_covar` ($\varepsilon I$). The other covariance types use the same $\boldsymbol{\Psi}_n$ in structured form:
+
+    | `covariance_type` | $\boldsymbol{\Psi}_n$ | $\boldsymbol{\Sigma}$ |
+    | --- | --- | --- |
+    | `full` | $\boldsymbol{\Psi}_0+\mathbf{S}_k+\frac{\lambda_0n_k}{\lambda_n}(\bar{\boldsymbol{x}}_k-\boldsymbol{m}_0)(\bar{\boldsymbol{x}}_k-\boldsymbol{m}_0)^\top+\varepsilon I$ | $\boldsymbol{\Psi}_n/\nu_n$ |
+    | `diag` | per coordinate: $\psi_{0,j}+(\mathbf{S}_k)_{jj}+\frac{\lambda_0n_k}{\lambda_n}(\bar x_{kj}-m_{0,kj})^2+\varepsilon$ | $\boldsymbol{\Psi}_n/\nu_n$ per coordinate |
+    | `spherical` | $\psi_0+\operatorname{tr}\mathbf{S}_k+\frac{\lambda_0n_k}{\lambda_n}\lVert\bar{\boldsymbol{x}}_k-\boldsymbol{m}_{0,k}\rVert^2+d\,\varepsilon$ | $\sigma_k^2=\Psi_n/(\nu_n\,d)$ |
+    | `tied_full` | $\boldsymbol{\Psi}_0+\sum_k\mathbf{S}_k+\sum_k\frac{\lambda_0n_k}{\lambda_n}(\bar{\boldsymbol{x}}_k-\boldsymbol{m}_{0,k})(\bar{\boldsymbol{x}}_k-\boldsymbol{m}_{0,k})^\top+\varepsilon I$ | $\boldsymbol{\Psi}_n/(\nu_0+\sum_kn_k)$ |
+    | `tied_diag`, `tied_spherical` | the tied analogues (sums over $k$) | $\boldsymbol{\Psi}_n/(\nu_0+\sum_kn_k)$, divided by $d$ for spherical |
+
+    (For `tied_spherical` the code adds $\varepsilon\,d$ once to the trace, as for `spherical`.) The extra term vanishes as $n_k\to\infty$ or $\lambda_0\to0$, and with $\lambda_0\to0$, $\boldsymbol{\Psi}_0\to0$ the update reduces to the maximum-likelihood $\mathbf{S}_k/n_k$. The weight prior of the previous notebook is independent of all this and is applied on top.
+
+    !!! note "Restrictions"
+        The mean/covariance priors (hence NIW) are implemented for the six classic covariance types only; the 8 GPCM-only codes raise `NotImplementedError`, because a conjugate prior would have to be derived per parameterization. `GaussianMixture.suggest_priors(X, n_components, covariance_type)` returns a data-driven starting point `(mean_prior, mean_precision_prior, covariance_prior, degrees_of_freedom_prior)`; it is required in Gibbs mode ([12 -- Dirichlet Process Mixtures](12_dpgmm.ipynb)).
+
     ### Why NIW ≠ Separate Mean + Covariance Priors
 
     When using **separate priors**:
@@ -135,7 +150,7 @@ def _(mo):
 
     The key differences are:
 
-    1. **Independence vs. coupling.** Separate priors assume independence between mean and covariance uncertainty; NIW ties the mean's prior covariance to the component covariance, $\boldsymbol{\Sigma}/\lambda_0$, so a broad component automatically has a less informative mean prior.
+    1. **Independence vs. coupling.** Separate (independent) priors assume independence between mean and covariance uncertainty; tgmm does not offer that variant when both priors are given -- both together always select the joint NIW update, so "separate" below means *using only one of the two*; NIW ties the mean's prior covariance to the component covariance, $\boldsymbol{\Sigma}/\lambda_0$, so a broad component automatically has a less informative mean prior.
     2. **Prior-strength interpretation.** In NIW, $\lambda_0$ and $\nu_0$ are pseudo-observation counts for the mean and the covariance respectively, and the covariance update gains an extra term $\frac{\lambda_0 n_k}{\lambda_0 + n_k}(\bar{\boldsymbol{x}}_k - \boldsymbol{m}_0)(\bar{\boldsymbol{x}}_k - \boldsymbol{m}_0)^\top$ that grows when the data mean disagrees with the prior mean.
     3. **Updates.** NIW updates both parameters jointly from the same posterior; in tgmm, supplying only `mean_prior` leaves the covariance update as maximum likelihood, supplying only `covariance_prior` leaves the mean update as maximum likelihood, and supplying both switches to the joint NIW update.
     """)
@@ -475,6 +490,34 @@ def _(GaussianMixture, np, plt, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## Checking the NIW Update by Hand
+
+    At convergence EM is at a fixed point, so recomputing one NIW M-step from the final responsibilities must give back the fitted parameters. We refit the NIW model with a tight tolerance and compare $\boldsymbol{m}_n$ and $\boldsymbol{\Psi}_n/\nu_n$ computed straight from the formulas above (with $\varepsilon$ = `reg_covar`) against `means_` and `covariances_`.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, MAX_ITER, Psi0, X_tensor, device, lambda0, m0, n_components, n_features, nu0, torch):
+    _g = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, tol=1e-9, device=device, random_state=0, mean_prior=m0, mean_precision_prior=lambda0, covariance_prior=Psi0, degrees_of_freedom_prior=nu0)
+    _g.fit(X_tensor)
+    _r = _g.predict_proba(X_tensor)
+    _nk = _r.sum(0)
+    _ybar = (_r.T @ X_tensor) / _nk[:, None]
+    _dx = X_tensor[None] - _ybar[:, None]                          # (K, n, d)
+    _S = torch.einsum('nk,knd,kne->kde', _r, _dx, _dx)             # scatter about ybar
+    _lam_n, _nu_n = lambda0 + _nk, nu0 + _nk
+    _m_n = (lambda0 * m0 + _nk[:, None] * _ybar) / _lam_n[:, None]
+    _dm = _ybar - m0
+    _psi_n = Psi0 + _S + (lambda0 * _nk / _lam_n)[:, None, None] * torch.einsum('kd,ke->kde', _dm, _dm) + _g.reg_covar * torch.eye(n_features, device=device)
+    print(f'max |means_ - m_n|              = {(_g.means_ - _m_n).abs().max().item():.2e}')
+    print(f'max |covariances_ - Psi_n/nu_n| = {(_g.covariances_ - _psi_n / _nu_n[:, None, None]).abs().max().item():.2e}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Parameter Sensitivity Analysis Setup
 
     Define reusable parameter grids and analysis function for NIW hyperparameter experiments.
@@ -582,7 +625,7 @@ def _(mo):
     - The hyperparameters trade off against each other: $\lambda_0$ and $\nu_0$ act as pseudo-observation counts, while $\boldsymbol{\Psi}_0/\nu_0$ and $\boldsymbol{m}_0$ set where the prior pulls.
     - A prior's influence fades as $n_k$ grows, so priors matter most for small or unbalanced components.
 
-    **Next:** [11 -- Dirichlet Process Mixtures](12_dpgmm.ipynb), where the same NIW prior serves as the base measure of a nonparametric sampler.
+    **Next:** [12 -- Dirichlet Process Mixtures](12_dpgmm.ipynb), where the same NIW prior serves as the base measure of a nonparametric sampler.
     """)
     return
 

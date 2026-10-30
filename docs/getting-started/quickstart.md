@@ -74,8 +74,8 @@ gmm_eve = GaussianMixture(n_components=3, n_features=2, covariance_type='VVE')
 | GPCM codes (`'EVE'`, `'VEV'`, ...) | Something in between: e.g. same orientation but different sizes | Systematic family between `tied_full` and `full` | MLE only (no priors, no Gibbs mode) for the 8 codes without a classic name |
 
 The number of free covariance parameters grows from 1 (`tied_spherical`) to $K\,d(d+1)/2$ (`full`); see
-the [Gaussian Mixture Model guide](../user-guide/gaussian-mixture.md#m-step-maximum-likelihood-updates)
-and [GPCM Covariance Models](../user-guide/gpcm-covariance-models.md) for the exact update equations and
+the [Introduction tutorial](../notebooks/01_introduction.ipynb)
+and [Covariance Types](../notebooks/02_covariance_types.ipynb) for the exact update equations and
 parameter counts, and the [Covariance Structures tutorial](../notebooks/02_covariance_types.ipynb) for a visual comparison.
 
 ## Initialization Methods
@@ -210,7 +210,7 @@ score = ClusteringMetrics.silhouette_score(X, labels, n_components=gmm.n_compone
 ```
 
 If you do not want to choose $K$ at all, `GaussianMixture(n_components=None, ...)` infers it with a
-Dirichlet-process Gibbs sampler (see the [user guide](../user-guide/gaussian-mixture.md#gibbs-sampling-inferring-the-number-of-components)).
+Dirichlet-process Gibbs sampler (see the [Dirichlet Process tutorial](../notebooks/12_dpgmm.ipynb)).
 
 ## Other Fitting Options
 
@@ -241,8 +241,8 @@ vmf = VonMisesFisherMixture(n_components=5).fit(X_unit)
 ```
 
 Both share `GaussianMixture`'s `fit` / `predict` / `bic` / algorithm options; see
-[Other Mixture Families](../user-guide/other-mixture-families.md). For positive-unlabeled data see
-`PositiveUnlabeledMixture` in [Semi-Supervised and PU Fitting](../user-guide/semi-supervised-pu.md).
+the [Student-t](../notebooks/16_student_t.ipynb) and [von Mises-Fisher](../notebooks/17_von_mises_fisher.ipynb) tutorials. For positive-unlabeled data see
+`PositiveUnlabeledMixture` in [Semi-Supervised and PU Fitting](../notebooks/18_semi_supervised_pu.ipynb).
 
 ## Saving and Loading Models
 
@@ -300,8 +300,8 @@ anomalies = X_new[log_likelihood < threshold]
 
 Now that you know the basics:
 
-- **[User Guide](../user-guide/gaussian-mixture.md)** - What EM computes: equations for every update, priors, algorithm variants
-- **[GPCM Covariance Models](../user-guide/gpcm-covariance-models.md)** - The 14 covariance structures
+- **[Tutorials](../tutorials/index.md)** - Mathematics, code and figures for every feature, each with an interactive version
+- **[Covariance Types](../notebooks/02_covariance_types.ipynb)** - The 6 classic types and the 14 GPCM structures
 - **[Tutorials](../tutorials/index.md)** - Interactive examples with visualization
 - **[Bayesian Priors](../notebooks/10_priors.ipynb)** - Learn about MAP estimation
 - **[API Reference](../api/gaussian-mixture.md)** - Complete documentation

@@ -52,9 +52,10 @@ def _(mo):
     - how to sweep `n_components` with `select_model` and read its results table
     - how BIC, AIC and ICL differ, and why ICL prefers well-separated partitions
     - how to compute `icl` (hard and soft) on a single fitted model
+    - the formulas behind AIC, BIC and ICL, checked numerically against the library
+    - how to sweep the covariance structure together with `n_components`, and how cluster separation and background noise move the choice
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [06 -- Clustering Metrics](08_metrics.ipynb).
-    See also the [Clustering Metrics user guide](../user-guide/clustering-metrics.md).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (fitting a mixture, the log-likelihood), [02 -- Covariance Types](02_covariance_types.ipynb) (the parameter counts), [08 -- Clustering Metrics](08_metrics.ipynb) (label-free validity indices, the other way to compare clusterings).
     """)
     return
 
@@ -76,6 +77,7 @@ def _():
     import matplotlib.pyplot as plt
 
     from tgmm import GaussianMixture, generate_gmm_data, select_model
+    from tgmm.covariance.gpcm import GPCM_CODES
     from tgmm.plotting import CATEGORICAL_PALETTE
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -84,7 +86,44 @@ def _():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     print(f'Using device: {device}')
-    return CATEGORICAL_PALETTE, SEED, generate_gmm_data, np, plt, select_model
+    return CATEGORICAL_PALETTE, GPCM_CODES, GaussianMixture, SEED, generate_gmm_data, np, plt, select_model, torch
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## The three criteria
+
+    Let $\hat\ell=\sum_i\log p(x_i\mid\hat\theta)$ be the maximised log-likelihood of $n$ points and $p$ the number of free parameters. Then
+
+    $$
+    \mathrm{AIC}=-2\hat\ell+2p,\qquad
+    \mathrm{BIC}=-2\hat\ell+p\ln n,\qquad
+    \mathrm{ICL}=\mathrm{BIC}+2\,\mathrm{EN}.
+    $$
+
+    All three are *lower is better* (`gmm.aic(X)`, `gmm.bic(X)`, `gmm.icl(X)`). BIC charges $\ln n$ per parameter, AIC only $2$, so BIC prefers smaller models once $n>e^2\approx7$. The entropy term $\mathrm{EN}\ge0$ is the classification-entropy penalty of Biernacki, Celeux & Govaert (2000). With `mode='hard'` (default)
+
+    $$
+    \mathrm{EN}=-\sum_i\log\hat\tau_i,\qquad \hat\tau_i=\max_k r_{ik},
+    $$
+
+    the log posterior probability of the cluster each point is assigned to; with `mode='soft'` it is the full responsibility entropy $-\sum_{i,k}r_{ik}\log r_{ik}$. $\mathrm{EN}=0$ exactly when every responsibility is one-hot, so ICL then equals BIC; the more the components overlap, the larger EN and the further ICL rises above BIC.
+
+    **Parameter count.** $p=(K-1)+Kd+p_\Sigma$: the weights (they sum to 1), the means, and the covariance parameters $p_\Sigma$, which depend on `covariance_type`:
+
+    | `covariance_type` | $p_\Sigma$ |
+    |---|---|
+    | `full` | $K\,d(d+1)/2$ |
+    | `diag` | $K\,d$ |
+    | `spherical` | $K$ |
+    | `tied_full` | $d(d+1)/2$ |
+    | `tied_diag` | $d$ |
+    | `tied_spherical` | $1$ |
+
+    The 14 GPCM models have their own counts, listed in [02 -- Covariance Types](02_covariance_types.ipynb). A fitted noise component adds its weight $\pi_0$ to $p$, and parameters you freeze or fix (`fixed_weights`, `frozen_means`, `frozen_covariances`) are not counted.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -241,14 +280,158 @@ def _(X, best_bic_k, result):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## Checking the formulas
+
+    The parameter count and the entropy term are not exposed directly, so we recover them from the public scores. For a model with mean log-likelihood `gmm.score(X)` we have $p=(\mathrm{AIC}+2n\,\overline{\ell})/2$, which we compare with the table above, and we rebuild ICL from the responsibilities.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, X, np, torch):
+    _n, _d, _K = X.shape[0], X.shape[1], 3
+    _formula = {'full': _K * _d * (_d + 1) / 2, 'diag': _K * _d, 'spherical': _K,
+                'tied_full': _d * (_d + 1) / 2, 'tied_diag': _d, 'tied_spherical': 1}
+    print(f"{'covariance_type':15s} {'p from AIC':>10s} {'p (table)':>10s}   BIC ok   ICL hard ok   ICL soft ok")
+    for _t, _pc in _formula.items():
+        _g = GaussianMixture(n_components=_K, covariance_type=_t, random_state=0).fit(X)
+        _ll = _g.score(X)
+        _p_aic = (_g.aic(X) + 2 * _n * _ll) / 2
+        _p = _pc + _K * _d + _K - 1
+        _r = _g.predict_proba(X).double()
+        _en_hard = -torch.log(_r.max(1).values).sum().item()
+        _en_soft = -torch.special.xlogy(_r, _r).sum().item()
+        _bic_ok = np.isclose(_g.bic(X), -2 * _ll * _n + _p * np.log(_n), rtol=1e-4)
+        _hard_ok = np.isclose(_g.icl(X), _g.bic(X) + 2 * _en_hard, rtol=1e-4)
+        _soft_ok = np.isclose(_g.icl(X, mode='soft'), _g.bic(X) + 2 * _en_soft, rtol=1e-4)
+        print(f'{_t:15s} {_p_aic:10.1f} {_p:10.1f}   {str(bool(_bic_ok)):6s}   {str(bool(_hard_ok)):11s}   {bool(_soft_ok)}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Sweeping the covariance structure too
+
+    `select_model` takes the Cartesian product of `n_components` and `covariance_types`. By default it tries **all 14 GPCM codes** (`tgmm.covariance.gpcm.GPCM_CODES`), the mclust-style workflow; names such as `'full'` or `'tied_full'` and mclust codes such as `'VVV'` are both accepted. A combination whose fit raises is recorded with every score `None` and skipped, so one singular fit does not abort the sweep. `result.best_` is the winner by the sweep's `criterion`, `result.models_[(K, type)]` any fitted model, and `result.to_dataframe()` the table (columns `n_components`, `covariance_type`, `bic`, `aic`, `icl`, `log_likelihood`, `converged`).
+
+    The full 14-code grid is the default when you run this notebook yourself. The docs build uses a four-code subset (spherical, diagonal, tied and full) to stay within its time budget.
+    """)
+    return
+
+
+@app.cell
+def _(FAST, GPCM_CODES, MAX_ITER, X, select_model):
+    grid_codes = ('VII', 'VVI', 'EEE', 'VVV') if FAST else GPCM_CODES
+    grid = select_model(X, n_components=range(1, 7), covariance_types=grid_codes, n_init=1,
+                        random_state=0, max_iter=min(200, MAX_ITER))
+    grid_df = grid.to_dataframe()
+    print(f'{len(grid_codes)} covariance codes x 6 values of K = {len(grid_df)} fits, {int(grid_df.bic.isna().sum())} failed')
+    for _c in ('bic', 'aic', 'icl'):
+        _b = grid_df.loc[grid_df[_c].idxmin()]
+        print(f'best by {_c}: K = {int(_b.n_components)}, covariance_type = {_b.covariance_type}  ({_c} = {_b[_c]:.1f})')
+    return (grid_df,)
+
+
+@app.cell
+def _(grid_df):
+    grid_df.pivot(index='covariance_type', columns='n_components', values='bic').round(0).astype(int)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The table is BIC for every pair. Moving down a column changes only the covariance structure at a fixed $K$: a cheaper structure wins when it loses little likelihood, an expensive one when the clusters really differ in shape. The best cell can lie at a $K$ that the `covariance_type='full'` sweep above would not choose, which is why sweeping both together is worthwhile.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## How separation and noise move the choice
+
+    Three Gaussian blobs of unit variance whose centres are spread by `separation` (the corners of a triangle with side `separation`). In the interactive version the controls below set it, and whether 30 uniform background points are added; the curves are BIC and ICL for $K=1,\dots,6$ with full covariances. When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot. Background noise is not Gaussian, so the mixture tends to spend an extra component on it unless you model it explicitly (see [19 -- Noise, Missing Values and Conditioning](19_noise_missing_conditioning.ipynb), and [13 -- HDBSCAN](13_hdbscan.ipynb) for removing it first).
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    # docs: hide-cell
+    sep_slider = mo.ui.slider(1.0, 8.0, step=0.5, value=4.0, label='cluster separation', debounce=True, show_value=True)
+    noise_switch = mo.ui.switch(label='add 30 noise points')
+    mo.hstack([sep_slider, noise_switch], justify='start')
+    return noise_switch, sep_slider
+
+
+@app.cell
+def _(np, torch):
+    def three_blobs(separation, noise):
+        _rng = np.random.default_rng(0)
+        _centres = np.array([[0, 0], [1, 0], [0.5, 0.87]]) * separation
+        _Z = np.vstack([_rng.normal(_c, 1.0, (80, 2)) for _c in _centres])
+        if noise:
+            _Z = np.vstack([_Z, _rng.uniform(_Z.min(0) - 3, _Z.max(0) + 3, (30, 2))])
+        return torch.tensor(_Z, dtype=torch.float32)
+    return (three_blobs,)
+
+
+@app.cell
+def _(FAST, noise_switch, np, plt, sep_slider, select_model, three_blobs):
+    _res = select_model(three_blobs(sep_slider.value, noise_switch.value), n_components=range(1, 7),
+                        covariance_types=('full',), n_init=1 if FAST else 3, random_state=0)
+    _ks = [r['n_components'] for r in _res.table]
+    _bic = np.array([r['bic'] for r in _res.table])
+    _icl = np.array([r['icl'] for r in _res.table])
+    plt.figure(figsize=(6, 4))
+    for _y, _lab, _m in ((_bic, 'BIC', 'o'), (_icl, 'ICL', 's')):
+        plt.plot(_ks, _y, marker=_m, label=_lab)
+        plt.plot(_ks[int(_y.argmin())], _y.min(), 'k*', ms=14)
+    plt.xlabel('n_components (K)')
+    plt.ylabel('criterion (lower is better)')
+    plt.title(f'separation {sep_slider.value}: BIC picks K = {_ks[int(_bic.argmin())]}, ICL picks K = {_ks[int(_icl.argmin())]}')
+    plt.legend()
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(FAST, np, select_model, three_blobs):
+    print(f"{'separation':>10s} {'noise':>6s} {'BIC K':>6s} {'ICL K':>6s} {'ICL-BIC at K=3':>15s}")
+    for _sep in (1, 2, 3, 4, 6):
+        for _noise in (False, True):
+            _r = select_model(three_blobs(_sep, _noise), n_components=range(1, 7), covariance_types=('full',),
+                              n_init=1 if FAST else 3, random_state=0)
+            _k = [t['n_components'] for t in _r.table]
+            _at3 = next(t for t in _r.table if t['n_components'] == 3)
+            print(f"{_sep:10d} {str(_noise):>6s} {_k[int(np.argmin([t['bic'] for t in _r.table]))]:6d} "
+                  f"{_k[int(np.argmin([t['icl'] for t in _r.table]))]:6d} {_at3['icl'] - _at3['bic']:15.1f}")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The last column is $2\,\mathrm{EN}$ at the true $K=3$: it is large when the blobs overlap and shrinks toward $0$ as they separate. Comparing each pair of rows, BIC picks at least one more component when the 30 noise points are present, because a Gaussian has to be spent on the background.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Summary
 
     - `select_model` sweeps `n_components` (and optionally covariance types) and returns the best fit by the chosen criterion, together with the full table of `bic`, `aic`, `icl`, log-likelihood and convergence for every candidate.
     - BIC and AIC measure fit versus complexity; ICL adds an entropy penalty, so on overlapping clusters it favors fewer, better-separated components.
     - Neither criterion is wrong -- they answer different questions: the best density estimate versus the best-separated partition.
     - `icl(X, mode='hard' | 'soft')` can be computed on any fitted model; it equals BIC when responsibilities are one-hot.
+    - The formulas $\mathrm{AIC}=-2\hat\ell+2p$, $\mathrm{BIC}=-2\hat\ell+p\ln n$ and $\mathrm{ICL}=\mathrm{BIC}+2\,\mathrm{EN}$ match the library to numerical precision, with $p=(K-1)+Kd+p_\Sigma$.
+    - `select_model` sweeps $K$ and the covariance structure together (all 14 GPCM codes by default); overlap widens the BIC-ICL gap and background noise adds a spurious component.
 
-    **Next:** [14 -- Stochastic EM, Annealing and SAEM](15_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [15 -- Covariance Structures](02_covariance_types.ipynb) for sweeping all 14 covariance models with `select_model`.
+    **Next:** [15 -- Stochastic EM, Annealing and SAEM](15_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [02 -- Covariance Types](02_covariance_types.ipynb) for what each of the 14 covariance models assumes.
     """)
     return
 

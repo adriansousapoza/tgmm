@@ -20,7 +20,7 @@ and a comprehensive suite of clustering metrics and visualization tools.
 A mixture model writes the density of the data as a weighted sum of components,
 p(x) = Σₖ πₖ fₖ(x | θₖ); EM alternates computing each component's responsibility for every point
 (E-step) with re-estimating the parameters from those soft assignments (M-step). The
-[Gaussian Mixture Model guide](https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/)
+[Introduction tutorial](https://adriansousapoza.github.io/tgmm/notebooks/01_introduction/)
 derives every update tgmm implements.
 
 ## Installation
@@ -46,8 +46,7 @@ pip install -e .
 Full documentation is hosted at **[adriansousapoza.github.io/tgmm](https://adriansousapoza.github.io/tgmm/)**:
 
 - **[Getting Started](https://adriansousapoza.github.io/tgmm/getting-started/installation/)** - Installation and quick start guide
-- **[User Guide](https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/)** - Detailed explanations of each component
-- **[Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/)** - marimo notebooks covering every feature (runnable on molab), plus in-browser interactive explainers
+- **[Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/)** - marimo notebooks covering every feature, with the mathematics; each has an interactive version (molab)
 - **[API Reference](https://adriansousapoza.github.io/tgmm/api/gaussian-mixture/)** - Complete API documentation
 
 ## Quick Start
@@ -149,7 +148,7 @@ Flexible plotting utilities in `tgmm.plotting`:
   embeddings, typically) -- components are directions on the unit hypersphere with a
   concentration parameter, fit per Banerjee, Dhillon, Ghosh & Sra (2005).
 
-See the [Other Mixture Families](https://adriansousapoza.github.io/tgmm/user-guide/other-mixture-families/) guide.
+See the [Student-t](https://adriansousapoza.github.io/tgmm/notebooks/16_student_t/) and [von Mises-Fisher](https://adriansousapoza.github.io/tgmm/notebooks/17_von_mises_fisher/) tutorials.
 
 ### 6. Semi-Supervised and Positive-Unlabeled Fitting
 
@@ -163,7 +162,7 @@ class); any `-1` present runs semi-supervised EM (`unlabeled_weight`, `label_con
 per-row positive probability under the SCAR assumption, for `family in ('gaussian',
 'student_t', 'vmf')`, with `anchor in ('fixed', 'prior', 'free')` controlling identifiability.
 
-See the [Semi-Supervised and Positive-Unlabeled Fitting](https://adriansousapoza.github.io/tgmm/user-guide/semi-supervised-pu/) guide.
+See the [Semi-Supervised and PU Fitting](https://adriansousapoza.github.io/tgmm/notebooks/18_semi_supervised_pu/) tutorial.
 
 ### 7. Density-based clustering and building blocks
 

@@ -20,7 +20,7 @@ $$
 
 and EM alternates computing each component's responsibility for each point (E-step) with
 re-estimating the parameters from those soft assignments (M-step). The
-[Gaussian Mixture Model guide](user-guide/gaussian-mixture.md) derives every update tgmm implements.
+[Introduction tutorial](notebooks/01_introduction.ipynb) derives every update tgmm implements.
 
 ## Installation
 
@@ -45,9 +45,7 @@ For GPU support, install CUDA-enabled PyTorch following the [official instructio
 ## Documentation Structure
 
 - **[Getting Started](getting-started/installation.md)** - Installation and quick start guide
-- **[User Guide](user-guide/gaussian-mixture.md)** - Detailed explanations of each component
 - **Check out the [Tutorials](tutorials/index.md) to see tgmm in action!** - marimo notebooks, rendered here and runnable on molab
-- **[Explainers](explainers/gpcm-shapes.md)** - Interactive pages that run in your browser: covariance shapes, EM, annealing, metrics, and a designer for your own mixture data
 - **[API Reference](api/gaussian-mixture.md)** - Complete API documentation
 
 ## Quick Start
@@ -89,7 +87,7 @@ The core `GaussianMixture` class supports:
 - **Covariance structures**: the six classic types (`'full'`, `'diag'`, `'spherical'`, `'tied_full'`,
   `'tied_diag'`, `'tied_spherical'`) and all 14 Celeux & Govaert (1995) GPCM models via their mclust
   codes (`'EII'`, `'VEI'`, `'EVE'`, `'VVV'`, ...), which decompose each covariance into volume, shape and
-  orientation -- see [GPCM Covariance Models](user-guide/gpcm-covariance-models.md)
+  orientation -- see [Covariance Types](notebooks/02_covariance_types.ipynb)
 - **Estimation**: MLE, or MAP with Dirichlet / Gaussian / Inverse-Wishart / Normal-Inverse-Wishart priors
 - **Algorithms**: `algorithm='em'`, `'cem'` (Classification EM), `'sem'` (Stochastic EM) or `'saem'`
   (Stochastic Approximation EM); `temperature` adds deterministic annealing; `batch_size` / `step_size` give
@@ -105,27 +103,27 @@ The core `GaussianMixture` class supports:
 
 `StudentTMixture` (robust to outliers) and `VonMisesFisherMixture` (L2-normalized / directional data)
 share `GaussianMixture`'s EM toolkit through the common `BaseMixture` base class. See
-[Other Mixture Families](user-guide/other-mixture-families.md).
+the [Student-t](notebooks/16_student_t.ipynb) and [von Mises-Fisher](notebooks/17_von_mises_fisher.ipynb) tutorials.
 
 ### 3. Semi-supervised and positive-unlabeled learning
 
 Every family supports `fit(X, labels=...)` with `-1` for unknown rows (semi-supervised EM, multiple components
 per class), and `PositiveUnlabeledMixture` handles positive-unlabeled (PU) learning under the SCAR assumption.
-See [Semi-Supervised and PU Fitting](user-guide/semi-supervised-pu.md).
+See [Semi-Supervised and PU Fitting](notebooks/18_semi_supervised_pu.ipynb).
 
 ### 4. Noise, missing values and conditioning
 
 `noise=True` adds a uniform noise component that labels strays `-1`; `missing='em'` fits data with `NaN` entries and
 `impute`s them; `GaussianMixture.marginal` / `condition` give marginal and conditional distributions (Gaussian mixture
 regression); `frozen_components` and `sample_weight` control what EM may change; and `GenericMixture` fits components you write
-yourself. See [Noise, Missing Values and Conditioning](user-guide/noise-missing-conditioning.md).
+yourself. See [Noise, Missing Values and Conditioning](notebooks/19_noise_missing_conditioning.ipynb).
 
 ### 5. Clustering metrics
 
 `ClusteringMetrics` provides unsupervised indices (Silhouette, Davies-Bouldin, Calinski-Harabasz, Dunn,
 WB-Index, Wemmert-Gancarski, DBCV) and supervised metrics (ARI, NMI/AMI, purity, homogeneity,
 completeness, V-measure, confusion matrix and classification report). See
-[Clustering Metrics](user-guide/clustering-metrics.md).
+[Metrics and Evaluation](notebooks/08_metrics.ipynb).
 
 ### 6. Density-based clustering
 
