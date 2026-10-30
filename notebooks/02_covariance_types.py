@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -98,7 +98,8 @@ def _():
     import matplotlib.pyplot as plt
     from sklearn.datasets import load_iris
 
-    from tgmm import GaussianMixture, select_model, generate_gmm_data
+    from tgmm import GaussianMixture, select_model
+    from tutorial_data import make_default_data
     from tgmm.covariance.gpcm import GPCM_CODES, mstep_gpcm
     from tgmm.plotting import plot_gmm, dynamic_figsize
 
@@ -114,8 +115,8 @@ def _():
         SEED,
         device,
         dynamic_figsize,
-        generate_gmm_data,
         load_iris,
+        make_default_data,
         mstep_gpcm,
         np,
         pd,
@@ -126,43 +127,14 @@ def _():
     )
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## A dataset whose clusters have different covariance structures
-
-    Four clusters in two dimensions, each with a deliberately different covariance: two spherical ones
-    of different size, one axis-aligned elongated one, and one tilted (correlated) one. This is the same
-    dataset as in the [introduction](01_introduction.ipynb), which makes it a good test bed: *no single
-    simple covariance type describes all four clusters*.
-    """)
-    return
-
-
 @app.cell
-def _(SEED, device, generate_gmm_data, np, plot_gmm, plt):
-    n_samples = [800, 200, 1000, 1000]
-    centers = [np.array([0, 2]),
-               np.array([2, -2]),
-               np.array([0, 0]),
-               np.array([2, 2])]
-    covs = [
-        0.6 * np.eye(2),                    # spherical
-        0.3 * np.eye(2),                    # spherical, smaller and with fewer points
-        np.array([[1.2, 0], [0, 0.3]]),       # diagonal (axis-aligned, elongated)
-        np.array([[0.12, 0.3], [0.3, 1.2]]),   # full (tilted, correlated)
-    ]
-
-    X, y_true = generate_gmm_data(centers, covs, n_samples, device=device, random_state=SEED)
+def _(SEED, device, make_default_data):
+    # The default four blobs of the Introduction (spherical, small spherical, diagonal, tilted/full), from tutorial_data.py
+    X, y_true = make_default_data(SEED, device=device)
     X = X.double()  # float64: the numerical checks below compare against closed forms to ~1e-6
     n, d = X.shape
-    K = len(n_samples)
+    K = 4
     legend_labels = [f'Component {k + 1}' for k in range(K)]
-
-    plot_gmm(X=X.cpu().numpy(), true_labels=y_true.cpu().numpy(),
-             title='Synthetic data: four components, four covariance structures',
-             legend_labels=legend_labels)
-    plt.gcf()
     return K, X, d, legend_labels, n
 
 
@@ -184,7 +156,7 @@ def _(mo):
     | `'tied_full'` | $\Sigma_k = \Sigma$ for all $k$, any symmetric positive-definite matrix | $d(d+1)/2$ |
     | `'full'` | each $\Sigma_k$ any symmetric positive-definite matrix | $K\,d(d+1)/2$ |
 
-    The grid below fits each one to the dataset above. The ellipses are the fitted components' 1-,
+    The grid below fits each one to the default four blobs of [1. Introduction](01_introduction.ipynb). The ellipses are the fitted components' 1-,
     2- and 3-standard-deviation contours: spherical types can only draw circles, diagonal types only
     axis-aligned ellipses, tied types give every component the *same* ellipse, and only `'full'` can
     follow the tilted cluster *and* give each cluster its own size.

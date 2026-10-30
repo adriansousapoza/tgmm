@@ -81,7 +81,8 @@ def _():
     from matplotlib.patches import Rectangle
     from scipy import optimize
 
-    from tgmm import GaussianMixture, generate_gmm_data, plot_gmm
+    from tgmm import GaussianMixture, plot_gmm
+    from tutorial_data import default_blobs, make_default_data
     from tgmm.constraints import box_qp_coordinate_ascent, clip_eigenvalues, water_fill_weights
 
     # Expected here: FAST builds cap max_iter, the stepping cell runs one EM iteration per fit, and the example bounds
@@ -100,7 +101,8 @@ def _():
         SEED,
         box_qp_coordinate_ascent,
         clip_eigenvalues,
-        generate_gmm_data,
+        default_blobs,
+        make_default_data,
         np,
         optimize,
         pd,
@@ -123,16 +125,9 @@ def _(mo):
 
 
 @app.cell
-def _(SEED, generate_gmm_data, np, torch):
-    n_samples = [800, 200, 1000, 1000]
-    centers = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
-    covs = [
-        0.6 * np.eye(2),                    # spherical covariance
-        0.3 * np.eye(2),                    # spherical covariance, fewer points
-        np.array([[1.2, 0], [0, 0.3]]),     # diagonal covariance
-        np.array([[0.12, 0.3], [0.3, 1.2]]),  # full covariance
-    ]
-    _X, _y = generate_gmm_data(centers, covs, n_samples, random_state=SEED)
+def _(SEED, default_blobs, make_default_data, np, torch):
+    centers, covs, n_samples = default_blobs()  # the true blobs, used below as the starting parameters
+    _X, _y = make_default_data(SEED)
     X = _X.double()
     X_np = X.numpy()
     y_true = _y.numpy()

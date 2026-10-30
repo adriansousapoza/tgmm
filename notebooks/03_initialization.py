@@ -79,7 +79,8 @@ def _():
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
 
-    from tgmm import GaussianMixture, GMMInitializer, plot_gmm, generate_gmm_data
+    from tgmm import GaussianMixture, GMMInitializer, plot_gmm
+    from tutorial_data import make_default_data
 
     warnings.filterwarnings('ignore')  # short max_iter budgets below intentionally stop before convergence
     plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
@@ -93,7 +94,7 @@ def _():
         GaussianMixture,
         SEED,
         device,
-        generate_gmm_data,
+        make_default_data,
         np,
         plot_gmm,
         plt,
@@ -104,26 +105,16 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## The Data
-
-    The same four Gaussian blobs as in [1. Introduction](01_introduction.ipynb): centres $(0,2)$, $(2,-2)$, $(0,0)$, $(2,2)$ with $n = 800, 200, 1000, 1000$ points. Their covariances are spherical ($0.6\,I$), a smaller spherical one ($0.3\,I$), diagonal, and full. The blobs overlap, which is what makes the starting point matter.
+    The data are the default four blobs of [1. Introduction](01_introduction.ipynb). They overlap, which is what makes the starting point matter.
     """)
     return
 
 
 @app.cell
-def _(SEED, device, generate_gmm_data, np):
-    n_samples = [800, 200, 1000, 1000]
-    centers = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
-    covs = [
-        0.6 * np.eye(2),                      # spherical covariance
-        0.3 * np.eye(2),                      # spherical covariance, fewer points
-        np.array([[1.2, 0], [0, 0.3]]),       # diagonal covariance
-        np.array([[0.12, 0.3], [0.3, 1.2]]),  # full covariance
-    ]
-    X_tensor, _ = generate_gmm_data(centers, covs, n_samples, device=device, random_state=SEED)
+def _(SEED, device, make_default_data):
+    X_tensor, _ = make_default_data(SEED, device=device)
     X = X_tensor.cpu().numpy()
-    legend_labels = [f'Component {i + 1}' for i in range(len(n_samples))]
+    legend_labels = [f'Component {i + 1}' for i in range(4)]
     return X, X_tensor, legend_labels
 
 

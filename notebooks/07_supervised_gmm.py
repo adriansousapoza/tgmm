@@ -86,6 +86,7 @@ def _():
         GaussianMixture, plot_gmm, dynamic_figsize, generate_gmm_data,
         gmm_proxy, confidence_ellipse_std_devs, ClusteringMetrics,
     )
+    from tutorial_data import default_blobs
 
     plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
     SEED = 42
@@ -96,6 +97,7 @@ def _():
         GaussianMixture,
         SEED,
         confidence_ellipse_std_devs,
+        default_blobs,
         device,
         dynamic_figsize,
         generate_gmm_data,
@@ -124,20 +126,14 @@ def _(mo):
 
 
 @app.cell
-def _(SEED, device, generate_gmm_data, np, torch):
-    centers = [
-        np.array([0, 2]),
-        np.array([0, 0]),
-        np.array([2, -2]),
-        np.array([2, 2]),
-    ]
-    covs = [
-        0.6 * np.eye(2),                    # spherical covariance
-        np.array([[1.2, 0], [0, 0.3]]),       # diagonal covariance
-        0.3 * np.eye(2),                    # spherical covariance, fewer points
-        np.array([[0.12, 0.3], [0.3, 1.2]]),   # full covariance
-    ]
-    n_samples = [800, 1000, 200, 1000]
+def _(SEED, default_blobs, device, generate_gmm_data, torch):
+    # The default blobs of tutorial_data.py, reordered as (spherical, diagonal, small spherical, full) so that the two
+    # farthest-apart blobs sit at positions 2 and 3 and can share a label.
+    _centers, _covs, _ns = default_blobs()
+    _order = [0, 2, 1, 3]
+    centers = [_centers[_i] for _i in _order]
+    covs = [_covs[_i] for _i in _order]
+    n_samples = [_ns[_i] for _i in _order]
 
     # Components 2 and 3 (the two farthest apart, distance 4.0) share one
     # label -- physical_to_label[i] is the class label for physical blob i.

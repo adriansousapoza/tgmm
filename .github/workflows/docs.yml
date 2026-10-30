@@ -45,7 +45,7 @@ jobs:
           pip install -e . -r docs/requirements.txt pytest
 
       - name: marimo check
-        run: marimo check notebooks/
+        run: marimo check --ignore-scripts notebooks/
 
       - name: Run every notebook (TGMM_DOCS_FAST=1, 180 s each)
         run: python -m pytest -m notebooks tests/test_notebooks.py -v

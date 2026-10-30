@@ -76,6 +76,7 @@ def _():
 
 
     from scipy.stats import chi2
+    from tutorial_data import default_blobs, make_default_data
     from tgmm import (
         CATEGORICAL_PALETTE, GaussianMixture, SEQUENTIAL_CMAP, VonMisesFisherMixture, confidence_ellipse_std_devs, dynamic_figsize,
         gmm_proxy, match_predicted_to_true_labels, plot_gmm, plot_vmf, plot_vmf_cosine,
@@ -88,8 +89,8 @@ def _():
     torch.manual_seed(SEED)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     return (
-        CATEGORICAL_PALETTE, GaussianMixture, SEED, SEQUENTIAL_CMAP, VonMisesFisherMixture, chi2, confidence_ellipse_std_devs, device,
-        dynamic_figsize, gmm_proxy, match_predicted_to_true_labels, np, plot_gmm, plot_vmf,
+        CATEGORICAL_PALETTE, GaussianMixture, SEED, SEQUENTIAL_CMAP, VonMisesFisherMixture, chi2, confidence_ellipse_std_devs, default_blobs, device,
+        dynamic_figsize, gmm_proxy, make_default_data, match_predicted_to_true_labels, np, plot_gmm, plot_vmf,
         plot_vmf_cosine, plt, torch, vmf_angle_density, vmf_cap_angle,
     )
 
@@ -173,37 +174,19 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Data and a Fitted Model
+    ## A Fitted Model
 
-    A four-component synthetic dataset and a `GaussianMixture` fitted to it. The fitted model, its per-sample log-likelihoods and its predictions feed every plot in the rest of the notebook.
+    A `GaussianMixture` fitted to the default four blobs of [1. Introduction](01_introduction.ipynb). The fitted model, its per-sample log-likelihoods and its predictions feed every plot in the rest of the notebook.
     """)
     return
 
 
 @app.cell
-def _(GaussianMixture, MAX_ITER, N_INIT, SEED, device, np, torch):
-    n_samples = [800, 200, 1000, 1000]
-    centers = [np.array([0, 2]),
-               np.array([2, -2]),
-               np.array([0, 0]),
-               np.array([2, 2])]
-    covs = [
-        0.6 * np.eye(2),                    # spherical covariance
-        0.3 * np.eye(2),                    # spherical covariance, fewer points
-        np.array([[1.2, 0], [0, 0.3]]),       # diagonal covariance
-        np.array([[0.12, 0.3], [0.3, 1.2]])    # full covariance
-    ]
-
-    _components = []
-    for _n, _center, _cov in zip(n_samples, centers, covs):
-        _samples = np.random.randn(_n, 2) @ np.linalg.cholesky(_cov).T + _center
-        _components.append(_samples)
-
-    X = np.vstack(_components)
-    labels = np.concatenate([_i * np.ones(_n) for _i, _n in enumerate(n_samples)])
-
-    # Convert to tensor
-    X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
+def _(GaussianMixture, MAX_ITER, N_INIT, SEED, default_blobs, device, make_default_data, np, torch):
+    centers, covs, n_samples = default_blobs()  # the true blobs (used again for the "truth" plot below)
+    X_tensor, _y = make_default_data(SEED, device=device)
+    X = X_tensor.cpu().numpy()
+    labels = _y.cpu().numpy()
 
     n_components = 4
 

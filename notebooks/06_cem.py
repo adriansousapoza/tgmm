@@ -83,6 +83,7 @@ def _():
     from scipy.optimize import linear_sum_assignment
 
     from tgmm import GaussianMixture, plot_gmm, dynamic_figsize, generate_gmm_data
+    from tutorial_data import make_default_data
 
     plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
     SEED = 42
@@ -96,6 +97,7 @@ def _():
         dynamic_figsize,
         generate_gmm_data,
         linear_sum_assignment,
+        make_default_data,
         np,
         plot_gmm,
         plt,
@@ -175,10 +177,8 @@ def _(mo):
 
 
 @app.cell
-def _(GaussianMixture, SEED, device, dynamic_figsize, generate_gmm_data, np, plot_gmm, plt):
-    _centers = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
-    _covs = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
-    _X_default, _ = generate_gmm_data(_centers, _covs, [800, 200, 1000, 1000], device=device, random_state=SEED)
+def _(GaussianMixture, SEED, device, dynamic_figsize, make_default_data, plot_gmm, plt):
+    _X_default, _ = make_default_data(SEED, device=device)
     _gmm_em = GaussianMixture(n_components=4, covariance_type='full', random_state=0, max_iter=200, device=device).fit(_X_default)
     _gmm_cem = GaussianMixture(n_components=4, covariance_type='full', algorithm='cem', random_state=0, max_iter=200, device=device).fit(_X_default)
     _fig, _axes = plt.subplots(1, 2, figsize=dynamic_figsize(1, 2))

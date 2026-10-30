@@ -36,6 +36,10 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
   variable or sits inside `mo.ui.array` / `mo.ui.dictionary` / `mo.ui.batch`. Controls nested in a plain Python list or dict render
   fine but never update anything, so build groups of controls with `mo.ui.array`. Number fields (`mo.ui.number`) commit when they lose
   focus or on Enter. Check a new control by changing it in `marimo run` and confirming the output follows.
+- **Shared dataset.** The default four-blob data is defined once, in `tutorial_data.py` (a plain module next to the notebooks, not a
+  tutorial). `01_introduction` builds and explains it; every later notebook that needs it does `from tutorial_data import
+  make_default_data` and has no data section of its own. Use `--ignore-scripts` with `marimo check` so the module is not parsed as a
+  notebook, and keep the defaults in `01_introduction.py` equal to the module's (`tests/test_tutorial_data.py` checks this).
 - **One narrative.** The tutorials are the documentation (there is no separate user guide or explainer set): put the mathematics, the
   code and the figures in the notebook, and link to the API reference (`../api/*.md`) for signatures.
 - **Plumbing cells.** The first two code cells (`import marimo as mo`, and the `FAST` / `MAX_ITER` / `N_INIT`
@@ -55,7 +59,7 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
   `plt.show()`. One figure per cell; split a cell that draws several.
 - **Cell order is execution order.** The exported `.ipynb` is read top to bottom.
 - **No `os.chdir`.** `tgmm` is imported as an installed package (editable install in a clone).
-- **Checks.** `marimo check notebooks/` must be clean (no cycles, no multiple definitions, no unused-import
+- **Checks.** `marimo check --ignore-scripts notebooks/` must be clean (no cycles, no multiple definitions, no unused-import
   warnings), and `python notebooks/NN_name.py` must exit 0.
 
 ## Tests
@@ -65,7 +69,7 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
 
 ```bash
 pytest -m notebooks            # or: make notebooks-test
-marimo check notebooks/        # or: make notebooks-check
+marimo check --ignore-scripts notebooks/   # or: make notebooks-check
 ```
 
 ## Building the documentation locally

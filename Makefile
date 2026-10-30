@@ -22,7 +22,7 @@ notebooks-export:
 	$(PYTHON) scripts/postprocess_notebooks.py docs/notebooks
 
 notebooks-check:
-	marimo check notebooks/
+	marimo check --ignore-scripts notebooks/
 
 notebooks-test:
 	$(PYTHON) -m pytest -m notebooks tests/test_notebooks.py -v

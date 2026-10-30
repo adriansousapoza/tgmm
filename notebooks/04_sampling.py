@@ -78,6 +78,7 @@ def _():
     from scipy.stats import chi2
 
     from tgmm import GaussianMixture, dynamic_figsize, plot_gmm
+    from tutorial_data import make_default_data
 
     plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
 
@@ -85,32 +86,24 @@ def _():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    return GaussianMixture, SEED, chi2, device, dynamic_figsize, np, plot_gmm, plt, torch
+    return GaussianMixture, SEED, chi2, device, dynamic_figsize, make_default_data, np, plot_gmm, plt, torch
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## The Data and a Fitted Model
+    ## A Fitted Model
 
-    The same four blobs as in the earlier tutorials (a spherical blob, a smaller spherical one, an axis-aligned elongated one and a tilted one), then a 4-component full-covariance fit. Everything below samples from this fitted model, so the "ground truth" for the checks is the model's own `weights_`, `means_` and `covariances_`.
+    We fit a 4-component full-covariance model to the default four blobs of [1. Introduction](01_introduction.ipynb). Everything below samples from this fitted model, so the "ground truth" for the checks is the model's own `weights_`, `means_` and `covariances_`.
     """)
     return
 
 
 @app.cell
-def _(np, plot_gmm, plt):
-    _n_samples = [800, 200, 1000, 1000]
-    centers = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
-    covs = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
-    _parts = []
-    for _n, _center, _cov in zip(_n_samples, centers, covs):
-        _parts.append(np.random.randn(_n, 2) @ np.linalg.cholesky(_cov).T + _center)
-    X = np.vstack(_parts)
-    _labels = np.concatenate([_i * np.ones(_n) for _i, _n in enumerate(_n_samples)])
-    legend_labels = [f'Component {_i + 1}' for _i in range(len(_n_samples))]
-    plot_gmm(X=X, true_labels=_labels, title='Original Data', legend_labels=legend_labels)
-    plt.gcf()
+def _(SEED, device, make_default_data):
+    X_default, _ = make_default_data(SEED, device=device)
+    X = X_default.cpu().numpy()
+    legend_labels = [f'Component {_i + 1}' for _i in range(4)]
     return X, legend_labels
 
 
