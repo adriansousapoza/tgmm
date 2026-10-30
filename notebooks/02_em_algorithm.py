@@ -569,7 +569,7 @@ def _(device, np, plt, torch):
     # Create a more complex 2D dataset with four blobs
     n_samples = [1000, 1000, 1000, 1000]
     centers = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
-    covs = [1.0 * np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
+    covs = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
     _components = []
     for _n, _center, _cov in zip(n_samples, centers, covs):
         _samples = np.random.randn(_n, 2) @ np.linalg.cholesky(_cov).T + _center

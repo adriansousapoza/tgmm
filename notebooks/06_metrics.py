@@ -130,10 +130,10 @@ def _(SEED, device, generate_gmm_data, np, plot_gmm, plt):
                np.array([0, 0]),
                np.array([2, 2])]
     covs = [
-        1.0 * np.eye(2),                    # spherical covariance
-        0.5 * np.eye(2),                    # spherical covariance, fewer points
-        np.array([[2, 0], [0, 0.5]]),       # diagonal covariance
-        np.array([[0.2, 0.5], [0.5, 2]])    # full covariance
+        0.6 * np.eye(2),                    # spherical covariance
+        0.3 * np.eye(2),                    # spherical covariance, fewer points
+        np.array([[1.2, 0], [0, 0.3]]),       # diagonal covariance
+        np.array([[0.12, 0.3], [0.3, 1.2]])    # full covariance
     ]
 
     # Generate synthetic data using the new function

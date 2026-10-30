@@ -22,11 +22,13 @@ def from_cov(S):                       # covariance -> (s1, s2, theta in degrees
     return q(np.sqrt(w[1])), q(np.sqrt(w[0])), (round(float(th) * 2) / 2) % 180
 
 _C = [(0, 2), (2, -2), (0, 0), (2, 2)]
-_S = [np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]
+_S = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
+_S_OLD = [np.eye(2), 0.5 * np.eye(2), np.array([[2, 0], [0, 0.5]]), np.array([[0.2, 0.5], [0.5, 2]])]   # tutorial 01 before 0.4.1
 _N = [800, 200, 1000, 1000]
 PRESETS = {
     "Tutorial 01 (current)": [(*c, *from_cov(S), n) for c, S, n in zip(_C, _S, _N)],
-    "Tutorial 01 before the covariance fix": [(*c, *from_cov(S.T @ S), n) for c, S, n in zip(_C, _S, _N)],
+    "Tutorial 01 before the covariance fix": [(*c, *from_cov(S.T @ S), n) for c, S, n in zip(_C, _S_OLD, _N)],
+    "Tutorial 01 covariances x1.0 (more overlap)": [(*c, *from_cov(S), n) for c, S, n in zip(_C, _S_OLD, _N)],
     "Three well separated blobs": [(-4, -3, 0.8, 0.8, 0, 500), (4, -3, 1.2, 0.5, 30, 400), (0, 4, 0.7, 0.7, 0, 300)],
     "Overlapping blobs": [(0, 0, 1.0, 1.0, 0, 500), (1.5, 0.5, 1.0, 1.0, 0, 500), (0.5, 1.5, 1.0, 1.0, 0, 500)],
 }
@@ -40,7 +42,7 @@ mo.hstack([preset, reset], justify="start")
 ```
 </div>
 
-The preset *Tutorial 01 before the covariance fix* uses the squares $\Sigma^{\top}\Sigma$ of the requested matrices: before the fix, `generate_gmm_data` sampled `Z @ cov`, so a requested `cov` really produced $\operatorname{cov}^{\top}\operatorname{cov}$.
+The preset *Tutorial 01 before the covariance fix* uses the squares $\Sigma^{\top}\Sigma$ of the matrices the tutorial then requested (`1.0·I`, `0.5·I`, …): before the fix, `generate_gmm_data` sampled `Z @ cov`, so a requested `cov` really produced $\operatorname{cov}^{\top}\operatorname{cov}$.
 
 <div markdown="0">
 ```python {marimo}
