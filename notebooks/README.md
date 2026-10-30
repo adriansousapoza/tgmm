@@ -32,6 +32,10 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
   marked `# docs: hide-cell` so the static docs page does not show widgets that cannot work there. Every control needs a default, so the
   exported page and `python notebooks/NN_name.py` show the default result. The controls run in the molab link at the top of every
   docs page (real tgmm, so the sliders work) and in `marimo edit` locally.
+- **Controls must be reactive.** marimo only re-runs dependent cells when a control's value changes if the control is a top-level
+  variable or sits inside `mo.ui.array` / `mo.ui.dictionary` / `mo.ui.batch`. Controls nested in a plain Python list or dict render
+  fine but never update anything, so build groups of controls with `mo.ui.array`. Number fields (`mo.ui.number`) commit when they lose
+  focus or on Enter. Check a new control by changing it in `marimo run` and confirming the output follows.
 - **One narrative.** The tutorials are the documentation (there is no separate user guide or explainer set): put the mathematics, the
   code and the figures in the notebook, and link to the API reference (`../api/*.md`) for signatures.
 - **Plumbing cells.** The first two code cells (`import marimo as mo`, and the `FAST` / `MAX_ITER` / `N_INIT`

@@ -139,15 +139,13 @@ def _(mo):
     mo.md(r"""
     ### Design your own blobs (interactive version)
 
-    In the interactive version of this notebook a panel appears here. For every blob it sets the centre $(x, y)$, the two standard deviations $s_1, s_2$ along the blob's axes, a rotation angle $\theta$ of those axes, and the number of points $n$. The covariance it builds is
+    In the interactive version of this notebook a panel appears here with number fields. For every blob you type the centre $(x, y)$, the covariance matrix
 
     $$
-    \Sigma = R(\theta)\,\operatorname{diag}(s_1^2,\, s_2^2)\,R(\theta)^{\top},
-    \qquad
-    R(\theta)=\begin{pmatrix}\cos\theta & -\sin\theta\\ \sin\theta & \cos\theta\end{pmatrix},
+    \Sigma = \begin{pmatrix}\Sigma_{11} & \Sigma_{12}\\ \Sigma_{12} & \Sigma_{22}\end{pmatrix}
     $$
 
-    so $s_1 = s_2$ gives a spherical blob, $\theta = 0$ an axis-aligned one, and a rotated, unequal pair a correlated ("full") one. The panel also has a **number of blobs** slider ($K = 1,\dots,6$) to add or remove blobs, and a **Reset** button that restores the four defaults above. While you leave it untouched, the data are exactly the four default blobs.
+    (symmetric, so you enter $\Sigma_{11}$, $\Sigma_{12}=\Sigma_{21}$ and $\Sigma_{22}$) and the number of points $n$. A valid covariance has $\Sigma_{11}>0$, $\Sigma_{22}>0$ and $\Sigma_{12}^2<\Sigma_{11}\Sigma_{22}$ (positive definite); the panel shows the standard deviations $\sqrt{\Sigma_{11}},\sqrt{\Sigma_{22}}$ and the correlation $\rho=\Sigma_{12}/\sqrt{\Sigma_{11}\Sigma_{22}}$, and warns you if the matrix is not valid (it then uses the closest valid one). Equal variances and $\Sigma_{12}=0$ give a spherical blob, $\Sigma_{12}=0$ with unequal variances an axis-aligned one, and $\Sigma_{12}\neq 0$ a tilted ("full") one. The **number of blobs** field ($K = 1,\dots,6$) adds or removes blobs, and **Reset** restores the four defaults above. While you leave the panel untouched, the data are exactly the four default blobs.
 
     The points are drawn by `generate_gmm_data`, which samples $x=\mu_k+L_kz$ with $z\sim\mathcal N(0,I)$ and $L_kL_k^\top=\Sigma_k$ (a Cholesky factor), so the covariance you request is the covariance you get.
     """)
@@ -157,51 +155,60 @@ def _(mo):
 @app.cell
 def _(default_centers, default_covs, default_n_samples, mo, np):
     # docs: hide-cell
-    def from_cov(_S):  # covariance -> (s1, s2, theta in degrees), rounded to the slider grid
-        _w, _V = np.linalg.eigh(np.asarray(_S, float))
-        _theta = np.degrees(np.arctan2(_V[1, 1], _V[0, 1])) % 180
-        _q = lambda v: round(round(float(v) / 0.005) * 0.005, 3)
-        return _q(np.sqrt(_w[1])), _q(np.sqrt(_w[0])), (round(float(_theta) * 2) / 2) % 180
+    # (x, y, S11, S12, S22, n) per blob: the four defaults, then two spare blobs for "add a blob"
+    DEFAULT_ROWS = [(*[float(_v) for _v in _c], float(_S[0, 0]), float(_S[0, 1]), float(_S[1, 1]), float(_n))
+                    for _c, _S, _n in zip(default_centers, default_covs, default_n_samples)]
+    DEFAULT_ROWS += [(-3.0, -3.0, 0.36, 0.0, 0.36, 300.0), (4.0, 0.0, 0.25, 0.0, 0.25, 300.0)]
 
-    def cov_from_params(s1, s2, theta):
-        _c, _s = np.cos(np.radians(theta)), np.sin(np.radians(theta))
-        _R = np.array([[_c, -_s], [_s, _c]])
-        return _R @ np.diag([s1 ** 2, s2 ** 2]) @ _R.T
-
-    # (x, y, s1, s2, theta, n) per blob: the four defaults, then two spare blobs for "add a blob"
-    DEFAULT_ROWS = [(*[float(v) for v in _c], *from_cov(_S), float(_n)) for _c, _S, _n in zip(default_centers, default_covs, default_n_samples)]
-    DEFAULT_ROWS += [(-3.0, -3.0, 0.6, 0.6, 0.0, 300.0), (4.0, 0.0, 0.5, 0.5, 0.0, 300.0)]
+    def valid_cov(_s11, _s12, _s22):
+        """The symmetric matrix [[s11, s12], [s12, s22]] if it is positive definite, else the closest one (eigenvalues floored)."""
+        _S = np.array([[_s11, _s12], [_s12, _s22]], float)
+        _w, _V = np.linalg.eigh(_S)
+        if _w.min() > 1e-6:
+            return _S, True
+        return (_V * np.maximum(_w, 1e-3)) @ _V.T, False
 
     def blob_spec(rows, k):
-        """(centers, covs, n_samples) for the first k blobs. Untouched defaults give the exact default covariances."""
+        """(centers, covs, n_samples) for the first k blobs. Untouched defaults give the exact default arrays."""
         if k == len(default_n_samples) and [list(_r) for _r in rows[:k]] == [list(_r) for _r in DEFAULT_ROWS[:k]]:
             return default_centers, default_covs, default_n_samples
-        return ([np.array(_r[:2]) for _r in rows[:k]], [cov_from_params(*_r[2:5]) for _r in rows[:k]], [int(_r[5]) for _r in rows[:k]])
+        return ([np.array(_r[:2]) for _r in rows[:k]], [valid_cov(*_r[2:5])[0] for _r in rows[:k]], [max(int(_r[5]), 1) for _r in rows[:k]])
 
     reset_blobs = mo.ui.button(label='Reset to the default four blobs')
-    return DEFAULT_ROWS, blob_spec, reset_blobs
+    return DEFAULT_ROWS, blob_spec, reset_blobs, valid_cov
 
 
 @app.cell
 def _(DEFAULT_ROWS, mo, reset_blobs):
     # docs: hide-cell
-    _ = reset_blobs.value  # pressing Reset re-runs this cell, which recreates every control at its default
-    _spec = [('x', -6, 6, 0.25), ('y', -6, 6, 0.25), ('s₁', 0.05, 3, 0.005), ('s₂', 0.05, 3, 0.005), ('θ (°)', 0, 179.5, 0.5), ('n', 50, 1500, 50)]
-    blob_sliders = [[mo.ui.slider(_lo, _hi, step=_st, value=_v, label=f'{_nm}{_i + 1}', debounce=True, show_value=True)
-                     for (_nm, _lo, _hi, _st), _v in zip(_spec, DEFAULT_ROWS[_i])] for _i in range(6)]
-    k_blobs = mo.ui.slider(1, 6, step=1, value=4, label='number of blobs K', show_value=True)
-    return blob_sliders, k_blobs
+    _ = reset_blobs.value  # pressing Reset re-runs this cell, which recreates every field at its default
+    _spec = [('x', -10, 10, 0.1), ('y', -10, 10, 0.1), ('Σ₁₁', 0.001, 20, 0.01), ('Σ₁₂', -20, 20, 0.01), ('Σ₂₂', 0.001, 20, 0.01), ('n', 1, 20000, 1)]
+    # mo.ui.array (not a plain list): marimo only re-runs dependent cells when a field's value changes if the field sits in an array
+    blob_fields = mo.ui.array([mo.ui.array([mo.ui.number(start=_lo, stop=_hi, step=_st, value=_v, label=f'{_nm}', debounce=True)
+                                            for (_nm, _lo, _hi, _st), _v in zip(_spec, DEFAULT_ROWS[_i])]) for _i in range(6)])
+    k_blobs = mo.ui.number(start=1, stop=6, step=1, value=4, label='number of blobs K', debounce=True)
+    return blob_fields, k_blobs
 
 
 @app.cell
-def _(blob_sliders, k_blobs, mo, reset_blobs):
+def _(blob_fields, k_blobs, mo, np, reset_blobs, valid_cov):
     # docs: hide-cell
+    def _blob_panel(_i):
+        _x, _y, _s11, _s12, _s22, _n = blob_fields.value[_i]
+        _, _ok = valid_cov(_s11, _s12, _s22)
+        _f = blob_fields[_i]
+        _info = (f'std devs {np.sqrt(_s11):.3f}, {np.sqrt(_s22):.3f}, correlation ρ = {_s12 / np.sqrt(_s11 * _s22):.3f}' if _ok
+                 else '⚠️ this matrix is not positive definite (need Σ₁₁>0, Σ₂₂>0, Σ₁₂² < Σ₁₁Σ₂₂); the closest valid covariance is used')
+        return mo.vstack([mo.md(f'**Blob {_i + 1}**  ·  centre (x, y), covariance Σ (Σ₂₁ = Σ₁₂), points n'),
+                          mo.hstack([_f[0], _f[1], _f[2], _f[3], _f[4], _f[5]], justify='start'),
+                          mo.md(f'<small>{_info}</small>')])
+
     mo.vstack([
-        mo.hstack([k_blobs, reset_blobs], justify='start'),
-        *[mo.vstack([mo.md(f'**Blob {_i + 1}**'), mo.hstack(blob_sliders[_i][:3], justify='start'), mo.hstack(blob_sliders[_i][3:], justify='start')])
-          for _i in range(int(k_blobs.value))],
+        mo.hstack([k_blobs, reset_blobs], justify='start', align='end'),
+        *[_blob_panel(_i) for _i in range(int(k_blobs.value))],
     ])
     return
+
 
 
 @app.cell(hide_code=True)
@@ -213,8 +220,8 @@ def _(mo):
 
 
 @app.cell
-def _(SEED, blob_sliders, blob_spec, device, generate_gmm_data, k_blobs):
-    centers, covs, n_samples = blob_spec([[_w.value for _w in _row] for _row in blob_sliders], int(k_blobs.value))
+def _(SEED, blob_fields, blob_spec, device, generate_gmm_data, k_blobs):
+    centers, covs, n_samples = blob_spec(blob_fields.value, int(k_blobs.value))
 
     # Generate the synthetic data (a seeded draw: the same blobs always give the same points)
     X_tensor, y_tensor = generate_gmm_data(centers, covs, n_samples, device=device, random_state=SEED)
