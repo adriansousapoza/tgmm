@@ -2,7 +2,7 @@
 
 `select_model` fits a grid of `(n_components, covariance_type)` combinations
 and compares them by BIC, AIC, or ICL; `ModelSelectionResult` is what it
-returns. See the [Model Selection tutorial](../notebooks/14_model_selection.ipynb)
+returns. See the [Model Selection tutorial](../notebooks/13_model_selection.ipynb)
 for a worked example.
 
 ::: tgmm.model_selection.select_model

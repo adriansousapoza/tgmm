@@ -10,7 +10,7 @@ methods each family implements
 `_allocate_parameters`/`_n_parameters`/`_sample_component`). Most users
 won't instantiate it directly or need to know it exists -- it's public
 mainly so the shared machinery has one documented home, and so a custom
-mixture family can be built on it directly. See the [Student-t](../notebooks/16_student_t.ipynb) tutorial (it covers the shared
+mixture family can be built on it directly. See the [Student-t](../notebooks/15_student_t.ipynb) tutorial (it covers the shared
 machinery) and the
 [design
 doc](https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-10-14-phase4-base-mixture-studentt-vmf-design.md)

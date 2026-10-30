@@ -210,7 +210,7 @@ score = ClusteringMetrics.silhouette_score(X, labels, n_components=gmm.n_compone
 ```
 
 If you do not want to choose $K$ at all, `GaussianMixture(n_components=None, ...)` infers it with a
-Dirichlet-process Gibbs sampler (see the [Dirichlet Process tutorial](../notebooks/12_dpgmm.ipynb)).
+Dirichlet-process Gibbs sampler (see the [Dirichlet Process tutorial](../notebooks/11_dpgmm.ipynb)).
 
 ## Other Fitting Options
 
@@ -241,8 +241,8 @@ vmf = VonMisesFisherMixture(n_components=5).fit(X_unit)
 ```
 
 Both share `GaussianMixture`'s `fit` / `predict` / `bic` / algorithm options; see
-the [Student-t](../notebooks/16_student_t.ipynb) and [von Mises-Fisher](../notebooks/17_von_mises_fisher.ipynb) tutorials. For positive-unlabeled data see
-`PositiveUnlabeledMixture` in [Semi-Supervised and PU Fitting](../notebooks/18_semi_supervised_pu.ipynb).
+the [Student-t](../notebooks/15_student_t.ipynb) and [von Mises-Fisher](../notebooks/16_von_mises_fisher.ipynb) tutorials. For positive-unlabeled data see
+`PositiveUnlabeledMixture` in [Semi-Supervised and PU Fitting](../notebooks/17_semi_supervised_pu.ipynb).
 
 ## Saving and Loading Models
 
@@ -303,5 +303,5 @@ Now that you know the basics:
 - **[Tutorials](../tutorials/index.md)** - Mathematics, code and figures for every feature, each with an interactive version
 - **[Covariance Types](../notebooks/02_covariance_types.ipynb)** - The 6 classic types and the 14 GPCM structures
 - **[Tutorials](../tutorials/index.md)** - Interactive examples with visualization
-- **[Bayesian Priors](../notebooks/10_priors.ipynb)** - Learn about MAP estimation
+- **[Bayesian Priors](../notebooks/04_priors.ipynb)** - Learn about MAP estimation
 - **[API Reference](../api/gaussian-mixture.md)** - Complete documentation

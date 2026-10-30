@@ -49,14 +49,14 @@ def _(mo):
 
     **What you'll learn**
 
-    1. the underlying math -- the stick-breaking construction, its concentration parameter $\alpha$, and the Chinese Restaurant Process view that Gibbs sampling relies on -- with a runnable visualization of each piece (the NIW prior parameters that plug into this are introduced in [10 -- Priors](10_priors.ipynb); here we only cover how Gibbs sampling *uses* them),
+    1. the underlying math -- the stick-breaking construction, its concentration parameter $\alpha$, and the Chinese Restaurant Process view that Gibbs sampling relies on -- with a runnable visualization of each piece (the NIW prior parameters that plug into this are introduced in [04 -- Priors](04_priors.ipynb); here we only cover how Gibbs sampling *uses* them),
     2. how to read a Gibbs run: hard cluster assignments and the active component count evolving sweep by sweep, and why truncated and unbounded Gibbs agree when seeded from the same starting partition,
     3. how it compares at scale: synthetic 10-dimensional data at three true cluster counts (5, 10, 20), comparing a classical `GaussianMixture` (K chosen by minimum BIC over a `K=1..30` sweep) against truncated and unbounded Gibbs-mode `GaussianMixture` on well-separated data, on genuinely overlapping clusters, and on overlapping *non-Gaussian* cluster shapes -- to see what happens when the Gaussian-component assumption itself is wrong.
 
-    All plotting goes through the library's official [`plot_gmm`](05_visualise.ipynb) tooling, projecting the 10-d Gaussians to 2D via PCA for visualization only -- the sampler itself never sees that projection.
+    All plotting goes through the library's official [`plot_gmm`](06_visualise.ipynb) tooling, projecting the 10-d Gaussians to 2D via PCA for visualization only -- the sampler itself never sees that projection.
 
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [05 -- Visualization](05_visualise.ipynb), [10 -- Priors](10_priors.ipynb).
-    See also [20 -- Constraints and Weights](20_constraints_and_weights.ipynb) for the other `GaussianMixture` options that are not available in Gibbs mode.
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [06 -- Visualization](06_visualise.ipynb), [04 -- Priors](04_priors.ipynb).
+    See also [19 -- Constraints and Weights](19_constraints_and_weights.ipynb) for the other `GaussianMixture` options that are not available in Gibbs mode.
     """)
     return
 
@@ -194,7 +194,7 @@ def _(mo):
     learned; what Gibbs sampling infers, per component, every sweep, is the NIW
     **posterior** $(\mu_n, \lambda_n, \nu_n, \Psi_n)$ given that fixed prior and
     whichever points currently belong to the component. See
-    [`10_priors.ipynb`](10_priors.ipynb) for how these same NIW priors are
+    [`04_priors.ipynb`](04_priors.ipynb) for how these same NIW priors are
     defined, visualized, and used for MAP estimation in the (finite, non-Gibbs)
     case.
 
@@ -330,7 +330,7 @@ def _(mo):
     - The unbounded variant seeds the sampler with `init_k` components (default $\max(2,\min(20,n/2))$) and records the number of
       active tables per sweep after `burn_in` (default `max_iter // 5`) in `n_components_history_`; the truncated variant (default `max_components=20`) has no history.
     - Gibbs mode needs an explicit NIW prior (`GaussianMixture.suggest_priors(X, n_components)` gives a sensible start from a $k$-means pass) and
-      does not support supervised fitting (`labels=`), the constraints of [20 -- Constraints and Weights](20_constraints_and_weights.ipynb), or online EM.
+      does not support supervised fitting (`labels=`), the constraints of [19 -- Constraints and Weights](19_constraints_and_weights.ipynb), or online EM.
     """)
     return
 
@@ -648,7 +648,7 @@ def _(mo):
     `.means_`/`.covariances_`. Rather than *re-fitting* a separate 2D model
     (which would show a different model's solution, not this one's), we use
     the exact linear-projection result already established in this repo's
-    `09_pca_plotting.ipynb`: for a PCA projection $y = A(x - \bar{x})$, a Gaussian
+    `10_pca_plotting.ipynb`: for a PCA projection $y = A(x - \bar{x})$, a Gaussian
     component transforms as
 
     $$\mathcal{N}(x; \mu_k, \Sigma_k) \;\longrightarrow\; \mathcal{N}(y; A(\mu_k - \bar{x}),\, A \Sigma_k A^T),$$
@@ -1172,7 +1172,7 @@ def _(mo):
     - Truncated (`max_components=K`) and unbounded (`max_components=None`) samplers share the same occupancy-driven logic and agree when given the same starting partition (`init_k`); remaining differences are a mixing effect.
     - Compared with classical EM plus a BIC sweep, Gibbs mode lands at or close to the true cluster count on separated data (a short chain or a small sample can leave a few extra small components), tends to be more variable when clusters overlap, and inherits every shortcoming of the Gaussian assumption on non-Gaussian shapes.
 
-    **Next:** [13 -- HDBSCAN](13_hdbscan.ipynb) for a nonparametric alternative that needs no component count and no Gaussian assumption, and [14 -- Model Selection](14_model_selection.ipynb) for the classical BIC/AIC/ICL route.
+    **Next:** [12 -- HDBSCAN](12_hdbscan.ipynb) for a nonparametric alternative that needs no component count and no Gaussian assumption, and [13 -- Model Selection](13_model_selection.ipynb) for the classical BIC/AIC/ICL route.
     """)
     return
 

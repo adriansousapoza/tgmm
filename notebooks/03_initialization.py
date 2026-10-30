@@ -33,9 +33,8 @@ def _():
     # TGMM_DOCS_FAST=1 (set by CI) shrinks the slow calls; the defaults below are the realistic local ones.
     FAST = _os.environ.get("TGMM_DOCS_FAST") == "1"
     MAX_ITER = 100 if FAST else 1000
-    N_INIT = 1 if FAST else 5
     N_SEEDS = 20 if FAST else 60  # number of independent starts in the sweeps below
-    return MAX_ITER, N_INIT, N_SEEDS
+    return MAX_ITER, N_SEEDS
 
 
 @app.cell(hide_code=True)
@@ -51,7 +50,7 @@ def _(mo):
     - The five mean initializers (`random`, `points`, `kpp`, `kmeans`, `maxdist`) and the math behind them
     - How initial weights and covariances are derived, and how little or how much they change the result
     - How `n_init` works and how many restarts you need (best-of-$n$ selection)
-    - Training controls (`max_iter`, `tol`, `reg_covar`, `warm_start`, per-call overrides) and custom tensor initialization with `GMMInitializer`
+    - Training controls (`max_iter`, `tol`, `reg_covar`) and how to start EM from parameters you give it: `init_*` tensors, `GMMInitializer`, and `warm_start`
 
     **Prerequisites:** [1. Introduction](01_introduction.ipynb).
 
@@ -79,7 +78,7 @@ def _():
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
 
-    from tgmm import GaussianMixture, GMMInitializer, plot_gmm
+    from tgmm import GaussianMixture, GMMInitializer
     from tutorial_data import make_default_data
 
     warnings.filterwarnings('ignore')  # short max_iter budgets below intentionally stop before convergence
@@ -96,7 +95,6 @@ def _():
         device,
         make_default_data,
         np,
-        plot_gmm,
         plt,
         torch,
     )
@@ -114,8 +112,7 @@ def _(mo):
 def _(SEED, device, make_default_data):
     X_tensor, _ = make_default_data(SEED, device=device)
     X = X_tensor.cpu().numpy()
-    legend_labels = [f'Component {i + 1}' for i in range(4)]
-    return X, X_tensor, legend_labels
+    return X, X_tensor
 
 
 @app.cell(hide_code=True)
@@ -223,18 +220,27 @@ def _(mo):
     $$
     then re-select the first centre as $\mu_1 = \arg\max_x \min_{l \ge 2} \lVert x - \mu_l \rVert$ so the arbitrary first pick does not bias the result. This spreads centres maximally but is sensitive to outliers, which are by definition the farthest points.
 
-    The next figure shows where each method puts its four initial centres (red stars) for one seed. `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument.
+    The next figure shows where each method puts its four initial centres (red stars) for one seed. `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument. In the interactive version the **seed** slider changes the seed for all five methods at once: `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` lands on nearly the same centres every time. (The static docs page shows seed 0.)
     """)
     return
 
 
 @app.cell
-def _(GMMInitializer, MEAN_METHODS, SEED, X, X_tensor, plt, torch):
+def _(SEED, mo):
+    # docs: hide-cell
+    init_seed = mo.ui.slider(0, 29, step=1, value=SEED, label='seed', show_value=True)
+    init_seed
+    return (init_seed,)
+
+
+@app.cell
+def _(GMMInitializer, MEAN_METHODS, X, X_tensor, init_seed, plt, torch):
+    _seed = int(init_seed.value)
     _fig, _axs = plt.subplots(1, len(MEAN_METHODS), figsize=(15, 3.4), sharex=True, sharey=True)
     for _ax, _method in zip(_axs, MEAN_METHODS):
-        torch.manual_seed(SEED)
+        torch.manual_seed(_seed)
         if _method in ('kpp', 'kmeans'):
-            _means = getattr(GMMInitializer, _method)(X_tensor, 4, random_state=SEED)
+            _means = getattr(GMMInitializer, _method)(X_tensor, 4, random_state=_seed)
         else:
             _means = getattr(GMMInitializer, _method)(X_tensor, 4)
         _m = _means.cpu().numpy()
@@ -243,57 +249,6 @@ def _(GMMInitializer, MEAN_METHODS, SEED, X, X_tensor, plt, torch):
         _ax.set_title(f"init_means='{_method}'")
         _ax.set_aspect('equal')
     plt.tight_layout()
-    plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Try it: pick a method and a seed
-
-    Choose an initializer and a seed. The cell below calls the matching `GMMInitializer` method, passes the resulting tensor as `init_means`, runs EM and plots the result (red markers are the initial means). The title reports the final log-likelihood and whether this run reached the best optimum found in the sweep above. Different seeds with `random` or `points` regularly end in different optima; try a few. (This control is live in `marimo edit` or on molab; the static docs page shows the default.)
-    """)
-    return
-
-
-@app.cell
-def _(MEAN_METHODS, mo):
-    init_method = mo.ui.dropdown(MEAN_METHODS, value='random', label='init_means')
-    init_seed = mo.ui.slider(0, 29, value=0, label='seed')
-    mo.hstack([init_method, init_seed], justify='start')
-    return init_method, init_seed
-
-
-@app.cell
-def _(
-    BEST_LL,
-    GMMInitializer,
-    GaussianMixture,
-    MAX_ITER,
-    TOL_HIT,
-    X,
-    X_tensor,
-    device,
-    init_method,
-    init_seed,
-    legend_labels,
-    plot_gmm,
-    plt,
-    torch,
-):
-    _method, _seed = init_method.value, int(init_seed.value)
-    torch.manual_seed(_seed)
-    if _method in ('kpp', 'kmeans'):
-        _init = getattr(GMMInitializer, _method)(X_tensor, 4, random_state=_seed)
-    else:
-        _init = getattr(GMMInitializer, _method)(X_tensor, 4)
-    _gmm = GaussianMixture(n_components=4, init_means=_init, random_state=_seed, max_iter=MAX_ITER, device=device).fit(X_tensor)
-    _ll = float(_gmm.lower_bound_)
-    _verdict = 'reaches the best optimum' if _ll > BEST_LL - TOL_HIT else 'stuck in a worse local optimum'
-    _fig, _ax = plt.subplots(figsize=(6.5, 5))
-    plot_gmm(X, gmm=_gmm, ax=_ax, show_initial_means=True, legend_labels=legend_labels,
-             title=f"init_means='{_method}', seed {_seed}: log-lik {_ll:.4f}\n{_verdict} ({_gmm.n_iter_} iterations)")
     plt.gcf()
     return
 
@@ -438,36 +393,6 @@ def _(BEST_LL, N_SEEDS, TOL_HIT, np, plt, sweep):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Try it: choose `n_init`
-
-    The slider sets `n_init` for a `GaussianMixture(init_means='random', random_state=0)`. The line below it checks the definition against the single-run results from the sweep: the winner is the best of the single runs with seeds $0,\dots,n-1$.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    n_init_slider = mo.ui.slider(1, 10, value=3, label='n_init')
-    n_init_slider
-    return (n_init_slider,)
-
-
-@app.cell
-def _(GaussianMixture, MAX_ITER, X_tensor, device, mo, n_init_slider, np, sweep):
-    _n = int(n_init_slider.value)
-    _gmm = GaussianMixture(n_components=4, init_means='random', n_init=_n, random_state=0, max_iter=MAX_ITER, device=device).fit(X_tensor)
-    _singles = sweep['random'][:_n]
-    mo.md(
-        f"`n_init={_n}`: best log-likelihood **{float(_gmm.lower_bound_):.4f}**, winning seed `best_random_state_` = **{_gmm.best_random_state_}**.\n\n"
-        f"Single runs with seeds 0..{_n - 1}: " + ', '.join(f'{_v:.4f}' for _v in _singles)
-        + f". Best single run is seed {int(np.argmax(_singles))}, matching the winner: **{int(np.argmax(_singles)) == _gmm.best_random_state_}**."
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Training Controls
 
     Beyond the initialization, a few parameters control the EM optimization itself:
@@ -475,42 +400,62 @@ def _(mo):
     - `max_iter`, `tol`: stop after this many iterations, or once the relative log-likelihood improvement drops below `tol`.
     - `reg_covar`: regularization added to the covariance diagonal, needed to avoid singular or degenerate covariances.
     - `n_init`: number of restarts, as above.
-    - `warm_start`: reuse the previous fit's parameters as the starting point for the next call to `fit`, instead of re-initializing.
     - `random_state`: seed for reproducibility. With `n_init > 1`, run `i` uses `random_state + i`.
 
-    `max_iter`, `tol`, `random_state` and `warm_start` can also be overridden on a single call to `fit(...)` without changing the model's own defaults.
+    `max_iter`, `tol`, `random_state` and `warm_start` can also be overridden on a single call to `fit(...)`, without changing the model's own defaults. The next section uses that.
+
+    ## Starting from Given Parameters
+
+    There are two ways to hand EM a starting point that you chose yourself:
+
+    - **Tensors.** `init_means`, `init_weights` and `init_covariances` each also accept an explicit `torch.Tensor` (or only some of them: the rest is derived as usual). This is a *fresh* fit that starts there.
+    - **`warm_start=True`.** `fit` does not re-initialize; it continues EM from the model's current `means_`, `weights_` and `covariances_`.
+
+    Are they the same thing? For the optimization, yes: continuing from a fitted model is exactly a fresh fit whose `init_*` tensors are that model's `means_`, `weights_` and `covariances_`. The cell below checks it. A first fit is cut short by a per-call `max_iter=5` override, then continued with `fit(..., warm_start=True)` under the same `max_iter=5` budget. A second model is started fresh from the tensors the first one held after its short run, with the same budget. The last two rows continue to convergence instead, and the last one gives the tensor fit a different `random_state`.
     """)
     return
 
 
 @app.cell
-def _(GaussianMixture, N_INIT, X_tensor):
-    # n_init keeps the best of several random restarts, and records which seed won
-    gmm_multi = GaussianMixture(n_components=4, n_init=N_INIT, random_state=0, max_iter=200)
-    gmm_multi.fit(X_tensor)
-    print(f'Best log-likelihood: {gmm_multi.lower_bound_:.4f}')
-    print(f'Winning seed: {gmm_multi.best_random_state_}')
+def _(GaussianMixture, MAX_ITER, X_tensor, device, mo):
+    _fresh = dict(n_components=4, max_iter=MAX_ITER, device=device)
+    # stage 1: a short run. max_iter=5 is overridden for this call only; the model's own max_iter stays at MAX_ITER
+    gmm_stage1 = GaussianMixture(random_state=0, **_fresh).fit(X_tensor, max_iter=5)
+    _m, _w, _c = gmm_stage1.means_.clone(), gmm_stage1.weights_.clone(), gmm_stage1.covariances_.clone()
+    _init = dict(init_means=_m, init_weights=_w, init_covariances=_c)
 
-    # warm_start: continue optimizing an already-fitted model instead of restarting from scratch
-    gmm_warm = GaussianMixture(n_components=4, warm_start=True, max_iter=5, random_state=0)
-    gmm_warm.fit(X_tensor)
-    print(f'\nAfter 5 iterations: log-likelihood={gmm_warm.lower_bound_:.4f}, converged={gmm_warm.converged_}')
-    gmm_warm.fit(X_tensor)  # picks up where it left off instead of re-initializing
-    print(f'After 5 more (warm-started) iterations: log-likelihood={gmm_warm.lower_bound_:.4f}, converged={gmm_warm.converged_}')
+    def _row(_name, _a, _b):
+        _d = lambda _x, _y: float((_x - _y).abs().max())
+        return (f"| {_name} | {_d(_a.means_, _b.means_):.1e} | {_d(_a.weights_, _b.weights_):.1e} | {_d(_a.covariances_, _b.covariances_):.1e} "
+                f"| {float(_a.lower_bound_):.6f} / {float(_b.lower_bound_):.6f} | {_a.n_iter_} / {_b.n_iter_} |")
 
-    # fit() accepts overrides for max_iter/tol/random_state/warm_start without touching the model's own defaults
-    gmm_override = GaussianMixture(n_components=4, max_iter=1000, random_state=0)
-    gmm_override.fit(X_tensor, max_iter=10, tol=0.01)
-    print(f'\nOverridden fit (max_iter=10, tol=1e-2): n_iter_={gmm_override.n_iter_}, converged={gmm_override.converged_}')
-    return
+    _warm5 = GaussianMixture(random_state=0, **_fresh).fit(X_tensor, max_iter=5)
+    _warm5.fit(X_tensor, max_iter=5, warm_start=True)
+    _tens5 = GaussianMixture(random_state=0, **_fresh, **_init).fit(X_tensor, max_iter=5)
+    _warmC = GaussianMixture(random_state=0, **_fresh).fit(X_tensor, max_iter=5)
+    _warmC.fit(X_tensor, warm_start=True)
+    _tensC = GaussianMixture(random_state=0, **_fresh, **_init).fit(X_tensor)
+    _tensC7 = GaussianMixture(random_state=7, **_fresh, **_init).fit(X_tensor)
+
+    _a0 = float((_warm5.initial_means_ - _m).abs().max())
+    _b0 = float((_tens5.initial_means_ - _m).abs().max())
+    mo.md(
+        "| warm-started vs. fresh from tensors | max abs diff `means_` | `weights_` | `covariances_` | log-likelihood (warm / fresh) | `n_iter_` (warm / fresh) |\n|---|---|---|---|---|---|\n"
+        + "\n".join([_row('continued with `max_iter=5`', _warm5, _tens5), _row('to convergence', _warmC, _tensC), _row('to convergence, fresh fit with `random_state=7`', _warmC, _tensC7)])
+        + "\n\nThe fitted parameters, the log-likelihood and the iteration count agree (the differences are zero, or at the level of floating-point rounding). What differs is only bookkeeping. "
+        f"`initial_means_` records where the *first* fit began (a warm-started `fit` does not overwrite it, it is {_a0:.2f} away from the tensors above), whereas the fresh fit records the tensors you passed ({_b0:.1e} away). "
+        "`n_iter_` counts the iterations of the latest call only. And with all three tensors given nothing random is left, so `random_state` has no effect (third row), and extra restarts (`n_init > 1`) just repeat the same run; "
+        "`warm_start=True` with `n_init > 1` warns about exactly that."
+    )
+    return (gmm_stage1,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Custom (Tensor) Initialization
+    ### Any start you like
 
-    `init_means`, `init_weights` and `init_covariances` each also accept an explicit `torch.Tensor`, so you can seed the model with domain knowledge, a previous run's fitted parameters, or the output of `GMMInitializer` itself. The static methods are:
+    So `warm_start` is the right tool when you already have a fitted model and want to refine it (for example after raising `max_iter`, or on updated data). The `init_*` tensors are more general: they need no previous fit, so they can encode *any* start, for example domain knowledge, or the output of `GMMInitializer` itself. The static methods are:
 
     ```python
     means = GMMInitializer.kmeans(X, k=4)                                   # or .kpp, .random, .points, .maxdist
@@ -518,7 +463,7 @@ def _(mo):
     covariances = GMMInitializer.init_covariances_empirical(X, means, covariance_type='full', reg_covar=1e-6)
     ```
 
-    The cell below compares four starts for the same data: the default, the tensors built from the three calls above (which should reproduce the default), a start from rough prior knowledge of the blob locations, and a deliberately poor start with all four means on a horizontal line far above the data.
+    The cell below compares four starts for the same data: the default, the tensors built from the three calls above (which reach the same optimum as the default, in about the same number of iterations), a start from rough prior knowledge of the blob locations, and a deliberately poor start with all four means on a horizontal line far above the data.
     """)
     return
 
@@ -549,7 +494,7 @@ def _(mo):
     mo.md(r"""
     ## Other Mixture Families
 
-    `StudentTMixture` uses the same `init_means` / `init_weights` / `init_covariances` options (the covariance starts as the scale matrix, and `dof_init` sets the initial degrees of freedom), see [16. Student-t Mixtures](16_student_t.ipynb). `VonMisesFisherMixture` initializes mean directions by spherical k-means and sets every $\kappa_k$ to `kappa_init`, see [17. Von Mises-Fisher Mixtures](17_von_mises_fisher.ipynb).
+    `StudentTMixture` uses the same `init_means` / `init_weights` / `init_covariances` options (the covariance starts as the scale matrix, and `dof_init` sets the initial degrees of freedom), see [15. Student-t Mixtures](15_student_t.ipynb). `VonMisesFisherMixture` initializes mean directions by spherical k-means and sets every $\kappa_k$ to `kappa_init`, see [16. Von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb).
 
     ## Summary
 
@@ -557,9 +502,9 @@ def _(mo):
     - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often.
     - `init_weights` and `init_covariances` mostly affect speed once the means are good; badly scaled covariances can cost many extra iterations.
     - `n_init=n` keeps the best of $n$ runs (seeds `random_state + i`), failing with probability about $(1-p)^n$; the winner's seed is in `best_random_state_`.
-    - `warm_start` and per-call `fit(...)` overrides control optimization; all three initializers also accept tensors, and `GMMInitializer` builds them directly.
+    - To start from parameters you choose, pass `init_*` tensors (any start, `GMMInitializer` builds them) or use `warm_start=True` to continue a fitted model; continuing is exactly a fresh fit started from that model's parameters. Per-call `fit(...)` overrides (`max_iter`, `tol`, `random_state`, `warm_start`) leave the model's defaults untouched.
 
-    **Next:** [4. Sampling](04_sampling.ipynb).
+    **Next:** [4. Priors](04_priors.ipynb).
 
     **References:** Arthur & Vassilvitskii (2007), *k-means++: the advantages of careful seeding*, SODA. Lloyd (1982), *Least squares quantization in PCM*, IEEE Trans. Information Theory 28(2).
     """)

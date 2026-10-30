@@ -55,7 +55,7 @@ def _(mo):
 
     **Prerequisites:** none.
 
-    **Where the details live:** the six classic and fourteen GPCM covariance structures are in [02 -- Covariance Types](02_covariance_types.ipynb); how EM is started (means, weights, covariances, `n_init`) in [03 -- Initialization](03_initialization.ipynb); drawing samples in [04 -- Sampling](04_sampling.ipynb).
+    **Where the details live:** the six classic and fourteen GPCM covariance structures are in [02 -- Covariance Types](02_covariance_types.ipynb); how EM is started (means, weights, covariances, `n_init`) in [03 -- Initialization](03_initialization.ipynb); drawing samples in [05 -- Sampling](05_sampling.ipynb).
     """)
     return
 
@@ -382,7 +382,7 @@ def _(mo):
     mo.md(r"""
     ## 4. A 1-D Example
 
-    We start with the simplest case: one feature ($d=1$), generated from three true Gaussian components so that there is ground truth to compare the fit with. (This section and the next use `tgmm`'s internal `_e_step` / `_m_step` methods so each iteration is visible, with hand-rolled plotting so you can see exactly what is drawn; [05 -- Visualization](05_visualise.ipynb) introduces `plot_gmm`, which is used for the rest of this notebook.)
+    We start with the simplest case: one feature ($d=1$), generated from three true Gaussian components so that there is ground truth to compare the fit with. (This section and the next use `tgmm`'s internal `_e_step` / `_m_step` methods so each iteration is visible, with hand-rolled plotting so you can see exactly what is drawn; [06 -- Visualization](06_visualise.ipynb) introduces `plot_gmm`, which is used for the rest of this notebook.)
     """)
     return
 
@@ -896,8 +896,8 @@ def _(mo):
     - **`predict_proba(X)`**: the responsibilities $r_{ik}$ (soft assignments); every row sums to 1, which the cell above asserts for all samples.
     - **`score_samples(X)`**: the per-sample log-likelihood $\log p(x_i\mid\theta)$.
     - **`score(X)`**: its average, the number EM maximizes. It equals `lower_bound_` for the training data.
-    - **`bic(X)`, `aic(X)`**: information criteria $-2\,n\,\text{score}+p\log n$ and $-2\,n\,\text{score}+2p$ with $p$ the parameter count from section 3 (lower is better; see [14 -- Model Selection](14_model_selection.ipynb)).
-    - **`sample(n)`**: new points and their component labels drawn from the fitted mixture (more in [04 -- Sampling](04_sampling.ipynb)).
+    - **`bic(X)`, `aic(X)`**: information criteria $-2\,n\,\text{score}+p\log n$ and $-2\,n\,\text{score}+2p$ with $p$ the parameter count from section 3 (lower is better; see [13 -- Model Selection](13_model_selection.ipynb)).
+    - **`sample(n)`**: new points and their component labels drawn from the fitted mixture (more in [05 -- Sampling](05_sampling.ipynb)).
 
     The cell below checks the information criteria against their definition.
     """)
@@ -954,7 +954,7 @@ def _(mo):
     mo.md(r"""
     ## 8. Visualizing the Fit
 
-    Four views made with `plot_gmm` (introduced properly in [05 -- Visualization](05_visualise.ipynb)):
+    Four views made with `plot_gmm` (introduced properly in [06 -- Visualization](06_visualise.ipynb)):
 
     1. **Per-sample log-likelihood:** each point coloured by $\log p(x_i\mid\theta)$. Points far from every component are the unlikely ones.
     2. **Clustering result:** points coloured by their predicted label, with the fitted means and covariance ellipses overlaid.
@@ -1085,10 +1085,10 @@ def _(mo):
 
     - **The shape of each component:** diagonal, spherical, shared (`tied_*`) and the 14 GPCM structures, in [02 -- Covariance Types](02_covariance_types.ipynb).
     - **The starting point and restarts:** `init_means`, `init_weights`, `init_covariances`, `n_init`, `warm_start`, in [03 -- Initialization](03_initialization.ipynb).
-    - **Drawing new data, including constrained sampling:** [04 -- Sampling](04_sampling.ipynb).
-    - **Hard assignments:** `algorithm='cem'` (Classification EM), in [06 -- CEM](06_cem.ipynb).
-    - **Regularizing the estimates:** priors and MAP estimation, in [10 -- Priors](10_priors.ipynb) and [11 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb).
-    - **Choosing $K$:** [14 -- Model Selection](14_model_selection.ipynb).
+    - **Drawing new data, including constrained sampling:** [05 -- Sampling](05_sampling.ipynb).
+    - **Hard assignments:** `algorithm='cem'` (Classification EM), in [07 -- CEM](07_cem.ipynb).
+    - **Regularizing the estimates:** priors and MAP estimation, in [04 -- Priors](04_priors.ipynb) and [04 -- NIW Priors Comparison](04_priors.ipynb).
+    - **Choosing $K$:** [13 -- Model Selection](13_model_selection.ipynb).
     """)
     return
 
@@ -1104,7 +1104,7 @@ def _(mo):
     - `GaussianMixture(n_components=K).fit(X)` is all that is needed for a first fit; `predict`, `predict_proba`, `score_samples`, `score`, `bic`, `aic` and `sample` give labels, soft assignments, per-point log-likelihoods, information criteria and new data.
     - `plot_gmm` overlays the fitted means and covariance ellipses on the data and can colour points by cluster, responsibility or log-likelihood; `save`/`load` and `save_state_dict`/`load_state_dict` persist a fitted model.
 
-    **Next:** [02 -- Covariance Types](02_covariance_types.ipynb), then [03 -- Initialization](03_initialization.ipynb) and [04 -- Sampling](04_sampling.ipynb).
+    **Next:** [02 -- Covariance Types](02_covariance_types.ipynb), then [03 -- Initialization](03_initialization.ipynb) and [05 -- Sampling](05_sampling.ipynb).
     """)
     return
 

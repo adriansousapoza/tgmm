@@ -55,7 +55,7 @@ def _(mo):
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model and EM), [02 -- Covariance Types](02_covariance_types.ipynb) and [03 -- Initialization](03_initialization.ipynb).
 
-    **See also:** [`GaussianMixture.sample`](../api/gaussian-mixture.md) in the API reference; [05 -- Visualization](05_visualise.ipynb) for the plotting tools used below.
+    **See also:** [`GaussianMixture.sample`](../api/gaussian-mixture.md) in the API reference; [06 -- Visualization](06_visualise.ipynb) for the plotting tools used below.
     """)
     return
 
@@ -484,9 +484,9 @@ def _(mo):
 
     Every mixture in tgmm shares the same two-stage `sample(n)` (components drawn from the weights, then each component's own draw), returning `(samples, indices)`. The constraint arguments above exist only on `GaussianMixture`.
 
-    - **Student-t** mixtures draw $x=\mu_k+z/\sqrt{w}$ with $z\sim\mathcal{N}(0,\Sigma_k)$ and $w\sim\mathrm{Gamma}(\nu_k/2,\nu_k/2)$ (the scale-mixture form), so the tails are heavier than a Gaussian's: see [16 -- Student-t Mixtures](16_student_t.ipynb). Note that for these, `covariances_` is the scale matrix.
-    - **von Mises-Fisher** mixtures sample directions on the unit sphere: see [17 -- von Mises-Fisher Mixtures](17_von_mises_fisher.ipynb).
-    - With a **noise component** (`noise=True`, see [19 -- Noise, Missing Values and Conditioning](19_noise_missing_conditioning.ipynb)) plain sampling also emits noise points, labelled `-1`.
+    - **Student-t** mixtures draw $x=\mu_k+z/\sqrt{w}$ with $z\sim\mathcal{N}(0,\Sigma_k)$ and $w\sim\mathrm{Gamma}(\nu_k/2,\nu_k/2)$ (the scale-mixture form), so the tails are heavier than a Gaussian's: see [15 -- Student-t Mixtures](15_student_t.ipynb). Note that for these, `covariances_` is the scale matrix.
+    - **von Mises-Fisher** mixtures sample directions on the unit sphere: see [16 -- von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb).
+    - With a **noise component** (`noise=True`, see [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb)) plain sampling also emits noise points, labelled `-1`.
     """)
     return
 
@@ -502,7 +502,7 @@ def _(mo):
     - Constraints are enforced by rejection per point. Labels still follow $\pi_k$, and very restrictive regions need a larger `max_attempts_per_sample` (or raise `RuntimeError`).
     - In $d$ dimensions the squared Mahalanobis distance is $\chi^2_d$-distributed, so use a confidence level (or the $\chi^2$-quantile radius) rather than a fixed number of standard deviations; the acceptance probability of one attempt is $F_{\chi^2(d)}(r^2)$.
 
-    **Next:** [05 -- Visualization](05_visualise.ipynb) for the plotting tools, or [09 -- PCA Plotting](09_pca_plotting.ipynb) for visualizing high-dimensional samples.
+    **Next:** [06 -- Visualization](06_visualise.ipynb) for the plotting tools, or [10 -- PCA Plotting](10_pca_plotting.ipynb) for visualizing high-dimensional samples.
     """)
     return
 

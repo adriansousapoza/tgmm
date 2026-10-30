@@ -55,7 +55,7 @@ def _(mo):
     - the formulas behind AIC, BIC and ICL, checked numerically against the library
     - how to sweep the covariance structure together with `n_components`, and how cluster separation and background noise move the choice
 
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (fitting a mixture, the log-likelihood), [02 -- Covariance Types](02_covariance_types.ipynb) (the parameter counts), [08 -- Clustering Metrics](08_metrics.ipynb) (label-free validity indices, the other way to compare clusterings).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (fitting a mixture, the log-likelihood), [02 -- Covariance Types](02_covariance_types.ipynb) (the parameter counts), [09 -- Clustering Metrics](09_metrics.ipynb) (label-free validity indices, the other way to compare clusterings).
     """)
     return
 
@@ -76,9 +76,11 @@ def _():
     import torch
     import matplotlib.pyplot as plt
 
+    from sklearn.datasets import load_iris
+
     from tgmm import GaussianMixture, generate_gmm_data, select_model
     from tgmm.covariance.gpcm import GPCM_CODES
-    from tgmm.plotting import CATEGORICAL_PALETTE
+    from tgmm.plotting import CATEGORICAL_PALETTE, plot_gmm
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
@@ -86,7 +88,7 @@ def _():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     print(f'Using device: {device}')
-    return CATEGORICAL_PALETTE, GPCM_CODES, GaussianMixture, SEED, generate_gmm_data, np, plt, select_model, torch
+    return CATEGORICAL_PALETTE, GPCM_CODES, GaussianMixture, SEED, generate_gmm_data, load_iris, np, plot_gmm, plt, select_model, torch
 
 
 @app.cell(hide_code=True)
@@ -350,9 +352,169 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### A real dataset: iris petal measurements
+
+    Petal length and width are the two iris features that most cleanly separate the three species -- small enough to sweep all 14 models for several $K$ quickly, and two-dimensional so that the winner can be plotted directly. This sweep always uses all 14 codes, also in the docs build, because the data are tiny.
+    """)
+    return
+
+
+@app.cell
+def _(load_iris, plt, torch):
+    iris = load_iris()
+    X_iris = torch.tensor(iris.data[:, [2, 3]], dtype=torch.float64)  # petal length, petal width
+
+    plt.figure(figsize=(5, 4))
+    plt.scatter(X_iris[:, 0], X_iris[:, 1], c=iris.target, cmap='viridis', s=15)
+    plt.xlabel('petal length (cm)')
+    plt.ylabel('petal width (cm)')
+    plt.title('Iris petal measurements (true species)')
+    plt.gcf()
+    return X_iris, iris
+
+
+@app.cell
+def _(GPCM_CODES, SEED, X_iris, select_model):
+    iris_result = select_model(
+        X_iris, n_components=range(1, 6), covariance_types=GPCM_CODES, criterion='bic',
+        random_state=SEED, n_init=1, max_iter=200,
+    )
+
+    iris_df = iris_result.to_dataframe().sort_values('bic')
+    iris_df.head(10)
+    return iris_df, iris_result
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    One line per covariance code, BIC against $K$ -- lower is better.
+    """)
+    return
+
+
+@app.cell
+def _(GPCM_CODES, iris_df, plt):
+    plt.figure(figsize=(9, 5))
+    for _code_name in GPCM_CODES:
+        _sub = iris_df[iris_df['covariance_type'] == _code_name].sort_values('n_components')
+        _sub = _sub.dropna(subset=['bic'])
+        if len(_sub) == 0:
+            continue
+        plt.plot(_sub['n_components'], _sub['bic'], marker='o', markersize=3, label=_code_name, alpha=0.7)
+    plt.xlabel('n_components (K)')
+    plt.ylabel('BIC (lower is better)')
+    plt.title('BIC across all 14 GPCM models, iris petal data')
+    plt.legend(ncol=2, fontsize=8)
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The ellipses show what the selected structure looks like on the data. When the winner is one of the 8 non-classic codes it carries a decomposition, so `volume_`, `shape_` and `orientation_` say *what kind* of parsimony the data supported -- shared or per-component size, elongation and rotation -- rather than merely that the model won.
+    """)
+    return
+
+
+@app.cell
+def _(X_iris, iris, iris_result, plot_gmm, plt):
+    iris_best = iris_result.best_
+    print(f'Winning model: {iris_best.covariance_type_} (K={iris_best.n_components}), BIC={iris_best.bic(X_iris):.2f}')
+    plt.figure(figsize=(6, 5))
+    plot_gmm(X_iris.numpy(), gmm=iris_best, true_labels=iris.target, color_by_cluster=True)
+    plt.title(f'{iris_best.covariance_type_} (K={iris_best.n_components}) fit to iris petal measurements')
+    plt.gcf()
+    return (iris_best,)
+
+
+@app.cell
+def _(iris_best):
+    print('covariance_type_:', iris_best.covariance_type_)
+    for _name in ('volume_', 'shape_', 'orientation_'):
+        _value = getattr(iris_best, _name)
+        print(f'{_name}:', None if _value is None else _value.numpy().round(3))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### A 10-D latent-space-like dataset
+
+    Four clusters in 10 dimensions with deliberately varied covariance structure (different volumes, some axis-aligned, some correlated and elongated) -- the situation a sweep over the 14 structures is actually *for*: no single covariance type is obviously right, and the full model spends $K\,d(d+1)/2=220$ covariance parameters at $K=4$ (see the parameter counts in [02 -- Covariance Types](02_covariance_types.ipynb)).
+    """)
+    return
+
+
+@app.cell
+def _(SEED, torch):
+    def make_latent_cluster(n, d, seed, volume, elongation=None, rotate=False):
+        _gen = torch.Generator().manual_seed(seed)
+        _base = torch.randn(n, d, generator=_gen, dtype=torch.float64)
+        _scale = torch.ones(d, dtype=torch.float64)
+        if elongation is not None:
+            _scale[: len(elongation)] = torch.tensor(elongation, dtype=torch.float64)
+        _Z = _base * _scale.sqrt() * volume
+        if rotate:
+            _Q, _ = torch.linalg.qr(torch.randn(d, d, generator=_gen, dtype=torch.float64))
+            _Z = _Z @ _Q.T
+        return _Z
+
+
+    torch.manual_seed(SEED)
+    d_latent = 10
+    _centres = torch.randn(4, d_latent, dtype=torch.float64) * 6
+    _elong = [4, 4, 1, 1, 1, 1, 1, 1, 1, 1]
+    X_latent = torch.cat([
+        make_latent_cluster(150, d_latent, seed=1, volume=1.0) + _centres[0],
+        make_latent_cluster(150, d_latent, seed=2, volume=1.8) + _centres[1],
+        make_latent_cluster(150, d_latent, seed=3, volume=1.0, elongation=_elong) + _centres[2],
+        make_latent_cluster(150, d_latent, seed=4, volume=1.0, elongation=_elong, rotate=True) + _centres[3],
+    ], dim=0)
+    print(X_latent.shape)
+    return (X_latent,)
+
+
+@app.cell
+def _(GPCM_CODES, SEED, X_latent, select_model):
+    latent_result = select_model(
+        X_latent, n_components=range(2, 6), covariance_types=GPCM_CODES, criterion='bic',
+        random_state=SEED, n_init=1, max_iter=100,
+    )
+
+    latent_df = latent_result.to_dataframe().sort_values('bic')
+    latent_df.head(10)
+    return latent_df, latent_result
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    BIC rewards fit and penalises parameters; ICL additionally penalises overlap between clusters. Both criteria, compared across covariance structures at the BIC-winning $K$:
+    """)
+    return
+
+
+@app.cell
+def _(X_latent, latent_df, latent_result):
+    latent_best = latent_result.best_
+    latent_k = latent_best.n_components
+    print(f'Winning model: {latent_best.covariance_type_} (K={latent_k}), '
+          f'BIC={latent_best.bic(X_latent):.2f}, ICL={latent_best.icl(X_latent):.2f}')
+
+    _at_k = latent_df[latent_df['n_components'] == latent_k].dropna(subset=['bic', 'icl']).sort_values('bic')
+    _at_k[['covariance_type', 'bic', 'icl', 'converged']].head(8)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## How separation and noise move the choice
 
-    Three Gaussian blobs of unit variance whose centres are spread by `separation` (the corners of a triangle with side `separation`). In the interactive version the controls below set it, and whether 30 uniform background points are added; the curves are BIC and ICL for $K=1,\dots,6$ with full covariances. When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot. Background noise is not Gaussian, so the mixture tends to spend an extra component on it unless you model it explicitly (see [19 -- Noise, Missing Values and Conditioning](19_noise_missing_conditioning.ipynb), and [13 -- HDBSCAN](13_hdbscan.ipynb) for removing it first).
+    Three Gaussian blobs of unit variance whose centres are spread by `separation` (the corners of a triangle with side `separation`). In the interactive version the controls below set it, and whether 30 uniform background points are added; the curves are BIC and ICL for $K=1,\dots,6$ with full covariances. When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot. Background noise is not Gaussian, so the mixture tends to spend an extra component on it unless you model it explicitly (see [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb), and [12 -- HDBSCAN](12_hdbscan.ipynb) for removing it first).
     """)
     return
 
@@ -429,9 +591,9 @@ def _(mo):
     - Neither criterion is wrong -- they answer different questions: the best density estimate versus the best-separated partition.
     - `icl(X, mode='hard' | 'soft')` can be computed on any fitted model; it equals BIC when responsibilities are one-hot.
     - The formulas $\mathrm{AIC}=-2\hat\ell+2p$, $\mathrm{BIC}=-2\hat\ell+p\ln n$ and $\mathrm{ICL}=\mathrm{BIC}+2\,\mathrm{EN}$ match the library to numerical precision, with $p=(K-1)+Kd+p_\Sigma$.
-    - `select_model` sweeps $K$ and the covariance structure together (all 14 GPCM codes by default); overlap widens the BIC-ICL gap and background noise adds a spurious component.
+    - `select_model` sweeps $K$ and the covariance structure together (all 14 GPCM codes by default); on the iris petals BIC picks `VVE` with $K=3$ (per-component volume and shape, one shared orientation) and on the 10-D dataset `VVI` with $K=4$ (per-component volume and shape, axis-aligned) -- neither is the default `full` model -- and `volume_` / `shape_` / `orientation_` say which kind of parsimony a non-classic winner uses. Overlap widens the BIC-ICL gap and background noise adds a spurious component.
 
-    **Next:** [15 -- Stochastic EM, Annealing and SAEM](15_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [02 -- Covariance Types](02_covariance_types.ipynb) for what each of the 14 covariance models assumes.
+    **Next:** [14 -- Stochastic EM, Annealing and SAEM](14_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [02 -- Covariance Types](02_covariance_types.ipynb) for what each of the 14 covariance models assumes.
     """)
     return
 

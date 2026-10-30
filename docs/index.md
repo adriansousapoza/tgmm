@@ -97,38 +97,38 @@ The core `GaussianMixture` class supports:
   sampler that infers the number of components
 - **Initialization**: multiple strategies via `GMMInitializer`
 - **Model selection**: `bic` / `aic` / `icl` methods, and `select_model` to sweep `n_components` and all 14
-  covariance codes at once ([Model Selection tutorial](notebooks/14_model_selection.ipynb))
+  covariance codes at once ([Model Selection tutorial](notebooks/13_model_selection.ipynb))
 
 ### 2. Other mixture families
 
 `StudentTMixture` (robust to outliers) and `VonMisesFisherMixture` (L2-normalized / directional data)
 share `GaussianMixture`'s EM toolkit through the common `BaseMixture` base class. See
-the [Student-t](notebooks/16_student_t.ipynb) and [von Mises-Fisher](notebooks/17_von_mises_fisher.ipynb) tutorials.
+the [Student-t](notebooks/15_student_t.ipynb) and [von Mises-Fisher](notebooks/16_von_mises_fisher.ipynb) tutorials.
 
 ### 3. Semi-supervised and positive-unlabeled learning
 
 Every family supports `fit(X, labels=...)` with `-1` for unknown rows (semi-supervised EM, multiple components
 per class), and `PositiveUnlabeledMixture` handles positive-unlabeled (PU) learning under the SCAR assumption.
-See [Semi-Supervised and PU Fitting](notebooks/18_semi_supervised_pu.ipynb).
+See [Semi-Supervised and PU Fitting](notebooks/17_semi_supervised_pu.ipynb).
 
 ### 4. Noise, missing values and conditioning
 
 `noise=True` adds a uniform noise component that labels strays `-1`; `missing='em'` fits data with `NaN` entries and
 `impute`s them; `GaussianMixture.marginal` / `condition` give marginal and conditional distributions (Gaussian mixture
 regression); `frozen_components` and `sample_weight` control what EM may change; and `GenericMixture` fits components you write
-yourself. See [Noise, Missing Values and Conditioning](notebooks/19_noise_missing_conditioning.ipynb).
+yourself. See [Noise, Missing Values and Conditioning](notebooks/18_noise_missing_conditioning.ipynb).
 
 ### 5. Clustering metrics
 
 `ClusteringMetrics` provides unsupervised indices (Silhouette, Davies-Bouldin, Calinski-Harabasz, Dunn,
 WB-Index, Wemmert-Gancarski, DBCV) and supervised metrics (ARI, NMI/AMI, purity, homogeneity,
 completeness, V-measure, confusion matrix and classification report). See
-[Metrics and Evaluation](notebooks/08_metrics.ipynb).
+[Metrics and Evaluation](notebooks/09_metrics.ipynb).
 
 ### 6. Density-based clustering
 
 `HDBSCAN` is a PyTorch implementation of hierarchical density-based clustering -- no `K` needed,
-non-convex clusters, explicit noise points (see the [HDBSCAN tutorial](notebooks/13_hdbscan.ipynb)).
+non-convex clusters, explicit noise points (see the [HDBSCAN tutorial](notebooks/12_hdbscan.ipynb)).
 
 ### 7. Building blocks
 

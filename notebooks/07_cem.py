@@ -57,7 +57,7 @@ def _(mo):
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model, the E-step and the M-step).
 
-    **See also:** [15 -- Stochastic EM, Annealing and SAEM](15_stochastic_em.ipynb) for the other EM variants (`'sem'`, `'saem'`, `temperature`), and the [`GaussianMixture` API reference](../api/gaussian-mixture.md).
+    **See also:** [14 -- Stochastic EM, Annealing and SAEM](14_stochastic_em.ipynb) for the other EM variants (`'sem'`, `'saem'`, `temperature`), and the [`GaussianMixture` API reference](../api/gaussian-mixture.md).
     """)
     return
 
@@ -455,7 +455,7 @@ def _(mo):
     - With well-separated clusters the two reach the same best solution and CEM needs fewer iterations.
     - Use `algorithm='cem'` when speed or a crisp partition matters more than the exact maximum-likelihood fit; `lower_bound_` stays the mixture log-likelihood, so fits remain comparable.
 
-    **Next:** [07 -- Supervised Fitting](07_supervised_gmm.ipynb), which adds label information, or [15 -- Stochastic EM](15_stochastic_em.ipynb) for the stochastic variants.
+    **Next:** [08 -- Supervised Fitting](08_supervised_gmm.ipynb), which adds label information, or [14 -- Stochastic EM](14_stochastic_em.ipynb) for the stochastic variants.
     """)
     return
 

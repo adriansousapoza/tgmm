@@ -9,8 +9,10 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - The documentation is now one set of tutorials (marimo notebooks) plus the API reference. The separate user guide and the
   in-browser explainers are gone; their content was merged into the tutorials, and the old URLs redirect.
-- Tutorials are reordered and renumbered: 01 Introduction (with a blob designer), 02 Covariance types, 03 Initialization (new),
-  04 Sampling, 05-15 the former 03-14 in order, 16-19 unchanged, 20 Constraints, frozen components and sample weights (new).
+- Tutorials are reordered and renumbered (19 notebooks): 01 Introduction (with a blob designer and EM iteration sliders),
+  02 Covariance types, 03 Initialization (new), 04 Priors (MAP and NIW, merged), 05 Sampling, 06-14 the rest in order,
+  15-18 the other families, 19 Constraints, frozen components and sample weights (new). The default four-blob dataset lives in
+  `notebooks/tutorial_data.py`.
 - Every tutorial page links to an interactive (molab) version of the notebook.
 - Tutorial data: the four-blob covariances are scaled by 0.6 so the blobs stay recoverable now that `generate_gmm_data` honours
   the covariance it is given (0.4.1).

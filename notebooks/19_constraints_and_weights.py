@@ -55,7 +55,7 @@ def _(mo):
     4. `fit(X, sample_weight=w)`: integer weights are row duplication, weight $0$ is dropping a row, and an $(n, d)$ weight matrix marginalises a feature out of a row.
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM, the E- and M-step), [02 -- Covariance Types](02_covariance_types.ipynb).
-    Constraints are not available in Gibbs mode ([12 -- Dirichlet Process Mixtures](12_dpgmm.ipynb)), nor together with a mean or covariance prior ([10 -- Priors](10_priors.ipynb)).
+    Constraints are not available in Gibbs mode ([11 -- Dirichlet Process Mixtures](11_dpgmm.ipynb)), nor together with a mean or covariance prior ([04 -- Priors](04_priors.ipynb)).
     """)
     return
 
@@ -410,7 +410,7 @@ def _(mo):
 
     Instead of bounding a block you can **hold it at its initial value**. `frozen_means=[k, ...]` keeps those means at `init_means` (a tensor), `frozen_covariances=[k, ...]` keeps those covariances at `init_covariances`, and the older
     `frozen_components=[k, ...]` freezes both (the mixing weights of frozen components still update; priors never shrink them). This anchors a known "reference" population while the rest of the mixture is learned; it is what
-    `PositiveUnlabeledMixture(anchor='fixed')` uses ([18 -- Semi-Supervised and PU Fitting](18_semi_supervised_pu.ipynb)).
+    `PositiveUnlabeledMixture(anchor='fixed')` uses ([17 -- Semi-Supervised and PU Fitting](17_semi_supervised_pu.ipynb)).
 
     A frozen mean is restored *before* the covariance update, so that covariance is estimated from the scatter about the fixed mean, by the parallel-axis identity
 
@@ -651,7 +651,7 @@ def _(mo):
     - Where a bound binds the estimate sits on the boundary (see `active_constraints_`); `bic` / `aic` discount fixed parameters but not bounds.
     - `sample_weight` generalises row duplication (integer weights) and deletion (zero), and $(n,d)$ weights marginalise single features out of diagonal and spherical models.
 
-    **Next:** [18 -- Semi-Supervised and PU Fitting](18_semi_supervised_pu.ipynb) uses `frozen_components` as an anchor, and [14 -- Model Selection](14_model_selection.ipynb) shows how to choose among constrained and unconstrained models.
+    **Next:** [17 -- Semi-Supervised and PU Fitting](17_semi_supervised_pu.ipynb) uses `frozen_components` as an anchor, and [13 -- Model Selection](13_model_selection.ipynb) shows how to choose among constrained and unconstrained models.
     """)
     return
 

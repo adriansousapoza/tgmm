@@ -62,7 +62,7 @@ def _(mo):
     - how the choice of `metric` (Euclidean, Manhattan, cosine) changes what counts as a cluster
     - how to use HDBSCAN's noise label to clean data before fitting a `GaussianMixture`
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [05 -- Visualization](05_visualise.ipynb) (for `plot_gmm`).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [06 -- Visualization](06_visualise.ipynb) (for `plot_gmm`).
     """)
     return
 
@@ -462,7 +462,7 @@ def _(mo):
     - The distance metric defines what "dense" means: collinear blobs, axis-aligned chains and angular wedges each need a different metric to be recovered.
     - Used as a preprocessing step, HDBSCAN's noise label removes outliers that would otherwise inflate a `GaussianMixture`'s covariances and shift its means.
 
-    **Next:** [14 -- Model Selection](14_model_selection.ipynb) for choosing the number of mixture components by BIC, AIC and ICL.
+    **Next:** [13 -- Model Selection](13_model_selection.ipynb) for choosing the number of mixture components by BIC, AIC and ICL.
     """)
     return
 

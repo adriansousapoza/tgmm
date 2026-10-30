@@ -50,7 +50,7 @@ def _(mo):
     - how the SCAR assumption (labeled positives are a uniform random subsample of all positives) makes this identifiable, and what `anchor` does
     - the equations behind both fits (the labeled-class likelihood, the clamped E-step, the NIW anchor)
 
-    **Prerequisites:** [07 -- Supervised Fitting](07_supervised_gmm.ipynb), [16 -- Student-t Mixtures](16_student_t.ipynb), [17 -- Von Mises-Fisher Mixtures](17_von_mises_fisher.ipynb).
+    **Prerequisites:** [08 -- Supervised Fitting](08_supervised_gmm.ipynb), [15 -- Student-t Mixtures](15_student_t.ipynb), [16 -- Von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb).
 
     **Notation:** $n$ samples $x_i$, $K$ components with weights $\pi_k$ and densities $f_k$ (Gaussian, Student-t or von Mises-Fisher), responsibilities $r_{ik}$, effective counts $n_k=\sum_i r_{ik}$.
     See also the API page for [`PositiveUnlabeledMixture`](../api/positive-unlabeled-mixture.md).
@@ -162,7 +162,7 @@ def _(mo):
     (one-hot when the block has one component). A labeled row can then never "vote" for another class but, with $m_c>1$, still splits softly across its own class's components; unlabeled rows keep the full
     posterior. This is the exact E-step for $\ell_\text{SS}$, because the posterior over components given that $x_i$ belongs to class $c_i$ is the in-block renormalisation above. The **M-step** is the family's usual
     one run on the clamped $r_{ik}$: for the Gaussian, $n_k$, $\bar y_k=\sum_ir_{ik}x_i/n_k$ and $W_k=\sum_ir_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top$ feed the updates of
-    [01 -- Introduction](01_introduction.ipynb) (the Student-t and vMF updates are those of [16](16_student_t.ipynb) and [17](17_von_mises_fisher.ipynb)). With `unlabeled_weight=1` and `label_confidence=1` this is plain EM on $\ell_\text{SS}$,
+    [01 -- Introduction](01_introduction.ipynb) (the Student-t and vMF updates are those of [16](15_student_t.ipynb) and [17](16_von_mises_fisher.ipynb)). With `unlabeled_weight=1` and `label_confidence=1` this is plain EM on $\ell_\text{SS}$,
     so the log-likelihood never decreases. A few labels per class often resolve what unsupervised EM cannot: which cluster is which class, and where the boundary falls on overlapping data. The initialisation itself is still
     unsupervised (e.g. k-means) and the clamping then pulls each block onto its class, so use `n_init > 1` if a poor start matters.
 
@@ -496,7 +496,7 @@ def _(mo):
     | `'prior'` (default) | used as an NIW prior of strength $n_L$ (below), so unlabeled positives can refine it without drifting towards the negatives. **Gaussian only** | a softer version of the same: genuinely positive but different-looking unlabeled points can still pull the estimate, within reason |
     | `'free'` | initialised from the labeled-only fit, then plain semi-supervised EM with no further anchoring | plain PU learning with no identifiability safeguard: can drift towards the negatives on strongly overlapping data |
 
-    For `'prior'`, after each M-step the positive block's parameters are replaced by an NIW posterior (the conjugate update of [10 -- Priors](10_priors.ipynb)) with prior mean $\mu_P^0$, prior scale $\Psi_0=n_L\Sigma_P^0$ and
+    For `'prior'`, after each M-step the positive block's parameters are replaced by an NIW posterior (the conjugate update of [04 -- Priors](04_priors.ipynb)) with prior mean $\mu_P^0$, prior scale $\Psi_0=n_L\Sigma_P^0$ and
     prior strength $\lambda_0=\nu_0=n_L$ (the number of labeled positives), using the positive block's current responsibilities:
 
     $$
@@ -589,7 +589,7 @@ def _(mo):
     - `PositiveUnlabeledMixture` estimates the class prior (the fraction of *unlabeled* rows that are positive) and a per-row positive probability from only a small labeled positive subset, under the SCAR assumption -- useful whenever confirming a negative is expensive or impossible, but confirming a positive is not.
     - `anchor` controls how tightly the positive block stays tied to the labeled positives, which is what keeps the problem identifiable.
 
-    **Next:** [19 -- Noise, Missing Values and Conditioning](19_noise_missing_conditioning.ipynb), or back to the [tutorial overview](../tutorials/index.md).
+    **Next:** [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb), or back to the [tutorial overview](../tutorials/index.md).
 
     **References**
 

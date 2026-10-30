@@ -56,9 +56,9 @@ def _(mo):
     - How to read misclassifications and 95% confidence regions in `plot_gmm` panels
     - What the labelled fit computes (the equations), `predict` vs `predict_class`, `components_per_class`, and how a *partially* labelled fit blends labels with the data (`unlabeled_weight`, `label_confidence`)
 
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) and [06 -- Classification EM](06_cem.ipynb).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) and [07 -- Classification EM](07_cem.ipynb).
 
-    **See also:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb), where only some labels are known.
+    **See also:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb), where only some labels are known.
     """)
     return
 
@@ -317,7 +317,7 @@ def _(mo):
     \Sigma_k = \frac{1}{n_k}\sum_{i:\,c_i=k}(x_i-\mu_k)(x_i-\mu_k)^{\top},
     $$
 
-    which maximises the *complete-data* log-likelihood $\sum_i \log \pi_{c_i}\,\mathcal N(x_i\mid\mu_{c_i},\Sigma_{c_i})$ of a generative classifier (quadratic discriminant analysis for `full`, linear discriminant analysis for `tied_full`). Other covariance types use their usual M-step on the same one-hot responsibilities (see [02 -- Covariance Types](02_covariance_types.ipynb)). This is exactly where CEM ([06 -- CEM](06_cem.ipynb)) ends up when it is started from the correct partition. Priors, if given, are applied in the same M-step.
+    which maximises the *complete-data* log-likelihood $\sum_i \log \pi_{c_i}\,\mathcal N(x_i\mid\mu_{c_i},\Sigma_{c_i})$ of a generative classifier (quadratic discriminant analysis for `full`, linear discriminant analysis for `tied_full`). Other covariance types use their usual M-step on the same one-hot responsibilities (see [02 -- Covariance Types](02_covariance_types.ipynb)). This is exactly where CEM ([07 -- CEM](07_cem.ipynb)) ends up when it is started from the correct partition. Priors, if given, are applied in the same M-step.
 
     The next cell checks the closed form against the fitted model. The differences are of the order of `reg_covar` (default $10^{-6}$), which is added to every covariance diagonal for numerical stability.
     """)
@@ -404,7 +404,7 @@ def _(GaussianMixture, X_tensor, n_components, torch, y_tensor):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Accuracy is measured against the full labels. Adding the unlabelled rows raises the likelihood but can lower the agreement with the labels, because the data's natural structure disagrees with the labelling; a smaller $u$ trusts the labels more. For noisy labels, positive-unlabelled problems and the details of every option see [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb).
+    Accuracy is measured against the full labels. Adding the unlabelled rows raises the likelihood but can lower the agreement with the labels, because the data's natural structure disagrees with the labelling; a smaller $u$ trusts the labels more. For noisy labels, positive-unlabelled problems and the details of every option see [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb).
     """)
     return
 
@@ -421,7 +421,7 @@ def _(mo):
     - The labelled M-step is the class-conditional maximum likelihood (QDA/LDA-style), checked numerically above; `predict_class` returns labels, `predict` component indices, and `components_per_class` gives a class several components.
     - With partial labels, `unlabeled_weight` and `label_confidence` set how strongly the labels compete with the data.
 
-    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for the full treatment of partially labeled data and `PositiveUnlabeledMixture`, or [08 -- Clustering Metrics](08_metrics.ipynb) to quantify agreement with labels.
+    **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb) for the full treatment of partially labeled data and `PositiveUnlabeledMixture`, or [09 -- Clustering Metrics](09_metrics.ipynb) to quantify agreement with labels.
     """)
     return
 

@@ -126,31 +126,44 @@ plugins:
       redirect_maps:
         notebooks/01_gmm.md: notebooks/01_introduction.ipynb
         notebooks/02_em_algorithm.md: notebooks/01_introduction.ipynb
-        notebooks/03_visualise.md: notebooks/05_visualise.ipynb
-        notebooks/04_cem.md: notebooks/06_cem.ipynb
-        notebooks/05_supervised_gmm.md: notebooks/07_supervised_gmm.ipynb
-        notebooks/06_metrics.md: notebooks/08_metrics.ipynb
-        notebooks/07_sampling.md: notebooks/04_sampling.ipynb
-        notebooks/08_pca_plotting.md: notebooks/09_pca_plotting.ipynb
-        notebooks/09_priors.md: notebooks/10_priors.ipynb
-        notebooks/10_niw_priors_comparison.md: notebooks/11_niw_priors_comparison.ipynb
-        notebooks/11_dpgmm.md: notebooks/12_dpgmm.ipynb
-        notebooks/12_hdbscan.md: notebooks/13_hdbscan.ipynb
-        notebooks/13_model_selection.md: notebooks/14_model_selection.ipynb
-        notebooks/14_stochastic_em.md: notebooks/15_stochastic_em.ipynb
+        notebooks/03_visualise.md: notebooks/06_visualise.ipynb
+        notebooks/04_cem.md: notebooks/07_cem.ipynb
+        notebooks/05_supervised_gmm.md: notebooks/08_supervised_gmm.ipynb
+        notebooks/06_metrics.md: notebooks/09_metrics.ipynb
+        notebooks/07_sampling.md: notebooks/05_sampling.ipynb
+        notebooks/08_pca_plotting.md: notebooks/10_pca_plotting.ipynb
+        notebooks/09_priors.md: notebooks/04_priors.ipynb
+        notebooks/10_niw_priors_comparison.md: notebooks/04_priors.ipynb
         notebooks/15_covariance_models.md: notebooks/02_covariance_types.ipynb
+        notebooks/04_sampling.md: notebooks/05_sampling.ipynb
+        notebooks/05_visualise.md: notebooks/06_visualise.ipynb
+        notebooks/06_cem.md: notebooks/07_cem.ipynb
+        notebooks/07_supervised_gmm.md: notebooks/08_supervised_gmm.ipynb
+        notebooks/08_metrics.md: notebooks/09_metrics.ipynb
+        notebooks/09_pca_plotting.md: notebooks/10_pca_plotting.ipynb
+        notebooks/10_priors.md: notebooks/04_priors.ipynb
+        notebooks/11_niw_priors_comparison.md: notebooks/04_priors.ipynb
+        notebooks/12_dpgmm.md: notebooks/11_dpgmm.ipynb
+        notebooks/13_hdbscan.md: notebooks/12_hdbscan.ipynb
+        notebooks/14_model_selection.md: notebooks/13_model_selection.ipynb
+        notebooks/15_stochastic_em.md: notebooks/14_stochastic_em.ipynb
+        notebooks/16_student_t.md: notebooks/15_student_t.ipynb
+        notebooks/17_von_mises_fisher.md: notebooks/16_von_mises_fisher.ipynb
+        notebooks/18_semi_supervised_pu.md: notebooks/17_semi_supervised_pu.ipynb
+        notebooks/19_noise_missing_conditioning.md: notebooks/18_noise_missing_conditioning.ipynb
+        notebooks/20_constraints_and_weights.md: notebooks/19_constraints_and_weights.ipynb
         user-guide/gaussian-mixture.md: notebooks/01_introduction.ipynb
         user-guide/gpcm-covariance-models.md: notebooks/02_covariance_types.ipynb
         user-guide/gmm-initializer.md: notebooks/03_initialization.ipynb
-        user-guide/plotting.md: notebooks/05_visualise.ipynb
-        user-guide/clustering-metrics.md: notebooks/08_metrics.ipynb
-        user-guide/other-mixture-families.md: notebooks/16_student_t.ipynb
-        user-guide/semi-supervised-pu.md: notebooks/18_semi_supervised_pu.ipynb
-        user-guide/noise-missing-conditioning.md: notebooks/19_noise_missing_conditioning.ipynb
+        user-guide/plotting.md: notebooks/06_visualise.ipynb
+        user-guide/clustering-metrics.md: notebooks/09_metrics.ipynb
+        user-guide/other-mixture-families.md: notebooks/15_student_t.ipynb
+        user-guide/semi-supervised-pu.md: notebooks/17_semi_supervised_pu.ipynb
+        user-guide/noise-missing-conditioning.md: notebooks/18_noise_missing_conditioning.ipynb
         explainers/gpcm-shapes.md: notebooks/02_covariance_types.ipynb
         explainers/em-stepper.md: notebooks/01_introduction.ipynb
-        explainers/annealing.md: notebooks/15_stochastic_em.ipynb
-        explainers/metrics-intuition.md: notebooks/08_metrics.ipynb
+        explainers/annealing.md: notebooks/14_stochastic_em.ipynb
+        explainers/metrics-intuition.md: notebooks/09_metrics.ipynb
         explainers/data-designer.md: notebooks/01_introduction.ipynb
 
 extra_javascript:
@@ -171,23 +184,22 @@ nav:
       - "1. Introduction: Gaussian Mixtures and EM": notebooks/01_introduction.ipynb
       - 2. Covariance Types (6 classic + 14 GPCM): notebooks/02_covariance_types.ipynb
       - 3. Initialization: notebooks/03_initialization.ipynb
-      - 4. Sampling: notebooks/04_sampling.ipynb
-      - 5. Visualization: notebooks/05_visualise.ipynb
-      - 6. Classification EM (CEM): notebooks/06_cem.ipynb
-      - 7. Supervised Fitting: notebooks/07_supervised_gmm.ipynb
-      - 8. Metrics and Evaluation: notebooks/08_metrics.ipynb
-      - 9. PCA Plotting: notebooks/09_pca_plotting.ipynb
-      - 10. Priors (MAP): notebooks/10_priors.ipynb
-      - 11. NIW Priors Comparison: notebooks/11_niw_priors_comparison.ipynb
-      - 12. Dirichlet Process Mixtures: notebooks/12_dpgmm.ipynb
-      - 13. HDBSCAN: notebooks/13_hdbscan.ipynb
-      - 14. Model Selection (BIC, AIC, ICL): notebooks/14_model_selection.ipynb
-      - 15. Stochastic EM, Annealing and SAEM: notebooks/15_stochastic_em.ipynb
-      - 16. Student-t Mixtures: notebooks/16_student_t.ipynb
-      - 17. Von Mises-Fisher Mixtures: notebooks/17_von_mises_fisher.ipynb
-      - 18. Semi-Supervised and PU Fitting: notebooks/18_semi_supervised_pu.ipynb
-      - 19. Noise, Missing Values and Conditioning: notebooks/19_noise_missing_conditioning.ipynb
-      - 20. Constraints, Frozen Components and Sample Weights: notebooks/20_constraints_and_weights.ipynb
+      - 4. Priors (MAP and NIW): notebooks/04_priors.ipynb
+      - 5. Sampling: notebooks/05_sampling.ipynb
+      - 6. Visualization: notebooks/06_visualise.ipynb
+      - 7. Classification EM (CEM): notebooks/07_cem.ipynb
+      - 8. Supervised Fitting: notebooks/08_supervised_gmm.ipynb
+      - 9. Metrics and Evaluation: notebooks/09_metrics.ipynb
+      - 10. PCA Plotting: notebooks/10_pca_plotting.ipynb
+      - 11. Dirichlet Process Mixtures: notebooks/11_dpgmm.ipynb
+      - 12. HDBSCAN: notebooks/12_hdbscan.ipynb
+      - 13. Model Selection (BIC, AIC, ICL): notebooks/13_model_selection.ipynb
+      - 14. Stochastic EM, Annealing and SAEM: notebooks/14_stochastic_em.ipynb
+      - 15. Student-t Mixtures: notebooks/15_student_t.ipynb
+      - 16. Von Mises-Fisher Mixtures: notebooks/16_von_mises_fisher.ipynb
+      - 17. Semi-Supervised and PU Fitting: notebooks/17_semi_supervised_pu.ipynb
+      - 18. Noise, Missing Values and Conditioning: notebooks/18_noise_missing_conditioning.ipynb
+      - 19. Constraints, Frozen Components and Sample Weights: notebooks/19_constraints_and_weights.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - GPCM Covariance: api/covariance-gpcm.md

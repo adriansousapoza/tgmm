@@ -1,7 +1,7 @@
 # tgmm.constraints API
 
 The exact block solvers behind `GaussianMixture`'s `weight_bounds`, `mean_bounds` and `covariance_bounds` (see
-[Fixed values and bounds](../notebooks/20_constraints_and_weights.ipynb) for the mathematics). Each maximises the
+[Fixed values and bounds](../notebooks/19_constraints_and_weights.ipynb) for the mathematics). Each maximises the
 expected complete-data log-likelihood over one parameter block, so the constrained M-step is an ECM step. Most users never call them
 directly.
 

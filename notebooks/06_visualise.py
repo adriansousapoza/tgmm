@@ -43,7 +43,7 @@ def _(mo):
 
     `plot_gmm` is the plotting workhorse of `tgmm` and is used by nearly every tutorial that follows. This notebook goes through its parameters one group at a time -- point styling, cluster coloring, confidence ellipses, mean markers, weight-based scaling and continuous log-likelihood coloring -- showing how each changes the figure. It then covers the helpers around it (`confidence_ellipse_std_devs`, `match_predicted_to_true_labels`, `gmm_proxy`, `dynamic_figsize`) and the directional counterparts `plot_vmf` and `plot_vmf_cosine`.
 
-    `plot_gmm` accepts any fitted `tgmm` mixture: it only needs `means_`, `covariances_`, `weights_`, `covariance_type` and `predict`, so it also draws every GPCM covariance code from [02 -- Covariance Types](02_covariance_types.ipynb). It draws **two-dimensional** data only (`X.shape[1] == 2`); for more features, project to 2-D first (see [09 -- PCA Plotting](09_pca_plotting.ipynb)).
+    `plot_gmm` accepts any fitted `tgmm` mixture: it only needs `means_`, `covariances_`, `weights_`, `covariance_type` and `predict`, so it also draws every GPCM covariance code from [02 -- Covariance Types](02_covariance_types.ipynb). It draws **two-dimensional** data only (`X.shape[1] == 2`); for more features, project to 2-D first (see [10 -- PCA Plotting](10_pca_plotting.ipynb)).
 
     **What you'll learn**
 
@@ -53,7 +53,7 @@ def _(mo):
     - Scale markers or transparency by component weight, highlight misclassified points, and align cluster indices with the truth
     - Visualize von Mises-Fisher mixtures on the circle, the sphere and in high dimension
 
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the data and the fit used throughout), and [04 -- Sampling](04_sampling.ipynb) for the von Mises-Fisher section.
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the data and the fit used throughout), and [05 -- Sampling](05_sampling.ipynb) for the von Mises-Fisher section.
     """)
     return
 
@@ -582,7 +582,7 @@ def _(mo):
     plot_gmm(X_2d, gmm, show_ellipses=True, title='PCA projection with clusters')
     ```
 
-    [09 -- PCA Plotting](09_pca_plotting.ipynb) shows the better route: fit in the original high-dimensional space and only project the fitted means and covariances for display.
+    [10 -- PCA Plotting](10_pca_plotting.ipynb) shows the better route: fit in the original high-dimensional space and only project the fitted means and covariances for display.
     """)
     return
 
@@ -622,7 +622,7 @@ def _(mo):
     mo.md(r"""
     ## Von Mises-Fisher Mixtures: `plot_vmf` and `plot_vmf_cosine`
 
-    `plot_gmm` draws Euclidean ellipses, so it cannot represent a `VonMisesFisherMixture` ([17 -- von Mises-Fisher](17_von_mises_fisher.ipynb)), whose data live on the unit sphere and whose components are described by a mean *direction* $\mu_k$ and a concentration $\kappa_k$. Two functions cover that case.
+    `plot_gmm` draws Euclidean ellipses, so it cannot represent a `VonMisesFisherMixture` ([16 -- von Mises-Fisher](16_von_mises_fisher.ipynb)), whose data live on the unit sphere and whose components are described by a mean *direction* $\mu_k$ and a concentration $\kappa_k$. Two functions cover that case.
 
     **`plot_vmf(X, vmf, ax=None, ...)`** draws unit-norm data on the circle ($d=2$) or the sphere ($d=3$; pass a 3-D axes, or omit `ax` to create one). Points are colored by predicted component (or by `true_labels=`); each mean direction is an arrow from the origin; each concentration is drawn as nested **spherical caps**, the vMF analogue of confidence ellipses. A cap of angular radius $\theta_m$ around $\mu_k$ contains probability $m$ of the component, where $\theta_m$ solves $P(\theta\le\theta_m)=m$ under the angle density
 
@@ -729,7 +729,7 @@ def _(mo):
     - `ellipse_std_devs` is a Mahalanobis radius: 1, 2, 3 standard deviations enclose 39.3%, 86.5% and 98.9% in 2-D; `confidence_ellipse_std_devs(q)` gives the radius for a chosen coverage.
     - `match_predicted_to_true_labels` aligns arbitrary cluster indices with the truth, `gmm_proxy` plots parameters that were never fitted, and `plot_vmf` / `plot_vmf_cosine` cover directional data.
 
-    **Next:** [06 -- Classification EM](06_cem.ipynb), or [09 -- PCA Plotting](09_pca_plotting.ipynb) for plotting high-dimensional models.
+    **Next:** [07 -- Classification EM](07_cem.ipynb), or [10 -- PCA Plotting](10_pca_plotting.ipynb) for plotting high-dimensional models.
     """)
     return
 

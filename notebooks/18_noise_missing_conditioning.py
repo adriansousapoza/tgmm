@@ -325,7 +325,7 @@ def _(mo):
     $$
 
       which is exactly $\mathbb E\big[\sum_ir_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top\mid x_o,\theta^{\text{old}}\big]$. Every M-step formula of
-      [01 -- Introduction](01_introduction.ipynb), [02 -- Covariance Types](02_covariance_types.ipynb) and [10 -- Priors](10_priors.ipynb) (MLE, MAP/NIW, the 14 GPCM models) reads
+      [01 -- Introduction](01_introduction.ipynb), [02 -- Covariance Types](02_covariance_types.ipynb) and [04 -- Priors](04_priors.ipynb) (MLE, MAP/NIW, the 14 GPCM models) reads
       only $(n_k,s_1,s_2)$, so it applies unchanged.
 
     Rows are grouped by **missingness pattern** (`torch.unique(torch.isnan(X), dim=0)`), so the cost is one batched solve per pattern per component, not per row (a
@@ -597,7 +597,7 @@ def _(mo):
     know -- a calibrated background, a reference population -- and let the others adapt around it. Priors never shrink a frozen component and SEM never
     re-seeds it. The initial values come from `init_means` / `init_covariances` or `warm_start`; $\sum_k\pi_k+\pi_0=1$ is preserved. Not supported (`ValueError`): tied covariance types and GPCM codes
     without a classic name, `dof='shared'`, `concentration='shared'` and Gibbs mode. `PositiveUnlabeledMixture(anchor='fixed')`, in
-    [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb), is built on it.
+    [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb), is built on it.
     """)
     return
 
@@ -836,7 +836,7 @@ def _(mo):
     - `GenericMixture` fits any family that implements `log_probability`, `summarize` and `from_summaries` (or any `nn.Module` with `log_prob`), with `batch_size`,
       `sample_weight`, frozen components and information criteria included.
 
-    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for another way of steering the fit, or back to the [tutorial overview](../tutorials/index.md).
+    **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb) for another way of steering the fit, or back to the [tutorial overview](../tutorials/index.md).
 
     **References**
 

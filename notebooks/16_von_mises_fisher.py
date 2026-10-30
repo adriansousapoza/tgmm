@@ -63,7 +63,7 @@ def _(mo):
       free parameters the model has, and the caveats to keep in mind.
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model, EM and `GaussianMixture`) and
-    [16 -- Student-t Mixtures](16_student_t.ipynb), which lists what every mixture family shares (the E-step, `algorithm`,
+    [15 -- Student-t Mixtures](15_student_t.ipynb), which lists what every mixture family shares (the E-step, `algorithm`,
     annealing, BIC/AIC/ICL). See also the [`VonMisesFisherMixture`](../api/vmf-mixture.md) and
     [plotting](../api/plotting.md) API references.
     """)
@@ -732,7 +732,7 @@ def _(mo):
     a vMF density lives on the sphere (a set of zero volume in $\mathbb{R}^d$), the Gaussian density on all of $\mathbb{R}^d$, so
     their log-likelihoods are densities with respect to different measures. Compare *across* families with a measure that does not depend on the density, such as a
     cosine-based clustering metric or the agreement with known labels. This differs from Gaussian versus
-    [Student-t](16_student_t.ipynb), which share a base measure and can be compared directly.
+    [Student-t](15_student_t.ipynb), which share a base measure and can be compared directly.
 
     On real embeddings, where classes overlap more, the vMF model's advantage is that it does not spend parameters modelling variation in vector
     *length*, which L2-normalisation has already thrown away.
@@ -742,17 +742,17 @@ def _(mo):
     - $\kappa$ is clamped to $[10^{-3},10^{5}]$: an extremely tight cluster (or duplicate points, $\bar R\to1$) lands on the upper bound.
     - The Bessel normaliser is evaluated per component in Python at every E-step. That is cheap ($K$ scalars) but not GPU-resident.
     - A vMF component has no notion of cluster *shape*: every component is isotropic around its mean direction. For elongated clusters on the
-      sphere, consider reducing the dimension with PCA ([09 -- PCA Plotting](09_pca_plotting.ipynb)) and fitting a `GaussianMixture` or
+      sphere, consider reducing the dimension with PCA ([10 -- PCA Plotting](10_pca_plotting.ipynb)) and fitting a `GaussianMixture` or
       `StudentTMixture` instead.
     - Gibbs mode (`n_components=None`), the GPCM covariance codes and MAP/NIW priors are `GaussianMixture`-only.
 
     ## Labels, noise, missing values and custom families
 
     Because `fit(X, labels=...)` lives in `BaseMixture`, the vMF mixture also supports supervised and semi-supervised fitting
-    (see [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb)). `noise=True` works too (the noise density is
+    (see [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb)). `noise=True` works too (the noise density is
     uniform on the sphere), as do `frozen_components` and `sample_weight`; missing-value EM (`missing='em'`) is for `GaussianMixture` and
     `StudentTMixture`. To fit a family that `tgmm` does not ship, implement the three-method `Component` protocol and use `GenericMixture`
-    ([19 -- Noise, Missing Values and Conditioning](19_noise_missing_conditioning.ipynb)).
+    ([18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb)).
 
     ## Summary
 
@@ -775,8 +775,8 @@ def _(mo):
     - Dhillon, I. S. & Modha, D. S. (2001). Concept decompositions for large sparse text data using clustering. *Machine Learning*, 42, 143-175.
     - Biernacki, C., Celeux, G. & Govaert, G. (2000). Assessing a mixture model for clustering with the integrated completed likelihood. *IEEE TPAMI*, 22(7), 719-725.
 
-    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb), or back to
-    [16 -- Student-t Mixtures](16_student_t.ipynb).
+    **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb), or back to
+    [15 -- Student-t Mixtures](15_student_t.ipynb).
     """)
     return
 

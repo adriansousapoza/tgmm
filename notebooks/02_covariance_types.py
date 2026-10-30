@@ -57,8 +57,8 @@ def _(mo):
     and an *orientation* and let you share or free each factor independently.
 
     This notebook shows what each choice looks like, derives **how EM estimates every one of them**
-    (the M-step), checks the derivations numerically against the library, and uses BIC to select among
-    all 14 models on real data.
+    (the M-step), checks the derivations numerically against the library, and compares all 14 models
+    on the four-cluster data.
 
     **What you'll learn**
 
@@ -68,8 +68,8 @@ def _(mo):
     - the volume / shape / orientation decomposition behind the 14 GPCM models and its mclust naming;
     - how each of the 14 models is estimated: closed forms, alternating updates, and the one step
       that needs a numerical (Stiefel-manifold) optimisation;
-    - how to read `volume_`, `shape_`, `orientation_` on a fitted model, and how to select a covariance
-      structure with `select_model`.
+    - how to read `volume_`, `shape_`, `orientation_` on a fitted model, and how the number of free
+      parameters of each model grows with the number of components $K$ and the dimension $d$.
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb), which builds the four-cluster data and
     explains the mixture model and EM (the E-step / M-step vocabulary used throughout).
@@ -96,9 +96,8 @@ def _():
     import pandas as pd
     import torch
     import matplotlib.pyplot as plt
-    from sklearn.datasets import load_iris
 
-    from tgmm import GaussianMixture, select_model
+    from tgmm import GaussianMixture
     from tutorial_data import make_default_data
     from tgmm.covariance.gpcm import GPCM_CODES, mstep_gpcm
     from tgmm.plotting import plot_gmm, dynamic_figsize
@@ -115,14 +114,12 @@ def _():
         SEED,
         device,
         dynamic_figsize,
-        load_iris,
         make_default_data,
         mstep_gpcm,
         np,
         pd,
         plot_gmm,
         plt,
-        select_model,
         torch,
     )
 
@@ -181,7 +178,7 @@ def _(
     for _ax, _cov_type in zip(_axs.ravel(), classic_types):
         _gmm = GaussianMixture(n_components=K, covariance_type=_cov_type, init_means='kmeans', random_state=SEED, device=device)
         _gmm.fit(X)
-        plot_gmm(X.cpu().numpy(), gmm=_gmm, ax=_ax, legend_labels=legend_labels, title=f"covariance_type='{_cov_type}'   (BIC = {_gmm.bic(X):.0f})")
+        plot_gmm(X.cpu().numpy(), gmm=_gmm, ax=_ax, legend_labels=legend_labels, title=f"covariance_type='{_cov_type}'   (mean log-lik = {float(_gmm.score(X)):.3f})")
     plt.suptitle('The six classic covariance types')
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
@@ -206,7 +203,7 @@ def _(mo):
     ```
 
     `'tied'` is accepted as an alias of `'tied_full'` and `'isotropic'` of `'spherical'`. The total
-    number of free parameters that `bic` / `aic` / `icl` charge is
+    number of free parameters of a fitted model is
     $p=(K-1)+Kd+p_\Sigma$: the $K-1$ free weights, the $Kd$ mean coordinates and the covariance count
     $p_\Sigma$ from the last column of the table.
     """)
@@ -416,17 +413,22 @@ def _(mo):
     | shape (free ratios of $A$) | $d-1$ | $K(d-1)$ | $0$ |
     | orientation (free angles of $D$) | $d(d-1)/2$ | $K\,d(d-1)/2$ | $0$ |
 
-    This count is what `bic`/`aic` charge for the covariances, so it decides which models win a
-    model-selection sweep. The next cell evaluates the table and checks it against the penalty that the
-    library actually applies, recovered from the public API: since
-    $\mathrm{BIC}=-2\,\ell+p\log n$ with $\ell=n\cdot$`score(X)`, the implied number of parameters is
-    $p=(\mathrm{BIC}+2\ell)/\log n$, to which the formula adds the $K-1$ free weights and $Kd$ means.
+    Because the count is a sum over the three factors, it is easy to see how each model scales. Volume
+    costs $1$ or $K$ parameters, shape $d-1$ or $K(d-1)$, orientation $d(d-1)/2$ or $K\,d(d-1)/2$. Only
+    a *per-component orientation* (`EEV`, `VEV`, `EVV`, `VVV`) makes the count grow like $K\,d^2$. A
+    *shared* orientation (`EEE`, `VEE`, `EVE`, `VVE`) adds a $d^2$ term that does not depend on $K$ (the
+    volume and shape terms still grow with $K$, at most like $K\,d$); with the identity orientation the
+    count grows at most like $K\,d$. The cells below first check the formula against fitted models, then
+    compare all 14 models for several numbers of components $K$ and dimensions $d$. The last two columns of
+    the table are the measured growth exponents, $a=\log_2$ of the ratio of the counts at $K=16$ and $K=8$
+    (with $d=20$) and $b=\log_2$ of the ratio at $d=40$ and $d=20$ (with $K=8$): $a\approx1$ means the count
+    doubles with $K$, $b\approx2$ that it quadruples when $d$ doubles.
     """)
     return
 
 
 @app.cell
-def _(GPCM_CODES, GaussianMixture, K, SEED, X, d, device, n, np, pd):
+def _(GPCM_CODES, GaussianMixture, torch):
     ALIASES = {'EII': 'tied_spherical', 'VII': 'spherical', 'EEI': 'tied_diag', 'VVI': 'diag', 'EEE': 'tied_full', 'VVV': 'full'}
 
     def n_cov_params(code, K, d):
@@ -435,17 +437,74 @@ def _(GPCM_CODES, GaussianMixture, K, SEED, X, d, device, n, np, pd):
         shape = {'I': 0, 'E': d - 1, 'V': K * (d - 1)}[code[1]]
         orientation = {'I': 0, 'E': d * (d - 1) // 2, 'V': K * d * (d - 1) // 2}[code[2]]
         return volume + shape + orientation
+
+    def count_from_fit(model, K, d):
+        """Free covariance parameters read off a fitted model's stored factors, without using the formula above."""
+        if model.volume_ is None:  # the six classic types store covariances_ directly
+            _t = model.covariance_type_
+            _full = {'EEE': d * (d + 1) // 2, 'VVV': K * d * (d + 1) // 2}
+            return _full.get(_t, model.covariances_.numel())  # scalar / (K,) / (d,) / (K, d): every entry is free
+        _n_shape_vectors = model.shape_.shape[0] if model.shape_.dim() == 2 else 1
+        _n_orient = model.orientation_.shape[0] if model.orientation_.dim() == 3 else 1
+        _is_identity = torch.allclose(model.orientation_.reshape(-1, d, d)[0], torch.eye(d, dtype=model.orientation_.dtype))
+        return (model.volume_.numel()                                   # one scale per volume entry
+                + model.shape_.numel() - _n_shape_vectors               # each shape vector has unit determinant
+                + (0 if _is_identity else _n_orient * d * (d - 1) // 2))  # each rotation has d(d-1)/2 angles
+
     _rows = []
-    for _code_name in GPCM_CODES:
-        _gmm = GaussianMixture(n_components=K, covariance_type=_code_name, init_means='kmeans', random_state=SEED, device=device)
-        _gmm.fit(X)
-        implied_total = (_gmm.bic(X) + 2 * n * _gmm.score(X)) / np.log(n)
-        formula_total = n_cov_params(_code_name, K, d) + K * d + (K - 1)
-        _rows.append({'code': _code_name, 'alias': ALIASES.get(_code_name, ''), f'covariance params (K={K}, d={d})': n_cov_params(_code_name, K, d), 'total (formula)': formula_total, 'total implied by bic()': round(implied_total, 6)})
-    df_params = pd.DataFrame(_rows)
-    assert np.allclose(df_params['total (formula)'], df_params['total implied by bic()'])
-    df_params  # = p, total parameters
+    for _K, _d in ((3, 4), (2, 5)):
+        _gen = torch.Generator().manual_seed(_K * 10 + _d)
+        _X = torch.randn(400, _d, generator=_gen, dtype=torch.float64) * torch.linspace(0.5, 3, _d, dtype=torch.float64)
+        for _code_name in GPCM_CODES:
+            _m = GaussianMixture(n_components=_K, covariance_type=_code_name, random_state=0, max_iter=20).fit(_X)
+            _rows.append((_K, _d, _code_name, n_cov_params(_code_name, _K, _d), count_from_fit(_m, _K, _d)))
+    _bad = [r for r in _rows if r[3] != r[4]]
+    print(f'checked {len(_rows)} fits (14 models x (K, d) in {{(3, 4), (2, 5)}}): formula == count read from the fitted model for all: {not _bad}')
+    assert not _bad, _bad
     return ALIASES, n_cov_params
+
+
+@app.cell
+def _(ALIASES, GPCM_CODES, n_cov_params, np, pd):
+    Ks, ds = (2, 4, 8), (2, 5, 10, 20)
+    _table = pd.DataFrame(
+        [[n_cov_params(_c, _K, _d) for _K in Ks for _d in ds] for _c in GPCM_CODES],
+        index=pd.Index([f"{_c}  ({ALIASES[_c]})" if _c in ALIASES else _c for _c in GPCM_CODES], name='model'),
+        columns=pd.MultiIndex.from_tuples([(f'K={_K}', f'd={_d}') for _K in Ks for _d in ds]),
+    )
+    # growth exponents: count ~ K^a d^b. Measured between K=8 -> 16 at d=20 and d=20 -> 40 at K=8.
+    _a = [np.log2(n_cov_params(_c, 16, 20) / n_cov_params(_c, 8, 20)) for _c in GPCM_CODES]
+    _b = [np.log2(n_cov_params(_c, 8, 40) / n_cov_params(_c, 8, 20)) for _c in GPCM_CODES]
+    _table[('grows like', 'K^a, a ≈')] = np.round(_a, 1)
+    _table[('grows like', 'd^b, b ≈')] = np.round(_b, 1)
+    param_table = _table
+    param_table
+    return Ks, ds
+
+
+@app.cell
+def _(GPCM_CODES, Ks, ds, n_cov_params, plt):
+    _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.2), dpi=75)
+    _dgrid = list(range(2, 41))
+    _kgrid = [1, 2, 4, 8, 16, 32]
+    for _c in GPCM_CODES:
+        _col = {'E': '#2a78d6', 'V': '#eb6834'}[_c[0]]
+        _ls = {'I': '-', 'E': '--', 'V': ':'}[_c[2]]  # orientation: identity solid, shared dashed, per component dotted
+        _axs[0].plot(_dgrid, [n_cov_params(_c, 4, _d) for _d in _dgrid], color=_col, ls=_ls, label=_c)
+        _axs[1].plot(_kgrid, [n_cov_params(_c, _k, 10) for _k in _kgrid], color=_col, ls=_ls, marker='o', ms=3)
+    _axs[0].set_xscale('log'); _axs[0].set_yscale('log')
+    _axs[1].set_xscale('log', base=2); _axs[1].set_yscale('log')
+    _axs[0].set_xticks([2, 5, 10, 20, 40]); _axs[0].set_xticklabels(['2', '5', '10', '20', '40']); _axs[0].minorticks_off()
+    _axs[1].set_xticks(_kgrid); _axs[1].set_xticklabels([str(_k) for _k in _kgrid]); _axs[1].minorticks_off()
+    _axs[0].set_xlabel('dimension $d$ (K = 4)'); _axs[1].set_xlabel('number of components $K$ (d = 10)')
+    for _a in _axs:
+        _a.set_ylabel('free covariance parameters'); _a.grid(alpha=0.3)
+    _axs[1].legend(*_axs[0].get_legend_handles_labels(), ncol=1, fontsize=7, loc='center left', bbox_to_anchor=(1.02, 0.5),
+                   title='orange: varying volume\nblue: equal volume\nsolid: identity orientation\ndashed: shared orientation\ndotted: per-component', title_fontsize=7)
+    _fig.suptitle('Free covariance parameters of the 14 models')
+    _fig.subplots_adjust(left=0.07, right=0.85, wspace=0.25, top=0.88)
+    plt.gcf()
+    return
 
 
 @app.cell(hide_code=True)
@@ -558,8 +617,8 @@ def _(gp_code, gp_covs, np, plt):
 def _(mo):
     mo.md(r"""
     Things to try: `EII` and `VII` give circles (identity shape and orientation), `EEE` shares everything
-    (the same ellipse twice), and `VVV` frees all three factors. The parameter count is what `bic` / `aic`
-    charge for the covariances, which is why constrained models win on small data.
+    (the same ellipse twice), and `VVV` frees all three factors. The parameter count is why constrained models can be estimated
+    reliably from little data: `VVV` needs $K\,d(d+1)/2$ covariance parameters, `EII` only one.
 
     ### Reading the decomposition off a fitted model
 
@@ -825,8 +884,8 @@ def _(mo):
     Back to the dataset. The grid arranges the 14 models by *orientation* (columns: identity /
     shared / per-component), so that moving down a column relaxes volume and shape. Compare the
     panels with the true covariances of the four clusters (two spherical of different size, one
-    axis-aligned, one tilted) -- and note how BIC trades the extra flexibility against the extra
-    parameters.
+    axis-aligned, one tilted). The table under the grid lists each model's log-likelihood next to its
+    number of free parameters.
     """)
     return
 
@@ -846,7 +905,7 @@ def _(GaussianMixture, K, SEED, X, device, dynamic_figsize, plot_gmm, plt):
             _gmm = GaussianMixture(n_components=K, covariance_type=_code_name, init_means='kmeans', random_state=SEED, device=device)
             _gmm.fit(X)
             fits[_code_name] = _gmm
-            plot_gmm(X.cpu().numpy(), gmm=_gmm, ax=_ax, title=f'{_code_name}   BIC = {_gmm.bic(X):.0f}')
+            plot_gmm(X.cpu().numpy(), gmm=_gmm, ax=_ax, title=f'{_code_name}   mean log-lik = {float(_gmm.score(X)):.3f}')
             if row == 0:
                 _ax.annotate(col_title, xy=(0.5, 1.28), xycoords='axes fraction', ha='center', fontsize=11, weight='bold')
     plt.tight_layout()
@@ -858,9 +917,10 @@ def _(GaussianMixture, K, SEED, X, device, dynamic_figsize, plot_gmm, plt):
 def _(ALIASES, K, X, d, fits, n, n_cov_params, pd):
     summary = pd.DataFrame([
         {'code': c, 'alias': ALIASES.get(c, ''), 'log-likelihood': g.score(X) * n,
-         'params': n_cov_params(c, K, d) + K * d + K - 1, 'BIC': g.bic(X), 'converged': g.converged_}
+         'covariance params': n_cov_params(c, K, d), 'total free params': n_cov_params(c, K, d) + K * d + K - 1,
+         'converged': g.converged_}
         for c, g in fits.items()
-    ]).sort_values('BIC').reset_index(drop=True)
+    ]).sort_values('log-likelihood', ascending=False).reset_index(drop=True)
     summary
     return
 
@@ -868,187 +928,10 @@ def _(ALIASES, K, X, d, fits, n, n_cov_params, pd):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Selecting a covariance structure with `select_model`
-
-    With 14 candidates and an unknown number of components, nobody wants to pick by eye.
-    `select_model` fits every $(K,\text{covariance code})$ pair and ranks them by BIC (or AIC / ICL);
-    its default `covariance_types` is all 14 GPCM codes -- the mclust workflow.
-
-    ### Iris petal measurements (2-D)
-
-    Petal length and width are the two iris features that most cleanly separate the three species --
-    small enough to sweep all 14 models for several $K$ quickly, and two-dimensional so that the winner
-    can be plotted directly.
+    More free parameters always fit the four clusters at least as well, so the log-likelihood alone cannot say
+    which structure a dataset supports. That question, together with the number of components, is the subject of
+    [13 -- Model Selection](13_model_selection.ipynb), which sweeps all 14 models on real and synthetic data.
     """)
-    return
-
-
-@app.cell
-def _(load_iris, plt, torch):
-    iris = load_iris()
-    X_iris = torch.tensor(iris.data[:, [2, 3]], dtype=torch.float64)  # petal length, petal width
-
-    plt.figure(figsize=(5, 4))
-    plt.scatter(X_iris[:, 0], X_iris[:, 1], c=iris.target, cmap='viridis', s=15)
-    plt.xlabel('petal length (cm)')
-    plt.ylabel('petal width (cm)')
-    plt.title('Iris petal measurements (true species)')
-    plt.gcf()
-    return X_iris, iris
-
-
-@app.cell
-def _(SEED, X_iris, select_model):
-    result_iris = select_model(
-        X_iris, n_components=range(1, 6), criterion='bic',
-        random_state=SEED, n_init=1, max_iter=200,
-    )
-
-    df_iris = result_iris.to_dataframe().sort_values('bic')
-    df_iris.head(10)
-    return df_iris, result_iris
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### BIC by model family and $K$
-
-    One line per covariance code, BIC against $K$ -- lower is better.
-    """)
-    return
-
-
-@app.cell
-def _(GPCM_CODES, df_iris, plt):
-    plt.figure(figsize=(9, 5))
-    for _code_name in GPCM_CODES:
-        sub = df_iris[df_iris['covariance_type'] == _code_name].sort_values('n_components')
-        sub = sub.dropna(subset=['bic'])
-        if len(sub) == 0:
-            continue
-        plt.plot(sub['n_components'], sub['bic'], marker='o', markersize=3, label=_code_name, alpha=0.7)
-    plt.xlabel('n_components (K)')
-    plt.ylabel('BIC (lower is better)')
-    plt.title('BIC across all 14 GPCM models, iris petal data')
-    plt.legend(ncol=2, fontsize=8)
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(X_iris, result_iris):
-    best = result_iris.best_
-    print(f'Winning model: {best.covariance_type_} (K={best.n_components}), BIC={best.bic(X_iris):.2f}')
-    return (best,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### The winning model's components, and why it won
-
-    The ellipses show what the selected structure looks like on the data. Because the winner carries a
-    decomposition (when it is one of the 8 new codes), `volume_`, `shape_` and `orientation_` say *what
-    kind* of parsimony the data supported -- shared or per-component size, elongation and rotation --
-    rather than merely that the model won.
-    """)
-    return
-
-
-@app.cell
-def _(X_iris, best, iris, plot_gmm, plt):
-    plt.figure(figsize=(6, 5))
-    plot_gmm(X_iris.numpy(), gmm=best, true_labels=iris.target, color_by_cluster=True)
-    plt.title(f'{best.covariance_type_} (K={best.n_components}) fit to iris petal measurements')
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(best):
-    print('covariance_type_:', best.covariance_type_)
-    for _name in ('volume_', 'shape_', 'orientation_'):
-        _value = getattr(best, _name)
-        print(f'{_name}:', None if _value is None else _value.numpy().round(3))
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### A 10-D latent-space-like dataset
-
-    Four clusters in 10 dimensions with deliberately varied covariance structure (different volumes,
-    some axis-aligned, some correlated and elongated) -- the situation a GPCM sweep is actually *for*:
-    no single covariance type is obviously right, and the full model spends $K\,d(d+1)/2=220$
-    covariance parameters at $K=4$.
-    """)
-    return
-
-
-@app.cell
-def _(SEED, torch):
-    def make_latent_cluster(n, d, seed, volume, elongation=None, rotate=False):
-        gen = torch.Generator().manual_seed(seed)
-        base = torch.randn(n, d, generator=gen, dtype=torch.float64)
-        scale = torch.ones(d, dtype=torch.float64)
-        if elongation is not None:
-            scale[: len(elongation)] = torch.tensor(elongation, dtype=torch.float64)
-        X = base * scale.sqrt() * volume
-        if rotate:
-            Q, _ = torch.linalg.qr(torch.randn(d, d, generator=gen, dtype=torch.float64))
-            X = X @ Q.T
-        return X
-
-
-    torch.manual_seed(SEED)
-    d_latent = 10
-    latent_centers = torch.randn(4, d_latent, dtype=torch.float64) * 6
-    clusters = [
-        make_latent_cluster(150, d_latent, seed=1, volume=1.0) + latent_centers[0],
-        make_latent_cluster(150, d_latent, seed=2, volume=1.8) + latent_centers[1],
-        make_latent_cluster(150, d_latent, seed=3, volume=1.0, elongation=[4, 4, 1, 1, 1, 1, 1, 1, 1, 1]) + latent_centers[2],
-        make_latent_cluster(150, d_latent, seed=4, volume=1.0, elongation=[4, 4, 1, 1, 1, 1, 1, 1, 1, 1], rotate=True) + latent_centers[3],
-    ]
-    X_latent = torch.cat(clusters, dim=0)
-    print(X_latent.shape)
-    return (X_latent,)
-
-
-@app.cell
-def _(SEED, X_latent, select_model):
-    result_latent = select_model(
-        X_latent, n_components=range(2, 6), criterion='bic',
-        random_state=SEED, n_init=1, max_iter=100,
-    )
-
-    df_latent = result_latent.to_dataframe().sort_values('bic')
-    df_latent.head(10)
-    return df_latent, result_latent
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### BIC versus ICL at the winning $K$
-
-    BIC rewards fit and penalises parameters; ICL ([Model Selection tutorial](14_model_selection.ipynb))
-    additionally penalises overlap between clusters. Both criteria, compared across covariance
-    structures at the BIC-winning $K$.
-    """)
-    return
-
-
-@app.cell
-def _(X_latent, df_latent, result_latent):
-    best_latent = result_latent.best_
-    winning_k = best_latent.n_components
-    print(f'Winning model: {best_latent.covariance_type_} (K={winning_k}), '
-          f'BIC={best_latent.bic(X_latent):.2f}, ICL={best_latent.icl(X_latent):.2f}')
-
-    at_k = df_latent[df_latent['n_components'] == winning_k].dropna(subset=['bic', 'icl']).sort_values('bic')
-    at_k[['covariance_type', 'bic', 'icl', 'converged']].head(8)
     return
 
 
@@ -1063,7 +946,7 @@ def _(mo):
     - **MLE only for the 8 new codes.** `mean_prior` / `covariance_prior` (MAP / NIW estimation) raise
       `NotImplementedError` for them -- a conjugate-prior derivation specific to each parameterisation is
       not provided. The six classic types still support the full prior machinery
-      ([priors tutorial](10_priors.ipynb)); `weight_concentration_prior` works with all 14.
+      ([priors tutorial](04_priors.ipynb)); `weight_concentration_prior` works with all 14.
     - **No Gibbs mode.** `n_components=None` (Dirichlet-process Gibbs sampling) is not available for
       the 8 new codes, as for `tied_*`: a covariance that couples components does not factor per
       component the way the collapsed sampler needs.
@@ -1090,12 +973,16 @@ def _(mo):
     - Three of the new models have closed-form M-steps, three alternate closed-form sub-steps, and the two with a
       shared orientation and varying shape (`EVE`, `VVE`) need a numerical orthogonal-manifold step -- all matching an
       independent brute-force minimiser.
-    - `select_model` searches all 14 structures and the number of components together, and
-      `volume_` / `shape_` / `orientation_` explain what the winning structure is.
+    - The number of free covariance parameters is a sum over the three factors: only a per-component orientation
+      grows like $K\,d^2$, a shared orientation adds a $K$-independent $d^2$ term, and the identity orientation
+      grows at most like $K\,d$ -- the formula is checked against fitted models and compared for
+      $K\in\{2,4,8\}$ and $d$ up to 20.
+    - `volume_` / `shape_` / `orientation_` expose the fitted decomposition of the eight non-classic models.
 
-    **Next:** [03 -- Initialisation](03_initialization.ipynb) for how the starting means, covariances and
-    weights are chosen, [14 -- Model Selection](14_model_selection.ipynb) for BIC / AIC / ICL in depth, and
-    [10 -- Priors](10_priors.ipynb) for regularising covariance estimates (classic types).
+    **Next:** [03 -- Initialization](03_initialization.ipynb) for how the starting means, covariances and
+    weights are chosen, [04 -- Priors](04_priors.ipynb) for regularising covariance estimates (classic types), and
+    [13 -- Model Selection](13_model_selection.ipynb) for choosing the covariance structure and the number of
+    components for your data.
 
     ## References
 

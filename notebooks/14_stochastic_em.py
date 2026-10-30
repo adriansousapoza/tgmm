@@ -42,7 +42,7 @@ def _(mo):
     mo.md(r"""
     # Stochastic EM, Deterministic Annealing, SAEM and Online EM
 
-    Plain EM only climbs: from a bad starting point it converges to the nearest local optimum, and the hard assignments of CEM make this worse. This notebook collects the variants of the EM loop that `GaussianMixture` offers beyond EM and CEM ([06 -- CEM](06_cem.ipynb)): `algorithm='sem'` (Stochastic EM, Celeux & Diebolt 1985), `temperature` (Deterministic Annealing EM, Ueda & Nakano 1998), `algorithm='saem'` (Stochastic Approximation EM, Delyon, Lavielle & Moulines 1999), mini-batch and online EM (Cappé & Moulines 2009), and the convergence rules (`convergence`, `tol`).
+    Plain EM only climbs: from a bad starting point it converges to the nearest local optimum, and the hard assignments of CEM make this worse. This notebook collects the variants of the EM loop that `GaussianMixture` offers beyond EM and CEM ([07 -- CEM](07_cem.ipynb)): `algorithm='sem'` (Stochastic EM, Celeux & Diebolt 1985), `temperature` (Deterministic Annealing EM, Ueda & Nakano 1998), `algorithm='saem'` (Stochastic Approximation EM, Delyon, Lavielle & Moulines 1999), mini-batch and online EM (Cappé & Moulines 2009), and the convergence rules (`convergence`, `tol`).
 
     **What you'll learn**
 
@@ -53,7 +53,7 @@ def _(mo):
     - how `batch_size` bounds memory exactly, and how `step_size` turns it into online EM
     - how the `'relative'` and `'aitken'` stopping rules differ
 
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [06 -- CEM](06_cem.ipynb).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [07 -- CEM](07_cem.ipynb).
 
     **See also:** the [`GaussianMixture` API reference](../api/gaussian-mixture.md) for every argument used here.
     """)
@@ -556,7 +556,7 @@ def _(mo):
     - `convergence='aitken'` makes `tol` a bound on the remaining gap to the limit.
     - None of the escape methods *guarantees* escaping every bad initialization; they change the odds.
 
-    **Next:** [16 -- Student-t Mixtures](16_student_t.ipynb), the first non-Gaussian family, or back to [14 -- Model Selection](14_model_selection.ipynb).
+    **Next:** [15 -- Student-t Mixtures](15_student_t.ipynb), the first non-Gaussian family, or back to [13 -- Model Selection](13_model_selection.ipynb).
     """)
     return
 

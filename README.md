@@ -148,7 +148,7 @@ Flexible plotting utilities in `tgmm.plotting`:
   embeddings, typically) -- components are directions on the unit hypersphere with a
   concentration parameter, fit per Banerjee, Dhillon, Ghosh & Sra (2005).
 
-See the [Student-t](https://adriansousapoza.github.io/tgmm/notebooks/16_student_t/) and [von Mises-Fisher](https://adriansousapoza.github.io/tgmm/notebooks/17_von_mises_fisher/) tutorials.
+See the [Student-t](https://adriansousapoza.github.io/tgmm/notebooks/15_student_t/) and [von Mises-Fisher](https://adriansousapoza.github.io/tgmm/notebooks/16_von_mises_fisher/) tutorials.
 
 ### 6. Semi-Supervised and Positive-Unlabeled Fitting
 
@@ -162,7 +162,7 @@ class); any `-1` present runs semi-supervised EM (`unlabeled_weight`, `label_con
 per-row positive probability under the SCAR assumption, for `family in ('gaussian',
 'student_t', 'vmf')`, with `anchor in ('fixed', 'prior', 'free')` controlling identifiability.
 
-See the [Semi-Supervised and PU Fitting](https://adriansousapoza.github.io/tgmm/notebooks/18_semi_supervised_pu/) tutorial.
+See the [Semi-Supervised and PU Fitting](https://adriansousapoza.github.io/tgmm/notebooks/17_semi_supervised_pu/) tutorial.
 
 ### 7. Density-based clustering and building blocks
 

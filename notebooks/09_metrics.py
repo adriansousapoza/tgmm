@@ -57,7 +57,7 @@ def _(mo):
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the data and the fitted model) and [02 -- Covariance Types](02_covariance_types.ipynb) (the covariance parameter counts that BIC and AIC use).
 
-    **See also:** [14 -- Model Selection](14_model_selection.ipynb) for `select_model` and the BIC-vs-ICL comparison, and the [`ClusteringMetrics` API reference](../api/clustering-metrics.md).
+    **See also:** [13 -- Model Selection](13_model_selection.ipynb) for `select_model` and the BIC-vs-ICL comparison, and the [`ClusteringMetrics` API reference](../api/clustering-metrics.md).
     """)
     return
 
@@ -194,7 +194,7 @@ def _(mo):
 
     ### DBCV (Density-Based Clustering Validation)
 
-    DBCV (Moulavi, Jaskowiak, Campello, Zimek & Sander, 2014) is the natural index for density-based partitions such as `HDBSCAN` output (see [13 -- HDBSCAN](13_hdbscan.ipynb)), where centroid-based indices like Davies-Bouldin make no sense for non-convex clusters. For every cluster $C$, with $d_f$ the number of features:
+    DBCV (Moulavi, Jaskowiak, Campello, Zimek & Sander, 2014) is the natural index for density-based partitions such as `HDBSCAN` output (see [12 -- HDBSCAN](12_hdbscan.ipynb)), where centroid-based indices like Davies-Bouldin make no sense for non-convex clusters. For every cluster $C$, with $d_f$ the number of features:
 
     1. The **all-points core distance** of $x\in C$ is $a_{\text{core}}(x)=\Big(\frac1{|C|-1}\sum_{y\in C,\,y\ne x}d(x,y)^{-d_f}\Big)^{-1/d_f}$.
     2. The **mutual reachability** is $d_{\text{mreach}}(x,y)=\max\{a_{\text{core}}(x),\,a_{\text{core}}(y),\,d(x,y)\}$.
@@ -239,7 +239,7 @@ def _(mo):
     \mathrm{ICL}_{\text{soft}}=\mathrm{BIC}-2\sum_{i,k}r_{ik}\ln r_{ik}.
     $$
 
-    Both penalties are $\ge0$, so $\mathrm{ICL}\ge\mathrm{BIC}$, and the two coincide when the responsibilities are one-hot (perfectly separated clusters). ICL is BIC applied to the *completed* (data plus labels) likelihood, so it penalizes solutions whose components overlap and tends to prefer fewer, better-separated components. The worked BIC-vs-ICL comparison, and `select_model` (which sweeps `n_components` and `covariance_type` in one call), are in [14 -- Model Selection](14_model_selection.ipynb).
+    Both penalties are $\ge0$, so $\mathrm{ICL}\ge\mathrm{BIC}$, and the two coincide when the responsibilities are one-hot (perfectly separated clusters). ICL is BIC applied to the *completed* (data plus labels) likelihood, so it penalizes solutions whose components overlap and tends to prefer fewer, better-separated components. The worked BIC-vs-ICL comparison, and `select_model` (which sweeps `n_components` and `covariance_type` in one call), are in [13 -- Model Selection](13_model_selection.ipynb).
 
     **Reading the sweep below.** In practice the ideal number of clusters is where the Silhouette, Calinski-Harabasz, Wemmert-Gancarski, DBCV and Dunn indices are *maximal* and the Davies-Bouldin, WB, AIC and BIC values are *minimal*.
     """)
@@ -974,7 +974,7 @@ def _(mo):
     - Cluster indices are arbitrary, so predictions are matched to true classes before building a confusion matrix or classification report. The report's `roc_auc` is the balanced accuracy of the hard predictions.
     - `kl_divergence_gmm` estimates $D_{KL}(P\parallel Q)$ between two fitted mixtures by Monte Carlo sampling; it is asymmetric and noisy.
 
-    **Next:** [14 -- Model Selection](14_model_selection.ipynb) for BIC, AIC and ICL sweeps with `select_model`, [13 -- HDBSCAN](13_hdbscan.ipynb) for density-based clusters scored with DBCV, or [09 -- PCA Plotting](09_pca_plotting.ipynb).
+    **Next:** [13 -- Model Selection](13_model_selection.ipynb) for BIC, AIC and ICL sweeps with `select_model`, [12 -- HDBSCAN](12_hdbscan.ipynb) for density-based clusters scored with DBCV, or [10 -- PCA Plotting](10_pca_plotting.ipynb).
     """)
     return
 

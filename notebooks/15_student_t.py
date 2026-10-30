@@ -152,7 +152,7 @@ def _(mo):
     `temperature=(beta_0, n_anneal)` is deterministic annealing: the E-step uses $r_{ik}\propto(\pi_kf_k(x_i))^{\beta}$ with
     $\beta$ rising geometrically from `beta_0` to 1 over the first `n_anneal` iterations,
     $\beta_t=\beta_0^{\,1-t/n_{\text{anneal}}}$. `step_size` switches to online/mini-batch EM. The variants are demonstrated for the
-    Gaussian in [15 -- Stochastic EM, Annealing and SAEM](15_stochastic_em.ipynb) and work unchanged for the t-mixture.
+    Gaussian in [14 -- Stochastic EM, Annealing and SAEM](14_stochastic_em.ipynb) and work unchanged for the t-mixture.
 
     **Model selection.** With $p$ the number of free parameters (family-specific) and $\hat z_i=\arg\max_kr_{ik}$,
 
@@ -168,7 +168,7 @@ def _(mo):
 
     all "lower is better". The entropy term is $\ge0$ and vanishes when every responsibility is one-hot, so
     $\mathrm{ICL}\ge\mathrm{BIC}$ with equality only for perfectly separated clusters. See
-    [14 -- Model Selection](14_model_selection.ipynb) for how the three criteria behave in practice.
+    [13 -- Model Selection](13_model_selection.ipynb) for how the three criteria behave in practice.
     """)
     return
 
@@ -634,7 +634,7 @@ def _(mo):
     Gaussian and Student-t mixtures both define densities on $\mathbb{R}^d$ with respect to the same (Lebesgue)
     measure, so their log-likelihoods and information criteria **are** directly comparable. (This is not true across
     families with different base measures, such as the von Mises-Fisher mixture on the sphere -- see the
-    [next tutorial](17_von_mises_fisher.ipynb).) On the contaminated data the t model is favoured even after paying
+    [next tutorial](16_von_mises_fisher.ipynb).) On the contaminated data the t model is favoured even after paying
     for its extra $K$ degrees-of-freedom parameters:
     """)
     return
@@ -688,9 +688,9 @@ def _(mo):
     - The EM loop, `algorithm`, `temperature`, `step_size`, `n_init` and the information criteria are shared by every
       family through `BaseMixture`.
     - Labels, noise, missing values and your own families work here too:
-      `fit(X, labels=...)` for supervised and semi-supervised fitting ([18](18_semi_supervised_pu.ipynb)); `noise=True`,
+      `fit(X, labels=...)` for supervised and semi-supervised fitting ([18](17_semi_supervised_pu.ipynb)); `noise=True`,
       `missing='em'`, `frozen_components`, `sample_weight` and the `Component` protocol with `GenericMixture`
-      ([19](19_noise_missing_conditioning.ipynb)). Gibbs mode (`n_components=None`), the GPCM covariance codes and MAP/NIW priors stay
+      ([19](18_noise_missing_conditioning.ipynb)). Gibbs mode (`n_components=None`), the GPCM covariance codes and MAP/NIW priors stay
       `GaussianMixture`-only.
 
     **References**
@@ -699,8 +699,8 @@ def _(mo):
     - Liu, C. & Rubin, D. B. (1995). ML estimation of the t distribution using EM and its extensions, ECM and ECME. *Statistica Sinica*, 5, 19-39.
     - Biernacki, C., Celeux, G. & Govaert, G. (2000). Assessing a mixture model for clustering with the integrated completed likelihood. *IEEE TPAMI*, 22(7), 719-725.
 
-    **Next:** [17 -- Von Mises-Fisher Mixtures](17_von_mises_fisher.ipynb) for directional data, or
-    [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb).
+    **Next:** [16 -- Von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb) for directional data, or
+    [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb).
     """)
     return
 
