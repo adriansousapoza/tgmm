@@ -63,7 +63,7 @@ def _(mo):
     - how to recover a known degrees-of-freedom value, choose between `per_component` / `shared` / fixed `dof`, and
       compare information criteria with a Gaussian fit.
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb) and [02 -- The EM Algorithm](02_em_algorithm.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb) and [02 -- The EM Algorithm](01_introduction.ipynb).
     See also the [Other Mixture Families](../user-guide/other-mixture-families.md) user guide.
     """)
     return

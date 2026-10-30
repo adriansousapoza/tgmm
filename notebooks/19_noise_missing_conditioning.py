@@ -56,7 +56,7 @@ def _(mo):
     - how `frozen_components` pins a known component and how integer `sample_weight`s equal duplicating rows;
     - how to plug a hand-written component (here an exponential) into `GenericMixture` by implementing three methods.
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb), [02 -- The EM Algorithm](02_em_algorithm.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [02 -- The EM Algorithm](01_introduction.ipynb).
 
     **See also:** the [Noise, Missing Values and Conditioning](../user-guide/noise-missing-conditioning.md) user guide for the equations.
     """)

@@ -179,7 +179,7 @@ GaussianMixture(n_components=3, n_features=2, covariance_type='EVE')            
 ```
 
 Aliases: `'tied'` is `'tied_full'` and `'isotropic'` is `'spherical'`. The
-[covariance tutorial](../notebooks/15_covariance_models.ipynb) compares all of them visually.
+[covariance tutorial](../notebooks/02_covariance_types.ipynb) compares all of them visually.
 
 ## Estimation methods
 
@@ -295,8 +295,8 @@ numerator, so there $\varepsilon$ acts at its face value on the variance.)
     tgmm name; a conjugate prior would have to be derived per parameterization.
     `weight_concentration_prior` is independent of the covariance parameterization and works with all 14.
 
-See the [Priors tutorial](../notebooks/09_priors.ipynb) and the
-[NIW comparison](../notebooks/10_niw_priors_comparison.ipynb) for worked examples.
+See the [Priors tutorial](../notebooks/10_priors.ipynb) and the
+[NIW comparison](../notebooks/11_niw_priors_comparison.ipynb) for worked examples.
 
 ## Initialization strategies
 
@@ -552,7 +552,7 @@ print(result.best_.covariance_type_, result.best_.n_components)
 df = result.to_dataframe()   # every (K, covariance_type) with bic, aic, icl, log_likelihood, converged
 ```
 
-See the [Model Selection tutorial](../notebooks/13_model_selection.ipynb) and
+See the [Model Selection tutorial](../notebooks/14_model_selection.ipynb) and
 [Clustering Metrics](clustering-metrics.md) for label-free validity indices.
 
 ## Supervised and semi-supervised fitting
@@ -590,7 +590,7 @@ outside it (for noisy labels), and `components_per_class` (an int or a dict) giv
 Partial labels support `algorithm='em'`/`'cem'` only. See
 [Semi-Supervised and Positive-Unlabeled Fitting](semi-supervised-pu.md) for the full treatment,
 including `PositiveUnlabeledMixture`, and the
-[Supervised Fitting notebook](../notebooks/05_supervised_gmm.ipynb) and
+[Supervised Fitting notebook](../notebooks/07_supervised_gmm.ipynb) and
 [Semi-supervised notebook](../notebooks/18_semi_supervised_pu.ipynb) for worked examples.
 
 ## Gibbs sampling: inferring the number of components
@@ -678,7 +678,7 @@ print(gmm.active_)        # which of the tracked slots are in use
   `True` there. Each sweep is an $O(n)$ Python-level loop, so the EM default of 1000 can be very slow --
   pass an explicit, usually much smaller, `max_iter`. Supervised fitting (`labels=`) is not available.
 
-See the [Dirichlet Process Mixture notebook](../notebooks/11_dpgmm.ipynb) for the stick-breaking and
+See the [Dirichlet Process Mixture notebook](../notebooks/12_dpgmm.ipynb) for the stick-breaking and
 Gibbs-sampling math, a step-by-step walkthrough and a comparison against classical EM, and the
 [design document](https://github.com/adriansousapoza/tgmm/blob/main/docs/superpowers/specs/2026-07-28-dpgmm-design.md)
 for the full derivation.
@@ -791,7 +791,7 @@ outliers, _ = gmm.sample(20, std_range=(3.0, float('inf')))       # beyond 3 sta
 Constraints are applied by rejection sampling on the Mahalanobis distance
 $\sqrt{(x-\mu_k)^\top\Sigma_k^{-1}(x-\mu_k)}$; `confidence` $q$ is converted to a radius through the
 $\chi^2_d$ quantile, $\sqrt{\chi^2_{d,q}}$ (so in $d=2$, 95% is a radius of about 2.45, not 2). See the
-[Sampling tutorial](../notebooks/07_sampling.ipynb).
+[Sampling tutorial](../notebooks/04_sampling.ipynb).
 
 ## Large datasets: `batch_size`
 

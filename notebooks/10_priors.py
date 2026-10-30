@@ -52,7 +52,7 @@ def _(mo):
     - why an inverse-Wishart (or inverse-Gamma) prior is the natural choice for covariances, and how `covariance_prior` and `degrees_of_freedom_prior` change a fit
     - how the conjugate Normal-Inverse-Wishart (NIW) prior couples means and covariances, and the exact posterior update tgmm uses
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb), [02 -- EM Algorithm](02_em_algorithm.ipynb), [03 -- Visualization](03_visualise.ipynb) (for `plot_gmm`).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [02 -- EM Algorithm](01_introduction.ipynb), [03 -- Visualization](05_visualise.ipynb) (for `plot_gmm`).
     See also the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md).
     """)
     return
@@ -1029,7 +1029,7 @@ def _(mo):
     - The inverse-Wishart / inverse-Gamma family is used for covariances because its density vanishes at singular covariances and keeps a heavy right tail.
     - When both a mean and a covariance prior are given, tgmm uses the coupled NIW update with $\Sigma_k = \Psi_n/\nu_n$.
 
-    **Next:** [10 -- NIW Priors Comparison](10_niw_priors_comparison.ipynb) compares the coupled NIW update against separate priors in more detail, and [11 -- Dirichlet Process Mixtures](11_dpgmm.ipynb) uses the same NIW prior inside a nonparametric sampler.
+    **Next:** [10 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb) compares the coupled NIW update against separate priors in more detail, and [11 -- Dirichlet Process Mixtures](12_dpgmm.ipynb) uses the same NIW prior inside a nonparametric sampler.
     """)
     return
 

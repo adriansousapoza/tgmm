@@ -54,9 +54,9 @@ def _(mo):
     - Build a confusion matrix and classification report after matching cluster labels to true classes
     - Measure the divergence between two fitted mixtures with a Monte Carlo KL estimate
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb).
 
-    **See also:** the [Clustering Metrics user guide](../user-guide/clustering-metrics.md) and [13 -- Model Selection](13_model_selection.ipynb).
+    **See also:** the [Clustering Metrics user guide](../user-guide/clustering-metrics.md) and [13 -- Model Selection](14_model_selection.ipynb).
     """)
     return
 
@@ -240,7 +240,7 @@ def _(mo):
 
     As with BIC, lower AIC values suggest a model that achieves a good trade-off between complexity and fit quality.
 
-    **Note:** For selection criteria that account for cluster overlap, see ICL in [13 -- Model Selection](13_model_selection.ipynb). In practice, the ideal number of clusters is typically determined by seeking a maximum in the Silhouette Score, Calinski-Harabasz Score, and Dunn Index, while simultaneously looking for minima in the Davies-Bouldin Index, AIC, and BIC.
+    **Note:** For selection criteria that account for cluster overlap, see ICL in [13 -- Model Selection](14_model_selection.ipynb). In practice, the ideal number of clusters is typically determined by seeking a maximum in the Silhouette Score, Calinski-Harabasz Score, and Dunn Index, while simultaneously looking for minima in the Davies-Bouldin Index, AIC, and BIC.
     """)
     return
 
@@ -702,7 +702,7 @@ def _(mo):
     - Cluster indices are arbitrary, so predictions are matched to true classes before building a confusion matrix or classification report.
     - `kl_divergence_gmm` estimates $D_{KL}(P \parallel Q)$ between two fitted mixtures by Monte Carlo sampling.
 
-    **Next:** [13 -- Model Selection](13_model_selection.ipynb) for BIC, AIC and ICL sweeps with `select_model`, or [07 -- Sampling](07_sampling.ipynb).
+    **Next:** [13 -- Model Selection](14_model_selection.ipynb) for BIC, AIC and ICL sweeps with `select_model`, or [07 -- Sampling](04_sampling.ipynb).
     """)
     return
 

@@ -53,7 +53,7 @@ def _(mo):
     - how BIC, AIC and ICL differ, and why ICL prefers well-separated partitions
     - how to compute `icl` (hard and soft) on a single fitted model
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb), [06 -- Clustering Metrics](06_metrics.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [06 -- Clustering Metrics](08_metrics.ipynb).
     See also the [Clustering Metrics user guide](../user-guide/clustering-metrics.md).
     """)
     return
@@ -248,7 +248,7 @@ def _(mo):
     - Neither criterion is wrong -- they answer different questions: the best density estimate versus the best-separated partition.
     - `icl(X, mode='hard' | 'soft')` can be computed on any fitted model; it equals BIC when responsibilities are one-hot.
 
-    **Next:** [14 -- Stochastic EM, Annealing and SAEM](14_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [15 -- Covariance Structures](15_covariance_models.ipynb) for sweeping all 14 covariance models with `select_model`.
+    **Next:** [14 -- Stochastic EM, Annealing and SAEM](15_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [15 -- Covariance Structures](02_covariance_types.ipynb) for sweeping all 14 covariance models with `select_model`.
     """)
     return
 

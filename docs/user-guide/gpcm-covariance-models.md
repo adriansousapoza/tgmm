@@ -6,7 +6,7 @@ Parsimonious Clustering Models (GPCM) -- the same family `mclust` implements
 [Gaussian Mixture Model](gaussian-mixture.md#covariance-types-at-a-glance) guide. This
 page defines the models, states the M-step each one uses and why it is
 correct, and lists what is and isn't supported. The
-[Covariance Structures tutorial](../notebooks/15_covariance_models.ipynb)
+[Covariance Structures tutorial](../notebooks/02_covariance_types.ipynb)
 walks through the same material with runnable code, figures, and a numerical
 check of every formula below.
 

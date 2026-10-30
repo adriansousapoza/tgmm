@@ -598,7 +598,7 @@ print(gmm.icl(X, mode='soft'))      # entropy-form penalty instead of hard-argma
 
 ICL tends to prefer *fewer, better-separated* components than BIC on data
 with overlapping clusters -- see the
-[Model Selection notebook](../notebooks/13_model_selection.ipynb) for a
+[Model Selection notebook](../notebooks/14_model_selection.ipynb) for a
 worked BIC-vs-ICL comparison where they pick different `K`.
 
 ### `select_model`: sweeping `n_components` and `covariance_type`

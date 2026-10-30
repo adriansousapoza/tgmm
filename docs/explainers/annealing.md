@@ -132,4 +132,4 @@ mo.vstack([mo.md(f"**Final mean log-likelihood:** annealed {res['annealed'][4]:.
 * This page mirrors `tgmm`'s loop: the convergence test is only applied once $\beta=1$, and the reported value is the true
   mean log-likelihood of the final fit (while $\beta<1$, `tgmm` records the *tempered* normaliser).
 
-See the [Stochastic EM, Annealing & SAEM tutorial](../notebooks/14_stochastic_em.ipynb) for the same idea with `tgmm`.
+See the [Stochastic EM, Annealing & SAEM tutorial](../notebooks/15_stochastic_em.ipynb) for the same idea with `tgmm`.

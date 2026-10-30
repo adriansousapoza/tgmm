@@ -1,0 +1,1003 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo",
+#     "tgmm",
+#     "torch; sys_platform != 'emscripten'",
+#     "numpy",
+#     "matplotlib",
+#     "scipy",
+# ]
+# ///
+
+import marimo
+
+__generated_with = "0.25.2"
+app = marimo.App(width="medium")
+
+
+@app.cell
+def _():
+    # docs: hide-cell
+    import marimo as mo
+
+    return (mo,)
+
+
+@app.cell
+def _():
+    # docs: hide-cell
+    import os as _os
+
+    # TGMM_DOCS_FAST=1 (set by CI) shrinks the slow calls; the defaults below are the realistic local ones.
+    FAST = _os.environ.get("TGMM_DOCS_FAST") == "1"
+    MAX_ITER = 100 if FAST else 1000
+    N_INIT = 1 if FAST else 5
+    return FAST, MAX_ITER, N_INIT
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Introduction: Gaussian Mixtures and the EM Algorithm
+
+    This is the starting point for `tgmm`. It builds a small synthetic 2-D dataset from four Gaussians, explains what a Gaussian mixture model (GMM) is and how the Expectation-Maximization (EM) algorithm fits one, and then fits a `GaussianMixture` and goes through everything you do with a fitted model: predicting labels and soft assignments, scoring, sampling, inspecting the learned parameters, plotting, and saving.
+
+    The data are also *yours to change*: in the interactive version of this notebook (see the link at the top of the page) a panel lets you move the blobs, reshape their covariances, change how many points each has, and add or remove blobs. Everything below recomputes on your data.
+
+    **What you'll learn**
+
+    - How a mixture of Gaussians generates data, and why its maximum-likelihood fit has no closed form
+    - The E-step (responsibilities) and the M-step (weighted maximum-likelihood updates), and why each EM iteration never lowers the log-likelihood
+    - How a poor start is repaired iteration by iteration in 1-D, and how responsibilities and covariance ellipses evolve in 2-D
+    - Fit a `GaussianMixture` and use `predict`, `predict_proba`, `score_samples`, `score`, `bic`, `aic` and `sample`
+    - Inspect `weights_`, `means_` and `covariances_`, visualize them with `plot_gmm`, and `save`/`load` a model
+
+    **Prerequisites:** none.
+
+    **Where the details live:** the six classic and fourteen GPCM covariance structures are in [02 -- Covariance Types](02_covariance_types.ipynb); how EM is started (means, weights, covariances, `n_init`) in [03 -- Initialization](03_initialization.ipynb); drawing samples in [04 -- Sampling](04_sampling.ipynb).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Setup
+
+    The next cell imports what the notebook needs and fixes the random seeds. It expects `tgmm` to be importable: `pip install tgmm`, or `pip install -e .` from a clone of the repository. Opened with `marimo edit --sandbox`, the dependencies listed in the header of this file are installed automatically.
+    """)
+    return
+
+
+@app.cell
+def _():
+    import warnings
+
+    import numpy as np
+    import torch
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Ellipse
+    from scipy.optimize import linear_sum_assignment
+    from scipy.stats import norm
+
+    from tgmm import GaussianMixture, plot_gmm, generate_gmm_data
+
+    plt.rcParams['figure.dpi'] = 75  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    SEED = 0
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    COLORS = ['#e41a1c', '#ff7f00', '#984ea3', '#4daf4a', '#377eb8', '#a65628']  # one colour per blob / component (up to 6)
+
+    # Convergence warnings are expected below: several cells deliberately stop EM after one or a few iterations.
+    warnings.filterwarnings('ignore', message='.*EM did not converge.*')
+    return (
+        COLORS,
+        Ellipse,
+        GaussianMixture,
+        SEED,
+        device,
+        generate_gmm_data,
+        linear_sum_assignment,
+        norm,
+        np,
+        plot_gmm,
+        plt,
+        torch,
+    )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 1. The Data: Four Gaussians
+
+    The synthetic dataset combines four Gaussian blobs. Each is described by a centre, a covariance matrix and a number of points. Two are spherical (the second has fewer points), one is axis-aligned and elongated (diagonal covariance), and one is tilted (full covariance, correlated features):
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    default_n_samples = [800, 200, 1000, 1000]
+    default_centers = [np.array([0, 2]),
+                       np.array([2, -2]),
+                       np.array([0, 0]),
+                       np.array([2, 2])]
+    default_covs = [
+        0.6 * np.eye(2),                      # spherical covariance
+        0.3 * np.eye(2),                      # spherical covariance, fewer points
+        np.array([[1.2, 0], [0, 0.3]]),       # diagonal covariance
+        np.array([[0.12, 0.3], [0.3, 1.2]]),  # full covariance
+    ]
+    return default_centers, default_covs, default_n_samples
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Design your own blobs (interactive version)
+
+    In the interactive version of this notebook a panel appears here. For every blob it sets the centre $(x, y)$, the two standard deviations $s_1, s_2$ along the blob's axes, a rotation angle $\theta$ of those axes, and the number of points $n$. The covariance it builds is
+
+    $$
+    \Sigma = R(\theta)\,\operatorname{diag}(s_1^2,\, s_2^2)\,R(\theta)^{\top},
+    \qquad
+    R(\theta)=\begin{pmatrix}\cos\theta & -\sin\theta\\ \sin\theta & \cos\theta\end{pmatrix},
+    $$
+
+    so $s_1 = s_2$ gives a spherical blob, $\theta = 0$ an axis-aligned one, and a rotated, unequal pair a correlated ("full") one. The panel also has a **number of blobs** slider ($K = 1,\dots,6$) to add or remove blobs, and a **Reset** button that restores the four defaults above. While you leave it untouched, the data are exactly the four default blobs.
+
+    The points are drawn by `generate_gmm_data`, which samples $x=\mu_k+L_kz$ with $z\sim\mathcal N(0,I)$ and $L_kL_k^\top=\Sigma_k$ (a Cholesky factor), so the covariance you request is the covariance you get.
+    """)
+    return
+
+
+@app.cell
+def _(default_centers, default_covs, default_n_samples, mo, np):
+    # docs: hide-cell
+    def from_cov(_S):  # covariance -> (s1, s2, theta in degrees), rounded to the slider grid
+        _w, _V = np.linalg.eigh(np.asarray(_S, float))
+        _theta = np.degrees(np.arctan2(_V[1, 1], _V[0, 1])) % 180
+        _q = lambda v: round(round(float(v) / 0.005) * 0.005, 3)
+        return _q(np.sqrt(_w[1])), _q(np.sqrt(_w[0])), (round(float(_theta) * 2) / 2) % 180
+
+    def cov_from_params(s1, s2, theta):
+        _c, _s = np.cos(np.radians(theta)), np.sin(np.radians(theta))
+        _R = np.array([[_c, -_s], [_s, _c]])
+        return _R @ np.diag([s1 ** 2, s2 ** 2]) @ _R.T
+
+    # (x, y, s1, s2, theta, n) per blob: the four defaults, then two spare blobs for "add a blob"
+    DEFAULT_ROWS = [(*[float(v) for v in _c], *from_cov(_S), float(_n)) for _c, _S, _n in zip(default_centers, default_covs, default_n_samples)]
+    DEFAULT_ROWS += [(-3.0, -3.0, 0.6, 0.6, 0.0, 300.0), (4.0, 0.0, 0.5, 0.5, 0.0, 300.0)]
+
+    def blob_spec(rows, k):
+        """(centers, covs, n_samples) for the first k blobs. Untouched defaults give the exact default covariances."""
+        if k == len(default_n_samples) and [list(_r) for _r in rows[:k]] == [list(_r) for _r in DEFAULT_ROWS[:k]]:
+            return default_centers, default_covs, default_n_samples
+        return ([np.array(_r[:2]) for _r in rows[:k]], [cov_from_params(*_r[2:5]) for _r in rows[:k]], [int(_r[5]) for _r in rows[:k]])
+
+    reset_blobs = mo.ui.button(label='Reset to the default four blobs')
+    return DEFAULT_ROWS, blob_spec, reset_blobs
+
+
+@app.cell
+def _(DEFAULT_ROWS, mo, reset_blobs):
+    # docs: hide-cell
+    _ = reset_blobs.value  # pressing Reset re-runs this cell, which recreates every control at its default
+    _spec = [('x', -6, 6, 0.25), ('y', -6, 6, 0.25), ('s₁', 0.05, 3, 0.005), ('s₂', 0.05, 3, 0.005), ('θ (°)', 0, 179.5, 0.5), ('n', 50, 1500, 50)]
+    blob_sliders = [[mo.ui.slider(_lo, _hi, step=_st, value=_v, label=f'{_nm}{_i + 1}', debounce=True, show_value=True)
+                     for (_nm, _lo, _hi, _st), _v in zip(_spec, DEFAULT_ROWS[_i])] for _i in range(6)]
+    k_blobs = mo.ui.slider(1, 6, step=1, value=4, label='number of blobs K', show_value=True)
+    return blob_sliders, k_blobs
+
+
+@app.cell
+def _(blob_sliders, k_blobs, mo, reset_blobs):
+    # docs: hide-cell
+    mo.vstack([
+        mo.hstack([k_blobs, reset_blobs], justify='start'),
+        *[mo.vstack([mo.md(f'**Blob {_i + 1}**'), mo.hstack(blob_sliders[_i][:3], justify='start'), mo.hstack(blob_sliders[_i][3:], justify='start')])
+          for _i in range(int(k_blobs.value))],
+    ])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The cell below turns the blob description into data with `generate_gmm_data`: `centers`, `covs` and `n_samples` are the default four blobs unless you edited them in the panel above.
+    """)
+    return
+
+
+@app.cell
+def _(SEED, blob_sliders, blob_spec, device, generate_gmm_data, k_blobs):
+    centers, covs, n_samples = blob_spec([[_w.value for _w in _row] for _row in blob_sliders], int(k_blobs.value))
+
+    # Generate the synthetic data (a seeded draw: the same blobs always give the same points)
+    X_tensor, y_tensor = generate_gmm_data(centers, covs, n_samples, device=device, random_state=SEED)
+
+    # Convert to numpy for plotting
+    X = X_tensor.cpu().numpy()
+    labels = y_tensor.cpu().numpy()
+    n_components = len(n_samples)
+    legend_labels = [f'Component {i+1}' for i in range(n_components)]
+    return (
+        X,
+        X_tensor,
+        centers,
+        covs,
+        labels,
+        legend_labels,
+        n_components,
+        n_samples,
+    )
+
+
+@app.cell
+def _(X, labels, legend_labels, plot_gmm, plt):
+    plot_gmm(X=X, true_labels=labels, title='Original Data', legend_labels=legend_labels)
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2. The Model: A Mixture of Gaussians
+
+    A Gaussian mixture says that each data point was generated in two stages. First pick one of $K$ components at random, then draw the point from that component's Gaussian. Formally there is a hidden (latent) label $z_i\in\{1,\dots,K\}$ for each point $x_i\in\mathbb R^d$ with
+
+    $$
+    p(z_i = k) = \pi_k, \qquad \pi_k\ge 0,\quad \sum_{k=1}^K \pi_k = 1,
+    $$
+
+    and, given the label,
+
+    $$
+    p(x_i \mid z_i = k) = \mathcal{N}(x_i \mid \mu_k, \Sigma_k),
+    \qquad
+    \mathcal{N}(x\mid\mu,\Sigma)=\frac{1}{(2\pi)^{d/2}\,|\Sigma|^{1/2}}\exp\!\Big(-\tfrac12 (x-\mu)^\top\Sigma^{-1}(x-\mu)\Big).
+    $$
+
+    Marginalizing out the label we cannot observe gives the density that is actually fitted to the data:
+
+    $$
+    p(x_i \mid \theta) = \sum_{k=1}^K \pi_k \, \mathcal{N}(x_i \mid \mu_k, \Sigma_k),
+    \qquad \theta = \{\pi_k, \mu_k, \Sigma_k\}_{k=1}^K .
+    $$
+
+    The weights $\pi_k$ are the mixing proportions (the fraction of points each component generates, here $n_k/n$ for the data above), $\mu_k$ the centres and $\Sigma_k$ the shapes. *Clustering* means inferring the hidden label $z_i$ of each point.
+
+    **Maximum likelihood** asks for the parameters that make the $n$ observed points most probable:
+
+    $$
+    \theta^\star=\arg\max_\theta\ \ell(\theta),\qquad
+    \ell(\theta)=\sum_{i=1}^n \log \sum_{k=1}^K \pi_k \, \mathcal{N}(x_i \mid \mu_k, \Sigma_k).
+    $$
+
+    The sum *inside* the logarithm is the obstacle: unlike for a single Gaussian there is no closed-form maximizer. If the labels *were* observed, the **complete-data** log-likelihood
+
+    $$
+    \ell_c(\theta)=\sum_{i,k}\mathbb 1[z_i=k]\,\big(\log\pi_k+\log\mathcal N(x_i\mid\mu_k,\Sigma_k)\big)
+    $$
+
+    would split into one independent, closed-form problem per component. **Expectation-Maximization** exploits exactly this: it alternates between guessing the labels (softly) and solving the easy complete-data problem.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 3. The EM Algorithm
+
+    ### Notation
+
+    With $r_{ik}$ the responsibility of component $k$ for sample $i$ (defined next), the M-step needs only three summaries of the data per component, its **sufficient statistics**:
+
+    $$
+    n_k=\sum_i r_{ik},\qquad
+    \bar y_k=\frac{1}{n_k}\sum_i r_{ik}\,x_i,\qquad
+    W_k=\sum_i r_{ik}\,(x_i-\bar y_k)(x_i-\bar y_k)^\top .
+    $$
+
+    $n_k$ is the "effective number of points" of component $k$, $\bar y_k$ the responsibility-weighted mean and $W_k$ the responsibility-weighted scatter matrix.
+
+    ### E-step: soft-assign points to components
+
+    Using Bayes' rule, compute the posterior probability ("responsibility") that component $k$ generated point $x_i$ under the *current* parameters:
+
+    $$
+    r_{ik}=p(z_i=k\mid x_i,\theta)=
+    \frac{\pi_k\,\mathcal{N}(x_i\mid\mu_k,\Sigma_k)}{\sum_{j}\pi_j\,\mathcal{N}(x_i\mid\mu_j,\Sigma_j)}
+    =\operatorname{softmax}_k\!\big(\log\pi_k+\log\mathcal{N}(x_i\mid\mu_k,\Sigma_k)\big).
+    $$
+
+    Each row of $r$ sums to 1: a *soft*, probabilistic assignment, not a hard one. `tgmm` evaluates this in log space (a Cholesky factor $\Sigma_k=L_kL_k^\top$ gives $\log|\Sigma_k|=2\sum\log\operatorname{diag}L_k$ and the Mahalanobis term by a triangular solve; the normalizer is a `logsumexp`), which keeps it stable even when a point is far from every component. The same normalizer is the per-sample log-likelihood $\log p(x_i\mid\theta)$, whose mean is `lower_bound_` (and what `score` returns).
+
+    ### M-step: re-estimate the parameters from the soft assignments
+
+    Treat $r_{ik}$ as weights and refit each component to the weighted points:
+
+    $$
+    \pi_k=\frac{n_k}{n},\qquad
+    \mu_k=\bar y_k,\qquad
+    \Sigma_k=\frac{W_k}{n_k}\ \ (+\ \varepsilon I),
+    $$
+
+    where $\varepsilon$ is `reg_covar`, a small value added to keep $\Sigma_k$ positive definite. These are the ordinary Gaussian maximum-likelihood formulas (sample mean, sample covariance, class proportion), each point weighted by $r_{ik}$ instead of being hard-assigned to one component.
+
+    Why $\Sigma_k=W_k/n_k$: the $\Sigma_k$-dependent part of the objective is $-\tfrac12\big[n_k\log|\Sigma_k|+\operatorname{tr}(\Sigma_k^{-1}W_k)\big]$ at $\mu_k=\bar y_k$, and its maximizer over all positive definite matrices is the weighted sample covariance. Constraining $\Sigma_k$ to a smaller family (diagonal, spherical, shared between components, ...) changes only this one update; see [02 -- Covariance Types](02_covariance_types.ipynb).
+
+    ### Repeat until convergence
+
+    Alternate the two steps until the log-likelihood $\ell(\theta)$ improves by less than `tol` (relative), or `max_iter` iterations have run. `converged_` tells you which happened, and `n_iter_` how many iterations were used.
+
+    ### Parameter counts
+
+    The number of free parameters, which `bic` and `aic` use, is $p=(K-1)+Kd+p_\Sigma$: $K-1$ weights, $Kd$ mean coordinates, and $p_\Sigma$ covariance parameters, which for `covariance_type='full'` is $K\,d(d+1)/2$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Why does it work?
+
+    For any distribution $q_{ik}$ over the labels, Jensen's inequality gives a lower bound on the log-likelihood (the *evidence lower bound*, ELBO):
+
+    $$
+    \ell(\theta)\ \ge\ \mathcal F(q,\theta)=\sum_{i,k}q_{ik}\log\frac{\pi_k\,\mathcal N(x_i\mid\mu_k,\Sigma_k)}{q_{ik}},
+    $$
+
+    with equality exactly when $q_{ik}=p(z_i=k\mid x_i,\theta)$. EM alternates
+
+    1. **E-step:** set $q$ to that posterior, which makes the bound *tight* at the current parameters $\theta^{(t)}$;
+    2. **M-step:** maximize $\mathcal F(q,\theta)$ over $\theta$.
+
+    Then
+
+    $$
+    \ell(\theta^{(t+1)})\ \ge\ \mathcal F(q,\theta^{(t+1)})\ \ge\ \mathcal F(q,\theta^{(t)})\ =\ \ell(\theta^{(t)}),
+    $$
+
+    so **the log-likelihood never decreases** from one iteration to the next. That guarantees convergence to a stationary point, in practice a **local** maximum, so the result depends on where EM starts. That is why initialization and `n_init` restarts matter; they are the subject of [03 -- Initialization](03_initialization.ipynb). To make the dependence, and the improvement itself, visible, the next two sections start EM from a deliberately poor guess and watch it recover: first in one dimension, where the fitted curves can be drawn directly against the data, then in two dimensions on the blobs above.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 4. A 1-D Example
+
+    We start with the simplest case: one feature ($d=1$), generated from three true Gaussian components so that there is ground truth to compare the fit with. (This section and the next use `tgmm`'s internal `_e_step` / `_m_step` methods so each iteration is visible, with hand-rolled plotting so you can see exactly what is drawn; [05 -- Visualization](05_visualise.ipynb) introduces `plot_gmm`, which is used for the rest of this notebook.)
+    """)
+    return
+
+
+@app.cell
+def _(norm, np, plt):
+    # Generate sample data with real means and stds
+    real_means = [-2, 2, 6]
+    real_stds = [2, 1, 3]
+    cluster_sizes = [2000, 1000, 3000]
+    data1 = np.random.normal(loc=real_means[0], scale=real_stds[0], size=cluster_sizes[0])
+    data2 = np.random.normal(loc=real_means[1], scale=real_stds[1], size=cluster_sizes[1])
+    data3 = np.random.normal(loc=real_means[2], scale=real_stds[2], size=cluster_sizes[2])
+    data = np.concatenate([data1, data2, data3])
+    total_size = sum(cluster_sizes)
+    # True mixing coefficients based on the actual data proportions
+    true_taus = [size / total_size for size in cluster_sizes]
+    plt.figure(figsize=(8, 4.5))
+    plt.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
+    _x = np.linspace(min(data), max(data), 1000)
+    # Plotting the histogram and the weighted Gaussians
+    _colors = ['r', 'b', 'g']
+    _gaussian_real = 0
+    for _real_mean, _real_std, _true_tau, _color in zip(real_means, real_stds, true_taus, _colors):
+        plt.plot(_x, _true_tau * norm.pdf(_x, _real_mean, _real_std), color=_color, linestyle='--', label='Gaussian (real)')
+        _gaussian_real += _true_tau * norm.pdf(_x, _real_mean, _real_std)
+    plt.plot(_x, _gaussian_real, 'k--', label='GMM (real)')
+    plt.title('Data and Gaussian Distributions')
+    plt.legend()
+    plt.gcf()
+    return data, real_means, real_stds, true_taus
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Step 0: a (deliberately) bad initialization
+
+    We initialize all three components close together around $9$ to $10$, even though the true components are centred at $-2$, $2$ and $6$, and give them a shared, overly wide initial standard deviation of $2.5$. `_allocate_parameters` sets these initial parameters without running any EM iteration, and `_e_step` computes the responsibilities $r_{ik}$ from the formula above using only this initial guess.
+
+    Because the initial means sit together and far from where two of the three true clusters are, the responsibilities are not yet informative. This is the starting point EM has to improve on.
+    """)
+    return
+
+
+@app.cell
+def _(
+    GaussianMixture,
+    data,
+    norm,
+    np,
+    plt,
+    real_means,
+    real_stds,
+    torch,
+    true_taus,
+):
+    # Convert data to a torch tensor
+    X_1d = torch.tensor(data, dtype=torch.float32).reshape(-1, 1)
+    initial_means = torch.tensor([[9.5], [10.0], [10.5]], dtype=torch.float32)
+    # Initial parameters for the Gaussian Mixture Model
+    initial_covariances = torch.tensor([[[2.5 ** 2]], [[2.5 ** 2]], [[2.5 ** 2]]], dtype=torch.float32)
+    initial_weights = torch.tensor([0.33, 0.33, 0.33], dtype=torch.float32)
+    gmm_init = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu')
+    # Initialize without fitting, then do an E-step with the initial parameters
+    gmm_init._allocate_parameters(X_1d, set_random_state=False)
+    _r, _ = gmm_init._e_step(X_1d)
+    _fig, _axs = plt.subplots(1, 2, figsize=(14, 4.5))
+    _axs[0].hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
+    _x = np.linspace(min(data), max(data), 1000)
+    _colors = ['r', 'b', 'g']
+    _gaussian_real = 0
+    _gaussian_est = 0
+    for _i, (_mean, _cov, _weight, _real_mean, _real_std, _true_tau, _color) in enumerate(zip(gmm_init.means_, gmm_init.covariances_, gmm_init.weights_, real_means, real_stds, true_taus, _colors)):
+        _std = torch.sqrt(_cov[0, 0]).item()
+        _mean_val = _mean[0].item()
+        _axs[0].plot(_x, _weight.item() * norm.pdf(_x, _mean_val, _std), color=_color, linestyle='-', label='Gaussian (initial guess)')
+        _gaussian_est += _weight.item() * norm.pdf(_x, _mean_val, _std)
+        _axs[0].plot(_x, _true_tau * norm.pdf(_x, _real_mean, _real_std), color=_color, linestyle='--', label='Gaussian (real)')
+        _gaussian_real += _true_tau * norm.pdf(_x, _real_mean, _real_std)
+    _axs[0].plot(_x, _gaussian_est, 'k-', label='GMM (initial guess)')
+    _axs[0].plot(_x, _gaussian_real, 'k--', label='GMM (real)')
+    _axs[0].set_title('Initial Guess and Real Gaussian Distributions')
+    _axs[0].legend()
+    for _i in range(3):
+        _axs[1].scatter(data, _r[:, _i].cpu().numpy(), color=_colors[_i], label=f'Responsibilities of cluster {_i + 1}', alpha=0.6, marker='x')
+    _axs[1].set_title('Responsibilities from the E-step')
+    _axs[1].legend()
+    plt.suptitle('Initial Guess and Responsibilities from the E-step')
+    plt.gcf()
+    return X_1d, initial_covariances, initial_means, initial_weights
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### One EM iteration
+
+    Running `fit(..., max_iter=1)` performs exactly one E-step followed by one M-step. Compare the responsibilities and fitted Gaussians below with the previous cell: even a single iteration pulls the estimated components substantially closer to the data.
+    """)
+    return
+
+
+@app.cell
+def _(
+    GaussianMixture,
+    X_1d,
+    data,
+    initial_covariances,
+    initial_means,
+    initial_weights,
+    norm,
+    np,
+    plt,
+    real_means,
+    real_stds,
+    torch,
+    true_taus,
+):
+    # A fresh GMM, fitted for one EM iteration only
+    gmm_one_iter = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu', max_iter=1)
+    gmm_one_iter.fit(X_1d)
+    _r, _ = gmm_one_iter._e_step(X_1d)
+    _fig, _axs = plt.subplots(1, 2, figsize=(14, 4.5))
+    _colors = ['r', 'b', 'g']
+    for _i in range(3):
+        _axs[0].scatter(data, _r[:, _i].cpu().numpy(), color=_colors[_i], label=f'Responsibility of cluster {_i + 1}', alpha=0.6, marker='x')
+    _axs[0].set_title('Responsibilities from the E-step')
+    _axs[0].legend()
+    _axs[1].hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
+    _x = np.linspace(min(data), max(data), 1000)
+    _gaussian_est = 0
+    _gaussian_real = 0
+    for _i, (_mean, _cov, _weight, _real_mean, _real_std, _true_tau, _color) in enumerate(zip(gmm_one_iter.means_, gmm_one_iter.covariances_, gmm_one_iter.weights_, real_means, real_stds, true_taus, _colors)):
+        _std = torch.sqrt(_cov[0, 0]).item()
+        _mean_val = _mean[0].item()
+        _axs[1].plot(_x, _weight.item() * norm.pdf(_x, _mean_val, _std), color=_color, linestyle='-', label='Gaussian (estimated)')
+        _gaussian_est += _weight.item() * norm.pdf(_x, _mean_val, _std)
+        _axs[1].plot(_x, _true_tau * norm.pdf(_x, _real_mean, _real_std), color=_color, linestyle='--', label='Gaussian (real)')
+        _gaussian_real += _true_tau * norm.pdf(_x, _real_mean, _real_std)
+    _axs[1].plot(_x, _gaussian_est, 'k-', label='GMM (estimated)')
+    _axs[1].plot(_x, _gaussian_real, 'k--', label='GMM (real)')
+    _axs[1].set_title('Data and Gaussian Distributions')
+    _axs[1].legend()
+    _fig.suptitle('Responsibilities and Gaussian Distributions after one EM iteration')
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Full EM run: watching convergence
+
+    Now we run EM to (near) convergence, one E-step and M-step at a time, recording $(\mu_k,\sigma_k,\pi_k)$ and the log-likelihood after every iteration. The three panels below overlay each component's trajectory on the **log-likelihood surface** as a function of that component's $(\text{mean},\text{std})$ (holding the other two components at their converged values). It is the surface EM is climbing.
+    """)
+    return
+
+
+@app.cell
+def _(
+    FAST,
+    GaussianMixture,
+    MAX_ITER,
+    X_1d,
+    initial_covariances,
+    initial_means,
+    initial_weights,
+    np,
+    torch,
+):
+    gmm_full = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu')
+    gmm_full._allocate_parameters(X_1d, set_random_state=False)
+    means = [initial_means.squeeze().numpy()]  # parameters after iteration 0 (the initial guess), 1, 2, ...
+    stds = [np.sqrt(initial_covariances[:, 0, 0].numpy())]
+    taus = [initial_weights.numpy()]
+    _resp, _lp = gmm_full._e_step(X_1d)
+    ll_history = [_lp.mean().item()]  # average log-likelihood of the initial guess
+    for _step in range(MAX_ITER):
+        gmm_full._m_step(X_1d, _resp)  # M-step from the current responsibilities ...
+        _resp, _lp = gmm_full._e_step(X_1d)  # ... then the E-step under the updated parameters
+        means.append(gmm_full.means_.squeeze().cpu().numpy())
+        stds.append(torch.sqrt(gmm_full.covariances_[:, 0, 0]).cpu().numpy())
+        taus.append(gmm_full.weights_.cpu().numpy())
+        ll_history.append(_lp.mean().item())
+        if abs(ll_history[-1] - ll_history[-2]) < 1e-9:
+            break
+    means, stds, taus = np.array(means), np.array(stds), np.array(taus)
+    ll_history = np.array(ll_history)
+    GRID = 25 if FAST else 50
+    print(f'EM iterations run: {len(ll_history) - 1}')
+    print(f'Average log-likelihood: {ll_history[0]:.4f} (initial guess) -> {ll_history[-1]:.4f} (final)')
+    print(f'Never decreases (largest drop between iterations: {max(0.0, -np.diff(ll_history).min()):.2e})')
+    return GRID, gmm_full, ll_history, means, stds, taus
+
+
+@app.cell
+def _(ll_history, plt):
+    plt.figure(figsize=(7, 3.5))
+    plt.plot(ll_history, color='k')
+    plt.xscale('symlog')
+    plt.xlabel('EM iteration')
+    plt.ylabel('Average log-likelihood')
+    plt.title('The log-likelihood never decreases')
+    plt.grid(alpha=0.3)
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(GRID, data, means, norm, np, plt, real_means, real_stds, stds, taus):
+    def log_likelihood(data, means_np, stds_np, taus_np):
+        likelihood = np.zeros((data.shape[0], len(means_np)))
+        for i in range(len(means_np)):
+            likelihood[:, i] = norm.pdf(data, means_np[i], stds_np[i])
+        total_likelihood = np.dot(likelihood, taus_np)
+        return np.sum(np.log(total_likelihood))
+
+    mean_range = np.linspace(min(data), max(data), GRID)
+    std_range = np.linspace(0.01, 5, GRID)
+    _surfaces = [np.zeros((len(std_range), len(mean_range))) for _ in range(3)]
+    for _i, _m in enumerate(mean_range):
+        for _j, _s in enumerate(std_range):
+            for _k in range(3):  # vary component _k's (mean, std); the others stay at their converged values
+                _means_k = list(means[-1])
+                _stds_k = list(stds[-1])
+                _means_k[_k], _stds_k[_k] = _m, _s
+                _surfaces[_k][_j, _i] = log_likelihood(data, _means_k, _stds_k, taus[-1])
+    _fig, _axs = plt.subplots(1, 3, figsize=(18, 4.8))
+    for _k in range(3):
+        _cs = _axs[_k].contourf(mean_range, std_range, _surfaces[_k], cmap='viridis')
+        _fig.colorbar(_cs, ax=_axs[_k]).ax.set_ylabel('Log-Likelihood')
+        _axs[_k].set_title(f'Log-Likelihood vs. Mean{_k + 1} and Std{_k + 1}')
+        _axs[_k].set_xlabel('Mean')
+        _axs[_k].set_ylabel('Standard Deviation')
+        _axs[_k].scatter(real_means[_k], real_stds[_k], color='red', label=f'Real Mean{_k + 1} and Std{_k + 1}', s=50, marker='o')
+        _axs[_k].scatter(means[0, _k], stds[0, _k], color='red', label=f'Initial Mean{_k + 1} and Std{_k + 1}', s=100, marker='*')
+        _axs[_k].plot(means[:, _k], stds[:, _k], color='magenta', label=f'Estimated Mean{_k + 1} and Std{_k + 1}')
+        _axs[_k].legend()
+    plt.tight_layout()
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(data, gmm_full, norm, np, plt, real_means, real_stds, torch, true_taus):
+    _fig, _ax = plt.subplots(1, 1, figsize=(8, 4.5))
+    _ax.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
+    _gaussian_est = 0
+    _gaussian_real = 0
+    _x = np.linspace(min(data), max(data), 1000)
+    _colors = ['r', 'b', 'g']
+    for _i, (_mean, _cov, _weight, _real_mean, _real_std, _color) in enumerate(zip(gmm_full.means_, gmm_full.covariances_, gmm_full.weights_, real_means, real_stds, _colors)):
+        _std = torch.sqrt(_cov[0, 0]).item()
+        _mean_val = _mean[0].item()
+        _ax.plot(_x, _weight.item() * norm.pdf(_x, _mean_val, _std), label=f'Gaussian {_i + 1} (estimated)', color=_color, linestyle='-')
+        _ax.plot(_x, true_taus[_i] * norm.pdf(_x, _real_mean, _real_std), label=f'Gaussian {_i + 1} (real)', color=_color, linestyle='--')
+        _gaussian_est += _weight.item() * norm.pdf(_x, _mean_val, _std)
+        _gaussian_real += true_taus[_i] * norm.pdf(_x, _real_mean, _real_std)
+    _ax.plot(_x, _gaussian_est, 'k-', label='GMM (estimated)')
+    _ax.plot(_x, _gaussian_real, 'k--', label='GMM (real)')
+    _ax.set_title('Data and Gaussian Distributions after convergence')
+    _ax.legend()
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 5. EM in 2-D on Your Blobs
+
+    The same algorithm works in $d>1$ dimensions; only the Gaussian density changes, to the multivariate normal of section 2, with each $\Sigma_k$ now a full $d\times d$ covariance matrix. The E-step and M-step formulas are unchanged.
+
+    We fit one component per blob to the data of section 1 (the default four blobs, or whatever you designed), starting from means placed on a horizontal line *above* the data, and look at how the responsibilities (soft assignments), the resulting hard assignments and the covariance ellipses evolve. The helper below draws one row for a given iteration: **(left)** each point's responsibility per component, **(middle)** the hard assignment (arg-max responsibility, used only for colouring) in data space, and **(right)** the trajectory of each component's mean and its current $1\sigma$ covariance ellipse, with the initial means marked `x` and the current means `o`.
+    """)
+    return
+
+
+@app.cell
+def _(COLORS, Ellipse, torch):
+    def plot_2d_gmm_resp(snapshot, X, em_means, axs, row):
+        """One row of the 2-D EM figure: responsibilities, hard assignments, means trace and covariance ellipses."""
+        _means, _covs, _resp, _iteration = snapshot
+        _K = _means.shape[0]
+        for _k in range(_K):
+            axs[row, 0].plot(_resp[:, _k].cpu().numpy(), label=f'Cluster {_k + 1}', color=COLORS[_k], marker='.', markersize=2, linestyle='None', alpha=0.5)
+        axs[row, 0].legend(markerscale=4)
+        axs[row, 0].set_title(f'Responsibilities, iteration {_iteration}')
+        axs[row, 0].set_xlabel('Data point index')
+        axs[row, 0].set_ylabel('Probability')
+
+        # colour each point by the component with the highest responsibility
+        _assignment = _resp.cpu().max(dim=1)[1]
+        axs[row, 1].scatter(X[:, 0], X[:, 1], c=[COLORS[_c] for _c in _assignment], s=10, alpha=0.5)
+        axs[row, 1].set_title(f'Hard assignments, iteration {_iteration}')
+        axs[row, 1].set_xlabel('X1')
+        axs[row, 1].set_ylabel('X2')
+
+        # data, trace of the means, and a 1-sigma ellipse per component
+        axs[row, 2].scatter(X[:, 0], X[:, 1], c='gray', s=5, alpha=0.5)
+        for _k in range(_K):
+            _eigvals, _eigvecs = torch.linalg.eigh(_covs[_k].cpu())
+            _angle = torch.atan2(_eigvecs[1, 0], _eigvecs[0, 0]).item() * 180.0 / torch.pi
+            _width, _height = 2 * torch.sqrt(_eigvals).numpy()
+            axs[row, 2].add_patch(Ellipse(_means[_k].cpu().numpy(), _width, _height, angle=_angle, edgecolor=COLORS[_k], facecolor='none', lw=2))
+            _trace = torch.stack([_m[_k] for _m in em_means[:_iteration + 1]]).cpu().numpy()
+            axs[row, 2].plot(_trace[:, 0], _trace[:, 1], color=COLORS[_k], linestyle='--')
+            axs[row, 2].scatter(_trace[-1, 0], _trace[-1, 1], color=COLORS[_k], marker='o', s=50)
+            axs[row, 2].scatter(_trace[0, 0], _trace[0, 1], color=COLORS[_k], marker='x', s=100)
+        axs[row, 2].set_title(f'GMM, iteration {_iteration}')
+        axs[row, 2].set_xlabel('X1')
+        axs[row, 2].set_ylabel('X2')
+        axs[row, 2].scatter([], [], color='black', marker='x', s=100, label='Initial means')
+        axs[row, 2].scatter([], [], color='black', marker='o', s=50, label='Current means')
+        axs[row, 2].plot([], [], color='black', linestyle='-', label='Gaussian components')
+        axs[row, 2].plot([], [], color='black', linestyle='--', label='Trace of means')
+        axs[row, 2].legend()
+
+    return (plot_2d_gmm_resp,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Running EM and plotting snapshots
+
+    One E-step and M-step at a time, we snapshot the state after iterations 1 and 5 and at the end (convergence, or the iteration cap in the fast docs build). Watch how the soft responsibilities sharpen into confident assignments as the ellipses settle onto the blobs.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, MAX_ITER, X_tensor, device, n_components, torch):
+    # initial means: n_components points on a horizontal line above the data
+    means_init = torch.stack([torch.linspace(-1.0, 2.0, n_components), torch.full((n_components,), 5.0)], dim=1).to(device)
+    gmm_steps = GaussianMixture(n_features=2, n_components=n_components, covariance_type='full', init_means=means_init, device=device)
+    gmm_steps._allocate_parameters(X_tensor)
+    em_means = [gmm_steps.means_.clone()]  # means after iteration 0 (initial), 1, 2, ...
+    snapshots = {}
+    _resp, _lp = gmm_steps._e_step(X_tensor)
+    _ll_prev = _lp.mean().item()
+    for _it in range(1, MAX_ITER + 1):
+        gmm_steps._m_step(X_tensor, _resp)
+        _resp, _lp = gmm_steps._e_step(X_tensor)
+        em_means.append(gmm_steps.means_.clone())
+        _ll = _lp.mean().item()
+        _done = abs(_ll - _ll_prev) < 1e-6 or _it == MAX_ITER
+        if _it in (1, 5) or _done:
+            snapshots[_it] = (gmm_steps.means_.clone(), gmm_steps.covariances_.clone(), _resp.clone(), _it)
+        if _done:
+            break
+        _ll_prev = _ll
+    print(f'Snapshots after iterations: {sorted(snapshots)}')
+    return em_means, snapshots
+
+
+@app.cell
+def _(X, em_means, plot_2d_gmm_resp, plt, snapshots):
+    _fig, _axs = plt.subplots(len(snapshots), 3, figsize=(12, 3.3 * len(snapshots)), squeeze=False)
+    for _row, _it in enumerate(sorted(snapshots)):
+        plot_2d_gmm_resp(snapshots[_it], X, em_means, _axs, _row)
+    plt.tight_layout()
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 6. Fitting with `GaussianMixture`
+
+    Everything above can be done with one call. `GaussianMixture(n_components=K).fit(X)` runs EM for you. Here we choose `n_components` to be the number of blobs, use a random initialization (`init_means='random'`) and restart EM several times (`n_init=2 * N_INIT`: ten restarts by default, one in the fast docs build) so that it is less likely to end in a poor local optimum. `verbose=True` and `verbose_interval=100` print the progress. (How the starting means, weights and covariances can be chosen is the subject of [03 -- Initialization](03_initialization.ipynb).)
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, N_INIT, X_tensor, device, n_components, np, torch):
+    gmm = GaussianMixture(n_components=n_components, init_means='random', n_init=2 * N_INIT, verbose=True, verbose_interval=100)
+    gmm.fit(X_tensor)
+    y_pred = gmm.predict(X_tensor)
+    log_probs = gmm.score_samples(X_tensor)
+    probs = gmm.predict_proba(X_tensor)
+    probs = probs.detach()
+    n_samples_to_generate = len(X_tensor)
+    gmm_samples, gmm_labels = gmm.sample(n_samples_to_generate)
+    gmm_samples = gmm_samples.detach().cpu().numpy()
+    gmm_labels = gmm_labels.detach().cpu().numpy()
+    generated_probs = gmm.predict_proba(torch.tensor(gmm_samples, dtype=torch.float32).to(device))
+    generated_probs = generated_probs.detach().cpu().numpy()
+    print('Mean per-sample log-likelihood:                        ', gmm.score(X_tensor))
+    print('Mean per-sample log-likelihood (torch.mean(log_probs)):', torch.mean(log_probs).item())
+    print('Lower bound:                                           ', gmm.lower_bound_)
+    for _i in range(probs.shape[0]):
+        assert np.isclose(torch.sum(probs[_i]).item(), 1.0), f'Probabilities for sample {_i} do not sum to 1'
+    print('Number of iterations:                                  ', gmm.n_iter_)
+    print('Converged:                                             ', gmm.converged_)
+    return generated_probs, gmm, gmm_samples, log_probs, probs, y_pred
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### What a fitted model can do
+
+    - **`predict(X)`**: hard cluster labels, $\arg\max_k r_{ik}$.
+    - **`predict_proba(X)`**: the responsibilities $r_{ik}$ (soft assignments); every row sums to 1, which the cell above asserts for all samples.
+    - **`score_samples(X)`**: the per-sample log-likelihood $\log p(x_i\mid\theta)$.
+    - **`score(X)`**: its average, the number EM maximizes. It equals `lower_bound_` for the training data.
+    - **`bic(X)`, `aic(X)`**: information criteria $-2\,n\,\text{score}+p\log n$ and $-2\,n\,\text{score}+2p$ with $p$ the parameter count from section 3 (lower is better; see [14 -- Model Selection](14_model_selection.ipynb)).
+    - **`sample(n)`**: new points and their component labels drawn from the fitted mixture (more in [04 -- Sampling](04_sampling.ipynb)).
+
+    The cell below checks the information criteria against their definition.
+    """)
+    return
+
+
+@app.cell
+def _(X_tensor, gmm, n_components, np):
+    _n, _d = X_tensor.shape
+    _p = (n_components - 1) + n_components * _d + n_components * _d * (_d + 1) // 2  # full covariance
+    print(f'free parameters p = (K-1) + K*d + K*d*(d+1)/2 = {_p}')
+    print(f'bic  from the definition: {-2 * _n * gmm.score(X_tensor) + _p * np.log(_n):.3f}   gmm.bic(X) = {gmm.bic(X_tensor):.3f}')
+    print(f'aic  from the definition: {-2 * _n * gmm.score(X_tensor) + 2 * _p:.3f}   gmm.aic(X) = {gmm.aic(X_tensor):.3f}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 7. Inspecting the Learned Parameters
+
+    For each component the fitted model stores a **weight** $\pi_k$ (`weights_`), a **mean** $\mu_k$ (`means_`) and a **covariance** $\Sigma_k$ (`covariances_`; for other covariance types a vector or scalar, see [02 -- Covariance Types](02_covariance_types.ipynb)). Component numbering is arbitrary (EM may order the blobs differently from the way they were defined), so the table below pairs each fitted component with the closest true blob.
+    """)
+    return
+
+
+@app.cell
+def _(centers, covs, gmm, linear_sum_assignment, n_samples, np):
+    _fit_means = gmm.means_.detach().cpu().numpy()
+    _true_means = np.stack(centers).astype(float)
+    _cost = np.linalg.norm(_fit_means[:, None] - _true_means[None], axis=2)  # fitted x true distances
+    _fit_idx, _true_idx = linear_sum_assignment(_cost)  # best one-to-one pairing of fitted and true components
+    print(f'{"fitted":>6} {"true":>5} {"weight (fit / true)":>21} {"mean (fit)":>20} {"mean (true)":>14}')
+    for _f, _t in zip(_fit_idx, _true_idx):
+        _w_true = n_samples[_t] / sum(n_samples)
+        print(f'{_f + 1:>6} {_t + 1:>5} {gmm.weights_[_f].item():>10.3f} /{_w_true:>8.3f}   {np.round(_fit_means[_f], 2)!s:>18} {np.round(_true_means[_t], 2)!s:>14}')
+    print()
+    for _f, _t in zip(_fit_idx, _true_idx):
+        print(f'Component {_f + 1} (true blob {_t + 1}) covariance, fitted vs true:')
+        print(np.round(gmm.covariances_[_f].detach().cpu().numpy(), 3))
+        print(np.round(np.asarray(covs[_t], float), 3))
+    return
+
+
+@app.cell
+def _(X, gmm, legend_labels, plot_gmm, plt):
+    plot_gmm(X=X, gmm=gmm, title='GMM', legend_labels=legend_labels)
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 8. Visualizing the Fit
+
+    Four views made with `plot_gmm` (introduced properly in [05 -- Visualization](05_visualise.ipynb)):
+
+    1. **Per-sample log-likelihood:** each point coloured by $\log p(x_i\mid\theta)$. Points far from every component are the unlikely ones.
+    2. **Clustering result:** points coloured by their predicted label, with the fitted means and covariance ellipses overlaid.
+    3. **Generated samples:** new points drawn from the fitted mixture, plotted with the same ellipses. If the model is good they look like the original data.
+    4. **Component responsibilities:** one panel per component showing $r_{ik}$, for the observed data and for the generated samples.
+    """)
+    return
+
+
+@app.cell
+def _(X, log_probs, plot_gmm, plt):
+    plot_gmm(X=X, title='Per-Sample Log-Likelihood', log_probs=log_probs, colorbar_label='Log-Likelihood')
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(X, n_components, plot_gmm, plt, y_pred):
+    plot_gmm(X=X, true_labels=y_pred, title='GMM Results', legend_labels=[f'Cluster {i}' for i in range(n_components)])
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(gmm, gmm_samples, plot_gmm, plt):
+    plot_gmm(X=gmm_samples, gmm=gmm, title='GMM Results (Generated Samples)')
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(X, n_components, plot_gmm, plt, probs):
+    _nrows = (n_components + 1) // 2
+    _fig, _axs = plt.subplots(_nrows, 2, figsize=(9, 3.8 * _nrows), squeeze=False)
+    for _k, _ax in enumerate(_axs.ravel()):
+        if _k < n_components:
+            plot_gmm(X=X, ax=_ax, title=f'Component {_k + 1} Probability', log_probs=probs[:, _k], colormap='RdBu', colorbar_label='Probability')
+        else:
+            _ax.axis('off')
+    plt.suptitle('Observed Data: Probability Distributions Across GMM Components')
+    plt.tight_layout()
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(generated_probs, gmm, gmm_samples, n_components, plot_gmm, plt):
+    _nrows = (n_components + 1) // 2
+    _fig, _axs = plt.subplots(_nrows, 2, figsize=(9, 3.8 * _nrows), squeeze=False)
+    for _k, _ax in enumerate(_axs.ravel()):
+        if _k < n_components:
+            plot_gmm(X=gmm_samples, gmm=gmm, ax=_ax, show_ellipses=False, title=f'Component {_k + 1} Probability', log_probs=generated_probs[:, _k], colormap='PRGn', colorbar_label='Probability')
+        else:
+            _ax.axis('off')
+    _fig.suptitle('Generated Samples: Probability Distributions Across GMM Components')
+    plt.tight_layout()
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 9. Fitted Attributes, Devices and Persistence
+
+    After `fit`, the model exposes (among others):
+
+    | Attribute | Meaning |
+    | --- | --- |
+    | `weights_` | mixing weights $\pi$, shape $(K,)$ |
+    | `means_` | component means, shape $(K,d)$ |
+    | `covariances_` | covariances; shape depends on `covariance_type` (for `'full'`: $(K,d,d)$) |
+    | `converged_`, `n_iter_` | whether EM converged, and in how many iterations |
+    | `lower_bound_` | final average log-likelihood of the best run |
+    | `log_likelihood_history_` | average log-likelihood after each iteration |
+    | `best_random_state_` | seed of the winning run when `n_init > 1` |
+    | `initial_weights_`, `initial_means_`, `initial_covariances_` | the parameters EM started from |
+
+    The complete list is in the [API reference](../api/gaussian-mixture.md).
+
+    **Devices.** `GaussianMixture(..., device='cuda')` runs everything on the GPU; `X` may live on the CPU or the GPU and is moved to `device`. This notebook picks `'cuda'` if available and falls back to `'cpu'` (the `device` variable in the setup cell).
+
+    **Saving and loading.** `GaussianMixture` has four methods for persistence, which preserve all parameters, configuration, training state and prior settings:
+
+    1. **`save(filepath)`**: save the complete model to a file;
+    2. **`load(filepath, device=None)`**: class method that loads a complete model from a file;
+    3. **`save_state_dict()`**: return a dictionary with all the model state (as in PyTorch);
+    4. **`load_state_dict(_state_dict)`**: load the state from a dictionary into a model with the same `n_components` and `n_features`.
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, X_tensor, device, gmm, n_components, torch):
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    print('Original model:')
+    print(f'  Number of components: {gmm.n_components}, covariance type: {gmm.covariance_type}')
+    print(f'  Converged: {gmm.converged_}, iterations: {gmm.n_iter_}, log-likelihood: {gmm.score(X_tensor):.4f}')
+    print()
+    print('=== Method 1: complete model save/load ===')
+    with _tempfile.NamedTemporaryFile(suffix='.pth', delete=False) as _f:
+        _model_path = _f.name
+    gmm.save(_model_path)
+    _loaded_gmm = GaussianMixture.load(_model_path, device=device)
+    print(f'  Saved to and loaded from {_model_path}')
+    print(f'  Loaded log-likelihood: {_loaded_gmm.score(X_tensor):.4f}, converged: {_loaded_gmm.converged_}')
+    print(f'  Predictions match: {torch.equal(gmm.predict(X_tensor), _loaded_gmm.predict(X_tensor))}')
+    _Path(_model_path).unlink()
+    print()
+    print('=== Method 2: state dictionary save/load ===')
+    _state_dict = gmm.save_state_dict()
+    print(f'  The state dict has {len(_state_dict)} keys, e.g. {list(_state_dict.keys())[:4]}')
+    _new_gmm = GaussianMixture(n_components=n_components, n_features=2, device=device)
+    _new_gmm.load_state_dict(_state_dict)
+    print(f'  Loaded log-likelihood: {_new_gmm.score(X_tensor):.4f}, converged: {_new_gmm.converged_}')
+    print(f'  Predictions match: {torch.equal(gmm.predict(X_tensor), _new_gmm.predict(X_tensor))}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Where to Go Next
+
+    This notebook fitted one kind of mixture (`covariance_type='full'`, maximum likelihood, EM from a random start). Each of the following changes one ingredient:
+
+    - **The shape of each component:** diagonal, spherical, shared (`tied_*`) and the 14 GPCM structures, in [02 -- Covariance Types](02_covariance_types.ipynb).
+    - **The starting point and restarts:** `init_means`, `init_weights`, `init_covariances`, `n_init`, `warm_start`, in [03 -- Initialization](03_initialization.ipynb).
+    - **Drawing new data, including constrained sampling:** [04 -- Sampling](04_sampling.ipynb).
+    - **Hard assignments:** `algorithm='cem'` (Classification EM), in [06 -- CEM](06_cem.ipynb).
+    - **Regularizing the estimates:** priors and MAP estimation, in [10 -- Priors](10_priors.ipynb) and [11 -- NIW Priors Comparison](11_niw_priors_comparison.ipynb).
+    - **Choosing $K$:** [14 -- Model Selection](14_model_selection.ipynb).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Summary
+
+    - A GMM generates a point by drawing a hidden component $z_i\sim\pi$ and then $x_i\sim\mathcal N(\mu_{z_i},\Sigma_{z_i})$; maximum likelihood has no closed form because of the sum inside the logarithm.
+    - EM alternates the E-step (responsibilities $r_{ik}$ from the current parameters) and the M-step ($r$-weighted maximum-likelihood updates). Each iteration is guaranteed not to decrease the log-likelihood, but only a local optimum is reached, so the result depends on the initialization.
+    - Even from a deliberately poor start the 1-D example recovers the three true components, and in 2-D the responsibilities sharpen into confident assignments while the covariance ellipses settle onto the blobs.
+    - `GaussianMixture(n_components=K).fit(X)` is all that is needed for a first fit; `predict`, `predict_proba`, `score_samples`, `score`, `bic`, `aic` and `sample` give labels, soft assignments, per-point log-likelihoods, information criteria and new data.
+    - `plot_gmm` overlays the fitted means and covariance ellipses on the data and can colour points by cluster, responsibility or log-likelihood; `save`/`load` and `save_state_dict`/`load_state_dict` persist a fitted model.
+
+    **Next:** [02 -- Covariance Types](02_covariance_types.ipynb), then [03 -- Initialization](03_initialization.ipynb) and [04 -- Sampling](04_sampling.ipynb).
+    """)
+    return
+
+
+if __name__ == "__main__":
+    app.run()

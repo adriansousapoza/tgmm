@@ -53,9 +53,9 @@ def _(mo):
     - How they behave on well-separated clusters, where CEM's hard assignments lose little
     - When CEM is a sensible choice
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb) and [02 -- EM Algorithm Walkthrough](02_em_algorithm.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb) and [02 -- EM Algorithm Walkthrough](01_introduction.ipynb).
 
-    **See also:** the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md) for the other EM variants (`'sem'`, `'saem'`) and [14 -- Stochastic EM](14_stochastic_em.ipynb).
+    **See also:** the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md) for the other EM variants (`'sem'`, `'saem'`) and [14 -- Stochastic EM](15_stochastic_em.ipynb).
     """)
     return
 
@@ -315,7 +315,7 @@ def _(mo):
     - With well-separated clusters the two reach comparable solutions and CEM needs fewer iterations.
     - Use `algorithm='cem'` when speed or a crisp partition matters more than the exact maximum-likelihood fit.
 
-    **Next:** [05 -- Supervised Fitting](05_supervised_gmm.ipynb), which adds label information, or [14 -- Stochastic EM](14_stochastic_em.ipynb) for the stochastic variants.
+    **Next:** [05 -- Supervised Fitting](07_supervised_gmm.ipynb), which adds label information, or [14 -- Stochastic EM](15_stochastic_em.ipynb) for the stochastic variants.
     """)
     return
 

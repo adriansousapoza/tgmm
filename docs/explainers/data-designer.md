@@ -1,7 +1,7 @@
 # Design Your Own Mixture
 
 This demo takes a few seconds to load (up to a minute on a slow connection, because the first fit runs in your browser) and runs entirely in your browser (NumPy and matplotlib via Pyodide; no tgmm or PyTorch is involved).
-It mirrors how [tutorial 01](../notebooks/01_gmm.ipynb) builds its synthetic data with `tgmm.generate_gmm_data`, and the EM fit it then runs with
+It mirrors how [tutorial 01](../notebooks/01_introduction.ipynb) builds its synthetic data with `tgmm.generate_gmm_data`, and the EM fit it then runs with
 [`GaussianMixture`](../api/gaussian-mixture.md) (`covariance_type='full'`).
 
 Each blob is a Gaussian with a centre $\mu_k$, a covariance $\Sigma_k=R(\theta_k)\,\operatorname{diag}(s_{k1}^2,s_{k2}^2)\,R(\theta_k)^{\top}$ (standard
@@ -171,5 +171,5 @@ mo.md(_msg)
 
 What to look for: with the *well separated* preset the BIC minimum sits at the true $K=3$, and fitting fewer components merges blobs while fitting more splits one of them. With the
 *overlapping* preset BIC typically prefers fewer components than you designed, because heavily overlapping blobs look like a single broader one: the same
-effect that makes the choice of $K$ hard in practice (see the [model selection tutorial](../notebooks/13_model_selection.ipynb)). Make one blob tiny (a small $n_k$) and watch it disappear from the BIC preference first.
+effect that makes the choice of $K$ hard in practice (see the [model selection tutorial](../notebooks/14_model_selection.ipynb)). Make one blob tiny (a small $n_k$) and watch it disappear from the BIC preference first.
 The code budget for this page is about 150 lines of Python.

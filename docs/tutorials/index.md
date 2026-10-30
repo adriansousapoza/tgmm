@@ -5,39 +5,39 @@ suggested reading order.
 
 ## 1. Foundations
 
-- [**1. Gaussian Mixture Models (GMM)**](../notebooks/01_gmm.ipynb) - Basic introduction to fitting GMMs with tgmm: initialization strategies (means, weights, covariances), training controls (`n_init`, `warm_start`, ...), MAP priors, constrained sampling and save/load. How the *covariance structure* is chosen and estimated now has its own tutorial, [15. Covariance Structures](../notebooks/15_covariance_models.ipynb)
-- [**2. EM Algorithm Walkthrough**](../notebooks/02_em_algorithm.ipynb) - Step-by-step visualization of how the EM algorithm updates responsibilities and parameters each iteration
-- [**3. Visualization Techniques**](../notebooks/03_visualise.ipynb) - Comprehensive guide to `plot_gmm`, the toolkit every later tutorial uses
+- [**1. Gaussian Mixture Models (GMM)**](../notebooks/01_introduction.ipynb) - Basic introduction to fitting GMMs with tgmm: initialization strategies (means, weights, covariances), training controls (`n_init`, `warm_start`, ...), MAP priors, constrained sampling and save/load. How the *covariance structure* is chosen and estimated now has its own tutorial, [15. Covariance Structures](../notebooks/02_covariance_types.ipynb)
+- [**2. EM Algorithm Walkthrough**](../notebooks/01_introduction.ipynb) - Step-by-step visualization of how the EM algorithm updates responsibilities and parameters each iteration
+- [**3. Visualization Techniques**](../notebooks/05_visualise.ipynb) - Comprehensive guide to `plot_gmm`, the toolkit every later tutorial uses
 
 ## 2. Fitting Variants
 
-- [**4. Classification EM (CEM)**](../notebooks/04_cem.ipynb) - Comparing the hard-assignment CEM algorithm against standard EM
-- [**5. Supervised Fitting**](../notebooks/05_supervised_gmm.ipynb) - Comparing EM, CEM, and label-supervised fitting on the same synthetic data
+- [**4. Classification EM (CEM)**](../notebooks/06_cem.ipynb) - Comparing the hard-assignment CEM algorithm against standard EM
+- [**5. Supervised Fitting**](../notebooks/07_supervised_gmm.ipynb) - Comparing EM, CEM, and label-supervised fitting on the same synthetic data
 
 ## 3. Evaluation & Utilities
 
-- [**6. Clustering Metrics**](../notebooks/06_metrics.ipynb) - Evaluating GMM performance with various metrics
-- [**7. Sampling from GMMs**](../notebooks/07_sampling.ipynb) - Generating synthetic data from fitted models
-- [**8. PCA Plotting**](../notebooks/08_pca_plotting.ipynb) - Visualizing high-dimensional GMM results with PCA
+- [**6. Clustering Metrics**](../notebooks/08_metrics.ipynb) - Evaluating GMM performance with various metrics
+- [**7. Sampling from GMMs**](../notebooks/04_sampling.ipynb) - Generating synthetic data from fitted models
+- [**8. PCA Plotting**](../notebooks/09_pca_plotting.ipynb) - Visualizing high-dimensional GMM results with PCA
 
 ## 4. Bayesian Priors
 
-- [**9. Prior Distributions**](../notebooks/09_priors.ipynb) - Using priors for regularization and MAP estimation
-- [**10. NIW Priors Comparison**](../notebooks/10_niw_priors_comparison.ipynb) - Detailed comparison of Normal-Inverse-Wishart priors
+- [**9. Prior Distributions**](../notebooks/10_priors.ipynb) - Using priors for regularization and MAP estimation
+- [**10. NIW Priors Comparison**](../notebooks/11_niw_priors_comparison.ipynb) - Detailed comparison of Normal-Inverse-Wishart priors
 
 ## 5. Advanced / Nonparametric Methods
 
-- [**11. Dirichlet Process Mixtures: Stick-Breaking and Gibbs Sampling**](../notebooks/11_dpgmm.ipynb) - The math (stick-breaking, Chinese Restaurant Process), a step-by-step sampler walkthrough, then validating `GaussianMixture(n_components=None, ...)` against classical EM at scale
-- [**12. HDBSCAN Clustering**](../notebooks/12_hdbscan.ipynb) - Density-based clustering with a PyTorch HDBSCAN implementation, including using it to remove noise before fitting a GMM
+- [**11. Dirichlet Process Mixtures: Stick-Breaking and Gibbs Sampling**](../notebooks/12_dpgmm.ipynb) - The math (stick-breaking, Chinese Restaurant Process), a step-by-step sampler walkthrough, then validating `GaussianMixture(n_components=None, ...)` against classical EM at scale
+- [**12. HDBSCAN Clustering**](../notebooks/13_hdbscan.ipynb) - Density-based clustering with a PyTorch HDBSCAN implementation, including using it to remove noise before fitting a GMM
 
 ## 6. Model Selection and Algorithms
 
-- [**13. Model Selection (BIC, AIC, ICL)**](../notebooks/13_model_selection.ipynb) - Choosing the number of components and the covariance structure with `select_model`, and how the three criteria differ on overlapping clusters
-- [**14. Stochastic EM, Annealing & SAEM**](../notebooks/14_stochastic_em.ipynb) - Escaping poor local optima: SEM, deterministic annealing (DAEM) and SAEM compared against EM and CEM from the same bad initialization
+- [**13. Model Selection (BIC, AIC, ICL)**](../notebooks/14_model_selection.ipynb) - Choosing the number of components and the covariance structure with `select_model`, and how the three criteria differ on overlapping clusters
+- [**14. Stochastic EM, Annealing & SAEM**](../notebooks/15_stochastic_em.ipynb) - Escaping poor local optima: SEM, deterministic annealing (DAEM) and SAEM compared against EM and CEM from the same bad initialization
 
 ## 7. Covariance Structures
 
-- [**15. Covariance Structures: the 6 classic types and the 14 GPCM models**](../notebooks/15_covariance_models.ipynb) - What each covariance type assumes, how its parameters are estimated in the M-step (the equations), the Celeux & Govaert volume/shape/orientation decomposition behind the 14 mclust models, and model selection among all 14
+- [**15. Covariance Structures: the 6 classic types and the 14 GPCM models**](../notebooks/02_covariance_types.ipynb) - What each covariance type assumes, how its parameters are estimated in the M-step (the equations), the Celeux & Govaert volume/shape/orientation decomposition behind the 14 mclust models, and model selection among all 14
 
 ## 8. Other Families and Supervision
 
@@ -71,12 +71,12 @@ free hosted server (no setup; the full-size runs, not the shortened ones used to
 ```bash
 git clone https://github.com/adriansousapoza/tgmm.git && cd tgmm
 pip install -e . marimo
-marimo edit notebooks/01_gmm.py        # interactive editor
-python notebooks/01_gmm.py             # or run it as a plain script
+marimo edit notebooks/01_introduction.py        # interactive editor
+python notebooks/01_introduction.py             # or run it as a plain script
 ```
 
 Or, without installing anything yourself, in an isolated environment built from the notebook's own header:
-`uvx marimo edit --sandbox notebooks/01_gmm.py`. See `notebooks/README.md` for the conventions every notebook follows.
+`uvx marimo edit --sandbox notebooks/01_introduction.py`. See `notebooks/README.md` for the conventions every notebook follows.
 
 ## Requirements
 

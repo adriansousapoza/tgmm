@@ -47,7 +47,7 @@ def _(mo):
     - **CEM**: Classification EM -- hard assignment via `argmax(resp)` each iteration, no label information.
     - **Supervised**: `fit(X, labels=y)` -- the assignment comes from the true label instead of `argmax(resp)`, converging in a single M-step (see the Supervised Fitting section of the [user guide](../user-guide/gaussian-mixture.md); the approach follows Celeux & Govaert 1992, McLachlan & Peel 2000 and Fraley & Raftery 2002).
 
-    The data reuses all 4 Gaussian components from [01 -- Gaussian Mixture Models](01_gmm.ipynb) (same centers, covariances and sample counts), but two of them share one label -- so there are only 3 classes even though there are 4 physical blobs. That is deliberate: EM and CEM don't see labels, so with `n_components=3` they are free to find whichever 3-way split fits the data best (which turns out *not* to match the label grouping), while the supervised fit is bound by the label and has to force a single Gaussian across two blobs it is told belong together. This is what makes the three methods diverge visibly instead of agreeing trivially.
+    The data reuses all 4 Gaussian components from [01 -- Gaussian Mixture Models](01_introduction.ipynb) (same centers, covariances and sample counts), but two of them share one label -- so there are only 3 classes even though there are 4 physical blobs. That is deliberate: EM and CEM don't see labels, so with `n_components=3` they are free to find whichever 3-way split fits the data best (which turns out *not* to match the label grouping), while the supervised fit is bound by the label and has to force a single Gaussian across two blobs it is told belong together. This is what makes the three methods diverge visibly instead of agreeing trivially.
 
     **What you'll learn**
 
@@ -55,7 +55,7 @@ def _(mo):
     - Why unsupervised components need not line up with class labels (and how `match_labels_to_true` handles arbitrary component indices)
     - How to read misclassifications and 95% confidence regions in `plot_gmm` panels
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb) and [04 -- Classification EM](04_cem.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb) and [04 -- Classification EM](06_cem.ipynb).
 
     **See also:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb), where only some labels are known.
     """)
@@ -110,9 +110,9 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Data: 4 Gaussians from `01_gmm.ipynb`, 2 sharing one label
+    ## Data: 4 Gaussians from `01_introduction.ipynb`, 2 sharing one label
 
-    Same 4 centers/covariances/sample counts as in [01 -- Gaussian Mixture Models](01_gmm.ipynb). The
+    Same 4 centers/covariances/sample counts as in [01 -- Gaussian Mixture Models](01_introduction.ipynb). The
     two spatially farthest-apart components -- `(2, -2)` and `(2, 2)`,
     distance 4.0 -- share `Class 2`; `(0, 2)` and `(0, 0)` keep their own
     labels. The *closest* pair, `(0, 2)` and `(0, 0)` (distance 2.0), is
@@ -311,7 +311,7 @@ def _(mo):
     - Unsupervised component indices are arbitrary; `match_labels_to_true=True` Hungarian-matches them to the labels so errors can be visualized.
     - Supervised fits trade the flexibility of unsupervised fitting for fidelity to the labels -- useful when the labels are trusted.
 
-    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for partially labeled data, or [06 -- Clustering Metrics](06_metrics.ipynb) to quantify agreement with labels.
+    **Next:** [18 -- Semi-Supervised and Positive-Unlabeled Fitting](18_semi_supervised_pu.ipynb) for partially labeled data, or [06 -- Clustering Metrics](08_metrics.ipynb) to quantify agreement with labels.
     """)
     return
 

@@ -6,7 +6,7 @@ tutorial, numbered in the suggested reading order (see the
 the documentation site renders are build artifacts, generated in CI (and by `make docs`) into
 `docs/notebooks/`, which is git-ignored.
 
-[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/adriansousapoza/tgmm/blob/main/notebooks/01_gmm.py)
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/adriansousapoza/tgmm/blob/main/notebooks/01_introduction.py)
 *Every tutorial page on the docs site carries an "Open in molab" badge that runs the real notebook, torch
 included, on a hosted server.*
 
@@ -15,11 +15,11 @@ included, on a hosted server.*
 ```bash
 pip install -e .                       # from a clone: tgmm plus its dependencies
 pip install marimo
-marimo edit notebooks/01_gmm.py        # interactive editor
-python notebooks/01_gmm.py             # or just run it as a script
+marimo edit notebooks/01_introduction.py        # interactive editor
+python notebooks/01_introduction.py             # or just run it as a script
 ```
 
-Without a clone: `uvx marimo edit --sandbox notebooks/01_gmm.py` builds an isolated environment from the
+Without a clone: `uvx marimo edit --sandbox notebooks/01_introduction.py` builds an isolated environment from the
 notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
 
 ## Conventions

@@ -52,7 +52,7 @@ def _(mo):
     - how $\lambda_0$, $\nu_0$, $\boldsymbol{\Psi}_0$ and $\boldsymbol{m}_0$ interact, over a grid of values
     - how the prior's influence fades as the number of points per component grows, and how it behaves for unequal component sizes
 
-    **Prerequisites:** [09 -- Priors](09_priors.ipynb) (which introduces each prior separately).
+    **Prerequisites:** [09 -- Priors](10_priors.ipynb) (which introduces each prior separately).
     See also the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md).
     """)
     return
@@ -582,7 +582,7 @@ def _(mo):
     - The hyperparameters trade off against each other: $\lambda_0$ and $\nu_0$ act as pseudo-observation counts, while $\boldsymbol{\Psi}_0/\nu_0$ and $\boldsymbol{m}_0$ set where the prior pulls.
     - A prior's influence fades as $n_k$ grows, so priors matter most for small or unbalanced components.
 
-    **Next:** [11 -- Dirichlet Process Mixtures](11_dpgmm.ipynb), where the same NIW prior serves as the base measure of a nonparametric sampler.
+    **Next:** [11 -- Dirichlet Process Mixtures](12_dpgmm.ipynb), where the same NIW prior serves as the base measure of a nonparametric sampler.
     """)
     return
 

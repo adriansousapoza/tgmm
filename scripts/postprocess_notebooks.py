@@ -21,6 +21,8 @@ REPO = "adriansousapoza/tgmm"
 BADGE = (
     "[![Open in molab](https://marimo.io/molab-shield.svg)]"
     "(https://molab.marimo.io/github/{repo}/blob/main/notebooks/{stem}.py)"
+    " **Open the interactive version** (runs this notebook with real tgmm, so the sliders work). "
+    "Locally: `uvx marimo edit --sandbox notebooks/{stem}.py`"
 )
 HIDE_MARKER = "# docs: hide-cell"
 BADGE_PREFIX = "[![Open in molab]"

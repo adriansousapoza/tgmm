@@ -71,9 +71,11 @@ def _(mo):
     - how to read `volume_`, `shape_`, `orientation_` on a fitted model, and how to select a covariance
       structure with `select_model`.
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb) and
-    [02 -- The EM Algorithm](02_em_algorithm.ipynb) (the E-step / M-step vocabulary).
-    See also the [GPCM user guide](../user-guide/gpcm-covariance-models.md) for a reference summary.
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb), which builds the four-cluster data and
+    explains the mixture model and EM (the E-step / M-step vocabulary used throughout).
+
+    **See also:** [03 -- Initialisation](03_initialization.ipynb) for how the starting covariances are
+    chosen, and [`tgmm.covariance.gpcm`](../api/covariance-gpcm.md) for the API of the M-step functions.
     """)
     return
 
@@ -83,8 +85,7 @@ def _(mo):
     mo.md(r"""
     ## Setup
 
-    Run this notebook from the `notebooks/` directory; the first line of the next cell moves to the
-    repository root so `import tgmm` resolves to the local checkout.
+    One imports-and-seeds cell, then the dataset.
     """)
     return
 
@@ -102,7 +103,7 @@ def _():
     from tgmm.plotting import plot_gmm, dynamic_figsize
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    plt.rcParams['figure.dpi'] = 75  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -132,7 +133,7 @@ def _(mo):
 
     Four clusters in two dimensions, each with a deliberately different covariance: two spherical ones
     of different size, one axis-aligned elongated one, and one tilted (correlated) one. This is the same
-    dataset as in the [first tutorial](01_gmm.ipynb), which makes it a good test bed: *no single
+    dataset as in the [introduction](01_introduction.ipynb), which makes it a good test bed: *no single
     simple covariance type describes all four clusters*.
     """)
     return
@@ -204,7 +205,7 @@ def _(
     plt,
 ):
     classic_types = ['tied_spherical', 'spherical', 'tied_diag', 'diag', 'tied_full', 'full']
-    _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2), dpi=100)
+    _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2), dpi=75)
     for _ax, _cov_type in zip(_axs.ravel(), classic_types):
         _gmm = GaussianMixture(n_components=K, covariance_type=_cov_type, init_means='kmeans', random_state=SEED, device=device)
         _gmm.fit(X)
@@ -218,10 +219,35 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    Per-component types (`'full'`, `'diag'`, `'spherical'`) let each cluster have its own size, shape
+    and orientation to the degree the type allows. The `tied_*` types give every cluster the same
+    covariance (only the centres differ), which saves parameters and stabilises fits when there are few
+    points per cluster. Selecting one is a single argument:
+
+    ```python
+    GaussianMixture(n_components=4, covariance_type='full')            # arbitrary ellipsoids
+    GaussianMixture(n_components=4, covariance_type='diag')            # axis-aligned ellipsoids
+    GaussianMixture(n_components=4, covariance_type='spherical')       # one variance per cluster
+    GaussianMixture(n_components=4, covariance_type='tied_full')       # one shared full covariance
+    GaussianMixture(n_components=4, covariance_type='tied_diag')       # one shared diagonal covariance
+    GaussianMixture(n_components=4, covariance_type='tied_spherical')  # one shared variance
+    ```
+
+    `'tied'` is accepted as an alias of `'tied_full'` and `'isotropic'` of `'spherical'`. The total
+    number of free parameters that `bic` / `aic` / `icl` charge is
+    $p=(K-1)+Kd+p_\Sigma$: the $K-1$ free weights, the $Kd$ mean coordinates and the covariance count
+    $p_\Sigma$ from the last column of the table.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## How EM estimates a covariance: the M-step
 
-    Given the responsibilities $r_{ik}$ from the E-step (the posterior probability that point $x_i$
-    came from component $k$), the M-step maximises the expected complete-data log-likelihood
+    Given the responsibilities $r_{ik}$ from the E-step (see the [introduction](01_introduction.ipynb)),
+    the M-step maximises the expected complete-data log-likelihood
 
     $$
     Q(\theta)=\sum_{i=1}^{n}\sum_{k=1}^{K} r_{ik}\Big[\log\pi_k-\tfrac d2\log 2\pi-\tfrac12\log|\Sigma_k|
@@ -316,7 +342,8 @@ def _(GaussianMixture, K, SEED, X, classic_types, device, pd, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The gaps are at the level of the convergence tolerance: the library's M-step *is* the table above.
+    The gaps are below $2\times10^{-6}$ for all six types (EM stops at a finite tolerance, so the fixed point
+    is reached only approximately): the library's M-step *is* the table above.
     """)
     return
 
@@ -452,9 +479,121 @@ def _(GPCM_CODES, GaussianMixture, K, SEED, X, d, device, n, np, pd):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### Try it: build a model from its three factors
+
+    Two components in two dimensions. For each factor choose whether the components share it (**E**:
+    component 2 copies component 1), let it **V**ary (each component has its own slider) or, for shape
+    and orientation, fix it to the **I**dentity (a circle, or no rotation). The three letters are the
+    mclust code, and the cell below reports whether that combination is one of the 14 models and how
+    many covariance parameters it has. Component 2's sliders are ignored whenever its factor is **E**,
+    both shape sliders are ignored for shape **I**, and both angle sliders for orientation **I**.
+    Interactive when you open the notebook (see the link at the top of the page); the page you are
+    reading shows the default setting, `VEV`.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    gp_vol = mo.ui.dropdown(['E', 'V'], value='V', label='volume')
+    gp_shape = mo.ui.dropdown(['E', 'V', 'I'], value='E', label='shape')
+    gp_orient = mo.ui.dropdown(['E', 'V', 'I'], value='V', label='orientation')
+    gp_lam1 = mo.ui.slider(0.2, 3.0, step=0.1, value=1.0, label='λ₁')
+    gp_lam2 = mo.ui.slider(0.2, 3.0, step=0.1, value=2.0, label='λ₂')
+    gp_ratio1 = mo.ui.slider(1.0, 12.0, step=0.5, value=4.0, label='a₁/a₂ (comp. 1)')
+    gp_ratio2 = mo.ui.slider(1.0, 12.0, step=0.5, value=4.0, label='a₁/a₂ (comp. 2)')
+    gp_ang1 = mo.ui.slider(0, 180, step=5, value=30, label='θ₁ (°)')
+    gp_ang2 = mo.ui.slider(0, 180, step=5, value=120, label='θ₂ (°)')
+    mo.vstack([
+        mo.hstack([gp_vol, gp_shape, gp_orient], justify='start'),
+        mo.hstack([gp_lam1, gp_ratio1, gp_ang1], justify='start'),
+        mo.hstack([gp_lam2, gp_ratio2, gp_ang2], justify='start'),
+    ])
+    return (
+        gp_ang1,
+        gp_ang2,
+        gp_lam1,
+        gp_lam2,
+        gp_orient,
+        gp_ratio1,
+        gp_ratio2,
+        gp_shape,
+        gp_vol,
+    )
+
+
+@app.cell
+def _(
+    GPCM_CODES,
+    gp_ang1,
+    gp_ang2,
+    gp_lam1,
+    gp_lam2,
+    gp_orient,
+    gp_ratio1,
+    gp_ratio2,
+    gp_shape,
+    gp_vol,
+    mo,
+    n_cov_params,
+    np,
+):
+    _v, _s, _o = gp_vol.value, gp_shape.value, gp_orient.value
+    gp_code = _v + _s + _o
+    _l1 = gp_lam1.value
+    _l2 = _l1 if _v == 'E' else gp_lam2.value
+    _r1 = 1.0 if _s == 'I' else gp_ratio1.value
+    _r2 = 1.0 if _s == 'I' else (_r1 if _s == 'E' else gp_ratio2.value)
+    _t1 = 0.0 if _o == 'I' else gp_ang1.value
+    _t2 = 0.0 if _o == 'I' else (_t1 if _o == 'E' else gp_ang2.value)
+
+    def _make_cov(lam, ratio, deg):
+        # Sigma = lam * D diag(a) D^T with a = (sqrt(r), 1/sqrt(r)), so det A = 1 and a1/a2 = r
+        _a = np.array([np.sqrt(ratio), 1 / np.sqrt(ratio)])
+        _c, _sn = np.cos(np.radians(deg)), np.sin(np.radians(deg))
+        _D = np.array([[_c, -_sn], [_sn, _c]])
+        return lam * _D @ np.diag(_a) @ _D.T
+
+    gp_covs = [_make_cov(_l1, _r1, _t1), _make_cov(_l2, _r2, _t2)]
+    _verdict = ('one of the 14 GPCM models' if gp_code in GPCM_CODES else
+                '**not one of the 14 models**: with a spherical (identity) shape the orientation is meaningless, so use orientation I')
+    mo.md(f"**mclust code `{gp_code}`** -- {_verdict}.\n\n"
+          f"Free covariance parameters for $d=2$, $K=2$: **{n_cov_params(gp_code, 2, 2)}** "
+          f"(volume + shape + orientation contributions; "
+          f"$\\det\\Sigma_1={np.linalg.det(gp_covs[0]):.2f}$, $\\det\\Sigma_2={np.linalg.det(gp_covs[1]):.2f}$).")
+    return gp_code, gp_covs
+
+
+@app.cell
+def _(gp_code, gp_covs, np, plt):
+    _t = np.linspace(0, 2 * np.pi, 200)
+    _circle = np.stack([np.cos(_t), np.sin(_t)])
+    _fig, _ax = plt.subplots(figsize=(7, 4))
+    for _S, _c, _x0 in zip(gp_covs, ['#2a78d6', '#eb6834'], [-3.0, 3.0]):
+        _L = np.linalg.cholesky(_S)
+        for _m in (1, 2):
+            _ax.plot(_x0 + _m * (_L @ _circle)[0], _m * (_L @ _circle)[1], color=_c, lw=2 if _m == 1 else 1)
+        _ax.plot(_x0, 0, 'o', color=_c)
+    _ax.set_aspect('equal')
+    _ax.set_xlim(-7, 7)
+    _ax.set_ylim(-3.5, 3.5)
+    _ax.set_title(f'1σ and 2σ contours of Σ₁ (blue) and Σ₂ (orange), model {gp_code}')
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Things to try: `EII` and `VII` give circles (identity shape and orientation), `EEE` shares everything
+    (the same ellipse twice), and `VVV` frees all three factors. The parameter count is what `bic` / `aic`
+    charge for the covariances, which is why constrained models win on small data.
+
     ### Reading the decomposition off a fitted model
 
-    For the 8 models without a classic alias, `GaussianMixture` exposes the fitted decomposition as
+    Pass either the tgmm name or the mclust code to `covariance_type`; mclust codes are
+    case-insensitive, and `covariance_type_` on the model always reports the canonical code. For the 8
+    models without a classic alias, `GaussianMixture` exposes the fitted decomposition as
     `volume_`, `shape_` and `orientation_`; `covariances_` always holds the assembled
     $(K, d, d)$ matrices, so everything else (`predict`, `sample`, `plot_gmm`, `save`, ...) is
     oblivious to which model was used. (The six classic types do not compute a decomposition, so these
@@ -676,8 +815,8 @@ def _(FAST, GPCM_CODES, mstep_gpcm, pd, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `mstep_gpcm` never does worse than the brute-force search (differences are of the order of the
-    optimiser tolerance), so the formulas above -- including the alternating and Stiefel-manifold
+    `mstep_gpcm` matches the brute-force minimum for all 14 codes (the largest difference is about
+    $2\times10^{-9}$ on objective values in the thousands, i.e. the optimiser tolerance), so the formulas above -- including the alternating and Stiefel-manifold
     models -- reach the true minimum of $J$ on this problem.
 
     The 14 models are also **nested**: constraining a factor can only increase the minimum of $J$.
@@ -724,7 +863,7 @@ def _(mo):
 def _(GaussianMixture, K, SEED, X, device, dynamic_figsize, plot_gmm, plt):
     columns = {'orientation = I  (axis-aligned)': ['EII', 'VII', 'EEI', 'VEI', 'EVI', 'VVI'], 'orientation = E  (shared)': ['EEE', 'VEE', 'EVE', 'VVE'], 'orientation = V  (per component)': ['EEV', 'VEV', 'EVV', 'VVV']}
     fits = {}
-    _fig, _axs = plt.subplots(6, 3, figsize=dynamic_figsize(6, 3, base_width=5.5, base_height=3.6), dpi=100)
+    _fig, _axs = plt.subplots(6, 3, figsize=dynamic_figsize(6, 3, base_width=5.5, base_height=3.6), dpi=70)
     for col, (col_title, codes) in enumerate(columns.items()):
         for row in range(6):
             _ax = _axs[row, col]
@@ -922,7 +1061,7 @@ def _(mo):
     mo.md(r"""
     ### BIC versus ICL at the winning $K$
 
-    BIC rewards fit and penalises parameters; ICL ([Model Selection tutorial](13_model_selection.ipynb))
+    BIC rewards fit and penalises parameters; ICL ([Model Selection tutorial](14_model_selection.ipynb))
     additionally penalises overlap between clusters. Both criteria, compared across covariance
     structures at the BIC-winning $K$.
     """)
@@ -952,13 +1091,16 @@ def _(mo):
     - **MLE only for the 8 new codes.** `mean_prior` / `covariance_prior` (MAP / NIW estimation) raise
       `NotImplementedError` for them -- a conjugate-prior derivation specific to each parameterisation is
       not provided. The six classic types still support the full prior machinery
-      ([priors tutorial](09_priors.ipynb)); `weight_concentration_prior` works with all 14.
+      ([priors tutorial](10_priors.ipynb)); `weight_concentration_prior` works with all 14.
     - **No Gibbs mode.** `n_components=None` (Dirichlet-process Gibbs sampling) is not available for
       the 8 new codes, as for `tied_*`: a covariance that couples components does not factor per
       component the way the collapsed sampler needs.
     - **Iterative M-steps.** `VEI`, `VEE`, `VEV`, `EVE` and `VVE` alternate until the relative change in
       $J$ drops below `gpcm_tol` (default `1e-6`) or `gpcm_max_iter` (default `20`) sweeps are done; set
-      `gpcm_tol` / `gpcm_max_iter` on the `GaussianMixture` to tighten or loosen this.
+      `gpcm_tol` / `gpcm_max_iter` on the `GaussianMixture` to tighten or loosen this, e.g.
+      `GaussianMixture(n_components=3, covariance_type='VEE', gpcm_tol=1e-8, gpcm_max_iter=50)`. Each EM
+      iteration's alternation is warm-started from the previous iteration's decomposition, so in practice
+      it usually needs only one or two sweeps to re-settle.
     - **Initial covariances.** With `init_covariances='empirical'` or `'global'`, the starting
       covariances are projected onto the requested model (its constrained MLE); `'eye'` / `'random'`
       simply start from identity / random matrices.
@@ -979,9 +1121,21 @@ def _(mo):
     - `select_model` searches all 14 structures and the number of components together, and
       `volume_` / `shape_` / `orientation_` explain what the winning structure is.
 
-    **Next:** [13 -- Model Selection](13_model_selection.ipynb) for BIC / AIC / ICL in depth,
-    [09 -- Priors](09_priors.ipynb) for regularising covariance estimates (classic types), and the
-    [GPCM user guide](../user-guide/gpcm-covariance-models.md) as a reference.
+    **Next:** [03 -- Initialisation](03_initialization.ipynb) for how the starting means, covariances and
+    weights are chosen, [14 -- Model Selection](14_model_selection.ipynb) for BIC / AIC / ICL in depth, and
+    [10 -- Priors](10_priors.ipynb) for regularising covariance estimates (classic types).
+
+    ## References
+
+    - Celeux, G. & Govaert, G. (1995). Gaussian parsimonious clustering models. *Pattern Recognition*, 28(5), 781-793.
+    - Banfield, J. D. & Raftery, A. E. (1993). Model-based Gaussian and non-Gaussian clustering. *Biometrics*, 49(3), 803-821.
+    - Flury, B. N. (1984). Common principal components in $k$ groups. *JASA*, 79(388), 892-898.
+    - Dempster, A. P., Laird, N. M. & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. *JRSS B*, 39(1), 1-38.
+    - Scrucca, L., Fop, M., Murphy, T. B. & Raftery, A. E. (2016). mclust 5: clustering, classification and density estimation using Gaussian finite mixture models. *The R Journal*, 8(1).
+
+    `mclust`'s naming and model definitions are followed for compatibility, but every M-step in `tgmm` is
+    derived independently from the papers' equations (`tgmm` is MIT-licensed; `mclust` is GPL, and its
+    source was not read or ported).
     """)
     return
 

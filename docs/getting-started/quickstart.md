@@ -76,7 +76,7 @@ gmm_eve = GaussianMixture(n_components=3, n_features=2, covariance_type='VVE')
 The number of free covariance parameters grows from 1 (`tied_spherical`) to $K\,d(d+1)/2$ (`full`); see
 the [Gaussian Mixture Model guide](../user-guide/gaussian-mixture.md#m-step-maximum-likelihood-updates)
 and [GPCM Covariance Models](../user-guide/gpcm-covariance-models.md) for the exact update equations and
-parameter counts, and the [Covariance Structures tutorial](../notebooks/15_covariance_models.ipynb) for a visual comparison.
+parameter counts, and the [Covariance Structures tutorial](../notebooks/02_covariance_types.ipynb) for a visual comparison.
 
 ## Initialization Methods
 
@@ -303,5 +303,5 @@ Now that you know the basics:
 - **[User Guide](../user-guide/gaussian-mixture.md)** - What EM computes: equations for every update, priors, algorithm variants
 - **[GPCM Covariance Models](../user-guide/gpcm-covariance-models.md)** - The 14 covariance structures
 - **[Tutorials](../tutorials/index.md)** - Interactive examples with visualization
-- **[Bayesian Priors](../notebooks/09_priors.ipynb)** - Learn about MAP estimation
+- **[Bayesian Priors](../notebooks/10_priors.ipynb)** - Learn about MAP estimation
 - **[API Reference](../api/gaussian-mixture.md)** - Complete documentation

@@ -99,7 +99,7 @@ The core `GaussianMixture` class supports:
   sampler that infers the number of components
 - **Initialization**: multiple strategies via `GMMInitializer`
 - **Model selection**: `bic` / `aic` / `icl` methods, and `select_model` to sweep `n_components` and all 14
-  covariance codes at once ([Model Selection tutorial](notebooks/13_model_selection.ipynb))
+  covariance codes at once ([Model Selection tutorial](notebooks/14_model_selection.ipynb))
 
 ### 2. Other mixture families
 
@@ -130,7 +130,7 @@ completeness, V-measure, confusion matrix and classification report). See
 ### 6. Density-based clustering
 
 `HDBSCAN` is a PyTorch implementation of hierarchical density-based clustering -- no `K` needed,
-non-convex clusters, explicit noise points (see the [HDBSCAN tutorial](notebooks/12_hdbscan.ipynb)).
+non-convex clusters, explicit noise points (see the [HDBSCAN tutorial](notebooks/13_hdbscan.ipynb)).
 
 ### 7. Building blocks
 

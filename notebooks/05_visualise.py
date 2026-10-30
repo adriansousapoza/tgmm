@@ -50,9 +50,9 @@ def _(mo):
     - Control confidence ellipses, mean markers and initial-mean markers
     - Scale markers or transparency by component weight and highlight misclassified points
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb).
 
-    **See also:** the [Plotting & Visualization user guide](../user-guide/plotting.md) and [08 -- PCA Plotting](08_pca_plotting.ipynb) for data with more than two features.
+    **See also:** the [Plotting & Visualization user guide](../user-guide/plotting.md) and [08 -- PCA Plotting](09_pca_plotting.ipynb) for data with more than two features.
     """)
     return
 
@@ -495,7 +495,7 @@ def _(mo):
     - Ellipse levels (`ellipse_std_devs`), fill, line style, mean markers and initial-mean markers are all configurable.
     - `scale_alpha_by_weight` / `scale_size_by_weight` make component weights visible, and every call accepts `ax=` so panels compose into grids.
 
-    **Next:** [04 -- Classification EM](04_cem.ipynb), or [08 -- PCA Plotting](08_pca_plotting.ipynb) for plotting high-dimensional models.
+    **Next:** [04 -- Classification EM](06_cem.ipynb), or [08 -- PCA Plotting](09_pca_plotting.ipynb) for plotting high-dimensional models.
     """)
     return
 

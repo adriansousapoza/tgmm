@@ -7,7 +7,7 @@ a non-interactive matplotlib backend and a 180 s timeout, and asserts exit code 
 Slow, so excluded from the default run (``addopts = -m "not notebooks"`` in pytest.ini)::
 
     pytest -m notebooks                       # all notebooks
-    pytest -m notebooks -k 01_gmm             # one notebook
+    pytest -m notebooks -k 01_introduction             # one notebook
 """
 import os
 import subprocess

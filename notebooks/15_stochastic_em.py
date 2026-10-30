@@ -51,7 +51,7 @@ def _(mo):
     - why SEM's log-likelihood trace never settles to a point but to a "stationary band"
     - how SAEM adds a decaying step size so it converges like ordinary EM
 
-    **Prerequisites:** [02 -- EM Algorithm](02_em_algorithm.ipynb), [04 -- CEM](04_cem.ipynb).
+    **Prerequisites:** [02 -- EM Algorithm](01_introduction.ipynb), [04 -- CEM](06_cem.ipynb).
     See also the [Fitting Algorithms](../user-guide/gaussian-mixture.md#fitting-algorithms) section of the Gaussian Mixture Model user guide.
     """)
     return
@@ -277,7 +277,7 @@ def _(mo):
     - **SAEM** gets SEM's exploration with a decaying step size, so it converges like ordinary EM and matches EM closely from a reasonable initialization.
     - None of these *guarantee* escaping every bad initialization; they change the odds.
 
-    **Next:** [15 -- Covariance Structures](15_covariance_models.ipynb). Mini-batch and online EM (`batch_size` / `step_size`), which are not shown here, are covered in the [Fitting Algorithms](../user-guide/gaussian-mixture.md#fitting-algorithms) section of the user guide.
+    **Next:** [15 -- Covariance Structures](02_covariance_types.ipynb). Mini-batch and online EM (`batch_size` / `step_size`), which are not shown here, are covered in the [Fitting Algorithms](../user-guide/gaussian-mixture.md#fitting-algorithms) section of the user guide.
     """)
     return
 

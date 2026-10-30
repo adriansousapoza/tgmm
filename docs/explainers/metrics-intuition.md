@@ -121,4 +121,4 @@ mo.md("| index | better | noise swallowed by clusters | noise labelled −1 (dro
 * **BIC vs. ICL:** both are $-2\log L+p\log n$; ICL adds $-2\sum_i\log\max_k\tau_{ik}$, which is near 0 for well-separated
   components and large when they overlap. Around separation $\approx3$ ICL already prefers fewer components than BIC,
   because it penalises solutions whose clusters are not clearly distinguishable (see the
-  [Model Selection tutorial](../notebooks/13_model_selection.ipynb)).
+  [Model Selection tutorial](../notebooks/14_model_selection.ipynb)).

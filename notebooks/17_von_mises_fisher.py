@@ -60,7 +60,7 @@ def _(mo):
     - how to cluster high-dimensional unit-norm embeddings and compare with a Gaussian baseline -- and which comparisons
       are, and are not, meaningful.
 
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_gmm.ipynb) and [02 -- The EM Algorithm](02_em_algorithm.ipynb).
+    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb) and [02 -- The EM Algorithm](01_introduction.ipynb).
     See also the [Other Mixture Families](../user-guide/other-mixture-families.md) user guide and the
     [plotting guide](../user-guide/plotting.md#von-mises-fisher-mixtures).
     """)

@@ -49,7 +49,7 @@ def _(mo):
     - how to run PU learning with a Student-t mixture and read the estimated class prior `class_prior_` and per-row positive probabilities
     - how the SCAR assumption (labeled positives are a uniform random subsample of all positives) makes this identifiable
 
-    **Prerequisites:** [05 -- Supervised Fitting](05_supervised_gmm.ipynb), [16 -- Student-t Mixtures](16_student_t.ipynb), [17 -- Von Mises-Fisher Mixtures](17_von_mises_fisher.ipynb).
+    **Prerequisites:** [05 -- Supervised Fitting](07_supervised_gmm.ipynb), [16 -- Student-t Mixtures](16_student_t.ipynb), [17 -- Von Mises-Fisher Mixtures](17_von_mises_fisher.ipynb).
     See also the [Semi-Supervised and Positive-Unlabeled Fitting](../user-guide/semi-supervised-pu.md) user guide, which covers the terms (SCAR, mixture proportion estimation, `anchor`).
     """)
     return

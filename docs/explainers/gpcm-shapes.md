@@ -85,4 +85,4 @@ fig
 
 Things to try: with `EII` / `VII` both shapes are circles (identity), `EEE` shares everything (the same ellipse twice), and `VVV` frees all three factors.
 The parameter count is what `bic`/`aic` charge for the covariances, which is why constrained models win on small data
-(see the [Covariance Structures tutorial](../notebooks/15_covariance_models.ipynb)).
+(see the [Covariance Structures tutorial](../notebooks/02_covariance_types.ipynb)).
