@@ -129,8 +129,8 @@ def _(SEED, default_blobs, make_default_data, np, torch):
     centers, covs, n_samples = default_blobs()  # the true blobs, used below as the starting parameters
     _X, _y = make_default_data(SEED)
     X = _X.double()
-    X_np = X.numpy()
-    y_true = _y.numpy()
+    X_np = X.cpu().numpy()
+    y_true = _y.cpu().numpy()
     n_total = X.shape[0]
     init_means = torch.tensor(np.stack(centers), dtype=torch.float64)
     init_covs = torch.tensor(np.stack(covs), dtype=torch.float64)
@@ -154,10 +154,10 @@ def _(GaussianMixture, MAX_ITER, X, init_covs, init_means, init_weights):
 @app.cell
 def _(gmm_free, np, pd):
     pd.DataFrame({
-        'weight': gmm_free.weights_.numpy().round(3),
-        'mean x': gmm_free.means_[:, 0].numpy().round(3),
-        'mean y': gmm_free.means_[:, 1].numpy().round(3),
-        'covariance eigenvalues': [np.linalg.eigvalsh(c).round(3).tolist() for c in gmm_free.covariances_.numpy()],
+        'weight': gmm_free.weights_.cpu().numpy().round(3),
+        'mean x': gmm_free.means_[:, 0].cpu().numpy().round(3),
+        'mean y': gmm_free.means_[:, 1].cpu().numpy().round(3),
+        'covariance eigenvalues': [np.linalg.eigvalsh(c).round(3).tolist() for c in gmm_free.covariances_.cpu().numpy()],
     }, index=pd.RangeIndex(1, 5, name='component'))
     return
 
@@ -203,7 +203,7 @@ def _(n_samples, np, optimize, torch, water_fill_weights):
     _counts = torch.tensor(n_samples, dtype=torch.float64)
     _lo = torch.full((4,), 0.10)
     _hi = torch.full((4,), 0.32)
-    pi_exact = water_fill_weights(_counts, _lo, _hi).numpy()
+    pi_exact = water_fill_weights(_counts, _lo, _hi).cpu().numpy()
     _res = optimize.minimize(lambda p: -(np.array(n_samples) * np.log(p)).sum(), x0=np.full(4, 0.25),
                              bounds=[(0.10, 0.32)] * 4, constraints=[{'type': 'eq', 'fun': lambda p: p.sum() - 1}],
                              method='SLSQP', options={'ftol': 1e-14})
@@ -231,11 +231,11 @@ def _(fit_gmm, gmm_free, pd, torch):
     gmm_fw = fit_gmm(fixed_weights=torch.tensor([0.25, 0.25, 0.25, 0.25]))
     _active = gmm_wb.active_constraints_
     pd.DataFrame({
-        'free ML fit': gmm_free.weights_.numpy().round(4),
-        'weight_bounds=(0.1, 0.32)': gmm_wb.weights_.numpy().round(4),
-        'at lower bound': _active['weights_at_lower'].numpy(),
-        'at upper bound': _active['weights_at_upper'].numpy(),
-        'fixed_weights=0.25': gmm_fw.weights_.numpy().round(4),
+        'free ML fit': gmm_free.weights_.cpu().numpy().round(4),
+        'weight_bounds=(0.1, 0.32)': gmm_wb.weights_.cpu().numpy().round(4),
+        'at lower bound': _active['weights_at_lower'].cpu().numpy(),
+        'at upper bound': _active['weights_at_upper'].cpu().numpy(),
+        'fixed_weights=0.25': gmm_fw.weights_.cpu().numpy().round(4),
     }, index=pd.RangeIndex(1, 5, name='component'))
     return gmm_fw, gmm_wb
 
@@ -245,7 +245,7 @@ def _(gmm_free, gmm_fw, gmm_wb, plt):
     _fig, _ax = plt.subplots(figsize=(7, 3.2))
     _w = 0.26
     for _i, (_name, _g) in enumerate([('free', gmm_free), ('weight_bounds=(0.1, 0.32)', gmm_wb), ('fixed_weights=0.25', gmm_fw)]):
-        _ax.bar([k + (_i - 1) * _w for k in range(4)], _g.weights_.numpy(), width=_w, label=_name)
+        _ax.bar([k + (_i - 1) * _w for k in range(4)], _g.weights_.cpu().numpy(), width=_w, label=_name)
     _ax.axhspan(0.1, 0.32, color='grey', alpha=0.12, label='allowed band')
     _ax.set_xticks(range(4))
     _ax.set_xticklabels([f'component {k + 1}' for k in range(4)])
@@ -281,7 +281,7 @@ def _(box_qp_coordinate_ascent, np, optimize, torch):
     _lo, _hi = np.array([-1.0, -1.0, -1.0]), np.array([1.0, 1.0, 1.0])
     _obj = lambda x: 0.5 * (x - _ybar) @ _P @ (x - _ybar)  # = -Q up to a constant, to be minimised
     _ours = box_qp_coordinate_ascent(torch.tensor(_ybar)[None], torch.tensor(_P)[None], torch.tensor(_lo)[None],
-                                     torch.tensor(_hi)[None], torch.zeros(1, 3), max_sweeps=500)[0].numpy()
+                                     torch.tensor(_hi)[None], torch.zeros(1, 3), max_sweeps=500)[0].cpu().numpy()
     _ref = optimize.minimize(_obj, x0=np.zeros(3), bounds=list(zip(_lo, _hi)), method='L-BFGS-B', options={'ftol': 1e-15, 'gtol': 1e-12}).x
     print('coordinate ascent   :', _ours.round(5), ' objective =', round(float(_obj(_ours)), 8))
     print('L-BFGS-B (generic)  :', _ref.round(5), ' objective =', round(float(_obj(_ref)), 8))
@@ -303,11 +303,11 @@ def _(fit_gmm, pd, torch):
     gmm_mb = fit_gmm(mean_bounds=MEAN_BOX)
     _active = gmm_mb.active_constraints_
     pd.DataFrame({
-        'mean x': gmm_mb.means_[:, 0].numpy().round(3),
-        'mean y': gmm_mb.means_[:, 1].numpy().round(3),
-        'x at upper': _active['means_at_upper'][:, 0].numpy(),
-        'y at upper': _active['means_at_upper'][:, 1].numpy(),
-        'y at lower': _active['means_at_lower'][:, 1].numpy(),
+        'mean x': gmm_mb.means_[:, 0].cpu().numpy().round(3),
+        'mean y': gmm_mb.means_[:, 1].cpu().numpy().round(3),
+        'x at upper': _active['means_at_upper'][:, 0].cpu().numpy(),
+        'y at upper': _active['means_at_upper'][:, 1].cpu().numpy(),
+        'y at lower': _active['means_at_lower'][:, 1].cpu().numpy(),
     }, index=pd.RangeIndex(1, 5, name='component'))
     return MEAN_BOX, gmm_mb
 
@@ -317,7 +317,7 @@ def _(MEAN_BOX, Rectangle, X_np, gmm_free, gmm_mb, plot_gmm, plt):
     _fig, _axs = plt.subplots(1, 2, figsize=(9, 4.2), sharex=True, sharey=True)
     plot_gmm(X_np, gmm=gmm_free, ax=_axs[0], title='free maximum-likelihood fit', ellipse_std_devs=[2], point_size=3, legend=False)
     plot_gmm(X_np, gmm=gmm_mb, ax=_axs[1], title='mean_bounds: box [-1, 1.5]^2', ellipse_std_devs=[2], point_size=3, legend=False)
-    _lo, _hi = (b.numpy() for b in MEAN_BOX)
+    _lo, _hi = (b.cpu().numpy() for b in MEAN_BOX)
     _axs[1].add_patch(Rectangle(_lo, *(_hi - _lo), fill=False, ls='--', lw=1.5, color='k'))
     plt.tight_layout()
     plt.gcf()
@@ -368,7 +368,7 @@ def _(clip_eigenvalues, np, optimize, torch):
         return np.array([_m - _h, _m + _h])
     _cons = [{'type': 'ineq', 'fun': lambda s: _eig(s) - _lo_m}, {'type': 'ineq', 'fun': lambda s: _hi_m - _eig(s)}]
     _ref = optimize.minimize(_cost, x0=[0.2, 0.0, 0.2], constraints=_cons, method='SLSQP', options={'ftol': 1e-14, 'maxiter': 500})
-    _ours = clip_eigenvalues(torch.tensor(_S), _lo_m, _hi_m).numpy()
+    _ours = clip_eigenvalues(torch.tensor(_S), _lo_m, _hi_m).cpu().numpy()
     print('matrix: eigenvalues of T/n          :', np.linalg.eigvalsh(_S).round(4), ' -> bounds [', _lo_m, ',', _hi_m, ']')
     print('        clip_eigenvalues eigenvalues:', np.linalg.eigvalsh(_ours).round(4), ' cost =', round(float(_cost([_ours[0, 0], _ours[0, 1], _ours[1, 1]])), 6))
     print('        generic SLSQP     eigenvalues:', _eig(_ref.x).round(4), ' cost =', round(float(_ref.fun), 6))
@@ -377,7 +377,7 @@ def _(clip_eigenvalues, np, optimize, torch):
 
 @app.cell(hide_code=True)
 def _(init_covs, mo, np):
-    _eig = [np.linalg.eigvalsh(_c).round(3).tolist() for _c in init_covs.numpy()]
+    _eig = [np.linalg.eigvalsh(_c).round(3).tolist() for _c in init_covs.cpu().numpy()]
     mo.md(f"""
     In a fit, `covariance_bounds=(0.05, 0.5)` confines every eigenvalue of every full covariance to $[0.05,0.5]$. The true eigenvalues of the four blobs are {_eig[0]}, {_eig[1]}, {_eig[2]} and {_eig[3]}.
     Eigenvalues above the cap (component 1, and the long axes of components 3 and 4) are clipped to $0.5$, and the nearly degenerate direction of component 4 (true eigenvalue {_eig[3][0]}) is lifted to the lower bound:
@@ -390,9 +390,9 @@ def _(fit_gmm, np, pd):
     gmm_cb = fit_gmm(covariance_bounds=(0.05, 0.5))
     _active = gmm_cb.active_constraints_
     pd.DataFrame({
-        'eigenvalues of Sigma_k': [np.linalg.eigvalsh(c).round(3).tolist() for c in gmm_cb.covariances_.numpy()],
-        'at upper bound (0.5)': [m.tolist() for m in _active['covariances_at_upper'].numpy()],
-        'at lower bound (0.05)': [m.tolist() for m in _active['covariances_at_lower'].numpy()],
+        'eigenvalues of Sigma_k': [np.linalg.eigvalsh(c).round(3).tolist() for c in gmm_cb.covariances_.cpu().numpy()],
+        'at upper bound (0.5)': [m.tolist() for m in _active['covariances_at_upper'].cpu().numpy()],
+        'at lower bound (0.05)': [m.tolist() for m in _active['covariances_at_lower'].cpu().numpy()],
     }, index=pd.RangeIndex(1, 5, name='component'))
     return (gmm_cb,)
 
@@ -400,9 +400,9 @@ def _(fit_gmm, np, pd):
 @app.cell(hide_code=True)
 def _(X, gmm_cb, gmm_free, init_covs, mo, np):
     _lo, _hi = 0.05, 0.5
-    _true = [np.linalg.eigvalsh(_c) for _c in init_covs.numpy()]
-    _fit = [np.linalg.eigvalsh(_c) for _c in gmm_cb.covariances_.numpy()]
-    _assigned = np.bincount(gmm_cb.predict(X).numpy(), minlength=4)
+    _true = [np.linalg.eigvalsh(_c) for _c in init_covs.cpu().numpy()]
+    _fit = [np.linalg.eigvalsh(_c) for _c in gmm_cb.covariances_.cpu().numpy()]
+    _assigned = np.bincount(gmm_cb.predict(X).cpu().numpy(), minlength=4)
     _inside = [_k for _k in range(4) if _true[_k].min() >= _lo and _true[_k].max() <= _hi and _fit[_k].max() >= _hi - 1e-6]
     _msg = ""
     for _k in _inside:
@@ -449,11 +449,11 @@ def _(GaussianMixture, MAX_ITER, X, init_covs, init_means, init_weights, np, pd,
                                  max_iter=MAX_ITER, tol=1e-12, frozen_means=(0,), frozen_covariances=(2,), frozen_components=(1,)).fit(X)
     pd.DataFrame({
         'frozen': ['mean', 'mean + covariance', 'covariance', '-'],
-        'mean': [m.round(3).tolist() for m in gmm_frozen.means_.numpy()],
-        'initial mean': [m.round(3).tolist() for m in _start_means.numpy()],
-        'covariance diagonal': [np.diag(c).round(3).tolist() for c in gmm_frozen.covariances_.numpy()],
-        'initial covariance diagonal': [np.diag(c).round(3).tolist() for c in init_covs.numpy()],
-        'weight': gmm_frozen.weights_.numpy().round(3),
+        'mean': [m.round(3).tolist() for m in gmm_frozen.means_.cpu().numpy()],
+        'initial mean': [m.round(3).tolist() for m in _start_means.cpu().numpy()],
+        'covariance diagonal': [np.diag(c).round(3).tolist() for c in gmm_frozen.covariances_.cpu().numpy()],
+        'initial covariance diagonal': [np.diag(c).round(3).tolist() for c in init_covs.cpu().numpy()],
+        'weight': gmm_frozen.weights_.cpu().numpy().round(3),
     }, index=pd.RangeIndex(1, 5, name='component'))
     return (gmm_frozen,)
 
@@ -469,10 +469,10 @@ def _(mo):
 
 @app.cell
 def _(X, gmm_frozen, torch):
-    _r = gmm_frozen.predict_proba(X)[:, 0:1]                   # responsibilities of component 1
-    _d = X - gmm_frozen.means_[0]
+    _r = gmm_frozen.predict_proba(X)[:, 0:1].cpu()             # responsibilities of component 1 (X lives on the CPU)
+    _d = X - gmm_frozen.means_[0].cpu()
     _T = (_r * _d).T @ _d                                      # scatter about the FROZEN mean
-    _gap = (gmm_frozen.covariances_[0] - _T / _r.sum() - gmm_frozen.reg_covar * torch.eye(2, dtype=torch.float64)).abs().max().item()
+    _gap = (gmm_frozen.covariances_[0].cpu() - _T / _r.sum() - gmm_frozen.reg_covar * torch.eye(2, dtype=torch.float64)).abs().max().item()
     print(f'max |Sigma_1 - T_1 / n_1 - reg_covar I| = {_gap:.2e}')
     return
 
@@ -574,7 +574,7 @@ def _(X_np, box_hi, fit_gmm, plot_gmm, plt, torch, var_hi, w_hi, w_lo):
                        covariance_bounds=(0.05, var_hi.value))
     _fig, _ax = plt.subplots(figsize=(5.2, 4.4))
     plot_gmm(X_np, gmm=gmm_user, ax=_ax, ellipse_std_devs=[2], point_size=3, legend=False,
-             title=f'weights {gmm_user.weights_.numpy().round(2).tolist()}')
+             title=f'weights {gmm_user.weights_.cpu().numpy().round(2).tolist()}')
     plt.tight_layout()
     plt.gcf()
     return

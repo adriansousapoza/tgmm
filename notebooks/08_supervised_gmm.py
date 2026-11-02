@@ -384,7 +384,7 @@ def _(GaussianMixture, X_tensor, gmm_sup, torch, y_tensor):
     print('predict_class (label)    :', gmm_cpc.predict_class(X_tensor[-5:]).tolist())
 
     # non-contiguous label values: classes_ records them, predict_class returns them
-    gmm_lab = GaussianMixture(n_components=3).fit(X_tensor, labels=torch.tensor([10, 20, 30])[y_tensor])
+    gmm_lab = GaussianMixture(n_components=3).fit(X_tensor, labels=torch.tensor([10, 20, 30], device=y_tensor.device)[y_tensor])
     print('classes_ for labels {10,20,30}:', gmm_lab.classes_.tolist(), ' predict_class:', gmm_lab.predict_class(X_tensor[:3]).tolist())
     return
 
@@ -413,7 +413,7 @@ def _(mo):
 @app.cell
 def _(GaussianMixture, X_tensor, n_components, torch, y_tensor):
     _gen = torch.Generator().manual_seed(0)
-    _known = torch.rand(len(y_tensor), generator=_gen) < 0.1
+    _known = (torch.rand(len(y_tensor), generator=_gen) < 0.1).to(y_tensor.device)
     y_partial = torch.where(_known, y_tensor, torch.full_like(y_tensor, -1))
     print(f'labelled rows: {int(_known.sum())} of {len(y_tensor)}')
     print(f"{'setting':22s} {'iters':>5s} {'accuracy (all rows)':>20s} {'mean log-lik':>13s}")

@@ -173,7 +173,7 @@ def _(
     gmm_plain = GaussianMixture(n_components=3, random_state=SEED, max_iter=MAX_ITER, n_init=N_INIT).fit(X_noise)
     gmm_noise = GaussianMixture(n_components=3, noise=True, random_state=SEED, max_iter=MAX_ITER, n_init=N_INIT).fit(X_noise)
 
-    pred_noise = gmm_noise.predict(X_noise)
+    pred_noise = gmm_noise.predict(X_noise).cpu()
     _is_noise, _flagged = (y_noise == -1), (pred_noise == -1)
     _kept = ~_is_noise & ~_flagged
     print(f'estimated noise weight pi_0 = {float(gmm_noise.noise_weight_):.3f}  (true fraction {float(_is_noise.float().mean()):.3f})')
@@ -199,6 +199,7 @@ def _(mo):
 @app.cell
 def _(CATEGORICAL_PALETTE, X_noise, gmm_noise, gmm_plain, math, plt, torch):
     def _ellipse(ax, mean, cov, color):
+        mean, cov = mean.cpu(), cov.cpu()  # the fitted model may live on the GPU; the ellipse is drawn on the CPU
         _vals, _vecs = torch.linalg.eigh(cov)
         _t = torch.linspace(0, 2 * math.pi, 100)
         _pts = (_vecs @ torch.diag(2 * _vals.sqrt()) @ torch.stack([_t.cos(), _t.sin()])).T + mean
@@ -211,7 +212,7 @@ def _(CATEGORICAL_PALETTE, X_noise, gmm_noise, gmm_plain, math, plt, torch):
         _ellipse(_axes[0], gmm_plain.means_[_k], gmm_plain.covariances_[_k], CATEGORICAL_PALETTE[_k])
     _axes[0].set_title('GaussianMixture (plain)')
 
-    _sc = _axes[1].scatter(X_noise[:, 0], X_noise[:, 1], c=gmm_noise.noise_proba(X_noise), cmap='viridis_r', s=8, vmin=0, vmax=1)
+    _sc = _axes[1].scatter(X_noise[:, 0], X_noise[:, 1], c=gmm_noise.noise_proba(X_noise).detach().cpu().numpy(), cmap='viridis_r', s=8, vmin=0, vmax=1)
     for _k in range(3):
         _ellipse(_axes[1], gmm_noise.means_[_k], gmm_noise.covariances_[_k], CATEGORICAL_PALETTE[_k])
     _axes[1].set_title('noise=True, colour = noise_proba(X)')
@@ -367,8 +368,8 @@ def _(
     gmm_complete = GaussianMixture(n_components=2, random_state=SEED, max_iter=MAX_ITER, n_init=N_INIT).fit(X_complete)
     gmm_missing = GaussianMixture(n_components=2, missing='em', random_state=SEED, max_iter=MAX_ITER, n_init=N_INIT).fit(X_holes)
 
-    print('means, complete data :', gmm_complete.means_.numpy().round(2).tolist())
-    print('means, 20% missing   :', gmm_missing.means_.numpy().round(2).tolist())
+    print('means, complete data :', gmm_complete.means_.cpu().numpy().round(2).tolist())
+    print('means, 20% missing   :', gmm_missing.means_.cpu().numpy().round(2).tolist())
     print(f'ARI, complete data : {ClusteringMetrics.adjusted_rand_score(y_missing, gmm_complete.predict(X_complete)):.3f}')
     print(f'ARI, 20% missing   : {ClusteringMetrics.adjusted_rand_score(y_missing, gmm_missing.predict(X_holes)):.3f}   (predict accepts rows with NaN)')
     return (gmm_missing,)
@@ -394,7 +395,7 @@ def _(
     plt,
     torch,
 ):
-    X_imputed = gmm_missing.impute(X_holes)
+    X_imputed = gmm_missing.impute(X_holes).cpu()
     _col_mean = torch.nanmean(X_holes, dim=0).expand_as(X_holes)
     _rmse_model = float(((X_imputed - X_complete)[holes_mask] ** 2).mean().sqrt())
     _rmse_mean = float(((_col_mean - X_complete)[holes_mask] ** 2).mean().sqrt())
@@ -437,7 +438,7 @@ def _(GaussianMixture, X_holes, gmm_missing, holes_mask):
     except ValueError as _err:
         print('missing="error" (default):', _err)
 
-    _X_imputed = gmm_missing.impute(X_holes)
+    _X_imputed = gmm_missing.impute(X_holes).cpu()
     print('impute leaves observed entries untouched:', bool((_X_imputed[~holes_mask] == X_holes[~holes_mask]).all()), '| NaN left:', bool(_X_imputed.isnan().any()))
     return
 
@@ -486,7 +487,7 @@ def _(
 
     x_grid = torch.linspace(-3, 3, 200)[:, None]
     cond_sine = gmm_joint.condition(x_grid, [0])          # condition on coordinate 0 (x)
-    gmr_mean = cond_sine.mean()[:, 0]
+    gmr_mean = cond_sine.mean()[:, 0].cpu()
     _rmse = float(((gmr_mean - torch.sin(2 * x_grid[:, 0])) ** 2).mean().sqrt())
     print(f'weights {tuple(cond_sine.weights_.shape)}, means {tuple(cond_sine.means_.shape)}, covariances {tuple(cond_sine.covariances_.shape)}')
     print(f'RMSE of the GMR curve against the noiseless sin(2x): {_rmse:.3f}')
@@ -536,7 +537,7 @@ def _(
     for _i, _xq in enumerate(_x_query[:, 0].tolist()):
         _axes[0].axvline(_xq, color=CATEGORICAL_PALETTE[_i], lw=1.5)
         _single = gmm_cross.condition(torch.tensor([[_xq]]), [0])      # a single-row conditional broadcasts against the whole grid
-        _axes[1].plot(y_axis[:, 0], _single.log_prob(y_axis).exp(), color=CATEGORICAL_PALETTE[_i], lw=2, label=f'x = {_xq}')
+        _axes[1].plot(y_axis[:, 0], _single.log_prob(y_axis).exp().cpu(), color=CATEGORICAL_PALETTE[_i], lw=2, label=f'x = {_xq}')
     _axes[0].set_title('X-shaped data: y = ±x')
     _axes[1].set_title('conditional density p(y | x): two peaks')
     _axes[1].set_xlabel('y')
@@ -550,8 +551,8 @@ def _(
 def _(cond_cross):
     _conditional_at_1_5 = cond_cross.as_gmm(1)
     print('as_gmm(1):', type(_conditional_at_1_5).__name__, 'with', _conditional_at_1_5.n_components, 'components over the missing coordinate')
-    print('regression mean at x = 1.5 :', f'{float(cond_cross.mean()[1, 0]):+.2f}   (mixture weights {cond_cross.weights_[1].numpy().round(2).tolist()})')
-    print('conditional component means:', cond_cross.means_[1, :, 0].numpy().round(2).tolist())
+    print('regression mean at x = 1.5 :', f'{float(cond_cross.mean()[1, 0]):+.2f}   (mixture weights {cond_cross.weights_[1].cpu().numpy().round(2).tolist()})')
+    print('conditional component means:', cond_cross.means_[1, :, 0].cpu().numpy().round(2).tolist())
     return
 
 
@@ -611,8 +612,8 @@ def _(GaussianMixture, MAX_ITER, SEED, torch):
     gmm_frozen = GaussianMixture(n_components=2, init_means=init_pair, frozen_components=[0], random_state=SEED,
                                  max_iter=MAX_ITER).fit(X_pair)
     print('component 0 (frozen)  mean:', gmm_frozen.means_[0].tolist(), '  -> exactly the initial value')
-    print('component 1 (free)    mean:', gmm_frozen.means_[1].numpy().round(2).tolist(), '  (moved from', init_pair[1].tolist(), 'towards the data)')
-    print('mixing weights still update:', gmm_frozen.weights_.numpy().round(3).tolist(), ' sum =', round(float(gmm_frozen.weights_.sum()), 6))
+    print('component 1 (free)    mean:', gmm_frozen.means_[1].cpu().numpy().round(2).tolist(), '  (moved from', init_pair[1].tolist(), 'towards the data)')
+    print('mixing weights still update:', gmm_frozen.weights_.cpu().numpy().round(3).tolist(), ' sum =', round(float(gmm_frozen.weights_.sum()), 6))
     return X_pair, init_pair
 
 
@@ -651,8 +652,8 @@ def _(GaussianMixture, MAX_ITER, SEED, X_pair, init_pair, torch):
     gmm_duplicated = GaussianMixture(n_components=2, init_means=init_pair, random_state=SEED, max_iter=MAX_ITER).fit(
         torch.cat([X_pair[:300]] * 3 + [X_pair[300:]]))
 
-    print('weights with sample_weight :', gmm_weighted.weights_.numpy().round(4).tolist())
-    print('weights with duplicated rows:', gmm_duplicated.weights_.numpy().round(4).tolist())
+    print('weights with sample_weight :', gmm_weighted.weights_.cpu().numpy().round(4).tolist())
+    print('weights with duplicated rows:', gmm_duplicated.weights_.cpu().numpy().round(4).tolist())
     print('largest difference in the fitted means:', f'{float((gmm_weighted.means_ - gmm_duplicated.means_).abs().max()):.1e}', '(float32 round-off)')
     return
 
@@ -676,7 +677,7 @@ def _(GaussianMixture, SEED, torch):
 
     _w = torch.rand(len(_X), generator=_g) + 0.5
     _gw = GaussianMixture(n_components=2, random_state=SEED).fit(_X, sample_weight=_w)
-    print(f'lower_bound_ {_gw.lower_bound_:.5f}  vs  sum(w * log p) / sum(w) = {float((_w * _gw.score_samples(_X)).sum() / _w.sum()):.5f}')
+    print(f'lower_bound_ {_gw.lower_bound_:.5f}  vs  sum(w * log p) / sum(w) = {float((_w * _gw.score_samples(_X).cpu()).sum() / _w.sum()):.5f}')
     return
 
 
@@ -801,8 +802,8 @@ def _(
     _burst = 6 + 0.7 * torch.randn(300, 1, generator=_g, dtype=torch.float64)
     X_wait = torch.cat([_waits, _burst])
 
-    generic = GenericMixture(components=[Exponential(0.5), Normal1D(5.0, 1.0)], random_state=SEED, max_iter=MAX_ITER).fit(X_wait)
-    print(f'weights {generic.weights_.numpy().round(3).tolist()}   (true 0.667 / 0.333)')
+    generic = GenericMixture(components=[Exponential(0.5), Normal1D(5.0, 1.0)], random_state=SEED, max_iter=MAX_ITER, device='cpu').fit(X_wait)  # the components hold CPU tensors
+    print(f'weights {generic.weights_.cpu().numpy().round(3).tolist()}   (true 0.667 / 0.333)')
     print(f'exponential rate {float(generic.components_[0].rate):.2f} (true 1.0);  normal mean {float(generic.components_[1].mean):.2f}, '
           f'variance {float(generic.components_[1].var):.2f} (true 6.0 / 0.49)')
     print(f'converged in {generic.n_iter_} iterations; BIC = {generic.bic(X_wait):.1f}; {generic.sample(3)[0].shape[0]} samples drawn from the fitted components')

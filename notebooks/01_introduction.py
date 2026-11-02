@@ -469,9 +469,9 @@ def _(
 ):
     _gmm_full = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu')
     _gmm_full._allocate_parameters(X_1d, set_random_state=False)
-    means = [initial_means.squeeze().numpy()]  # parameters after iteration 0 (the initial guess), 1, 2, ...
-    stds = [np.sqrt(initial_covariances[:, 0, 0].numpy())]
-    taus = [initial_weights.numpy()]
+    means = [initial_means.squeeze().cpu().numpy()]  # parameters after iteration 0 (the initial guess), 1, 2, ...
+    stds = [np.sqrt(initial_covariances[:, 0, 0].cpu().numpy())]
+    taus = [initial_weights.cpu().numpy()]
     _resp, _lp = _gmm_full._e_step(X_1d)
     ll_history = [_lp.mean().item()]  # average log-likelihood of the initial guess
     for _step in range(MAX_ITER):
@@ -671,7 +671,7 @@ def _(COLORS, Ellipse, torch):
         for _k in range(_K):
             _eigvals, _eigvecs = torch.linalg.eigh(_covs[_k].cpu())
             _angle = torch.atan2(_eigvecs[1, 0], _eigvecs[0, 0]).item() * 180.0 / torch.pi
-            _width, _height = 2 * torch.sqrt(_eigvals).numpy()
+            _width, _height = 2 * torch.sqrt(_eigvals).cpu().numpy()
             axs[row, 2].add_patch(Ellipse(_means[_k].cpu().numpy(), _width, _height, angle=_angle, edgecolor=COLORS[_k], facecolor='none', lw=2))
             _trace = torch.stack([_m[_k] for _m in em_means[:_iteration + 1]]).cpu().numpy()
             axs[row, 2].plot(_trace[:, 0], _trace[:, 1], color=COLORS[_k], linestyle='--')

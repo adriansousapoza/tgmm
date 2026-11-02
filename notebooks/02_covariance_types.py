@@ -68,8 +68,8 @@ def _(mo):
     - the volume / shape / orientation decomposition behind the 14 GPCM models and its mclust naming;
     - how each of the 14 models is estimated: closed forms, alternating updates, and the one step
       that needs a numerical (Stiefel-manifold) optimisation;
-    - how to read `volume_`, `shape_`, `orientation_` on a fitted model, and how the number of free
-      parameters of each model grows with the number of components $K$ and the dimension $d$.
+    - how to read `volume_`, `shape_`, `orientation_` on a fitted model, and how many free covariance
+      parameters each model has for small and machine-learning-sized $K$ and $d$.
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb), which builds the four-cluster data and
     explains the mixture model and EM (the E-step / M-step vocabulary used throughout).
@@ -132,7 +132,7 @@ def _(SEED, device, make_default_data):
     n, d = X.shape
     K = 4
     legend_labels = [f'Component {k + 1}' for k in range(K)]
-    return K, X, d, legend_labels, n
+    return K, X, d, legend_labels
 
 
 @app.cell(hide_code=True)
@@ -419,16 +419,16 @@ def _(mo):
     *shared* orientation (`EEE`, `VEE`, `EVE`, `VVE`) adds a $d^2$ term that does not depend on $K$ (the
     volume and shape terms still grow with $K$, at most like $K\,d$); with the identity orientation the
     count grows at most like $K\,d$. The cells below first check the formula against fitted models, then
-    compare all 14 models for several numbers of components $K$ and dimensions $d$. The last two columns of
-    the table are the measured growth exponents, $a=\log_2$ of the ratio of the counts at $K=16$ and $K=8$
-    (with $d=20$) and $b=\log_2$ of the ratio at $d=40$ and $d=20$ (with $K=8$): $a\approx1$ means the count
-    doubles with $K$, $b\approx2$ that it quadruples when $d$ doubles.
+    tabulate all 14 models for a small setting ($K=5$, $d=4$) and a machine-learning-sized one ($K=50$,
+    $d=64$), together with the two mixed settings.
     """)
     return
 
 
 @app.cell
 def _(GPCM_CODES, GaussianMixture, torch):
+    import warnings
+
     ALIASES = {'EII': 'tied_spherical', 'VII': 'spherical', 'EEI': 'tied_diag', 'VVI': 'diag', 'EEE': 'tied_full', 'VVV': 'full'}
 
     def n_cov_params(code, K, d):
@@ -446,179 +446,44 @@ def _(GPCM_CODES, GaussianMixture, torch):
             return _full.get(_t, model.covariances_.numel())  # scalar / (K,) / (d,) / (K, d): every entry is free
         _n_shape_vectors = model.shape_.shape[0] if model.shape_.dim() == 2 else 1
         _n_orient = model.orientation_.shape[0] if model.orientation_.dim() == 3 else 1
-        _is_identity = torch.allclose(model.orientation_.reshape(-1, d, d)[0], torch.eye(d, dtype=model.orientation_.dtype))
+        _eye = torch.eye(d, dtype=model.orientation_.dtype, device=model.orientation_.device)  # on the model's device (it may be a GPU)
+        _is_identity = torch.allclose(model.orientation_.reshape(-1, d, d)[0], _eye)
         return (model.volume_.numel()                                   # one scale per volume entry
                 + model.shape_.numel() - _n_shape_vectors               # each shape vector has unit determinant
                 + (0 if _is_identity else _n_orient * d * (d - 1) // 2))  # each rotation has d(d-1)/2 angles
 
+    SETTINGS = [(5, 4), (5, 64), (50, 4), (50, 64)]  # (K, d): small and machine-learning-sized
     _rows = []
-    for _K, _d in ((3, 4), (2, 5)):
-        _gen = torch.Generator().manual_seed(_K * 10 + _d)
-        _X = torch.randn(400, _d, generator=_gen, dtype=torch.float64) * torch.linspace(0.5, 3, _d, dtype=torch.float64)
+    warnings.filterwarnings('ignore', message='.*did not converge')  # expected: one iteration is all this check needs
+    for _K, _d in SETTINGS:
+        _gen = torch.Generator().manual_seed(_K * 100 + _d)
+        _X = torch.randn(max(400, 30 * _K), _d, generator=_gen, dtype=torch.float64) * torch.linspace(0.5, 3, _d, dtype=torch.float64)
         for _code_name in GPCM_CODES:
-            _m = GaussianMixture(n_components=_K, covariance_type=_code_name, random_state=0, max_iter=20).fit(_X)
+            # one EM iteration on the CPU is enough: the stored factors have their final shapes from the start. Identity starting
+            # covariances stay valid even when a component gets fewer points than dimensions (K=50, d=64)
+            _m = GaussianMixture(n_components=_K, covariance_type=_code_name, random_state=0, max_iter=1, device='cpu', init_covariances='eye').fit(_X)
             _rows.append((_K, _d, _code_name, n_cov_params(_code_name, _K, _d), count_from_fit(_m, _K, _d)))
     _bad = [r for r in _rows if r[3] != r[4]]
-    print(f'checked {len(_rows)} fits (14 models x (K, d) in {{(3, 4), (2, 5)}}): formula == count read from the fitted model for all: {not _bad}')
+    print(f'checked {len(_rows)} fits (14 models x (K, d) in {SETTINGS}): formula == count read from the fitted model for all: {not _bad}')
     assert not _bad, _bad
-    return ALIASES, n_cov_params
+    return ALIASES, SETTINGS, n_cov_params
 
 
 @app.cell
-def _(ALIASES, GPCM_CODES, n_cov_params, np, pd):
-    Ks, ds = (2, 4, 8), (2, 5, 10, 20)
-    _table = pd.DataFrame(
-        [[n_cov_params(_c, _K, _d) for _K in Ks for _d in ds] for _c in GPCM_CODES],
+def _(ALIASES, GPCM_CODES, SETTINGS, n_cov_params, pd):
+    pd.DataFrame(
+        [[n_cov_params(_c, _K, _d) for _K, _d in SETTINGS] for _c in GPCM_CODES],
         index=pd.Index([f"{_c}  ({ALIASES[_c]})" if _c in ALIASES else _c for _c in GPCM_CODES], name='model'),
-        columns=pd.MultiIndex.from_tuples([(f'K={_K}', f'd={_d}') for _K in Ks for _d in ds]),
+        columns=[f'K={_K}, d={_d}' for _K, _d in SETTINGS],
     )
-    # growth exponents: count ~ K^a d^b. Measured between K=8 -> 16 at d=20 and d=20 -> 40 at K=8.
-    _a = [np.log2(n_cov_params(_c, 16, 20) / n_cov_params(_c, 8, 20)) for _c in GPCM_CODES]
-    _b = [np.log2(n_cov_params(_c, 8, 40) / n_cov_params(_c, 8, 20)) for _c in GPCM_CODES]
-    _table[('grows like', 'K^a, a ≈')] = np.round(_a, 1)
-    _table[('grows like', 'd^b, b ≈')] = np.round(_b, 1)
-    param_table = _table
-    param_table
-    return Ks, ds
-
-
-@app.cell
-def _(GPCM_CODES, Ks, ds, n_cov_params, plt):
-    _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.2), dpi=75)
-    _dgrid = list(range(2, 41))
-    _kgrid = [1, 2, 4, 8, 16, 32]
-    for _c in GPCM_CODES:
-        _col = {'E': '#2a78d6', 'V': '#eb6834'}[_c[0]]
-        _ls = {'I': '-', 'E': '--', 'V': ':'}[_c[2]]  # orientation: identity solid, shared dashed, per component dotted
-        _axs[0].plot(_dgrid, [n_cov_params(_c, 4, _d) for _d in _dgrid], color=_col, ls=_ls, label=_c)
-        _axs[1].plot(_kgrid, [n_cov_params(_c, _k, 10) for _k in _kgrid], color=_col, ls=_ls, marker='o', ms=3)
-    _axs[0].set_xscale('log'); _axs[0].set_yscale('log')
-    _axs[1].set_xscale('log', base=2); _axs[1].set_yscale('log')
-    _axs[0].set_xticks([2, 5, 10, 20, 40]); _axs[0].set_xticklabels(['2', '5', '10', '20', '40']); _axs[0].minorticks_off()
-    _axs[1].set_xticks(_kgrid); _axs[1].set_xticklabels([str(_k) for _k in _kgrid]); _axs[1].minorticks_off()
-    _axs[0].set_xlabel('dimension $d$ (K = 4)'); _axs[1].set_xlabel('number of components $K$ (d = 10)')
-    for _a in _axs:
-        _a.set_ylabel('free covariance parameters'); _a.grid(alpha=0.3)
-    _axs[1].legend(*_axs[0].get_legend_handles_labels(), ncol=1, fontsize=7, loc='center left', bbox_to_anchor=(1.02, 0.5),
-                   title='orange: varying volume\nblue: equal volume\nsolid: identity orientation\ndashed: shared orientation\ndotted: per-component', title_fontsize=7)
-    _fig.suptitle('Free covariance parameters of the 14 models')
-    _fig.subplots_adjust(left=0.07, right=0.85, wspace=0.25, top=0.88)
-    plt.gcf()
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Try it: build a model from its three factors
-
-    Two components in two dimensions. For each factor choose whether the components share it (**E**:
-    component 2 copies component 1), let it **V**ary (each component has its own slider) or, for shape
-    and orientation, fix it to the **I**dentity (a circle, or no rotation). The three letters are the
-    mclust code, and the cell below reports whether that combination is one of the 14 models and how
-    many covariance parameters it has. Component 2's sliders are ignored whenever its factor is **E**,
-    both shape sliders are ignored for shape **I**, and both angle sliders for orientation **I**.
-    Interactive when you open the notebook (see the link at the top of the page); the page you are
-    reading shows the default setting, `VEV`.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    gp_vol = mo.ui.dropdown(['E', 'V'], value='V', label='volume')
-    gp_shape = mo.ui.dropdown(['E', 'V', 'I'], value='E', label='shape')
-    gp_orient = mo.ui.dropdown(['E', 'V', 'I'], value='V', label='orientation')
-    gp_lam1 = mo.ui.slider(0.2, 3.0, step=0.1, value=1.0, label='λ₁')
-    gp_lam2 = mo.ui.slider(0.2, 3.0, step=0.1, value=2.0, label='λ₂')
-    gp_ratio1 = mo.ui.slider(1.0, 12.0, step=0.5, value=4.0, label='a₁/a₂ (comp. 1)')
-    gp_ratio2 = mo.ui.slider(1.0, 12.0, step=0.5, value=4.0, label='a₁/a₂ (comp. 2)')
-    gp_ang1 = mo.ui.slider(0, 180, step=5, value=30, label='θ₁ (°)')
-    gp_ang2 = mo.ui.slider(0, 180, step=5, value=120, label='θ₂ (°)')
-    mo.vstack([
-        mo.hstack([gp_vol, gp_shape, gp_orient], justify='start'),
-        mo.hstack([gp_lam1, gp_ratio1, gp_ang1], justify='start'),
-        mo.hstack([gp_lam2, gp_ratio2, gp_ang2], justify='start'),
-    ])
-    return (
-        gp_ang1,
-        gp_ang2,
-        gp_lam1,
-        gp_lam2,
-        gp_orient,
-        gp_ratio1,
-        gp_ratio2,
-        gp_shape,
-        gp_vol,
-    )
-
-
-@app.cell
-def _(
-    GPCM_CODES,
-    gp_ang1,
-    gp_ang2,
-    gp_lam1,
-    gp_lam2,
-    gp_orient,
-    gp_ratio1,
-    gp_ratio2,
-    gp_shape,
-    gp_vol,
-    mo,
-    n_cov_params,
-    np,
-):
-    _v, _s, _o = gp_vol.value, gp_shape.value, gp_orient.value
-    gp_code = _v + _s + _o
-    _l1 = gp_lam1.value
-    _l2 = _l1 if _v == 'E' else gp_lam2.value
-    _r1 = 1.0 if _s == 'I' else gp_ratio1.value
-    _r2 = 1.0 if _s == 'I' else (_r1 if _s == 'E' else gp_ratio2.value)
-    _t1 = 0.0 if _o == 'I' else gp_ang1.value
-    _t2 = 0.0 if _o == 'I' else (_t1 if _o == 'E' else gp_ang2.value)
-
-    def _make_cov(lam, ratio, deg):
-        # Sigma = lam * D diag(a) D^T with a = (sqrt(r), 1/sqrt(r)), so det A = 1 and a1/a2 = r
-        _a = np.array([np.sqrt(ratio), 1 / np.sqrt(ratio)])
-        _c, _sn = np.cos(np.radians(deg)), np.sin(np.radians(deg))
-        _D = np.array([[_c, -_sn], [_sn, _c]])
-        return lam * _D @ np.diag(_a) @ _D.T
-
-    gp_covs = [_make_cov(_l1, _r1, _t1), _make_cov(_l2, _r2, _t2)]
-    _verdict = ('one of the 14 GPCM models' if gp_code in GPCM_CODES else
-                '**not one of the 14 models**: with a spherical (identity) shape the orientation is meaningless, so use orientation I')
-    mo.md(f"**mclust code `{gp_code}`** -- {_verdict}.\n\n"
-          f"Free covariance parameters for $d=2$, $K=2$: **{n_cov_params(gp_code, 2, 2)}** "
-          f"(volume + shape + orientation contributions; "
-          f"$\\det\\Sigma_1={np.linalg.det(gp_covs[0]):.2f}$, $\\det\\Sigma_2={np.linalg.det(gp_covs[1]):.2f}$).")
-    return gp_code, gp_covs
-
-
-@app.cell
-def _(gp_code, gp_covs, np, plt):
-    _t = np.linspace(0, 2 * np.pi, 200)
-    _circle = np.stack([np.cos(_t), np.sin(_t)])
-    _fig, _ax = plt.subplots(figsize=(7, 4))
-    for _S, _c, _x0 in zip(gp_covs, ['#2a78d6', '#eb6834'], [-3.0, 3.0]):
-        _L = np.linalg.cholesky(_S)
-        for _m in (1, 2):
-            _ax.plot(_x0 + _m * (_L @ _circle)[0], _m * (_L @ _circle)[1], color=_c, lw=2 if _m == 1 else 1)
-        _ax.plot(_x0, 0, 'o', color=_c)
-    _ax.set_aspect('equal')
-    _ax.set_xlim(-7, 7)
-    _ax.set_ylim(-3.5, 3.5)
-    _ax.set_title(f'1σ and 2σ contours of Σ₁ (blue) and Σ₂ (orange), model {gp_code}')
-    plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    Things to try: `EII` and `VII` give circles (identity shape and orientation), `EEE` shares everything
-    (the same ellipse twice), and `VVV` frees all three factors. The parameter count is why constrained models can be estimated
-    reliably from little data: `VVV` needs $K\,d(d+1)/2$ covariance parameters, `EII` only one.
+    The table shows why constrained models can be estimated reliably from little data: at $K=50$ and $d=64$,
+    `VVV` needs $K\,d(d+1)/2$ covariance parameters, `EII` only one.
 
     ### Reading the decomposition off a fitted model
 
@@ -881,47 +746,46 @@ def _(mo):
     mo.md(r"""
     ## All 14 models on the four-cluster data
 
-    Back to the dataset. The grid arranges the 14 models by *orientation* (columns: identity /
-    shared / per-component), so that moving down a column relaxes volume and shape. Compare the
-    panels with the true covariances of the four clusters (two spherical of different size, one
-    axis-aligned, one tilted). The table under the grid lists each model's log-likelihood next to its
-    number of free parameters.
+    Back to the dataset. Each panel is one model fitted to the four blobs, with its covariance
+    structure written in the title. The **left column** shares one volume between the components
+    (`E**`), the **right column** lets the volume vary (`V**`); each **row** is one (shape, orientation)
+    pair, ordered as in Table 1 of Celeux & Govaert (1995): identity shape and orientation first, then
+    the diagonal models, then shared and per-component orientation. Moving down the grid frees shape and
+    orientation. Compare the panels with the true covariances of the four clusters (two spherical of
+    different size, one axis-aligned, one tilted); the parameter counts are in the table above. The ellipses
+    are the fitted components' 1-, 2- and 3-standard-deviation contours (one colour per fitted component) and the
+    black dots their means.
     """)
     return
 
 
 @app.cell
-def _(GaussianMixture, K, SEED, X, device, dynamic_figsize, plot_gmm, plt):
-    columns = {'orientation = I  (axis-aligned)': ['EII', 'VII', 'EEI', 'VEI', 'EVI', 'VVI'], 'orientation = E  (shared)': ['EEE', 'VEE', 'EVE', 'VVE'], 'orientation = V  (per component)': ['EEV', 'VEV', 'EVV', 'VVV']}
+def _(GaussianMixture, K, SEED, X, device, plot_gmm, plt):
+    # rows = (shape, orientation) pairs in the order of Celeux & Govaert (1995), Table 1; left column = equal volume, right = varying volume
+    grid_rows = [('EII', 'VII'), ('EEI', 'VEI'), ('EVI', 'VVI'), ('EEE', 'VEE'), ('EVE', 'VVE'), ('EEV', 'VEV'), ('EVV', 'VVV')]
+    covariance_equation = {
+        'EII': r'\lambda I', 'VII': r'\lambda_k I',
+        'EEI': r'\lambda A', 'VEI': r'\lambda_k A', 'EVI': r'\lambda A_k', 'VVI': r'\lambda_k A_k',
+        'EEE': r'\lambda D A D^\top', 'VEE': r'\lambda_k D A D^\top', 'EVE': r'\lambda D A_k D^\top', 'VVE': r'\lambda_k D A_k D^\top',
+        'EEV': r'\lambda D_k A D_k^\top', 'VEV': r'\lambda_k D_k A D_k^\top', 'EVV': r'\lambda D_k A_k D_k^\top', 'VVV': r'\lambda_k D_k A_k D_k^\top',
+    }
+    row_labels = ['shape I, orientation I', 'shape E, orientation I', 'shape V, orientation I', 'shape E, orientation E',
+                  'shape V, orientation E', 'shape E, orientation V', 'shape V, orientation V']
     fits = {}
-    _fig, _axs = plt.subplots(6, 3, figsize=dynamic_figsize(6, 3, base_width=5.5, base_height=3.6), dpi=70)
-    for col, (col_title, codes) in enumerate(columns.items()):
-        for row in range(6):
-            _ax = _axs[row, col]
-            if row >= len(codes):
-                _ax.axis('off')
-                continue
-            _code_name = codes[row]
+    _fig, _axs = plt.subplots(7, 2, figsize=(9, 24), dpi=60)
+    for _row, (_codes, _label) in enumerate(zip(grid_rows, row_labels)):
+        for _col, _code_name in enumerate(_codes):
+            _ax = _axs[_row, _col]
             _gmm = GaussianMixture(n_components=K, covariance_type=_code_name, init_means='kmeans', random_state=SEED, device=device)
             _gmm.fit(X)
             fits[_code_name] = _gmm
-            plot_gmm(X.cpu().numpy(), gmm=_gmm, ax=_ax, title=f'{_code_name}   mean log-lik = {float(_gmm.score(X)):.3f}')
-            if row == 0:
-                _ax.annotate(col_title, xy=(0.5, 1.28), xycoords='axes fraction', ha='center', fontsize=11, weight='bold')
-    plt.tight_layout()
+            plot_gmm(X.cpu().numpy(), gmm=_gmm, ax=_ax, legend=False, title=f'{_code_name}:  $\\Sigma_k={covariance_equation[_code_name]}$\nmean log-lik = {float(_gmm.score(X)):.3f}')
+            _ax.set_xlabel('')
+            _ax.set_ylabel(_label if _col == 0 else '', fontsize=9)
+    _fig.text(0.28, 0.995, 'equal volume (E**)', ha='center', va='top', fontsize=12, weight='bold')
+    _fig.text(0.74, 0.995, 'varying volume (V**)', ha='center', va='top', fontsize=12, weight='bold')
+    plt.tight_layout(rect=[0, 0, 1, 0.985])
     plt.gcf()
-    return (fits,)
-
-
-@app.cell
-def _(ALIASES, K, X, d, fits, n, n_cov_params, pd):
-    summary = pd.DataFrame([
-        {'code': c, 'alias': ALIASES.get(c, ''), 'log-likelihood': g.score(X) * n,
-         'covariance params': n_cov_params(c, K, d), 'total free params': n_cov_params(c, K, d) + K * d + K - 1,
-         'converged': g.converged_}
-        for c, g in fits.items()
-    ]).sort_values('log-likelihood', ascending=False).reset_index(drop=True)
-    summary
     return
 
 
@@ -975,8 +839,8 @@ def _(mo):
       independent brute-force minimiser.
     - The number of free covariance parameters is a sum over the three factors: only a per-component orientation
       grows like $K\,d^2$, a shared orientation adds a $K$-independent $d^2$ term, and the identity orientation
-      grows at most like $K\,d$ -- the formula is checked against fitted models and compared for
-      $K\in\{2,4,8\}$ and $d$ up to 20.
+      grows at most like $K\,d$ -- the formula is checked against fitted models and tabulated for
+      $K\in\{5,50\}$ and $d\in\{4,64\}$.
     - `volume_` / `shape_` / `orientation_` expose the fitted decomposition of the eight non-classic models.
 
     **Next:** [03 -- Initialization](03_initialization.ipynb) for how the starting means, covariances and

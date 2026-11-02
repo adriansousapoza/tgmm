@@ -392,7 +392,7 @@ def _(X, confidence_ellipse_std_devs, coverage, dynamic_figsize, gmm, plot_gmm, 
     _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
     plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=_r, ellipse_alpha=0.3, title=f'{coverage.value:.0%} confidence ellipses (r = {_r[0]:.3f})', ax=_ax)
     # share of each component's assigned points that falls inside its ellipse
-    _Xt = torch.as_tensor(X, dtype=gmm.means_.dtype)
+    _Xt = torch.as_tensor(X, dtype=gmm.means_.dtype, device=gmm.means_.device)
     _lab = gmm.predict(_Xt)
     _inside = []
     for _k in range(gmm.n_components):
@@ -577,7 +577,7 @@ def _(mo):
     ```python
     from sklearn.decomposition import PCA
 
-    X_2d = PCA(n_components=2).fit_transform(X_hd.numpy())
+    X_2d = PCA(n_components=2).fit_transform(X_hd.cpu().numpy())
     gmm = GaussianMixture(n_components=5, n_features=2).fit(torch.tensor(X_2d, dtype=torch.float32))
     plot_gmm(X_2d, gmm, show_ellipses=True, title='PCA projection with clusters')
     ```
@@ -686,12 +686,12 @@ def _(X_hd, dynamic_figsize, plot_vmf_cosine, plt, vmf_hd):
 def _(X_hd, np, torch, vmf_angle_density, vmf_cap_angle, vmf_hd):
     from scipy.optimize import brentq as _brentq
     _d = X_hd.shape[1]
-    _Xt = torch.tensor(X_hd, dtype=vmf_hd.means_.dtype)
+    _Xt = torch.tensor(X_hd, dtype=vmf_hd.means_.dtype, device=vmf_hd.means_.device)
     _lab = vmf_hd.predict(_Xt)
     _grid = np.linspace(1e-3, np.pi - 1e-3, 20001)
     for _k in range(vmf_hd.n_components):
         _kappa = float(vmf_hd.kappa_[_k])
-        _ang = torch.arccos((_Xt[_lab == _k] @ vmf_hd.means_[_k]).clamp(-1, 1)).numpy()
+        _ang = torch.arccos((_Xt[_lab == _k] @ vmf_hd.means_[_k]).clamp(-1, 1)).cpu().numpy()
         _cap = vmf_cap_angle(_kappa, _d, 0.9)
         _mode = _brentq(lambda t: _kappa * np.sin(t) ** 2 - (_d - 2) * np.cos(t), 1e-6, np.pi / 2)
         _mode_num = _grid[np.argmax(vmf_angle_density(_kappa, _d, _grid))]

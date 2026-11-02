@@ -271,8 +271,8 @@ def _(GaussianMixture, SEED, X, torch, true_labels):
     _proportions = torch.bincount(true_labels).float() / len(true_labels)
     _class_means = torch.stack([X[true_labels == _c].mean(0) for _c in range(3)])
     print(f'fully labeled, one component per class: n_iter_ = {_full.n_iter_}, converged_ = {_full.converged_}')
-    print('weights_ equal the class proportions n_c / n:', torch.allclose(_full.weights_, _proportions, atol=1e-6))
-    print('means_ equal the per-class sample means    :', torch.allclose(_full.means_, _class_means, atol=1e-5))
+    print('weights_ equal the class proportions n_c / n:', torch.allclose(_full.weights_.cpu(), _proportions, atol=1e-6))
+    print('means_ equal the per-class sample means    :', torch.allclose(_full.means_.cpu(), _class_means, atol=1e-5))
     return
 
 
@@ -308,7 +308,7 @@ def _(GaussianMixture, torch):
 
     for _n_init, _seed in [(1, 1), (5, 1)]:
         _m = GaussianMixture(n_components=3, components_per_class={0: 2, 1: 1}, random_state=_seed, n_init=_n_init).fit(X_multi, labels=labels_multi)
-        _acc = float((_m.predict_class(X_multi) == y_multi).float().mean())
+        _acc = float((_m.predict_class(X_multi).cpu() == y_multi).float().mean())
         print(f'n_init={_n_init}: class accuracy {_acc:.2f}, lower_bound_ = {_m.lower_bound_:.3f}, '
               f'classes_ = {_m.classes_.tolist()}, class_of_component_ = {_m.class_of_component_.tolist()}')
     print(f'{int((labels_multi != -1).sum())} of {len(labels_multi)} rows labeled')
@@ -339,7 +339,7 @@ def _(FAST, GaussianMixture, X, true_labels, torch):
             _flip = (_lab >= 0) & (torch.rand(len(true_labels), generator=_gen) < 0.2)
             _lab[_flip] = torch.randint(0, 3, (int(_flip.sum()),), generator=_gen)
             _m = GaussianMixture(n_components=3, init_means='random', n_init=1, random_state=_s, max_iter=200, **knobs).fit(X, labels=_lab)
-            _accs.append(float((_m.predict_class(X) == true_labels).float().mean()))
+            _accs.append(float((_m.predict_class(X).cpu() == true_labels).float().mean()))
         return sum(_accs) / len(_accs)
 
     knob_table = {'defaults': {}, 'unlabeled_weight=0.3': dict(unlabeled_weight=0.3), 'unlabeled_weight=0 (labeled rows only)': dict(unlabeled_weight=0.0),
@@ -440,7 +440,7 @@ def _(
 ):
     pu = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=2, family='student_t', anchor='fixed', random_state=SEED, n_init=min(3, N_INIT), max_iter=200)
     pu.fit(X_pu, positive_mask)
-    pred_positive = pu.predict_positive(X_pu)
+    pred_positive = pu.predict_positive(X_pu).cpu()
     tp = (pred_positive & true_positive).sum().item()
     fp = (pred_positive & ~true_positive).sum().item()
     fn = (~pred_positive & true_positive).sum().item()
@@ -469,7 +469,7 @@ def _(mo):
 
 @app.cell
 def _(X_pu, plt, positive_mask, pu):
-    proba_positive = pu.predict_proba_positive(X_pu)
+    proba_positive = pu.predict_proba_positive(X_pu).cpu()
     plt.figure(figsize=(6, 5))
     _sc = plt.scatter(X_pu[:, 0], X_pu[:, 1], c=proba_positive, cmap='RdYlBu_r', s=12, vmin=0, vmax=1)
     plt.scatter(X_pu[positive_mask, 0], X_pu[positive_mask, 1], marker='*', s=120, facecolors='none', edgecolors='black', linewidths=1.2, label='labeled positive')
@@ -523,7 +523,7 @@ def _(N_INIT, PositiveUnlabeledMixture, SEED, X_pu, positive_mask, true_positive
     for _family, _anchor in [('gaussian', 'fixed'), ('gaussian', 'prior'), ('gaussian', 'free'), ('student_t', 'fixed'), ('student_t', 'free')]:
         _m = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=2, family=_family, anchor=_anchor,
                                       random_state=SEED, n_init=min(3, N_INIT), max_iter=200).fit(X_pu, positive_mask)
-        _pred = _m.predict_positive(X_pu)
+        _pred = _m.predict_positive(X_pu).cpu()
         _tp, _fp, _fn = (_pred & true_positive).sum().item(), (_pred & ~true_positive).sum().item(), (~_pred & true_positive).sum().item()
         _f1 = 2 * _tp / max(2 * _tp + _fp + _fn, 1)
         print(f'{_family:10s} {_anchor:7s} {_m.class_prior_:13.3f} {_f1:6.3f}')
@@ -538,8 +538,8 @@ def _(N_INIT, PositiveUnlabeledMixture, SEED, X_pu, positive_mask, true_positive
 def _(GaussianMixture, X_pu, positive_mask, torch, true_positive):
     _labeled_only = GaussianMixture(n_components=1, random_state=0).fit(X_pu[positive_mask])
     _fresh = X_pu[true_positive & ~positive_mask]                      # true positives the model was NOT told about
-    _diff = _fresh - _labeled_only.means_[0]
-    _maha2 = ((_diff @ torch.linalg.inv(_labeled_only.covariances_[0])) * _diff).sum(1)
+    _diff = _fresh - _labeled_only.means_[0].cpu()
+    _maha2 = ((_diff @ torch.linalg.inv(_labeled_only.covariances_[0].cpu())) * _diff).sum(1)
     print(f'labeled-only fit uses {int(positive_mask.sum())} points in {X_pu.shape[1]} dimensions')
     print(f'mean squared Mahalanobis distance of the {len(_fresh)} unlabeled true positives to it: {float(_maha2.mean()):.1f}  (about {X_pu.shape[1]} if the fit were exact)')
     return

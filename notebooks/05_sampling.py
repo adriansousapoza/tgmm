@@ -370,7 +370,7 @@ def _(N_DRAW, X, dynamic_figsize, gmm, legend_labels, plot_gmm, plt, torch):
     _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2))
     _axs = _axs.flatten()
     _colors = ['C0', 'C1', 'C2', 'C3']
-    _c = center_point.numpy()
+    _c = center_point.cpu().numpy()
     for _k in range(gmm.n_components):
         _s, _ = gmm.sample(N_DRAW, component=_k, center_point=center_point, center_radius=center_radius, max_attempts_per_sample=10000)
         plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[_k], title=f'Component {_k + 1}', legend_labels=[f'Component {_k + 1}'], ellipse_fill=False, color_by_cluster=False, point_color=_colors[_k])

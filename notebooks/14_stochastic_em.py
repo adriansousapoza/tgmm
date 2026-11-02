@@ -328,12 +328,12 @@ def _(GaussianMixture, SEED, X, algorithm_ui, beta0_ui, jitter_seed_ui, n_anneal
 @app.cell
 def _(X, algorithm_ui, beta0_ui, gmm_annealed, gmm_plain, n_anneal_ui, np, plot_gmm, plt):
     _fig, _axes = plt.subplots(1, 3, figsize=(15, 4.4))
-    _Xn = X.numpy()
+    _Xn = X.cpu().numpy()
     for _ax, _g, _title in ((_axes[0], gmm_plain, f'beta = 1 (plain {algorithm_ui.value.upper()})'), (_axes[1], gmm_annealed, f'annealed, beta_0 = {beta0_ui.value:g}, n_anneal = {n_anneal_ui.value}')):
         plot_gmm(_Xn, gmm=_g, ax=_ax, color_by_cluster=True, ellipse_std_devs=[2], ellipse_fill=False, ellipse_line_width=2, title=f'{_title}\nmean log-likelihood {_g.lower_bound_:.3f}', legend=False)
         _ax.set_aspect('equal')
-    _hist_plain = gmm_plain.log_likelihood_history_.numpy()
-    _hist_ann = gmm_annealed.log_likelihood_history_.numpy()
+    _hist_plain = gmm_plain.log_likelihood_history_.cpu().numpy()
+    _hist_ann = gmm_annealed.log_likelihood_history_.cpu().numpy()
     _beta = np.asarray(gmm_annealed.annealing_schedule_)
     _on = _beta >= 1.0 if len(_beta) == len(_hist_ann) else np.ones(len(_hist_ann), dtype=bool)
     _axes[2].plot(_hist_plain, label='plain')

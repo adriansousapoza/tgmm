@@ -423,7 +423,7 @@ def _(X_iris, iris, iris_result, plot_gmm, plt):
     iris_best = iris_result.best_
     print(f'Winning model: {iris_best.covariance_type_} (K={iris_best.n_components}), BIC={iris_best.bic(X_iris):.2f}')
     plt.figure(figsize=(6, 5))
-    plot_gmm(X_iris.numpy(), gmm=iris_best, true_labels=iris.target, color_by_cluster=True)
+    plot_gmm(X_iris.cpu().numpy(), gmm=iris_best, true_labels=iris.target, color_by_cluster=True)
     plt.title(f'{iris_best.covariance_type_} (K={iris_best.n_components}) fit to iris petal measurements')
     plt.gcf()
     return (iris_best,)
@@ -434,7 +434,7 @@ def _(iris_best):
     print('covariance_type_:', iris_best.covariance_type_)
     for _name in ('volume_', 'shape_', 'orientation_'):
         _value = getattr(iris_best, _name)
-        print(f'{_name}:', None if _value is None else _value.numpy().round(3))
+        print(f'{_name}:', None if _value is None else _value.cpu().numpy().round(3))
     return
 
 

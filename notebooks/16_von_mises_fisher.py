@@ -336,7 +336,7 @@ def _(
         mus = torch.tensor(mean_directions, dtype=torch.float32)
         mus = mus / mus.norm(dim=1, keepdim=True)
         K, d_ = mus.shape
-        truth = VonMisesFisherMixture(n_components=K, n_features=d_)
+        truth = VonMisesFisherMixture(n_components=K, n_features=d_, device='cpu')
         truth.weights_ = torch.full((K,), 1.0 / K)
         truth.means_ = mus
         truth.kappa_ = torch.tensor(kappas, dtype=torch.float32)
@@ -352,17 +352,17 @@ def _(
     vmf5 = VonMisesFisherMixture(n_components=3, random_state=SEED, tol=1e-10, max_iter=5 * MAX_ITER).fit(X5.double())
 
     X5d = X5.double()
-    resp = vmf5.predict_proba(X5d).detach().double()
+    resp = vmf5.predict_proba(X5d).detach().double().cpu()
     nk = resp.sum(0)
     R = resp.T @ X5d                                   # (K, d) resultant vectors
     R_bar = R.norm(dim=1) / nk
     mu_hat = R / R.norm(dim=1, keepdim=True)
     kappa_exact = [brentq(lambda k: A_d(k, 5) - rb, 1e-3, 1e5) for rb in R_bar.tolist()]
 
-    print('mean direction: max |mu_k - R_k/||R_k||| =', (vmf5.means_.double() - mu_hat).abs().max().item())
-    print('kappa  (library):      ', vmf5.kappa_.numpy().round(3))
+    print('mean direction: max |mu_k - R_k/||R_k||| =', (vmf5.means_.double().cpu() - mu_hat).abs().max().item())
+    print('kappa  (library):      ', vmf5.kappa_.cpu().numpy().round(3))
     print('kappa  (root of A_d):  ', np.round(kappa_exact, 3))
-    print('kappa  (Banerjee only):', banerjee_kappa(R_bar.numpy(), 5).round(3))
+    print('kappa  (Banerjee only):', banerjee_kappa(R_bar.cpu().numpy(), 5).round(3))
     print('true kappa:            ', [30.0, 60.0, 15.0], '(components may be permuted)')
     return X5, sample_vmf_mixture, vmf5
 
@@ -405,8 +405,8 @@ def _(X_circle, X_sphere, plot_vmf, plt, vmf_circle, vmf_sphere):
 @app.cell
 def _(vmf_circle, vmf_sphere):
     print('true kappa:  [40, 15, 80]')
-    print('fitted kappa (circle):', vmf_circle.kappa_.numpy().round(1))
-    print('fitted kappa (sphere):', vmf_sphere.kappa_.numpy().round(1))
+    print('fitted kappa (circle):', vmf_circle.kappa_.cpu().numpy().round(1))
+    print('fitted kappa (sphere):', vmf_sphere.kappa_.cpu().numpy().round(1))
     return
 
 
@@ -459,7 +459,7 @@ def _(
     for _conc in ['per_component', 'shared']:
         _m = VonMisesFisherMixture(n_components=3, concentration=_conc, random_state=SEED, n_init=min(3, N_INIT)).fit(X_sphere)
         _ari = ClusteringMetrics.adjusted_rand_score(y_sphere, _m.predict(X_sphere))
-        print(f'{_conc:<14} kappa_={_m.kappa_.numpy().round(1)}  BIC={_m.bic(X_sphere):9.1f}  ICL={_m.icl(X_sphere):9.1f}  ARI={_ari:.3f}')
+        print(f'{_conc:<14} kappa_={_m.kappa_.cpu().numpy().round(1)}  BIC={_m.bic(X_sphere):9.1f}  ICL={_m.icl(X_sphere):9.1f}  ARI={_ari:.3f}')
     return
 
 
@@ -488,13 +488,13 @@ def _(SEED, VonMisesFisherMixture, X5, ive, np, torch):
         print('scipy.stats.vonmises_fisher needs scipy >= 1.11; skipping the comparison.')
     else:
         _m1 = VonMisesFisherMixture(n_components=1, random_state=SEED).fit(X5.double())
-        _logpdf = vonmises_fisher(_m1.means_[0].double().numpy(), float(_m1.kappa_[0])).logpdf(X5.double().numpy())
-        print(f'd=5: max |tgmm log-density - scipy| over {X5.shape[0]} points = {np.abs(_m1.score_samples(X5.double()).numpy() - _logpdf).max():.2e}')
+        _logpdf = vonmises_fisher(_m1.means_[0].double().cpu().numpy(), float(_m1.kappa_[0])).logpdf(X5.double().cpu().numpy())
+        print(f'd=5: max |tgmm log-density - scipy| over {X5.shape[0]} points = {np.abs(_m1.score_samples(X5.double()).cpu().numpy() - _logpdf).max():.2e}')
         _d = 768
         _mu = np.zeros(_d)
         _mu[0] = 1.0
         for _kappa in (300.0, 20.0):
-            _model = VonMisesFisherMixture(n_components=1, n_features=_d)
+            _model = VonMisesFisherMixture(n_components=1, n_features=_d, device='cpu')
             _model.weights_ = torch.ones(1)
             _model.means_ = torch.tensor(_mu, dtype=torch.float32)[None]
             _model.kappa_ = torch.tensor([_kappa])
@@ -529,8 +529,8 @@ def _(mo):
 @app.cell
 def _(SEED, VonMisesFisherMixture, X_sphere):
     _cem = VonMisesFisherMixture(n_components=3, algorithm='cem', concentration='shared', random_state=SEED).fit(X_sphere)
-    _nearest = (X_sphere @ _cem.means_.T).argmax(dim=1)
-    print('weights_:', _cem.weights_.numpy().round(3))
+    _nearest = (X_sphere.to(_cem.means_.device) @ _cem.means_.T).argmax(dim=1)
+    print('weights_:', _cem.weights_.cpu().numpy().round(3))
     print(f'fraction of points whose predicted component is the one with the largest cosine similarity: {(_cem.predict(X_sphere) == _nearest).float().mean().item():.3f}')
     return
 
@@ -555,7 +555,7 @@ def _(A_d, np, vmf5):
     for _k in range(3):
         _r = _samples[_which == _k].double().mean(0).norm().item()
         print(f'{_k:<3}{vmf5.kappa_[_k].item():>9.2f}{_r:>40.4f}{A_d(vmf5.kappa_[_k].item(), 5):>16.4f}')
-    print('all sampled points have unit norm:', bool(np.allclose(_samples.norm(dim=1).numpy(), 1.0, atol=1e-5)))
+    print('all sampled points have unit norm:', bool(np.allclose(_samples.norm(dim=1).cpu().numpy(), 1.0, atol=1e-5)))
     return
 
 
@@ -603,7 +603,7 @@ def _(SEED, VonMisesFisherMixture, X5, X_sphere, np):
         _warnings.simplefilter('always')
         _m = VonMisesFisherMixture(n_components=3, random_state=SEED).fit(X_sphere * 2.5)
     print(f'fitting on rows of norm 2.5 -> {len(_caught)} warning: "{_caught[0].message}"')
-    print('norms of the fitted means_:', _m.means_.norm(dim=1).numpy().round(4))
+    print('norms of the fitted means_:', _m.means_.norm(dim=1).cpu().numpy().round(4))
     return
 
 
@@ -636,7 +636,7 @@ def _(SEED, VonMisesFisherMixture, torch):
     # with known parameters and using its own (Wood, 1994) rejection sampler --
     # more faithful than an ad-hoc approximation, and exercises the same code path
     # being demonstrated below.
-    true_model = VonMisesFisherMixture(n_components=K_true, n_features=d)
+    true_model = VonMisesFisherMixture(n_components=K_true, n_features=d, device='cpu')
     true_model.weights_ = torch.full((K_true,), 1.0 / K_true)
     true_model.means_ = true_mus
     true_model.kappa_ = torch.full((K_true,), true_kappa)
@@ -708,8 +708,8 @@ def _(mo):
 def _(SEQUENTIAL_CMAP, X_emb, plot_vmf_cosine, plt, pred_vmf, torch, vmf):
     _fig, _axes = plt.subplots(1, 2, figsize=(14, 4.8))
     plot_vmf_cosine(X_emb, vmf, ax=_axes[0], title='$d=768$: angle to assigned mean direction')
-    order = torch.argsort(pred_vmf)
-    sim = (X_emb[order] @ X_emb[order].T).numpy()
+    order = torch.argsort(pred_vmf).cpu()
+    sim = (X_emb[order] @ X_emb[order].T).cpu().numpy()
     im = _axes[1].imshow(sim, cmap=SEQUENTIAL_CMAP, vmin=0, vmax=sim.max())
     _axes[1].set_title('Cosine-similarity matrix, rows sorted by predicted cluster')
     _axes[1].grid(False)

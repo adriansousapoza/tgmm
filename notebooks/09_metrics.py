@@ -716,7 +716,7 @@ def _(ClusteringMetrics, X_tensor, labels_pred_1, np, pd, torch, y_tensor):
     from sklearn.metrics.cluster import contingency_matrix as _sk_contingency
     _yt = y_tensor.clone().detach().to(dtype=torch.long)
     _yp = labels_pred_1.clone().detach().to(dtype=torch.long)
-    _cont = torch.tensor(_sk_contingency(_yt.numpy(), _yp.numpy()), dtype=torch.float64)
+    _cont = torch.tensor(_sk_contingency(_yt.cpu().numpy(), _yp.cpu().numpy()), dtype=torch.float64)
     _n = _cont.sum()
     _a, _b = _cont.sum(1), _cont.sum(0)
     _H = lambda c: -(c / _n * torch.log(c / _n)).sum()
@@ -817,7 +817,7 @@ def _(
 ):
     matched_pred = match_predicted_to_true_labels(y_tensor, labels_pred_1)
     cm = ClusteringMetrics.confusion_matrix(y_tensor.clone().detach().to(dtype=torch.long), matched_pred.clone().detach().to(dtype=torch.long))
-    cm_np = cm.numpy().astype(float)
+    cm_np = cm.cpu().numpy().astype(float)
     cm_percent = (cm_np.T / cm_np.sum(axis=1)).T * 100
     plt.figure()
     sns.heatmap(cm_percent, annot=True, fmt='.1f', cmap='Blues')

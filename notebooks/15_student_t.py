@@ -386,7 +386,7 @@ def _(GaussianMixture, SEED, StudentTMixture, X, torch, true_centers):
 
     def match_err(means, true_centers=true_centers):
         '''Mean distance between fitted and true centres, under the best matching.'''
-        d = torch.cdist(means, true_centers)
+        d = torch.cdist(means.cpu(), true_centers)
         return min(d[0, 0] + d[1, 1], d[0, 1] + d[1, 0]).item() / 2
 
 
@@ -426,7 +426,7 @@ def _(mo):
 
 @app.cell
 def _(X, plt, stm):
-    weights = stm.sample_weights(X)
+    weights = stm.sample_weights(X).cpu()
     plt.figure(figsize=(5.5, 5))
     _sc = plt.scatter(X[:, 0], X[:, 1], c=weights, cmap='viridis_r', s=12, vmin=0, vmax=1)
     plt.colorbar(_sc, label='sample weight $u_{ik}$ (low = likely outlier)')
@@ -518,7 +518,7 @@ def _(SEED, StudentTMixture, torch, true_centers):
     for _name, _data in [('t, nu = 3', X_t3), ('Gaussian', X_gauss)]:
         for _dof in ['per_component', 'shared', 10000.0]:
             _m = StudentTMixture(n_components=2, dof=_dof, random_state=SEED, n_init=2).fit(_data)
-            _rows.append((_name, _dof, _m.dof_.numpy().round(2), round(_m.bic(_data), 1)))
+            _rows.append((_name, _dof, _m.dof_.cpu().numpy().round(2), round(_m.bic(_data), 1)))
     for _r in _rows:
         print(f'{_r[0]:<10} dof={str(_r[1]):<14} fitted dof_={_r[2]}   BIC={_r[3]}')
     return (X_gauss,)
@@ -544,7 +544,7 @@ def _(mo):
 def _(SEED, StudentTMixture, X):
     for _update in ['ecm', 'ecme']:
         _m = StudentTMixture(n_components=2, scale_update=_update, random_state=SEED, tol=1e-08, max_iter=500).fit(X)
-        print(f"scale_update='{_update}': iterations={_m.n_iter_:>3}  log-likelihood/sample={_m.lower_bound_:.6f}  dof_={_m.dof_.numpy().round(3)}")
+        print(f"scale_update='{_update}': iterations={_m.n_iter_:>3}  log-likelihood/sample={_m.lower_bound_:.6f}  dof_={_m.dof_.cpu().numpy().round(3)}")
     return
 
 

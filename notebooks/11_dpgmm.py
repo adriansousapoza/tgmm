@@ -376,8 +376,8 @@ def _(
     X, true_labels = make_walkthrough_blobs(true_k, N_TOTAL // true_k, spread=4.0, d=D)
     n_samples = X.shape[0]
     print(f'n_samples={n_samples}, true_k={true_k}, d={D}')
-    pca = PCA(n_components=2, random_state=SEED).fit(X.numpy())
-    X_pca = pca.transform(X.numpy())
+    pca = PCA(n_components=2, random_state=SEED).fit(X.cpu().numpy())
+    X_pca = pca.transform(X.cpu().numpy())
     _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
     _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=true_labels, cmap='turbo', s=12, alpha=0.7)
     _ax.set_title('Ground truth (color = true cluster), PCA projection')
@@ -446,8 +446,8 @@ def _(
         _model = GaussianMixture(n_components=None, max_components=None, max_iter=n_iter, burn_in=0, random_state=SEED, device='cpu', weight_threshold=1.0, mean_prior=MEAN_PRIOR, mean_precision_prior=MEAN_PRECISION_PRIOR, covariance_prior=COVARIANCE_PRIOR, degrees_of_freedom_prior=DEGREES_OF_FREEDOM_PRIOR)
         _model.fit(X)
         predicted = _model.predict(X)
-        ari = adjusted_rand_score(true_labels.numpy(), predicted.numpy())
-        _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=predicted.numpy(), cmap='turbo', s=12, alpha=0.7)
+        ari = adjusted_rand_score(true_labels.cpu().numpy(), predicted.cpu().numpy())
+        _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=predicted.cpu().numpy(), cmap='turbo', s=12, alpha=0.7)
         _ax.set_title(f'sweep {n_iter}\nn={_model.n_components_}, ARI={ari:.2f}')
     _fig.suptitle('Unbounded Gibbs: hard assignment after increasingly many sweeps', fontsize=14)
     plt.tight_layout()
@@ -561,7 +561,7 @@ def _(
 
     pred_trunc = model_trunc.predict(X)
     pred_unbounded = model_unbounded.predict(X)
-    agreement = adjusted_rand_score(pred_trunc.numpy(), pred_unbounded.numpy())
+    agreement = adjusted_rand_score(pred_trunc.cpu().numpy(), pred_unbounded.cpu().numpy())
 
     print(f"Truncated (K_max={K_SEED}):  n_components_={model_trunc.n_components_}")
     print(f"Unbounded (seed K={K_SEED}): n_components_={model_unbounded.n_components_}")
@@ -672,8 +672,8 @@ def _(mo):
 def _(SimpleNamespace, torch):
     # Exact 2D projection of Gaussian means/covariances through a fitted sklearn PCA.
     def project_gaussian_params(means, covariances, pca):
-        A = torch.tensor(pca.components_, dtype=torch.float64)
-        mean_shift = torch.tensor(pca.mean_, dtype=torch.float64)
+        A = torch.tensor(pca.components_, dtype=torch.float64, device=means.device)
+        mean_shift = torch.tensor(pca.mean_, dtype=torch.float64, device=means.device)
         means_2d = (means - mean_shift) @ A.T
         covariances_2d = torch.matmul(torch.matmul(A.unsqueeze(0), covariances), A.T.unsqueeze(0))
         return means_2d, covariances_2d
@@ -820,7 +820,7 @@ def _(
         model.fit(X)
         elapsed = time.time() - t0
         predicted = restricted_predict(model, X)
-        ari = adjusted_rand_score(labels.numpy(), predicted.numpy())
+        ari = adjusted_rand_score(labels.cpu().numpy(), predicted.cpu().numpy())
         ll = model.score(X)
         if truncation_level is not None:
             seed_str = f', K_max={truncation_level}'
@@ -857,7 +857,7 @@ def _(
             raise RuntimeError(f'GaussianMixture(K={n_components}) failed to fit after {max_attempts} attempts (degenerate covariance from a near-empty cluster each time): {last_error}')
         elapsed = time.time() - t0
         predicted = gmm.predict(X)
-        ari = adjusted_rand_score(labels.numpy(), predicted.numpy())
+        ari = adjusted_rand_score(labels.cpu().numpy(), predicted.cpu().numpy())
         ll = gmm.score(X)
         label = f'GMM (K={n_components})'
         title = f'{label}\nARI={ari:.2f}\nLL={ll:.2f}'
@@ -892,10 +892,10 @@ def _(
             center_dists = torch.pdist(true_means)
             print(f'  true_k={k:>2}: true-center pairwise distance min={center_dists.min():.2f}, mean={center_dists.mean():.2f}')
         # --- shared PCA: fit once on the largest (nested-superset) dataset ---
-        shared_pca = PCA(n_components=2, random_state=SEED).fit(datasets[K_MAX]['X'].numpy())
+        shared_pca = PCA(n_components=2, random_state=SEED).fit(datasets[K_MAX]['X'].cpu().numpy())
         for k in CLUSTER_COUNTS:
             datasets[k]['pca'] = shared_pca
-            datasets[k]['X_pca'] = shared_pca.transform(datasets[k]['X'].numpy())
+            datasets[k]['X_pca'] = shared_pca.transform(datasets[k]['X'].cpu().numpy())
         # --- fit the GMM row (BIC sweep) and both Gibbs rows first: the BIC/AIC curve figure and the main grid both need them ---
         results = {}
         gmm_rows = {}
