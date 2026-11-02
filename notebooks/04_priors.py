@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -91,13 +91,14 @@ def _():
     import numpy as np
     import torch
     import matplotlib.pyplot as plt
+    import warnings
     import scipy.special
     from scipy.stats import wishart, invgamma
     from scipy.ndimage import gaussian_filter
 
 
-    from tgmm import GaussianMixture, GMMInitializer, dynamic_figsize, plot_gmm
-    from tutorial_data import make_default_data
+    from tgmm import GaussianMixture, GMMInitializer, dynamic_figsize, generate_gmm_data, plot_gmm
+    from tutorial_data import default_blobs, make_default_data
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     plt.rcParams['figure.dpi'] = 45  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
@@ -110,9 +111,11 @@ def _():
         GMMInitializer,
         GaussianMixture,
         SEED,
+        default_blobs,
         device,
         dynamic_figsize,
         gaussian_filter,
+        generate_gmm_data,
         invgamma,
         make_default_data,
         np,
@@ -120,6 +123,7 @@ def _():
         plt,
         scipy,
         torch,
+        warnings,
         wishart,
     )
 
@@ -770,12 +774,12 @@ def _(
     _data_covariance = torch.tensor(_data_covariance, dtype=torch.float32, device=device)
     _data_covariance = _data_covariance.unsqueeze(0).expand(n_components, -1, -1)
     degrees_of_freedom_prior = float(n_features + 2)
-    _prior_strengths = [1, 5, 25]
-    _nrows, _ncols = (len(_prior_strengths), 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
-    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
+    _prior_strengths = [1, 5, 25, 100]
+    _nrows, _ncols = (2, 2)
+    _figsize = dynamic_figsize(_nrows, _ncols, base_width=5, base_height=4)
+    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize, dpi=50)
     _fig.suptitle('Covariance Priors: Varying Strength')
-    for _ax, _strength in zip(_axs, _prior_strengths):
+    for _ax, _strength in zip(_axs.ravel(), _prior_strengths):
         _cov_prior = _data_covariance * _strength
         _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
         _gmm_cov_prior.fit(X_tensor)
@@ -816,14 +820,14 @@ def _(
     _data_covariance = np.cov(X_tensor.cpu().numpy(), rowvar=False)  # shape (2, 2)
     _data_covariance = torch.tensor(_data_covariance, dtype=torch.float32, device=device)
     _data_covariance = _data_covariance.unsqueeze(0).expand(n_components, -1, -1)
-    _dof_values = [n_features + 8, n_features + 98, n_features + 498]
+    _dof_values = [n_features + 8, n_features + 98, n_features + 498, n_features + 1998]
     # Instead of varying strength, we fix the strength and vary DOF.
     fixed_strength = 5
-    _nrows, _ncols = (len(_dof_values), 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
-    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
+    _nrows, _ncols = (2, 2)
+    _figsize = dynamic_figsize(_nrows, _ncols, base_width=5, base_height=4)
+    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize, dpi=50)
     _fig.suptitle('Covariance Priors: Varying DOF')
-    for _ax, _dof in zip(_axs, _dof_values):
+    for _ax, _dof in zip(_axs.ravel(), _dof_values):
         _cov_prior = _data_covariance * fixed_strength
         _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=_dof)
         _gmm_cov_prior.fit(X_tensor)
@@ -890,43 +894,63 @@ def _(mo):
     mo.md(r"""
     ## All Three Priors Together
 
-    Give a weight prior, a mean prior and a covariance prior at once and `tgmm` applies the Dirichlet MAP update to the weights and the *joint* Normal-Inverse-Wishart update to means and covariances (the mean and covariance priors are not applied independently once both are present; the NIW section below explains the difference). Here every component gets the same weakly informative prior:
+    Give a weight prior, a mean prior and a covariance prior at once and `tgmm` applies the Dirichlet MAP update to the weights and the *joint* Normal-Inverse-Wishart update to means and covariances (the mean and covariance priors are not applied independently once both are present; the NIW section below explains the difference).
+
+    To see what that does, the cell below fits the default blobs twice from the same k-means starting centres, so that any difference comes from the priors alone: by maximum likelihood (no priors) and with a prior worth **50 pseudo-points per component** for each ingredient:
+
+    - **weights:** `weight_concentration_prior` $\alpha_k=50$ for every component pulls the mixing weights toward equal values;
+    - **means:** `mean_prior` $\mu_0$ = the overall data mean with `mean_precision_prior` $\kappa_0=50$ pulls every mean toward the centre, by the fraction $\kappa_0/(\kappa_0+n_k)$;
+    - **covariances:** `covariance_prior` $\Psi_0=50\,I$ with `degrees_of_freedom_prior` $\nu_0=50$ says "a component's covariance is probably about $\Psi_0/\nu_0=I$, and I trust that as much as 50 observations".
     """)
     return
 
 
 @app.cell
-def _(GaussianMixture, MAX_ITER, SEED, X, X_tensor, device, legend_labels, plot_gmm, plt, torch):
-    gmm_map = GaussianMixture(n_components=4, n_features=2, covariance_type='full', weight_concentration_prior=torch.ones(4) * 2.0, mean_prior=torch.zeros(4, 2), mean_precision_prior=0.1, covariance_prior=torch.eye(2).unsqueeze(0).repeat(4, 1, 1), degrees_of_freedom_prior=3.0, max_iter=10 * MAX_ITER, tol=1e-9, device=device, random_state=SEED, init_means='random')
-    gmm_map.fit(X_tensor)
-    print(f'Converged: {gmm_map.converged_}, log-likelihood={gmm_map.lower_bound_:.4f}')
-    _fig, _ax = plt.subplots()
-    plot_gmm(X, gmm=gmm_map, ax=_ax, title='MAP Estimation (Weight + NIW Mean/Covariance Priors)', legend_labels=legend_labels)
+def _(
+    GaussianMixture,
+    MAX_ITER,
+    SEED,
+    X,
+    X_tensor,
+    device,
+    dynamic_figsize,
+    n_components,
+    n_features,
+    plot_gmm,
+    plt,
+    torch,
+):
+    # Both fits start from the same k-means centres, so the differences come from the priors alone
+    _common = dict(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, tol=1e-9, device=device, random_state=SEED, init_means='kmeans')
+    gmm_mle = GaussianMixture(**_common).fit(X_tensor)
+    gmm_map = GaussianMixture(
+        **_common,
+        weight_concentration_prior=torch.full((n_components,), 50.0, device=device),                                          # alpha_k = 50
+        mean_prior=X_tensor.mean(0, keepdim=True).repeat(n_components, 1), mean_precision_prior=50.0,                          # mu_0 = data mean, kappa_0 = 50
+        covariance_prior=50.0 * torch.eye(n_features, device=device).unsqueeze(0).repeat(n_components, 1, 1), degrees_of_freedom_prior=50.0,  # Psi_0 = 50 I, nu_0 = 50
+    ).fit(X_tensor)
+    print(f'MLE: converged={gmm_mle.converged_}, mean log-likelihood = {gmm_mle.score(X_tensor):.4f}')
+    print(f'MAP: converged={gmm_map.converged_}, mean log-likelihood = {gmm_map.score(X_tensor):.4f}')
+    _fig, _axs = plt.subplots(1, 2, figsize=dynamic_figsize(1, 2, base_width=5.5, base_height=4.5), dpi=50)
+    for _ax, _gmm, _name in zip(_axs, (gmm_mle, gmm_map), ('MLE (no priors)', 'MAP (weight + NIW priors)')):
+        plot_gmm(X, gmm=_gmm, ax=_ax, title=f'{_name}\nmean log-lik = {_gmm.score(X_tensor):.3f}', legend=False)
+    plt.tight_layout()
     plt.gcf()
-    return (gmm_map,)
+    return gmm_mle, gmm_map
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Checking the Weight and Mean Updates by Hand
+def _(X_tensor, gmm_map, gmm_mle, mo):
+    _w0, _w1 = gmm_mle.weights_.cpu().numpy(), gmm_map.weights_.cpu().numpy()
+    _pull = 50.0 / (50.0 + gmm_mle.weights_.cpu().numpy() * X_tensor.shape[0])  # share of the prior in the mean update, from the MLE sizes
+    _rows = '\n'.join(f'| {_k + 1} | {_w0[_k]:.3f} | {_w1[_k]:.3f} | {100 * _pull[_k]:.0f}% |' for _k in range(len(_w0)))
+    mo.md(f"""
+    | component | MLE weight | MAP weight | share of the prior in the mean update $\\kappa_0/(\\kappa_0+n_k)$ |
+    |---|---|---|---|
+    {_rows}
 
-    At convergence EM is at a fixed point: feeding the final responsibilities $r_{ik}$ back into the M-step formulas must reproduce the fitted parameters. We check the two scalar-prior updates from the table at the top of this notebook for the fit above, with $\alpha_k=2$, $\kappa_0=0.1$ and $\mu_0=0$. (The covariance update is checked in the NIW section below, because with both priors present it is the NIW form.) The differences below are the distance to that fixed point, so they shrink with `tol` and are not exactly zero.
+    The MAP fit has a *lower* log-likelihood on the training data ({gmm_map.score(X_tensor):.3f} against {gmm_mle.score(X_tensor):.3f}). That is by construction: MAP maximises likelihood times prior, not the likelihood, and the prior here is deliberately not the truth (equal weights, one shared centre, unit covariances). What it buys is regularisation, and how much that matters depends on how much data there is: the next sections quantify it.
     """)
-    return
-
-
-@app.cell
-def _(X_tensor, gmm_map, torch):
-    _r = gmm_map.predict_proba(X_tensor)  # (n, K) responsibilities at the fitted parameters
-    _n = X_tensor.shape[0]
-    _nk = _r.sum(0)
-    _ybar = (_r.T @ X_tensor) / _nk[:, None]
-    _alpha, _kappa0 = 2.0, 0.1
-    _pi_map = (_nk + _alpha - 1) / (_n + 4 * _alpha - 4)
-    _mu_map = (_nk[:, None] * _ybar + _kappa0 * 0.0) / (_nk + _kappa0)[:, None]
-    print(f'max |weights_ - Dirichlet MAP weights| = {(gmm_map.weights_ - _pi_map).abs().max().item():.2e}')
-    print(f'max |means_   - shrunk-mean formula|   = {(gmm_map.means_ - _mu_map).abs().max().item():.2e}')
     return
 
 
@@ -985,13 +1009,13 @@ def _(mo):
 
     ### NIW versus a single prior
 
-    tgmm has no "independent mean and covariance priors" variant: both together always select the joint NIW update, so "separate" here means supplying *only one* of the two.
+    tgmm has no "independent mean and covariance priors" variant: both together always select the joint NIW update, so "separate" here means supplying *only one* of the two. That coupling is what makes the pair conjugate, and so the update closed-form: the mean prior $\mathcal N(\mu_0,\Sigma_k/\kappa_0)$ is scaled by the component's own covariance, which is also why $\Psi_n$ gains the cross term below. An *independent* Gaussian prior $\mu_k\sim\mathcal N(\mu_0,P_0^{-1})$ would make the mean update depend on $\Sigma_k$, $\mu_k=(n_k\Sigma_k^{-1}+P_0)^{-1}(n_k\Sigma_k^{-1}\bar y_k+P_0\mu_0)$, and is not available.
 
     - **Mean prior only.** The mean is shrunk, $\mu_k=(n_k\bar y_k+\kappa_0\mu_0)/(n_k+\kappa_0)$, and the covariance stays maximum likelihood, but its scatter is taken about the shrunk mean.
     - **Covariance prior only.** The mean stays maximum likelihood, $\mu_k=\bar y_k$, and $\Sigma_k=(\Psi_0+W_k+\varepsilon I)/(\nu_0+n_k)$.
     - **NIW (both).** Both are updated jointly, and $\Psi_n$ gains the extra term $\frac{\kappa_0n_k}{\kappa_0+n_k}(\bar y_k-\mu_0)(\bar y_k-\mu_0)^\top$.
 
-    The cells below fit all three on a small dataset where the differences are visible, and check each update against its formula.
+    The cells below fit all three, and the maximum-likelihood fit for reference, on a small dataset where the differences are visible.
     """)
     return
 
@@ -1021,7 +1045,16 @@ def _(SEED, device, np, torch):
     niw_mu0 = torch.zeros(4, niw_X.shape[1], device=device)  # prior mean at the origin
     niw_Psi0 = torch.eye(niw_X.shape[1], device=device).unsqueeze(0).expand(4, -1, -1) * 100.0  # scale matrix: prior guess Psi0/nu0 ~ unit covariance
     print(f'kappa0={niw_kappa0}, nu0={niw_nu0}, mu0=0, Psi0=100*I  ->  prior guess for the covariance: Psi0/nu0 = {100.0 / niw_nu0:.3f} * I')
-    return niw_Psi0, niw_X, niw_X_tensor, niw_kappa0, niw_mu0, niw_nu0, niw_true_covs, niw_true_means
+    return (
+        niw_Psi0,
+        niw_X,
+        niw_X_tensor,
+        niw_kappa0,
+        niw_mu0,
+        niw_nu0,
+        niw_true_covs,
+        niw_true_means,
+    )
 
 
 @app.cell(hide_code=True)
@@ -1029,7 +1062,7 @@ def _(mo):
     mo.md(r"""
     ### Mean prior only, covariance prior only, and NIW
 
-    Three fits of the same data and hyperparameters: a prior on the means only (covariances maximum likelihood), a prior on the covariances only (means maximum likelihood), and both together (the joint NIW update).
+    Four fits of the same data and hyperparameters: no prior (maximum likelihood) for reference, a prior on the means only (covariances maximum likelihood), a prior on the covariances only (means maximum likelihood), and both together (the joint NIW update).
     """)
     return
 
@@ -1050,81 +1083,20 @@ def _(
     plot_gmm,
     plt,
 ):
-    _fig, _axes = plt.subplots(1, 3, figsize=(18, 6))
-    _fig.suptitle('Comparison: Different Prior Configurations', fontsize=16, y=1.02)
+    _fig, _axes = plt.subplots(2, 2, figsize=(10, 8), dpi=50)
+    _fig.suptitle('Comparison: Different Prior Configurations', fontsize=14)
     _configs = {
+        'No Prior (MLE)': dict(),
         'Mean Prior Only': dict(mean_prior=niw_mu0, mean_precision_prior=niw_kappa0),
         'Covariance Prior Only': dict(covariance_prior=niw_Psi0, degrees_of_freedom_prior=niw_nu0),
         'NIW Conjugate Prior': dict(mean_prior=niw_mu0, mean_precision_prior=niw_kappa0, covariance_prior=niw_Psi0, degrees_of_freedom_prior=niw_nu0),
     }
-    for _ax, (_name, _kw) in zip(_axes, _configs.items()):
+    for _ax, (_name, _kw) in zip(_axes.ravel(), _configs.items()):
         _gmm = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=MAX_ITER, device=device, **_kw)
         _gmm.fit(niw_X_tensor)
         plot_gmm(X=niw_X, gmm=_gmm, ax=_ax, title=f'{_name}\nLL: {_gmm.lower_bound_:.2f}')
     plt.tight_layout()
     plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Checking the three updates by hand
-
-    At convergence EM is at a fixed point, so recomputing one M-step from the final responsibilities must give back the fitted parameters. We refit each configuration with a tight tolerance and compare `means_` and `covariances_` with the formulas above (with $\varepsilon$ = `reg_covar`): the NIW update $\mu_n$ and $\Psi_n/\nu_n$; the shrunk mean with maximum-likelihood covariance about it for a mean prior only; and the unshrunk mean with $(\Psi_0+W_k+\varepsilon I)/(\nu_0+n_k)$ for a covariance prior only. The differences are the distance to the fixed point, so they shrink with `tol`.
-    """)
-    return
-
-
-@app.cell
-def _(
-    GaussianMixture,
-    MAX_ITER,
-    device,
-    n_components,
-    n_features,
-    niw_Psi0,
-    niw_X_tensor,
-    niw_kappa0,
-    niw_mu0,
-    niw_nu0,
-    torch,
-):
-    _eye = torch.eye(n_features, device=device)
-    _common = dict(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, tol=1e-9, device=device, random_state=0)
-
-    def _stats(_g):
-        _r = _g.predict_proba(niw_X_tensor)
-        _nk = _r.sum(0)
-        _ybar = (_r.T @ niw_X_tensor) / _nk[:, None]
-        return _r, _nk, _ybar
-
-    def _scatter(_r, _center):
-        _dx = niw_X_tensor[None] - _center[:, None]  # (K, n, d)
-        return torch.einsum('nk,knd,kne->kde', _r, _dx, _dx)
-
-    # NIW (both priors)
-    _g = GaussianMixture(**_common, mean_prior=niw_mu0, mean_precision_prior=niw_kappa0, covariance_prior=niw_Psi0, degrees_of_freedom_prior=niw_nu0).fit(niw_X_tensor)
-    _r, _nk, _ybar = _stats(_g)
-    _kappa_n, _nu_n = niw_kappa0 + _nk, niw_nu0 + _nk
-    _mu_n = (niw_kappa0 * niw_mu0 + _nk[:, None] * _ybar) / _kappa_n[:, None]
-    _dm = _ybar - niw_mu0
-    _psi_n = niw_Psi0 + _scatter(_r, _ybar) + (niw_kappa0 * _nk / _kappa_n)[:, None, None] * torch.einsum('kd,ke->kde', _dm, _dm) + _g.reg_covar * _eye
-    print(f'NIW:             max |means_ - mu_n|              = {(_g.means_ - _mu_n).abs().max().item():.2e}')
-    print(f'                 max |covariances_ - Psi_n/nu_n|  = {(_g.covariances_ - _psi_n / _nu_n[:, None, None]).abs().max().item():.2e}')
-
-    # mean prior only: shrunk mean, maximum-likelihood covariance about the shrunk mean
-    _g = GaussianMixture(**_common, mean_prior=niw_mu0, mean_precision_prior=niw_kappa0).fit(niw_X_tensor)
-    _r, _nk, _ybar = _stats(_g)
-    _mu = (_nk[:, None] * _ybar + niw_kappa0 * niw_mu0) / (_nk + niw_kappa0)[:, None]
-    print(f'mean prior only: max |means_ - shrunk mean|       = {(_g.means_ - _mu).abs().max().item():.2e}')
-    print(f'                 max |covariances_ - ML about it| = {(_g.covariances_ - (_scatter(_r, _mu) / _nk[:, None, None] + _g.reg_covar * _eye)).abs().max().item():.2e}')
-
-    # covariance prior only: maximum-likelihood mean, inverse-Wishart covariance
-    _g = GaussianMixture(**_common, covariance_prior=niw_Psi0, degrees_of_freedom_prior=niw_nu0).fit(niw_X_tensor)
-    _r, _nk, _ybar = _stats(_g)
-    print(f'cov prior only:  max |means_ - data mean|         = {(_g.means_ - _ybar).abs().max().item():.2e}')
-    print(f'                 max |covariances_ - IW formula|  = {(_g.covariances_ - (niw_Psi0 + _scatter(_r, _ybar) + _g.reg_covar * _eye) / (niw_nu0 + _nk)[:, None, None]).abs().max().item():.2e}')
     return
 
 
@@ -1214,7 +1186,15 @@ def _(GaussianMixture, np, plt, torch):
 
 
 @app.cell
-def _(FAST, analyze_niw_hyperparameters, device, n_components, n_features, niw_X_tensor, plt):
+def _(
+    FAST,
+    analyze_niw_hyperparameters,
+    device,
+    n_components,
+    n_features,
+    niw_X_tensor,
+    plt,
+):
     print('Experiment 1: 100 samples per component (the NIW data above)')
     analyze_niw_hyperparameters(niw_X_tensor, n_components, n_features, device, title_suffix=' (n=100/comp)', fast=FAST)
     plt.gcf()
@@ -1232,7 +1212,19 @@ def _(mo):
 
 
 @app.cell
-def _(FAST, SEED, analyze_niw_hyperparameters, device, n_components, n_features, niw_true_covs, niw_true_means, np, plt, torch):
+def _(
+    FAST,
+    SEED,
+    analyze_niw_hyperparameters,
+    device,
+    n_components,
+    n_features,
+    niw_true_covs,
+    niw_true_means,
+    np,
+    plt,
+    torch,
+):
     _n_per = 300 if FAST else 1000
     _rng = np.random.default_rng(SEED + 1)
     _X = np.vstack([_rng.multivariate_normal(_m, _c, _n_per) for _m, _c in zip(niw_true_means, niw_true_covs)])
@@ -1253,7 +1245,19 @@ def _(mo):
 
 
 @app.cell
-def _(FAST, SEED, analyze_niw_hyperparameters, device, n_components, n_features, niw_true_covs, niw_true_means, np, plt, torch):
+def _(
+    FAST,
+    SEED,
+    analyze_niw_hyperparameters,
+    device,
+    n_components,
+    n_features,
+    niw_true_covs,
+    niw_true_means,
+    np,
+    plt,
+    torch,
+):
     _n_per = [100, 200, 300, 500] if FAST else [100, 500, 1000, 5000]
     _rng = np.random.default_rng(SEED + 2)
     _X = np.vstack([_rng.multivariate_normal(_m, _c, _n) for _m, _c, _n in zip(niw_true_means, niw_true_covs, _n_per)])
@@ -1266,13 +1270,127 @@ def _(FAST, SEED, analyze_niw_hyperparameters, device, n_components, n_features,
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## The Prior and the Amount of Data: What It Means for New Data
+
+    The heatmaps above show one thing again and again: **how much a prior matters depends on how many points each component has.** The M-step formulas say why. In the update of component $k$ the prior is worth $\kappa_0$ pseudo-observations for the mean and $\nu_0$ for the covariance, next to the $n_k$ real ones:
+
+    $$
+    \mu_k=\frac{n_k\bar y_k+\kappa_0\mu_0}{n_k+\kappa_0},\qquad
+    \Sigma_k=\frac{\Psi_0+W_k+\dots}{\nu_0+n_k},
+    $$
+
+    so the prior's share of the mean is $\kappa_0/(\kappa_0+n_k)$ and of the covariance $\nu_0/(\nu_0+n_k)$. With $n_k$ in the single digits the prior dominates; with $n_k$ in the hundreds it is negligible.
+
+    This matters most when a fitted mixture is applied to **new, unseen data**. A maximum-likelihood fit on a handful of points can place a component on a few observations and give it a tiny, nearly singular covariance, which scores well on the training data and terribly on anything else. A prior is a regulariser against exactly that. The experiment below measures it: fit by maximum likelihood and with a weakly informative NIW prior (set from the training data only: $\mu_0$ the training mean, $\kappa_0=1$, $\nu_0=d+2$, and a prior covariance guess of 10% of the training covariance divided by $K$) on training sets of growing size drawn from the default blobs, and score both on a large held-out set from the same blobs.
+    """)
+    return
+
+
+@app.cell
+def _(
+    FAST,
+    GaussianMixture,
+    SEED,
+    default_blobs,
+    device,
+    dynamic_figsize,
+    generate_gmm_data,
+    n_components,
+    np,
+    plt,
+    torch,
+    warnings,
+):
+    _centers, _covs, _ns = default_blobs()
+    _props = np.array(_ns) / sum(_ns)
+
+    def draw_blobs(n, seed):
+        """n points from the default four blobs, in the proportions of the tutorial data."""
+        _counts = [max(int(round(n * _p)), 2) for _p in _props]
+        return generate_gmm_data(_centers, _covs, _counts, device=device, random_state=seed)[0]
+
+    X_heldout = draw_blobs(30000, 10000 + SEED)
+
+    def heldout_ll(X_train, with_prior):
+        """Mean log-likelihood on the held-out set of a fit to X_train (maximum likelihood, or with the weakly informative NIW prior)."""
+        _kw = {}
+        if with_prior:
+            _nu0 = float(X_train.shape[1] + 2)
+            _S = torch.cov(X_train.T)
+            _kw = dict(mean_prior=X_train.mean(0, keepdim=True).repeat(n_components, 1), mean_precision_prior=1.0,
+                       covariance_prior=(_nu0 * 0.1 * _S / n_components).unsqueeze(0).repeat(n_components, 1, 1), degrees_of_freedom_prior=_nu0)
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')  # tiny training sets make tgmm warn about near-zero weights: expected here
+                _g = GaussianMixture(n_components=n_components, n_features=X_train.shape[1], covariance_type='full', init_means='kmeans', random_state=0, max_iter=500, device=device, **_kw).fit(X_train)
+            return float(_g.score(X_heldout))
+        except Exception:  # a degenerate (singular) fit counts as a failed run
+            return float('nan')
+
+    train_sizes = [20, 30, 60, 100, 300, 1000, 3000]  # cheap, so the docs build runs the full experiment too
+    n_repeats = 10
+    ll_mle = np.zeros((len(train_sizes), n_repeats))
+    ll_map = np.zeros((len(train_sizes), n_repeats))
+    for _i, _n in enumerate(train_sizes):
+        for _r in range(n_repeats):
+            _X_train = draw_blobs(_n, _r)  # the same training set for both fits
+            ll_mle[_i, _r] = heldout_ll(_X_train, False)
+            ll_map[_i, _r] = heldout_ll(_X_train, True)
+    gap = ll_map - ll_mle  # paired difference per training set: positive means the prior helped on new data
+    print(f'{len(train_sizes)} training sizes x {n_repeats} training sets; failed fits: MLE {int(np.isnan(ll_mle).sum())}, MAP {int(np.isnan(ll_map).sum())}')
+
+    _fig, _axs = plt.subplots(1, 2, figsize=dynamic_figsize(1, 2, base_width=5.5, base_height=4), dpi=60)
+    for _ll, _label, _color in ((ll_mle, 'maximum likelihood', 'tab:red'), (ll_map, 'NIW prior (MAP)', 'tab:green')):
+        _axs[0].errorbar(train_sizes, np.nanmean(_ll, axis=1), yerr=np.nanstd(_ll, axis=1), marker='o', capsize=3, color=_color, label=_label)
+    _axs[0].set_xscale('log')
+    _axs[0].set_xlabel('training points $n$')
+    _axs[0].set_ylabel('mean log-likelihood on held-out data')
+    _axs[0].set_title('Held-out log-likelihood')
+    _axs[0].legend()
+    _axs[1].errorbar(train_sizes, np.nanmean(gap, axis=1), yerr=np.nanstd(gap, axis=1), marker='o', capsize=3, color='k')
+    _axs[1].axhline(0, color='gray', ls='--', lw=1)
+    _axs[1].set_xscale('log')
+    _axs[1].set_xlabel('training points $n$')
+    _axs[1].set_ylabel('MAP minus MLE')
+    _axs[1].set_title('Gain from the prior (above 0: it helps)')
+    plt.tight_layout()
+    plt.gcf()
+    return gap, ll_map, ll_mle, train_sizes
+
+
+@app.cell(hide_code=True)
+def _(gap, ll_map, ll_mle, mo, np, train_sizes):
+    _rows = '\n'.join(
+        f'| {_n} | {_n // 4} | {np.nanmean(ll_mle[_i]):.3f} ± {np.nanstd(ll_mle[_i]):.3f} | {np.nanmean(ll_map[_i]):.3f} ± {np.nanstd(ll_map[_i]):.3f} | {np.nanmean(gap[_i]):+.3f} |'
+        for _i, _n in enumerate(train_sizes)
+    )
+    mo.md(f"""
+    | training points $n$ | average points per component $n/K$ | MLE (held-out) | MAP (held-out) | MAP − MLE |
+    |---|---|---|---|---|
+    {_rows}
+
+    (Mean ± standard deviation over the training sets; the right column is the paired difference.) With only {train_sizes[0] // 4} points per component on average (the smallest blob gets about 1 in 15) the maximum-likelihood fit generalises poorly (held-out {np.nanmean(ll_mle[0]):.2f}, and it varies a lot from one training set to the next) and the average gain from the prior is {np.nanmean(gap[0]):+.2f} (positive: the prior helps). By $n={train_sizes[-1]}$ the two fits are practically the same ({np.nanmean(gap[-1]):+.3f}): the prior has washed out.
+
+    **Take-aways for using a fitted mixture on new data.**
+
+    - The prior's weight is $\\kappa_0/(\\kappa_0+n_k)$ and $\\nu_0/(\\nu_0+n_k)$: it regularises a fit with few points per component and disappears with many. The same hyperparameters therefore behave very differently on a small and a large training set.
+    - A prior is a guess, and a wrong guess costs something while the data are still few enough to feel it. Here the prior covariance and the shared prior mean are only roughly right for these blobs, and the gap in the middle rows shows the price. Keep $\\kappa_0$ and $\\nu_0$ small compared with the component sizes you expect (a few observations, not hundreds) unless you know the structure.
+    - Judge the choice on held-out data, not on the training log-likelihood: the MAP fit always has the lower training log-likelihood (it optimises likelihood times prior), but that is not the number that matters for new data.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Summary
 
     - A prior converts each EM update into a MAP update: weights $\pi_k = (n_k + \alpha_k - 1)/(n + \sum_j \alpha_j - K)$, means $\mu_k = (n_k \bar y_k + \kappa_0 \mu_0)/(n_k + \kappa_0)$, and covariances $\Sigma_k = (\Psi_0 + \text{scatter} + \dots)/(\nu_0 + n_k)$.
     - Small Dirichlet concentrations favor a few dominant components; large ones favor balanced weights; unbalanced concentrations push the fit toward the favored component.
     - The mean precision $\kappa_0$ (and the covariance prior's degrees of freedom $\nu_0$) behave like pseudo-observation counts: the larger they are relative to $n_k$, the stronger the pull toward the prior, and the weaker it is for large components.
     - The inverse-Wishart / inverse-Gamma family is used for covariances because its density vanishes at singular covariances and keeps a heavy right tail. The covariance prior's denominator is $\nu_0+n_k$, not a textbook posterior mode or mean.
-    - A mean prior alone or a covariance prior alone changes just that update; given both, tgmm uses the coupled NIW update with $\mu_k=\mu_n$, $\Sigma_k = \Psi_n/\nu_n$, where $\Psi_n$ gains a term that grows when the data mean disagrees with $\mu_0$. Each update was checked against its formula.
+    - A mean prior alone or a covariance prior alone changes just that update; given both, tgmm uses the coupled NIW update with $\mu_k=\mu_n$, $\Sigma_k = \Psi_n/\nu_n$, where $\Psi_n$ gains a term that grows when the data mean disagrees with $\mu_0$. An independent mean prior is not available.
+    - How much any prior matters depends on the component sizes: its weight is $\kappa_0/(\kappa_0+n_k)$ for the mean and $\nu_0/(\nu_0+n_k)$ for the covariance. With few points per component it can rescue a fit on new data; with many it washes out; a wrong prior costs something in between.
     - `mean_prior` / `covariance_prior` support the six classic covariance types; `weight_concentration_prior` works with all 14 GPCM models too.
 
     **Next:** [05 -- Sampling](05_sampling.ipynb) draws from a fitted mixture. See also [11 -- Dirichlet Process Mixtures](11_dpgmm.ipynb), where the same NIW prior is the base measure of a nonparametric sampler.
