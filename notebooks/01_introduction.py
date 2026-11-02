@@ -217,7 +217,6 @@ def _(blob_fields, k_blobs, mo, np, reset_blobs, valid_cov):
     return
 
 
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -451,7 +450,7 @@ def _(mo):
     mo.md(r"""
     ### Full EM run: watching convergence
 
-    Now we run EM to (near) convergence, one E-step and M-step at a time, recording $(\mu_k,\sigma_k,\pi_k)$ and the log-likelihood after every iteration. The log-likelihood **never decreases**, as the next plot shows.
+    Now we run EM to (near) convergence, one E-step and M-step at a time, recording $(\mu_k,\sigma_k,\pi_k)$ and the log-likelihood after every iteration.
     """)
     return
 
@@ -491,19 +490,6 @@ def _(
     print(f'Average log-likelihood: {ll_history[0]:.4f} (initial guess) -> {ll_history[-1]:.4f} (final)')
     print(f'Never decreases (largest drop between iterations: {max(0.0, -np.diff(ll_history).min()):.2e})')
     return GRID, ll_history, means, stds, taus
-
-
-@app.cell
-def _(ll_history, plt):
-    plt.figure(figsize=(7, 3.5))
-    plt.plot(ll_history, color='k')
-    plt.xscale('symlog')
-    plt.xlabel('EM iteration')
-    plt.ylabel('Average log-likelihood')
-    plt.title('The log-likelihood never decreases')
-    plt.grid(alpha=0.3)
-    plt.gcf()
-    return
 
 
 @app.cell
@@ -549,7 +535,7 @@ def _(FAST, Image, base64, io, mo, np, plt):
         _out = io.BytesIO()
         _imgs[0].save(_out, format='GIF', save_all=True, append_images=_imgs[1:], loop=0, optimize=True, duration=[frame_ms] * (len(_imgs) - 1) + [hold_ms])
         _data = _out.getvalue()
-        _html = f'<img src="data:image/gif;base64,{base64.b64encode(_data).decode()}" style="max-width:100%">'
+        _html = f'<img src="data:image/gif;base64,{base64.b64encode(_data).decode()}" style="width:100%;height:auto">'  # fill the notebook column
         return mo.Html(_html), len(_imgs), len(_data)
 
     return gif_from_frames, pick_frames
@@ -560,7 +546,7 @@ def _(mo):
     mo.md(r"""
     ### The whole run, iteration by iteration
 
-    The animation replays the run above (iteration $0$ is the bad initial guess, the last frame the converged fit; the frames are denser at the start, where EM changes fastest). At iteration $t$ the figure shows the fitted components against the real ones **(top left)**, each point's responsibility for each component **(top right)**, and, for each component, the **log-likelihood surface** over its $(\text{mean},\text{std})$ **(bottom)** with the path EM has taken up to $t$ and the current estimate. The surface is the one EM is climbing: the other two components are held at their converged values, and each estimate walks uphill to the maximum.
+    The animation replays the run above (iteration $0$ is the bad initial guess, the last frame the converged fit; the frames are denser at the start, where EM changes fastest). At iteration $t$ the top row shows the fitted components against the real ones **(left)**, each point's responsibility for each component **(middle)**, and the average log-likelihood climbing over the iterations so far **(right)**; the bottom row shows, for each component, the **log-likelihood surface** over its $(\text{mean},\text{std})$ with the path EM has taken up to $t$ and the current estimate. The surface is the one EM is climbing: the other two components are held at their converged values, and each estimate walks uphill to the maximum.
     """)
     return
 
@@ -588,8 +574,9 @@ def _(
         _colors = ['r', 'b', 'g']
         _fig = plt.figure(figsize=(15, 7.5))
         _gs = _fig.add_gridspec(2, 3)
-        _ax_fit = _fig.add_subplot(_gs[0, :2])
-        _ax_resp = _fig.add_subplot(_gs[0, 2])
+        _ax_fit = _fig.add_subplot(_gs[0, 0])
+        _ax_resp = _fig.add_subplot(_gs[0, 1])
+        _ax_ll = _fig.add_subplot(_gs[0, 2])
         _x = np.linspace(min(data), max(data), 1000)
         _ax_fit.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
         _est = 0
@@ -603,14 +590,28 @@ def _(
         _ax_fit.plot(_x, _est, 'k-', label='GMM (estimated)')
         _ax_fit.plot(_x, _real, 'k--', label='GMM (real)')
         _ax_fit.set_title('Data and Gaussian Distributions')
-        _ax_fit.legend(ncol=2, fontsize=8)
+        _ax_fit.legend(ncol=2, fontsize=6)
         # responsibilities r_ik of the parameters after iteration t (the E-step formula, evaluated directly)
         _dens = taus[_t] * norm.pdf(data[:, None], means[_t], stds[_t])
         _r = _dens / np.maximum(_dens.sum(axis=1, keepdims=True), 1e-300)
         for _k in range(3):
             _ax_resp.scatter(data, _r[:, _k], color=_colors[_k], label=f'Responsibility of cluster {_k + 1}', alpha=0.6, marker='x', s=12)
         _ax_resp.set_title('Responsibilities')
-        _ax_resp.legend(fontsize=8)
+        _ax_resp.legend(fontsize=7)
+        # average log-likelihood after each iteration so far (the quantity EM never decreases)
+        _ax_ll.plot(ll_history, color='lightgray', linewidth=1)
+        _ax_ll.plot(np.arange(_t + 1), ll_history[:_t + 1], color='k', linewidth=1.5, label='Up to this iteration')
+        _ax_ll.scatter([_t], [ll_history[_t]], color='magenta', edgecolor='white', s=80, zorder=5, label='Current iteration')
+        _lo, _hi = ll_history[min(2, len(ll_history) - 1):].min(), ll_history.max()  # zoom past the (terrible) initial guess so the slow climb is visible
+        _pad = 0.1 * max(_hi - _lo, 1e-3)
+        _ax_ll.set_ylim(_lo - _pad, _hi + _pad)
+        _ax_ll.set_xlim(0, len(ll_history) - 1)
+        if ll_history[0] < _lo - _pad:
+            _ax_ll.text(0.02, 0.04, f'iteration 0: {ll_history[0]:.2f} (off scale)', transform=_ax_ll.transAxes, fontsize=7, va='bottom')
+        _ax_ll.set_title('Average log-likelihood')
+        _ax_ll.set_xlabel('EM iteration')
+        _ax_ll.set_ylabel('Average log-likelihood')
+        _ax_ll.legend(fontsize=7, loc='lower right')
         for _k in range(3):
             _ax = _fig.add_subplot(_gs[1, _k])
             _cs = _ax.contourf(mean_range, std_range, surfaces[_k], levels=15, cmap='viridis')
@@ -630,7 +631,7 @@ def _(
     gif_1d, n_frames_1d, gif_1d_bytes = gif_from_frames(draw_1d_frame, pick_frames(len(ll_history) - 1))
     print(f'1-D animation: {n_frames_1d} frames, {gif_1d_bytes / 1e6:.2f} MB')
     gif_1d
-    return gif_1d, gif_1d_bytes, n_frames_1d
+    return
 
 
 @app.cell(hide_code=True)
@@ -724,7 +725,16 @@ def _(GaussianMixture, MAX_ITER, X_tensor, device, n_components, torch):
 
 
 @app.cell
-def _(X, em_ll, em_means, em_states, gif_from_frames, pick_frames, plot_2d_gmm_resp, plt):
+def _(
+    X,
+    em_ll,
+    em_means,
+    em_states,
+    gif_from_frames,
+    pick_frames,
+    plot_2d_gmm_resp,
+    plt,
+):
     def draw_2d_frame(_t):
         _fig, _axs = plt.subplots(1, 3, figsize=(15, 4.8), squeeze=False)
         plot_2d_gmm_resp(em_states[_t], X, em_means, _axs, 0)
