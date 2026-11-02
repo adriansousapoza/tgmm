@@ -118,9 +118,11 @@ def _(mo):
     Same 4 centers/covariances/sample counts as in [01 -- Introduction](01_introduction.ipynb). The
     two spatially farthest-apart components -- `(2, -2)` and `(2, 2)`,
     distance 4.0 -- share `Class 2`; `(0, 2)` and `(0, 0)` keep their own
-    labels. The *closest* pair, `(0, 2)` and `(0, 0)` (distance 2.0), is
-    exactly what an unsupervised 3-component fit tends to merge instead --
-    the opposite of the label grouping.
+    labels. An unsupervised 3-component fit has no reason to follow that
+    grouping: it has to cover four blobs with three Gaussians, and the wide,
+    flat blob at `(0, 0)` (a large variance along the first axis) overlaps its
+    neighbours so much that the fit tends to split it, or to absorb the small blob at `(2, -2)`
+    into it. The table after the fits shows which component each blob ends up in.
     """)
     return
 
@@ -190,6 +192,28 @@ def _(GaussianMixture, SEED, X_tensor, n_components, time, y_tensor):
     print(f"Supervised: iters={gmm_sup.n_iter_:4d}  converged={gmm_sup.converged_}  time={time_sup:.4f}s  mean log-lik={gmm_sup.score(X_tensor):.4f}")
     print(f"\nSupervised gmm.classes_: {gmm_sup.classes_.cpu().tolist()}")
     return gmm_cem, gmm_em, gmm_sup
+
+
+@app.cell(hide_code=True)
+def _(centers, gmm_cem, gmm_em, mo, np, X_tensor, y_physical):
+    _yp = y_physical.cpu().numpy()
+    _blob = [f"({_c[0]}, {_c[1]})" for _c in centers]
+    _counts = {}
+    for _name, _g in (('EM', gmm_em), ('CEM', gmm_cem)):
+        _p = _g.predict(X_tensor).cpu().numpy()
+        _counts[_name] = np.array([[int(((_yp == _b) & (_p == _k)).sum()) for _k in range(_g.n_components)] for _b in range(len(centers))])
+    _lines = ['| blob (centre) | label | n | ' + ' | '.join(f'EM comp. {_k}' for _k in range(3)) + ' | ' + ' | '.join(f'CEM comp. {_k}' for _k in range(3)) + ' |', '|---|---|---|' + '---|' * 6]
+    for _b in range(len(centers)):
+        _lines.append(f"| {_blob[_b]} | {[0, 1, 2, 2][_b]} | {int((_yp == _b).sum())} | " + ' | '.join(str(_v) for _v in _counts['EM'][_b]) + ' | ' + ' | '.join(str(_v) for _v in _counts['CEM'][_b]) + ' |')
+    _dom = _counts['EM'].argmax(1)
+    _split = [_blob[_b] for _b in range(len(centers)) if _counts['EM'][_b].max() < 0.8 * _counts['EM'][_b].sum()]
+    _together = [(_blob[_a], _blob[_b]) for _a in range(len(centers)) for _b in range(_a + 1, len(centers)) if _dom[_a] == _dom[_b]]
+    _txt = "\n".join(_lines) + "\n\n"
+    _txt += ("Blobs `" + "`, `".join(_split) + "` are spread over several EM components. " if _split else "")
+    _txt += ("The blobs " + ", ".join(f"`{_a}` and `{_b}`" for _a, _b in _together) + " mostly share one EM component. " if _together else "")
+    _txt += f"The two blobs that carry the same label, `{_blob[2]}` and `{_blob[3]}`, have their points mostly in " + ("the same EM component." if _dom[2] == _dom[3] else "different EM components.")
+    mo.md(_txt)
+    return
 
 
 @app.cell(hide_code=True)

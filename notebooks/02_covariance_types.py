@@ -311,7 +311,7 @@ def _(GaussianMixture, K, SEED, X, classic_types, device, pd, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The gaps are below $2\times10^{-6}$ for all six types (EM stops at a finite tolerance, so the fixed point
+    The gaps are of order $10^{-6}$ or smaller for all six types (EM stops at a finite tolerance, so the fixed point
     is reached only approximately): the library's M-step *is* the table above.
     """)
     return

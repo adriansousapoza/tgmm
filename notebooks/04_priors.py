@@ -252,8 +252,8 @@ def _(mo):
 
     Weight priors directly influence the mixing proportions of the GMM. Here, we compare the effects of setting a very small versus a very large $\alpha$ value:
 
-    - **Small $\alpha$:** Leads to a model where few components dominate.
-    - **Large $\alpha$:** Encourages the model to assign roughly equal weights to all components.
+    - **Small $\alpha$ ($<1$):** removes about $1-\alpha_k$ pseudo-observations from each component. That only matters for sparsely populated components, so with well-populated components like these (hundreds of points each) the weights stay at the maximum-likelihood values; the prior sparsifies a fit only where a component is already close to empty.
+    - **Large $\alpha$:** pulls the weights toward equal values whatever the data say, so all components end up with roughly the same weight.
 
     With a Dirichlet prior $\mathrm{Dir}(\alpha_1,\dots,\alpha_K)$ (`weight_concentration_prior`), tgmm's M-step replaces the maximum-likelihood weights $\pi_k = n_k / n$ by the MAP estimate
 
@@ -304,7 +304,7 @@ def _(mo):
     mo.md(r"""
     ## Unbalanced Weight Priors: Dominant Component Effect
 
-    In this example, we apply unbalanced weight priors by assigning one component a significantly higher concentration parameter than the others. As expected, the dominant component tends to capture a larger share of the data, which is reflected in both the clustering results and the overall model log-likelihood.
+    In this example, we apply unbalanced weight priors by assigning one component a significantly higher concentration parameter than the others. As expected, the dominant components capture a larger share of the data than they would without the prior (the ellipses are drawn with transparency scaled by the fitted weight). The log-likelihood in each title is lower than for the unconstrained fit, because the prior pushes the weights away from the data's own proportions, but it does not simply fall as more components become dominant: which local maximum EM reaches matters as well.
     """)
     return
 

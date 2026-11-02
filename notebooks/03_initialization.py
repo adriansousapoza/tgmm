@@ -220,7 +220,7 @@ def _(mo):
     $$
     then re-select the first centre as $\mu_1 = \arg\max_x \min_{l \ge 2} \lVert x - \mu_l \rVert$ so the arbitrary first pick does not bias the result. This spreads centres maximally but is sensitive to outliers, which are by definition the farthest points.
 
-    The next figure shows where each method puts its four initial centres (red stars) for one seed. `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument. In the interactive version the **seed** slider changes the seed for all five methods at once: `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` lands on nearly the same centres every time. (The static docs page shows seed 0.)
+    The next figure shows where each method puts its four initial centres (red stars) for one seed. `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument. In the interactive version the **seed** slider changes the seed for all five methods at once: `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` varies much less (it ends on one of only a few different solutions). (The static docs page shows seed 0.)
     """)
     return
 
@@ -312,14 +312,18 @@ def _(mo):
 
 
 @app.cell
-def _(GMMInitializer, GaussianMixture, MAX_ITER, SEED, X_tensor, device):
+def _(GMMInitializer, GaussianMixture, MAX_ITER, N_SEEDS, SEED, X_tensor, device, np):
     COV_METHODS = ['empirical', 'global', 'eye', 'random']
     _means = GMMInitializer.kmeans(X_tensor, 4, random_state=SEED)
     cov_runs = {
         _method: GaussianMixture(n_components=4, init_means=_means, init_covariances=_method, random_state=SEED, max_iter=MAX_ITER, device=device).fit(X_tensor)
         for _method in COV_METHODS
     }
-    return COV_METHODS, cov_runs
+    # the random covariance start depends on the seed: repeat it, with the same (k-means) initial means
+    _rand = [GaussianMixture(n_components=4, init_means=_means, init_covariances='random', random_state=_s, max_iter=MAX_ITER, device=device).fit(X_tensor) for _s in range(N_SEEDS)]
+    cov_random_ll = np.array([float(_g.lower_bound_) for _g in _rand])
+    cov_random_iters = np.array([_g.n_iter_ for _g in _rand])
+    return COV_METHODS, cov_random_iters, cov_random_ll, cov_runs
 
 
 @app.cell
@@ -345,11 +349,13 @@ def _(COV_METHODS, Ellipse, X, cov_runs, np, plt):
 
 
 @app.cell
-def _(COV_METHODS, cov_runs, mo):
+def _(BEST_LL, COV_METHODS, N_SEEDS, TOL_HIT, cov_random_iters, cov_random_ll, cov_runs, mo):
     _rows = [f"| `{_m}` | {float(cov_runs[_m].lower_bound_):.4f} | {cov_runs[_m].n_iter_} | {cov_runs[_m].converged_} |" for _m in COV_METHODS]
+    _bad = float((cov_random_ll < BEST_LL - TOL_HIT).mean())
     mo.md(
         "| `init_covariances` | final log-likelihood | EM iterations | converged |\n|---|---|---|---|\n" + "\n".join(_rows)
-        + "\n\nWith good initial means all four reach practically the same log-likelihood. A `random` start (matrices unrelated to the data's scale) can need many more iterations."
+        + "\n\nThe three data-driven starts (`empirical`, `global`, `eye`) behave alike for these (good) initial means. A `random` start (matrices unrelated to the data's scale) is the risky one: "
+        f"over {N_SEEDS} seeds it ended in a clearly worse local maximum in {_bad:.0%} of the runs (worst log-likelihood {cov_random_ll.min():.4f}), and the number of EM iterations ranged from {cov_random_iters.min()} to {cov_random_iters.max()}."
     )
     return
 
@@ -500,7 +506,7 @@ def _(mo):
 
     - EM only goes uphill, so it ends in the local maximum nearest its start; initialization decides which one.
     - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often.
-    - `init_weights` and `init_covariances` mostly affect speed once the means are good; badly scaled covariances can cost many extra iterations.
+    - `init_weights` and `init_covariances` mostly affect speed once the means are good; a `random` covariance start is the exception and can cost many extra iterations or end in a worse optimum.
     - `n_init=n` keeps the best of $n$ runs (seeds `random_state + i`), failing with probability about $(1-p)^n$; the winner's seed is in `best_random_state_`.
     - To start from parameters you choose, pass `init_*` tensors (any start, `GMMInitializer` builds them) or use `warm_start=True` to continue a fitted model; continuing is exactly a fresh fit started from that model's parameters. Per-call `fit(...)` overrides (`max_iter`, `tol`, `random_state`, `warm_start`) leave the model's defaults untouched.
 

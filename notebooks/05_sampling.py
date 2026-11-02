@@ -358,7 +358,7 @@ def _(mo):
     mo.md(r"""
     ### Sampling around a fixed centre point
 
-    `center_point` and `center_radius` restrict samples to a Euclidean ball around an arbitrary location, for example to generate synthetic data near a point of interest. The red circle in each panel is the constraint. Component indices follow the fit, not the order in which the blobs were generated: the component centred near $(2,-2)$ lies far from the ball around $(1,0)$ of radius 2, so most of its draws are rejected, yet it is still picked with its full probability $\pi_k$ in the mixture draw.
+    `center_point` and `center_radius` restrict samples to a Euclidean ball around an arbitrary location, for example to generate synthetic data near a point of interest. The red circle in each panel is the constraint. Component indices follow the fit, not the order in which the blobs were generated: the component centred near $(2,-2)$ lies just outside the ball around $(1,0)$ of radius 2 (its centre is about 2.2 away, so only about 30% of its draws are accepted), yet it is still picked with its full probability $\pi_k$ in the mixture draw.
     """)
     return
 

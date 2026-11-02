@@ -82,8 +82,8 @@ def _():
     import matplotlib.pyplot as plt
     from scipy.optimize import linear_sum_assignment
 
-    from tgmm import GaussianMixture, plot_gmm, dynamic_figsize, generate_gmm_data
-    from tutorial_data import make_default_data
+    from tgmm import ClusteringMetrics, GaussianMixture, plot_gmm, dynamic_figsize, generate_gmm_data
+    from tutorial_data import default_blobs, make_default_data
 
     plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
     SEED = 42
@@ -96,7 +96,9 @@ def _():
         device,
         dynamic_figsize,
         generate_gmm_data,
+        ClusteringMetrics,
         linear_sum_assignment,
+        default_blobs,
         make_default_data,
         np,
         plot_gmm,
@@ -196,10 +198,12 @@ def _(mo):
 
     In this first experiment, we create **overlapping clusters** with varying covariance structures (1000 samples each):
 
-    - **Component 1**: centre (0, 2), spherical covariance ($\sigma^2 = 0.6$)
-    - **Component 2**: centre (2, -2), spherical covariance ($\sigma^2 = 0.3$)
-    - **Component 3**: centre (0, 0), diagonal covariance $\mathrm{diag}(1.2,\,0.3)$
-    - **Component 4**: centre (2, 2), full covariance with correlation, $\begin{pmatrix}0.12 & 0.3\\ 0.3 & 1.2\end{pmatrix}$
+    - **Component 1**: centre (0, 2), spherical covariance ($\sigma^2 = 1$)
+    - **Component 2**: centre (2, -2), small spherical covariance ($\sigma^2 = 0.25$)
+    - **Component 3**: centre (0, 0), diagonal covariance $\mathrm{diag}(4,\,0.25)$, elongated along the first axis
+    - **Component 4**: centre (2, 2), full covariance, $\begin{pmatrix}0.29 & 1.1\\ 1.1 & 4.25\end{pmatrix}$ (correlation 0.99: a long, thin, tilted blob)
+
+    These are the default blobs of [01 -- Introduction](01_introduction.ipynb), here with 1000 points each.
 
     This scenario tests how EM vs CEM handle **ambiguous cluster boundaries** where observations could reasonably belong to multiple clusters. Each algorithm is run from several `init_means='points'` starts and the best run (highest log-likelihood) is kept.
     """)
@@ -234,10 +238,9 @@ def _(FAST, GaussianMixture, device, time):
 
 
 @app.cell
-def _(SEED, device, generate_gmm_data, np):
-    _n_samples = [1000, 1000, 1000, 1000]
-    centers_overlap = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
-    covs_overlap = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
+def _(SEED, default_blobs, device, generate_gmm_data):
+    _n_samples = [1000, 1000, 1000, 1000]  # as in the default blobs, but with 1000 points each (the experiment compares algorithms, not weights)
+    centers_overlap, covs_overlap, _ = default_blobs()
     X_tensor, _y_tensor = generate_gmm_data(centers_overlap, covs_overlap, _n_samples, device=device, random_state=SEED)
     X = X_tensor.cpu().numpy()
     labels = _y_tensor.cpu().numpy()
@@ -284,9 +287,9 @@ def _(X, dynamic_figsize, gmm_cem, gmm_em, labels, plot_gmm, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### CEM shrinks the covariances
+    ### CEM and the fitted covariances
 
-    Because CEM estimates each cluster from the points nearest to it, the tails that overlap a neighbouring cluster are cut off and the fitted covariances come out smaller than EM's. The table pairs every fitted component with the true blob it is closest to and compares the trace of $\Sigma_k$ (the total variance):
+    CEM estimates each cluster only from the points assigned to it, so the overlapping tail that a neighbouring cluster claims is cut off, which tends to make the fitted covariance smaller than EM's. The table pairs every fitted component with the true blob it is closest to and compares the trace of $\Sigma_k$ (the total variance):
     """)
     return
 
@@ -303,6 +306,24 @@ def _(covs_overlap, centers_overlap, gmm_cem, gmm_em, linear_sum_assignment, mo,
     for _j in range(len(covs_overlap)):
         _lines.append(f"| {_j + 1} | {np.trace(covs_overlap[_j]):.3f} | {_rows['EM'][_j]:.3f} | {_rows['CEM'][_j]:.3f} |")
     mo.md('\n'.join(_lines))
+    cov_traces = {_n: [_rows[_n][_j] for _j in range(len(covs_overlap))] for _n in _rows}
+    true_traces = [float(np.trace(_S)) for _S in covs_overlap]
+    return cov_traces, true_traces
+
+
+@app.cell(hide_code=True)
+def _(cov_traces, mo, true_traces):
+    _smaller = [_j + 1 for _j in range(len(true_traces)) if cov_traces['CEM'][_j] < cov_traces['EM'][_j]]
+    _other = [_j + 1 for _j in range(len(true_traces)) if cov_traces['CEM'][_j] >= cov_traces['EM'][_j]]
+    _msg = f"CEM's covariance has the smaller trace for blob(s) {', '.join(map(str, _smaller))}"
+    if _other:
+        _j = _other[0] - 1
+        _msg += (f", but not for blob(s) {', '.join(map(str, _other))}: there EM and CEM are both above the true trace "
+                 f"({true_traces[_j]:.2f}; EM {cov_traces['EM'][_j]:.2f}, CEM {cov_traces['CEM'][_j]:.2f}). That blob is long and thin; the points of neighbouring blobs that lie near its axis are most likely "
+                 f"absorbed into it, which widens it. Hard assignment does not always shrink a covariance.")
+    else:
+        _msg += "."
+    mo.md(_msg)
     return
 
 
@@ -365,8 +386,11 @@ def _(mo, trace_steps, traces):
     _cem_lc_steps = traces['cem'][1:, 1] - traces['cem'][:-1, 1]
     _best_l = 'EM' if traces['em'][-1, 0] > traces['cem'][-1, 0] else 'CEM'
     _best_lc = 'EM' if traces['em'][-1, 1] > traces['cem'][-1, 1] else 'CEM'
+    _tail = ("each algorithm is ahead on the objective it optimizes" if (_best_l == 'EM' and _best_lc == 'CEM') else
+             "CEM's coordinate ascent only guarantees that its own objective never decreases along its iterates, so it can stop at a local optimum of "
+             "$\\bar\\ell_C$; here the classification likelihood already reached by the EM solution is higher than the one CEM stops at (monotone is not the same as best)")
     mo.md(f"""
-    At the last checkpoint (iteration {trace_steps[-1]}) EM has mixture log-likelihood {traces['em'][-1, 0]:.4f} and classification log-likelihood {traces['em'][-1, 1]:.4f}; CEM has {traces['cem'][-1, 0]:.4f} and {traces['cem'][-1, 1]:.4f}. So the higher **mixture** likelihood belongs to **{_best_l}** and the higher **classification** likelihood to **{_best_lc}**: each algorithm is ahead on the objective it optimizes. The classification likelihood of the CEM iterates **never decreases** (smallest change between consecutive checkpoints: {_cem_lc_steps.min().item():+.2e}), as the two-step coordinate ascent guarantees.
+    At the last checkpoint (iteration {trace_steps[-1]}) EM has mixture log-likelihood {traces['em'][-1, 0]:.4f} and classification log-likelihood {traces['em'][-1, 1]:.4f}; CEM has {traces['cem'][-1, 0]:.4f} and {traces['cem'][-1, 1]:.4f}. So the higher **mixture** likelihood belongs to **{_best_l}** and the higher **classification** likelihood to **{_best_lc}**: {_tail}. The classification likelihood of the CEM iterates **never decreases** (smallest change between consecutive checkpoints: {_cem_lc_steps.min().item():+.2e}), as the two-step coordinate ascent guarantees.
     """)
     return
 
@@ -393,9 +417,9 @@ def _(mo):
 
 
 @app.cell
-def _(SEED, device, generate_gmm_data, np):
+def _(SEED, default_blobs, device, generate_gmm_data, np):
     _centers = [np.array([0, 10]), np.array([10, -20]), np.array([0, 0]), np.array([10, 10])]
-    _covs = [0.6 * np.eye(2), 0.3 * np.eye(2), np.array([[1.2, 0], [0, 0.3]]), np.array([[0.12, 0.3], [0.3, 1.2]])]
+    _, _covs, _ = default_blobs()  # the same covariances as in Experiment 1
     X_sep_tensor, _y_sep = generate_gmm_data(_centers, _covs, [1000] * 4, device=device, random_state=SEED)
     X_sep = X_sep_tensor.cpu().numpy()
     labels_sep = _y_sep.cpu().numpy()
@@ -410,7 +434,12 @@ def _(X_sep_tensor, fit_and_evaluate_gmm):
 
 
 @app.cell(hide_code=True)
-def _(mo, stats_cem_sep, stats_em_sep, summary_table):
+def _(ClusteringMetrics, X_sep_tensor, gmm_cem_sep, gmm_em_sep, labels_sep, mo, stats_cem_sep, stats_em_sep, summary_table, torch):
+    _p_em, _p_cem = gmm_em_sep.predict(X_sep_tensor), gmm_cem_sep.predict(X_sep_tensor)
+    _y = torch.as_tensor(labels_sep).to(_p_em.device)
+    _ari_em_cem = ClusteringMetrics.adjusted_rand_score(_p_em, _p_cem)
+    _ari_em = ClusteringMetrics.adjusted_rand_score(_y, _p_em)
+    _ari_cem = ClusteringMetrics.adjusted_rand_score(_y, _p_cem)
     mo.md(f"""
     ### Results Analysis: Well-Separated Clusters
 
@@ -418,7 +447,7 @@ def _(mo, stats_cem_sep, stats_em_sep, summary_table):
 
     - **The best run of each algorithm reaches the same optimum** (best log-likelihood {stats_em_sep['best_ll']:.3f} for EM, {stats_cem_sep['best_ll']:.3f} for CEM). Averaged over the random restarts both are pulled down by a few poor local optima (some `init_means='points'` starts put two means in the same cluster), and neither is consistently better
     - **CEM needs fewer iterations** ({stats_em_sep['iters'] / stats_cem_sep['iters']:.1f}x fewer on average) and less time
-    - **The partitions are essentially identical** when clusters are well separated
+    - **The partitions are essentially identical** when clusters are well separated (adjusted Rand index between the EM and CEM partitions: {_ari_em_cem:.3f}; each against the truth: {_ari_em:.3f} for EM, {_ari_cem:.3f} for CEM)
 
     The hard-assignment strategy costs nothing when cluster boundaries are unambiguous.
     """)
@@ -451,7 +480,7 @@ def _(mo):
     ## Summary
 
     - CEM replaces the soft E-step posterior with a hard assignment (the C-step) and maximizes the classification likelihood $\ell_C(\theta,z)$ rather than the mixture likelihood $\ell(\theta)$; $\ell_C$ is nondecreasing, $\ell$ is not.
-    - With overlapping clusters, EM's soft assignments reach a higher mixture log-likelihood and larger (less truncated) covariances, while CEM stops earlier on a cruder partition.
+    - With overlapping clusters, EM's soft assignments reach a higher mixture log-likelihood and for most blobs larger (less truncated) covariances, while CEM stops earlier on a cruder partition.
     - With well-separated clusters the two reach the same best solution and CEM needs fewer iterations.
     - Use `algorithm='cem'` when speed or a crisp partition matters more than the exact maximum-likelihood fit; `lower_bound_` stays the mixture log-likelihood, so fits remain comparable.
 

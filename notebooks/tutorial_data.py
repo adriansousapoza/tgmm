@@ -15,11 +15,13 @@ from tgmm import generate_gmm_data
 N_SAMPLES = [800, 200, 1000, 1000]
 CENTERS = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
 COVS = [
-    0.6 * np.eye(2),                      # spherical covariance
-    0.3 * np.eye(2),                      # spherical covariance, fewer points
-    np.array([[1.2, 0], [0, 0.3]]),       # diagonal covariance
-    np.array([[0.12, 0.3], [0.3, 1.2]]),  # full covariance
+    np.eye(2),                              # spherical covariance
+    0.25 * np.eye(2),                       # spherical covariance, small and with few points
+    np.array([[4.0, 0.0], [0.0, 0.25]]),    # diagonal covariance, elongated along x
+    np.array([[0.29, 1.1], [1.1, 4.25]]),   # full covariance: very elongated and tilted (correlation 0.99)
 ]
+# These are the blobs the tutorials have always shown (an earlier version of generate_gmm_data sampled with Z @ cov, so the matrices
+# requested then, 1.0*I, 0.5*I, [[2, 0], [0, 0.5]] and [[0.2, 0.5], [0.5, 2]], really produced cov.T @ cov: the matrices above).
 
 
 def default_blobs():

@@ -202,10 +202,10 @@ def _(mo):
 def _(n_samples, np, optimize, torch, water_fill_weights):
     _counts = torch.tensor(n_samples, dtype=torch.float64)
     _lo = torch.full((4,), 0.10)
-    _hi = torch.full((4,), 0.30)
+    _hi = torch.full((4,), 0.32)
     pi_exact = water_fill_weights(_counts, _lo, _hi).numpy()
     _res = optimize.minimize(lambda p: -(np.array(n_samples) * np.log(p)).sum(), x0=np.full(4, 0.25),
-                             bounds=[(0.10, 0.30)] * 4, constraints=[{'type': 'eq', 'fun': lambda p: p.sum() - 1}],
+                             bounds=[(0.10, 0.32)] * 4, constraints=[{'type': 'eq', 'fun': lambda p: p.sum() - 1}],
                              method='SLSQP', options={'ftol': 1e-14})
     print('counts n_k          :', n_samples, ' (unconstrained pi = n_k / n =', np.round(np.array(n_samples) / sum(n_samples), 3), ')')
     print('water-filling pi    :', pi_exact.round(6), ' sum =', round(float(pi_exact.sum()), 12))
@@ -217,20 +217,22 @@ def _(n_samples, np, optimize, torch, water_fill_weights):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Now inside a fit. `weight_bounds=(0.1, 0.3)` forces every weight into $[0.1,0.3]$, and `fixed_weights` holds the weights at given values for the whole fit
+    Now inside a fit. `weight_bounds=(0.1, 0.32)` forces every weight into $[0.1,0.32]$, and `fixed_weights` holds the weights at given values for the whole fit
     (positive, summing to one, and not combined with `weight_bounds`). `active_constraints_` reports which bounds bind at the solution.
+    The band is chosen so that the problem is not degenerate (with four components, $0.1+3\times0.3=1$ would leave a single feasible point): the small blob is lifted to the lower bound,
+    the largest blobs are pushed against the upper bound (the table shows which bounds actually bind in the fit), and the others share what is left.
     """)
     return
 
 
 @app.cell
 def _(fit_gmm, gmm_free, pd, torch):
-    gmm_wb = fit_gmm(weight_bounds=(0.1, 0.3))
+    gmm_wb = fit_gmm(weight_bounds=(0.1, 0.32))
     gmm_fw = fit_gmm(fixed_weights=torch.tensor([0.25, 0.25, 0.25, 0.25]))
     _active = gmm_wb.active_constraints_
     pd.DataFrame({
         'free ML fit': gmm_free.weights_.numpy().round(4),
-        'weight_bounds=(0.1, 0.3)': gmm_wb.weights_.numpy().round(4),
+        'weight_bounds=(0.1, 0.32)': gmm_wb.weights_.numpy().round(4),
         'at lower bound': _active['weights_at_lower'].numpy(),
         'at upper bound': _active['weights_at_upper'].numpy(),
         'fixed_weights=0.25': gmm_fw.weights_.numpy().round(4),
@@ -242,9 +244,9 @@ def _(fit_gmm, gmm_free, pd, torch):
 def _(gmm_free, gmm_fw, gmm_wb, plt):
     _fig, _ax = plt.subplots(figsize=(7, 3.2))
     _w = 0.26
-    for _i, (_name, _g) in enumerate([('free', gmm_free), ('weight_bounds=(0.1, 0.3)', gmm_wb), ('fixed_weights=0.25', gmm_fw)]):
+    for _i, (_name, _g) in enumerate([('free', gmm_free), ('weight_bounds=(0.1, 0.32)', gmm_wb), ('fixed_weights=0.25', gmm_fw)]):
         _ax.bar([k + (_i - 1) * _w for k in range(4)], _g.weights_.numpy(), width=_w, label=_name)
-    _ax.axhspan(0.1, 0.3, color='grey', alpha=0.12, label='allowed band')
+    _ax.axhspan(0.1, 0.32, color='grey', alpha=0.12, label='allowed band')
     _ax.set_xticks(range(4))
     _ax.set_xticklabels([f'component {k + 1}' for k in range(4)])
     _ax.set_ylabel('mixing weight $\\pi_k$')
@@ -374,9 +376,11 @@ def _(clip_eigenvalues, np, optimize, torch):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    In a fit, `covariance_bounds=(0.05, 0.5)` confines every eigenvalue of every full covariance to $[0.05,0.5]$. Blobs whose true variance is above the cap ($0.6$ for component 1, $1.2$ along one axis for components 3 and 4) are clipped to $0.5$, and the nearly degenerate direction of component 4 (free eigenvalue about $0.04$) is lifted to the lower bound:
+def _(init_covs, mo, np):
+    _eig = [np.linalg.eigvalsh(_c).round(3).tolist() for _c in init_covs.numpy()]
+    mo.md(f"""
+    In a fit, `covariance_bounds=(0.05, 0.5)` confines every eigenvalue of every full covariance to $[0.05,0.5]$. The true eigenvalues of the four blobs are {_eig[0]}, {_eig[1]}, {_eig[2]} and {_eig[3]}.
+    Eigenvalues above the cap (component 1, and the long axes of components 3 and 4) are clipped to $0.5$, and the nearly degenerate direction of component 4 (true eigenvalue {_eig[3][0]}) is lifted to the lower bound:
     """)
     return
 
@@ -391,6 +395,22 @@ def _(fit_gmm, np, pd):
         'at lower bound (0.05)': [m.tolist() for m in _active['covariances_at_lower'].numpy()],
     }, index=pd.RangeIndex(1, 5, name='component'))
     return (gmm_cb,)
+
+
+@app.cell(hide_code=True)
+def _(X, gmm_cb, gmm_free, init_covs, mo, np):
+    _lo, _hi = 0.05, 0.5
+    _true = [np.linalg.eigvalsh(_c) for _c in init_covs.numpy()]
+    _fit = [np.linalg.eigvalsh(_c) for _c in gmm_cb.covariances_.numpy()]
+    _assigned = np.bincount(gmm_cb.predict(X).numpy(), minlength=4)
+    _inside = [_k for _k in range(4) if _true[_k].min() >= _lo and _true[_k].max() <= _hi and _fit[_k].max() >= _hi - 1e-6]
+    _msg = ""
+    for _k in _inside:
+        _msg += (f"Component {_k + 1} is the instructive case: its true eigenvalues {_true[_k].round(3).tolist()} lie inside the band, yet it ends at the cap too, and its weight grows from {gmm_free.weights_[_k]:.3f} to "
+                 f"{gmm_cb.weights_[_k]:.3f} ({_assigned[_k]} points are assigned to it, against {int(round(float(gmm_free.weights_[_k]) * X.shape[0]))} in the free fit). With its neighbours capped it takes over the points they can no longer explain: "
+                 f"a bound changes the whole constrained maximum-likelihood solution, not only the component it touches. ")
+    mo.md(_msg)
+    return
 
 
 @app.cell
@@ -441,7 +461,7 @@ def _(GaussianMixture, MAX_ITER, X, init_covs, init_means, init_weights, np, pd,
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The frozen parameters are exactly their initial values; the covariance of component 1 (frozen mean, free covariance) is larger than the blob's true $0.6\,I$ because it is measured about the wrong centre.
+    The frozen parameters are exactly their initial values; the covariance of component 1 (frozen mean, free covariance) is larger than the blob's true $I$ because it is measured about the wrong centre.
     The parallel-axis identity can be checked directly from the final responsibilities: the fitted covariance of component 1 equals $T_k/n_k$ computed about the frozen mean plus the small `reg_covar` ridge (default $10^{-6}$); the printed gap is at that level.
     """)
     return
@@ -478,7 +498,7 @@ def _(GaussianMixture, SEED, X, n_total, np, torch):
         _stepper.fit(X)
         loglik_trace.append(float(_stepper.score(X)) * n_total)
     loglik_trace = np.array(loglik_trace)
-    print(f'{len(loglik_trace)} constrained EM steps: log-likelihood {loglik_trace[0]:.2f} -> {loglik_trace[-1]:.2f}; smallest step = {np.diff(loglik_trace).min():+.2e} (never negative)')
+    print(f'{len(loglik_trace)} constrained EM steps: log-likelihood {loglik_trace[0]:.2f} -> {loglik_trace[-1]:.2f}; smallest step = {np.diff(loglik_trace).min():+.2e} ' + ('(never negative)' if np.diff(loglik_trace).min() >= 0 else '(a decrease this small is floating-point rounding of a sum over all rows, not a real decrease)'))
     return (loglik_trace,)
 
 
@@ -531,7 +551,7 @@ def _(mo):
     ## Try your own bounds
 
     In the interactive version of this notebook (see the link at the top of the page) the controls below let you set the weight band, the box for the means and the variance cap, and the fit and picture
-    update. Statically you see the defaults, a mild set of bounds.
+    update. Statically you see the defaults: a weight band no blob touches, the mean box of the earlier section, and a variance cap of 3 that only the two elongated blobs reach.
     """)
     return
 
@@ -542,7 +562,7 @@ def _(mo):
     w_lo = mo.ui.slider(0.0, 0.25, step=0.01, value=0.05, label='weight lower bound', show_value=True)
     w_hi = mo.ui.slider(0.25, 1.0, step=0.01, value=0.40, label='weight upper bound', show_value=True)
     box_hi = mo.ui.slider(-1.0, 3.0, step=0.1, value=1.5, label='upper bound of both mean coordinates', show_value=True)
-    var_hi = mo.ui.slider(0.1, 3.0, step=0.05, value=0.6, label='variance (eigenvalue) cap', show_value=True)
+    var_hi = mo.ui.slider(0.1, 6.0, step=0.05, value=3.0, label='variance (eigenvalue) cap', show_value=True)
     mo.vstack([mo.hstack([w_lo, w_hi], justify='start'), mo.hstack([box_hi, var_hi], justify='start')])
     return box_hi, var_hi, w_hi, w_lo
 

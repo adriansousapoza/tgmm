@@ -346,10 +346,26 @@ def _(best_k, pd):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    With the true $K=4$, Silhouette, Davies-Bouldin, Wemmert-Gancarski, BIC and AIC recover it in a full run. Calinski-Harabasz and Dunn prefer $K=7$, and WB and DBCV run to the edge of the range ($K=9$): these indices keep rewarding finer partitions of the heavily overlapping blobs, so no single index should be trusted alone. (Results in the fast docs build, which caps EM at 100 iterations, can differ slightly.)
-    """)
+def _(best_k, components_range, labels_by_k, mo, n_components, np, y_tensor):
+    _top = int(components_range.max())
+    _lab_top = labels_by_k[_top].cpu().numpy()
+    _y = y_tensor.cpu().numpy()
+    _pieces = np.zeros(n_components, int)  # components of the largest-K fit whose majority comes from each true blob
+    for _c in np.unique(_lab_top):
+        _pieces[np.bincount(_y[_lab_top == _c], minlength=n_components).argmax()] += 1
+
+    _right = [_n for _n, _k in best_k.items() if _k == n_components]
+    _edge = [_n for _n, _k in best_k.items() if _k >= _top - 1]
+    _rest = {_n: _k for _n, _k in best_k.items() if _n not in _right and _n not in _edge}
+    _msg = f"With the true $K={n_components}$, {' and '.join(_right) if _right else 'no index'} recover{'s' if len(_right) == 1 else ''} it in this run. "
+    if _edge:
+        _msg += (f"{', '.join(_edge)} run to the top of the range ($K\\ge{_top - 1}$ of at most {_top}): these indices keep rewarding finer partitions of this data, most likely because the elongated blobs "
+                 f"are cut into several compact pieces that a centroid-based index scores better than one stretched cluster, whereas a mixture likelihood describes the elongation with a single covariance "
+                 f"(in the $K={_top}$ fit the blobs are covered by {', '.join(str(int(_p)) for _p in _pieces)} components, in the order of the true labels: the wide flat blob and the long thin tilted one are the ones cut up). ")
+    if _rest:
+        _msg += "The rest pick " + ", ".join(f"{_n} $K={_k}$" for _n, _k in _rest.items()) + ". "
+    _msg += "No single index should be trusted alone. (Results in the fast docs build, which caps EM at 100 iterations, can differ slightly.)"
+    mo.md(_msg)
     return
 
 

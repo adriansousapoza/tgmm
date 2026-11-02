@@ -7,6 +7,7 @@
 #     "numpy",
 #     "matplotlib",
 #     "scipy",
+#     "pillow",
 # ]
 # ///
 
@@ -72,12 +73,15 @@ def _(mo):
 
 @app.cell
 def _():
+    import base64
+    import io
     import warnings
 
     import numpy as np
     import torch
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
+    from PIL import Image
     from scipy.optimize import linear_sum_assignment
     from scipy.stats import norm
 
@@ -96,9 +100,12 @@ def _():
         COLORS,
         Ellipse,
         GaussianMixture,
+        Image,
         SEED,
+        base64,
         device,
         generate_gmm_data,
+        io,
         linear_sum_assignment,
         norm,
         np,
@@ -126,10 +133,10 @@ def _(np):
                        np.array([0, 0]),
                        np.array([2, 2])]
     default_covs = [
-        0.6 * np.eye(2),                      # spherical covariance
-        0.3 * np.eye(2),                      # spherical covariance, fewer points
-        np.array([[1.2, 0], [0, 0.3]]),       # diagonal covariance
-        np.array([[0.12, 0.3], [0.3, 1.2]]),  # full covariance
+        np.eye(2),                              # spherical covariance
+        0.25 * np.eye(2),                       # spherical covariance, small and with few points
+        np.array([[4.0, 0.0], [0.0, 0.25]]),    # diagonal covariance, elongated along x
+        np.array([[0.29, 1.1], [1.1, 4.25]]),   # full covariance: very elongated and tilted (correlation 0.99)
     ]
     return default_centers, default_covs, default_n_samples
 
@@ -421,115 +428,22 @@ def _(mo):
     mo.md(r"""
     ### Step 0: a (deliberately) bad initialization
 
-    We initialize all three components close together around $9$ to $10$, even though the true components are centred at $-2$, $2$ and $6$, and give them a shared, overly wide initial standard deviation of $2.5$. `_allocate_parameters` sets these initial parameters without running any EM iteration, and `_e_step` computes the responsibilities $r_{ik}$ from the formula above using only this initial guess.
+    We initialize all three components close together around $9$ to $10$, even though the true components are centred at $-2$, $2$ and $6$, and give them a shared, overly wide initial standard deviation of $2.5$. No EM iteration has run yet: these are just the starting parameters, and the E-step computes the responsibilities $r_{ik}$ from the formula above using only this initial guess.
 
-    Because the initial means sit together and far from where two of the three true clusters are, the responsibilities are not yet informative. This is the starting point EM has to improve on.
+    Because the initial means sit together and far from where two of the three true clusters are, the responsibilities are not yet informative. This is the starting point EM has to improve on (it is the first frame of the animation below).
     """)
     return
 
 
 @app.cell
-def _(
-    GaussianMixture,
-    data,
-    norm,
-    np,
-    plt,
-    real_means,
-    real_stds,
-    torch,
-    true_taus,
-):
+def _(data, torch):
     # Convert data to a torch tensor
     X_1d = torch.tensor(data, dtype=torch.float32).reshape(-1, 1)
     initial_means = torch.tensor([[9.5], [10.0], [10.5]], dtype=torch.float32)
     # Initial parameters for the Gaussian Mixture Model
     initial_covariances = torch.tensor([[[2.5 ** 2]], [[2.5 ** 2]], [[2.5 ** 2]]], dtype=torch.float32)
     initial_weights = torch.tensor([0.33, 0.33, 0.33], dtype=torch.float32)
-    gmm_init = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu')
-    # Initialize without fitting, then do an E-step with the initial parameters
-    gmm_init._allocate_parameters(X_1d, set_random_state=False)
-    _r, _ = gmm_init._e_step(X_1d)
-    _fig, _axs = plt.subplots(1, 2, figsize=(14, 4.5))
-    _axs[0].hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
-    _x = np.linspace(min(data), max(data), 1000)
-    _colors = ['r', 'b', 'g']
-    _gaussian_real = 0
-    _gaussian_est = 0
-    for _i, (_mean, _cov, _weight, _real_mean, _real_std, _true_tau, _color) in enumerate(zip(gmm_init.means_, gmm_init.covariances_, gmm_init.weights_, real_means, real_stds, true_taus, _colors)):
-        _std = torch.sqrt(_cov[0, 0]).item()
-        _mean_val = _mean[0].item()
-        _axs[0].plot(_x, _weight.item() * norm.pdf(_x, _mean_val, _std), color=_color, linestyle='-', label='Gaussian (initial guess)')
-        _gaussian_est += _weight.item() * norm.pdf(_x, _mean_val, _std)
-        _axs[0].plot(_x, _true_tau * norm.pdf(_x, _real_mean, _real_std), color=_color, linestyle='--', label='Gaussian (real)')
-        _gaussian_real += _true_tau * norm.pdf(_x, _real_mean, _real_std)
-    _axs[0].plot(_x, _gaussian_est, 'k-', label='GMM (initial guess)')
-    _axs[0].plot(_x, _gaussian_real, 'k--', label='GMM (real)')
-    _axs[0].set_title('Initial Guess and Real Gaussian Distributions')
-    _axs[0].legend()
-    for _i in range(3):
-        _axs[1].scatter(data, _r[:, _i].cpu().numpy(), color=_colors[_i], label=f'Responsibilities of cluster {_i + 1}', alpha=0.6, marker='x')
-    _axs[1].set_title('Responsibilities from the E-step')
-    _axs[1].legend()
-    plt.suptitle('Initial Guess and Responsibilities from the E-step')
-    plt.gcf()
     return X_1d, initial_covariances, initial_means, initial_weights
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### One EM iteration
-
-    Running `fit(..., max_iter=1)` performs exactly one E-step followed by one M-step. Compare the responsibilities and fitted Gaussians below with the previous cell: even a single iteration pulls the estimated components substantially closer to the data.
-    """)
-    return
-
-
-@app.cell
-def _(
-    GaussianMixture,
-    X_1d,
-    data,
-    initial_covariances,
-    initial_means,
-    initial_weights,
-    norm,
-    np,
-    plt,
-    real_means,
-    real_stds,
-    torch,
-    true_taus,
-):
-    # A fresh GMM, fitted for one EM iteration only
-    gmm_one_iter = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu', max_iter=1)
-    gmm_one_iter.fit(X_1d)
-    _r, _ = gmm_one_iter._e_step(X_1d)
-    _fig, _axs = plt.subplots(1, 2, figsize=(14, 4.5))
-    _colors = ['r', 'b', 'g']
-    for _i in range(3):
-        _axs[0].scatter(data, _r[:, _i].cpu().numpy(), color=_colors[_i], label=f'Responsibility of cluster {_i + 1}', alpha=0.6, marker='x')
-    _axs[0].set_title('Responsibilities from the E-step')
-    _axs[0].legend()
-    _axs[1].hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
-    _x = np.linspace(min(data), max(data), 1000)
-    _gaussian_est = 0
-    _gaussian_real = 0
-    for _i, (_mean, _cov, _weight, _real_mean, _real_std, _true_tau, _color) in enumerate(zip(gmm_one_iter.means_, gmm_one_iter.covariances_, gmm_one_iter.weights_, real_means, real_stds, true_taus, _colors)):
-        _std = torch.sqrt(_cov[0, 0]).item()
-        _mean_val = _mean[0].item()
-        _axs[1].plot(_x, _weight.item() * norm.pdf(_x, _mean_val, _std), color=_color, linestyle='-', label='Gaussian (estimated)')
-        _gaussian_est += _weight.item() * norm.pdf(_x, _mean_val, _std)
-        _axs[1].plot(_x, _true_tau * norm.pdf(_x, _real_mean, _real_std), color=_color, linestyle='--', label='Gaussian (real)')
-        _gaussian_real += _true_tau * norm.pdf(_x, _real_mean, _real_std)
-    _axs[1].plot(_x, _gaussian_est, 'k-', label='GMM (estimated)')
-    _axs[1].plot(_x, _gaussian_real, 'k--', label='GMM (real)')
-    _axs[1].set_title('Data and Gaussian Distributions')
-    _axs[1].legend()
-    _fig.suptitle('Responsibilities and Gaussian Distributions after one EM iteration')
-    plt.gcf()
-    return
 
 
 @app.cell(hide_code=True)
@@ -537,7 +451,7 @@ def _(mo):
     mo.md(r"""
     ### Full EM run: watching convergence
 
-    Now we run EM to (near) convergence, one E-step and M-step at a time, recording $(\mu_k,\sigma_k,\pi_k)$ and the log-likelihood after every iteration. The three panels below overlay each component's trajectory on the **log-likelihood surface** as a function of that component's $(\text{mean},\text{std})$ (holding the other two components at their converged values). It is the surface EM is climbing.
+    Now we run EM to (near) convergence, one E-step and M-step at a time, recording $(\mu_k,\sigma_k,\pi_k)$ and the log-likelihood after every iteration. The log-likelihood **never decreases**, as the next plot shows.
     """)
     return
 
@@ -554,19 +468,19 @@ def _(
     np,
     torch,
 ):
-    gmm_full = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu')
-    gmm_full._allocate_parameters(X_1d, set_random_state=False)
+    _gmm_full = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu')
+    _gmm_full._allocate_parameters(X_1d, set_random_state=False)
     means = [initial_means.squeeze().numpy()]  # parameters after iteration 0 (the initial guess), 1, 2, ...
     stds = [np.sqrt(initial_covariances[:, 0, 0].numpy())]
     taus = [initial_weights.numpy()]
-    _resp, _lp = gmm_full._e_step(X_1d)
+    _resp, _lp = _gmm_full._e_step(X_1d)
     ll_history = [_lp.mean().item()]  # average log-likelihood of the initial guess
     for _step in range(MAX_ITER):
-        gmm_full._m_step(X_1d, _resp)  # M-step from the current responsibilities ...
-        _resp, _lp = gmm_full._e_step(X_1d)  # ... then the E-step under the updated parameters
-        means.append(gmm_full.means_.squeeze().cpu().numpy())
-        stds.append(torch.sqrt(gmm_full.covariances_[:, 0, 0]).cpu().numpy())
-        taus.append(gmm_full.weights_.cpu().numpy())
+        _gmm_full._m_step(X_1d, _resp)  # M-step from the current responsibilities ...
+        _resp, _lp = _gmm_full._e_step(X_1d)  # ... then the E-step under the updated parameters
+        means.append(_gmm_full.means_.squeeze().cpu().numpy())
+        stds.append(torch.sqrt(_gmm_full.covariances_[:, 0, 0]).cpu().numpy())
+        taus.append(_gmm_full.weights_.cpu().numpy())
         ll_history.append(_lp.mean().item())
         if abs(ll_history[-1] - ll_history[-2]) < 1e-9:
             break
@@ -576,7 +490,7 @@ def _(
     print(f'EM iterations run: {len(ll_history) - 1}')
     print(f'Average log-likelihood: {ll_history[0]:.4f} (initial guess) -> {ll_history[-1]:.4f} (final)')
     print(f'Never decreases (largest drop between iterations: {max(0.0, -np.diff(ll_history).min()):.2e})')
-    return GRID, gmm_full, ll_history, means, stds, taus
+    return GRID, ll_history, means, stds, taus
 
 
 @app.cell
@@ -615,109 +529,108 @@ def _(GRID, data, means, norm, np, stds, taus):
 
 
 @app.cell
-def _(mean_range, means, plt, real_means, real_stds, std_range, stds, surfaces):
-    _fig, _axs = plt.subplots(1, 3, figsize=(18, 4.8))
-    for _k in range(3):
-        _cs = _axs[_k].contourf(mean_range, std_range, surfaces[_k], cmap='viridis')
-        _fig.colorbar(_cs, ax=_axs[_k]).ax.set_ylabel('Log-Likelihood')
-        _axs[_k].set_title(f'Log-Likelihood vs. Mean{_k + 1} and Std{_k + 1}')
-        _axs[_k].set_xlabel('Mean')
-        _axs[_k].set_ylabel('Standard Deviation')
-        _axs[_k].scatter(real_means[_k], real_stds[_k], color='red', label=f'Real Mean{_k + 1} and Std{_k + 1}', s=50, marker='o')
-        _axs[_k].scatter(means[0, _k], stds[0, _k], color='red', label=f'Initial Mean{_k + 1} and Std{_k + 1}', s=100, marker='*')
-        _axs[_k].plot(means[:, _k], stds[:, _k], color='magenta', label=f'Estimated Mean{_k + 1} and Std{_k + 1}')
-        _axs[_k].legend()
-    plt.tight_layout()
-    plt.gcf()
-    return
+def _(FAST, Image, base64, io, mo, np, plt):
+    GIF_DPI = 55  # tgmm's theme uses 300 dpi; the animations are small on purpose (they are embedded in the page)
 
+    def pick_frames(n_iterations):
+        """Iterations to animate, 0..n_iterations, denser early on (where EM changes fastest); always includes both ends."""
+        _m = min(12 if FAST else 40, n_iterations + 1)
+        return [int(_i) for _i in np.unique(np.round(n_iterations * np.linspace(0, 1, _m) ** 2).astype(int))]
 
-@app.cell
-def _(data, gmm_full, norm, np, plt, real_means, real_stds, torch, true_taus):
-    _fig, _ax = plt.subplots(1, 1, figsize=(8, 4.5))
-    _ax.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
-    _gaussian_est = 0
-    _gaussian_real = 0
-    _x = np.linspace(min(data), max(data), 1000)
-    _colors = ['r', 'b', 'g']
-    for _i, (_mean, _cov, _weight, _real_mean, _real_std, _color) in enumerate(zip(gmm_full.means_, gmm_full.covariances_, gmm_full.weights_, real_means, real_stds, _colors)):
-        _std = torch.sqrt(_cov[0, 0]).item()
-        _mean_val = _mean[0].item()
-        _ax.plot(_x, _weight.item() * norm.pdf(_x, _mean_val, _std), label=f'Gaussian {_i + 1} (estimated)', color=_color, linestyle='-')
-        _ax.plot(_x, true_taus[_i] * norm.pdf(_x, _real_mean, _real_std), label=f'Gaussian {_i + 1} (real)', color=_color, linestyle='--')
-        _gaussian_est += _weight.item() * norm.pdf(_x, _mean_val, _std)
-        _gaussian_real += true_taus[_i] * norm.pdf(_x, _real_mean, _real_std)
-    _ax.plot(_x, _gaussian_est, 'k-', label='GMM (estimated)')
-    _ax.plot(_x, _gaussian_real, 'k--', label='GMM (real)')
-    _ax.set_title('Data and Gaussian Distributions after convergence')
-    _ax.legend()
-    plt.gcf()
-    return
+    def gif_from_frames(draw, frames, frame_ms=250, hold_ms=2500):
+        """Render ``draw(t)`` (it returns a matplotlib figure) for every t in ``frames`` into a looping GIF; shown as an <img>."""
+        _imgs = []
+        for _t in frames:
+            _fig = draw(_t)
+            _buf = io.BytesIO()
+            _fig.savefig(_buf, format='png', dpi=GIF_DPI)
+            plt.close(_fig)
+            _imgs.append(Image.open(_buf).convert('P', palette=Image.ADAPTIVE, colors=128))
+        _out = io.BytesIO()
+        _imgs[0].save(_out, format='GIF', save_all=True, append_images=_imgs[1:], loop=0, optimize=True, duration=[frame_ms] * (len(_imgs) - 1) + [hold_ms])
+        _data = _out.getvalue()
+        _html = f'<img src="data:image/gif;base64,{base64.b64encode(_data).decode()}" style="max-width:100%">'
+        return mo.Html(_html), len(_imgs), len(_data)
+
+    return gif_from_frames, pick_frames
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Scrub through the iterations
+    ### The whole run, iteration by iteration
 
-    The slider below replays the run above one iteration at a time: iteration $0$ is the bad initial guess, the last iteration is the converged fit shown so far. At iteration $t$ the figure shows the fitted components against the real ones **(top left)**, each point's responsibility for each component **(top right)**, and, for each component, the log-likelihood surface over its $(\text{mean},\text{std})$ with the path EM has taken up to $t$ and the current estimate **(bottom)**. The surfaces are the ones above, with the other two components held at their converged values. In the static documentation page the slider sits at the last iteration; open the interactive version to move it.
+    The animation replays the run above (iteration $0$ is the bad initial guess, the last frame the converged fit; the frames are denser at the start, where EM changes fastest). At iteration $t$ the figure shows the fitted components against the real ones **(top left)**, each point's responsibility for each component **(top right)**, and, for each component, the **log-likelihood surface** over its $(\text{mean},\text{std})$ **(bottom)** with the path EM has taken up to $t$ and the current estimate. The surface is the one EM is climbing: the other two components are held at their converged values, and each estimate walks uphill to the maximum.
     """)
     return
 
 
 @app.cell
-def _(ll_history, mo):
-    # docs: hide-cell
-    em_iter_1d = mo.ui.slider(0, len(ll_history) - 1, step=1, value=len(ll_history) - 1, label='EM iteration', show_value=True)
-    em_iter_1d
-    return (em_iter_1d,)
+def _(
+    data,
+    gif_from_frames,
+    ll_history,
+    mean_range,
+    means,
+    norm,
+    np,
+    pick_frames,
+    plt,
+    real_means,
+    real_stds,
+    std_range,
+    stds,
+    surfaces,
+    taus,
+    true_taus,
+):
+    def draw_1d_frame(_t):
+        _colors = ['r', 'b', 'g']
+        _fig = plt.figure(figsize=(15, 7.5))
+        _gs = _fig.add_gridspec(2, 3)
+        _ax_fit = _fig.add_subplot(_gs[0, :2])
+        _ax_resp = _fig.add_subplot(_gs[0, 2])
+        _x = np.linspace(min(data), max(data), 1000)
+        _ax_fit.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
+        _est = 0
+        _real = 0
+        for _k in range(3):
+            _comp = taus[_t, _k] * norm.pdf(_x, means[_t, _k], stds[_t, _k])
+            _ax_fit.plot(_x, _comp, color=_colors[_k], linestyle='-', label=f'Gaussian {_k + 1} (estimated)')
+            _ax_fit.plot(_x, true_taus[_k] * norm.pdf(_x, real_means[_k], real_stds[_k]), color=_colors[_k], linestyle='--', label=f'Gaussian {_k + 1} (real)')
+            _est = _est + _comp
+            _real = _real + true_taus[_k] * norm.pdf(_x, real_means[_k], real_stds[_k])
+        _ax_fit.plot(_x, _est, 'k-', label='GMM (estimated)')
+        _ax_fit.plot(_x, _real, 'k--', label='GMM (real)')
+        _ax_fit.set_title('Data and Gaussian Distributions')
+        _ax_fit.legend(ncol=2, fontsize=8)
+        # responsibilities r_ik of the parameters after iteration t (the E-step formula, evaluated directly)
+        _dens = taus[_t] * norm.pdf(data[:, None], means[_t], stds[_t])
+        _r = _dens / np.maximum(_dens.sum(axis=1, keepdims=True), 1e-300)
+        for _k in range(3):
+            _ax_resp.scatter(data, _r[:, _k], color=_colors[_k], label=f'Responsibility of cluster {_k + 1}', alpha=0.6, marker='x', s=12)
+        _ax_resp.set_title('Responsibilities')
+        _ax_resp.legend(fontsize=8)
+        for _k in range(3):
+            _ax = _fig.add_subplot(_gs[1, _k])
+            _cs = _ax.contourf(mean_range, std_range, surfaces[_k], levels=15, cmap='viridis')
+            _fig.colorbar(_cs, ax=_ax).ax.set_ylabel('Log-Likelihood')
+            _ax.scatter(real_means[_k], real_stds[_k], color='red', label='Real mean and std', s=50, marker='o')
+            _ax.scatter(means[0, _k], stds[0, _k], color='red', label='Initial mean and std', s=100, marker='*')
+            _ax.plot(means[:_t + 1, _k], stds[:_t + 1, _k], color='magenta', label='Path up to this iteration')
+            _ax.scatter(means[_t, _k], stds[_t, _k], color='magenta', edgecolor='white', s=80, zorder=5, label='Current estimate')
+            _ax.set_title(f'Log-Likelihood vs. Mean{_k + 1} and Std{_k + 1}')
+            _ax.set_xlabel('Mean')
+            _ax.set_ylabel('Standard Deviation')
+            _ax.legend(fontsize=7)
+        _fig.suptitle(f'EM iteration {_t} of {len(ll_history) - 1}: average log-likelihood {ll_history[_t]:.4f}')
+        _fig.tight_layout(rect=[0, 0, 1, 0.96])
+        return _fig
 
-
-@app.cell
-def _(data, em_iter_1d, ll_history, mean_range, means, norm, np, plt, real_means, real_stds, std_range, stds, surfaces, taus, true_taus):
-    _t = int(em_iter_1d.value)
-    _colors = ['r', 'b', 'g']
-    _fig = plt.figure(figsize=(18, 9))
-    _gs = _fig.add_gridspec(2, 3)
-    _ax_fit = _fig.add_subplot(_gs[0, :2])
-    _ax_resp = _fig.add_subplot(_gs[0, 2])
-    _x = np.linspace(min(data), max(data), 1000)
-    _ax_fit.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
-    _est = 0
-    _real = 0
-    for _k in range(3):
-        _comp = taus[_t, _k] * norm.pdf(_x, means[_t, _k], stds[_t, _k])
-        _ax_fit.plot(_x, _comp, color=_colors[_k], linestyle='-', label=f'Gaussian {_k + 1} (estimated)')
-        _ax_fit.plot(_x, true_taus[_k] * norm.pdf(_x, real_means[_k], real_stds[_k]), color=_colors[_k], linestyle='--', label=f'Gaussian {_k + 1} (real)')
-        _est = _est + _comp
-        _real = _real + true_taus[_k] * norm.pdf(_x, real_means[_k], real_stds[_k])
-    _ax_fit.plot(_x, _est, 'k-', label='GMM (estimated)')
-    _ax_fit.plot(_x, _real, 'k--', label='GMM (real)')
-    _ax_fit.set_title('Data and Gaussian Distributions')
-    _ax_fit.legend(ncol=2, fontsize=8)
-    # responsibilities r_ik of the parameters after iteration t (the E-step formula, evaluated directly)
-    _dens = taus[_t] * norm.pdf(data[:, None], means[_t], stds[_t])
-    _r = _dens / np.maximum(_dens.sum(axis=1, keepdims=True), 1e-300)
-    for _k in range(3):
-        _ax_resp.scatter(data, _r[:, _k], color=_colors[_k], label=f'Responsibility of cluster {_k + 1}', alpha=0.6, marker='x', s=12)
-    _ax_resp.set_title('Responsibilities')
-    _ax_resp.legend(fontsize=8)
-    for _k in range(3):
-        _ax = _fig.add_subplot(_gs[1, _k])
-        _cs = _ax.contourf(mean_range, std_range, surfaces[_k], levels=15, cmap='viridis')
-        _fig.colorbar(_cs, ax=_ax).ax.set_ylabel('Log-Likelihood')
-        _ax.scatter(real_means[_k], real_stds[_k], color='red', label='Real mean and std', s=50, marker='o')
-        _ax.scatter(means[0, _k], stds[0, _k], color='red', label='Initial mean and std', s=100, marker='*')
-        _ax.plot(means[:_t + 1, _k], stds[:_t + 1, _k], color='magenta', label='Path up to this iteration')
-        _ax.scatter(means[_t, _k], stds[_t, _k], color='magenta', edgecolor='white', s=80, zorder=5, label='Current estimate')
-        _ax.set_title(f'Log-Likelihood vs. Mean{_k + 1} and Std{_k + 1}')
-        _ax.set_xlabel('Mean')
-        _ax.set_ylabel('Standard Deviation')
-        _ax.legend(fontsize=7)
-    _fig.suptitle(f'EM iteration {_t} of {len(ll_history) - 1}: average log-likelihood {ll_history[_t]:.4f}')
-    _fig.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.gcf()
-    return
+    gif_1d, n_frames_1d, gif_1d_bytes = gif_from_frames(draw_1d_frame, pick_frames(len(ll_history) - 1))
+    print(f'1-D animation: {n_frames_1d} frames, {gif_1d_bytes / 1e6:.2f} MB')
+    gif_1d
+    return gif_1d, gif_1d_bytes, n_frames_1d
 
 
 @app.cell(hide_code=True)
@@ -727,7 +640,7 @@ def _(mo):
 
     The same algorithm works in $d>1$ dimensions; only the Gaussian density changes, to the multivariate normal of section 2, with each $\Sigma_k$ now a full $d\times d$ covariance matrix. The E-step and M-step formulas are unchanged.
 
-    We fit one component per blob to the data of section 1 (the default four blobs, or whatever you designed), starting from means placed on a horizontal line *above* the data, and look at how the responsibilities (soft assignments), the resulting hard assignments and the covariance ellipses evolve. The helper below draws one row for a given iteration: **(left)** each point's responsibility per component, **(middle)** the hard assignment (arg-max responsibility, used only for colouring) in data space, and **(right)** the trajectory of each component's mean and its current $1\sigma$ covariance ellipse, with the initial means marked `x` and the current means `o`.
+    We fit one component per blob to the data of section 1 (the default four blobs, or whatever you designed), starting from means placed on a horizontal line *above* the data, and record the state after every EM iteration. The helper below draws the three panels for a given iteration: **(left)** each point's responsibility per component, **(middle)** the hard assignment (arg-max responsibility, used only for colouring) in data space, and **(right)** the trajectory of each component's mean and its current $1\sigma$ covariance ellipse, with the initial means marked `x` and the current means `o`.
     """)
     return
 
@@ -778,9 +691,9 @@ def _(COLORS, Ellipse, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Running EM and plotting snapshots
+    ### Running EM and recording every iteration
 
-    One E-step and M-step at a time, we snapshot the state after iterations 1 and 5 and at the end (convergence, or the iteration cap in the fast docs build). Watch how the soft responsibilities sharpen into confident assignments as the ellipses settle onto the blobs.
+    One E-step and M-step at a time, we store the state after every iteration (convergence, or the iteration cap in the fast docs build). The animation below replays it: watch how the soft responsibilities sharpen into confident assignments as the ellipses settle onto the blobs. If you changed the blobs in section 1, this is EM on your data.
     """)
     return
 
@@ -792,7 +705,6 @@ def _(GaussianMixture, MAX_ITER, X_tensor, device, n_components, torch):
     gmm_steps = GaussianMixture(n_features=2, n_components=n_components, covariance_type='full', init_means=means_init, device=device)
     gmm_steps._allocate_parameters(X_tensor)
     em_means = [gmm_steps.means_.clone()]  # means after iteration 0 (initial), 1, 2, ...
-    snapshots = {}
     _resp, _lp = gmm_steps._e_step(X_tensor)
     _ll_prev = _lp.mean().item()
     em_states = {0: (gmm_steps.means_.clone(), gmm_steps.covariances_.clone(), _resp.clone(), 0)}  # state after every iteration (0 = initial guess)
@@ -804,52 +716,25 @@ def _(GaussianMixture, MAX_ITER, X_tensor, device, n_components, torch):
         _ll = _lp.mean().item()
         em_states[_it] = (gmm_steps.means_.clone(), gmm_steps.covariances_.clone(), _resp.clone(), _it)
         em_ll[_it] = _ll
-        _done = abs(_ll - _ll_prev) < 1e-6 or _it == MAX_ITER
-        if _it in (1, 5) or _done:
-            snapshots[_it] = (gmm_steps.means_.clone(), gmm_steps.covariances_.clone(), _resp.clone(), _it)
-        if _done:
+        if abs(_ll - _ll_prev) < 1e-6:
             break
         _ll_prev = _ll
-    print(f'Snapshots after iterations: {sorted(snapshots)}')
-    return em_ll, em_means, em_states, snapshots
+    print(f'EM iterations recorded: {max(em_states)}')
+    return em_ll, em_means, em_states
 
 
 @app.cell
-def _(X, em_means, plot_2d_gmm_resp, plt, snapshots):
-    _fig, _axs = plt.subplots(len(snapshots), 3, figsize=(12, 3.3 * len(snapshots)), squeeze=False)
-    for _row, _it in enumerate(sorted(snapshots)):
-        plot_2d_gmm_resp(snapshots[_it], X, em_means, _axs, _row)
-    plt.tight_layout()
-    plt.gcf()
-    return
+def _(X, em_ll, em_means, em_states, gif_from_frames, pick_frames, plot_2d_gmm_resp, plt):
+    def draw_2d_frame(_t):
+        _fig, _axs = plt.subplots(1, 3, figsize=(15, 4.8), squeeze=False)
+        plot_2d_gmm_resp(em_states[_t], X, em_means, _axs, 0)
+        _fig.suptitle(f'EM iteration {_t} of {max(em_states)}: average log-likelihood {em_ll[_t]:.4f}')
+        _fig.tight_layout(rect=[0, 0, 1, 0.94])
+        return _fig
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Scrub through the 2-D iterations
-
-    The run above recorded the state after *every* iteration, not just 1, 5 and the last. The slider below shows any of them with the same three panels (responsibilities, hard assignments, means trace with $1\sigma$ ellipses), so you can watch the ellipses slide onto the blobs. In the static documentation page the slider sits at the last iteration; open the interactive version to move it. If you changed the blobs in section 1, this replays EM on your data.
-    """)
-    return
-
-
-@app.cell
-def _(em_states, mo):
-    # docs: hide-cell
-    em_iter_2d = mo.ui.slider(0, max(em_states), step=1, value=max(em_states), label='EM iteration', show_value=True)
-    em_iter_2d
-    return (em_iter_2d,)
-
-
-@app.cell
-def _(X, em_iter_2d, em_ll, em_means, em_states, plot_2d_gmm_resp, plt):
-    _t = int(em_iter_2d.value)
-    _fig, _axs = plt.subplots(1, 3, figsize=(12, 3.8), squeeze=False)
-    plot_2d_gmm_resp(em_states[_t], X, em_means, _axs, 0)
-    _fig.suptitle(f'EM iteration {_t} of {max(em_states)}: average log-likelihood {em_ll[_t]:.4f}')
-    plt.tight_layout()
-    plt.gcf()
+    gif_2d, n_frames_2d, gif_2d_bytes = gif_from_frames(draw_2d_frame, pick_frames(max(em_states)))
+    print(f'2-D animation: {n_frames_2d} frames, {gif_2d_bytes / 1e6:.2f} MB')
+    gif_2d
     return
 
 
