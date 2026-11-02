@@ -78,7 +78,7 @@ def _():
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
 
-    from tgmm import GaussianMixture, GMMInitializer
+    from tgmm import GaussianMixture, GMMInitializer, generate_gmm_data
     from tutorial_data import make_default_data
 
     warnings.filterwarnings('ignore')  # short max_iter budgets below intentionally stop before convergence
@@ -93,6 +93,7 @@ def _():
         GaussianMixture,
         SEED,
         device,
+        generate_gmm_data,
         make_default_data,
         np,
         plt,
@@ -136,7 +137,7 @@ def _(mo):
 
     from them. The initial means matter most (they decide *where* the components sit), the initial covariances and weights mostly decide how soft that first assignment is.
 
-    To see this, the next cell fits `GaussianMixture(n_components=4)` many times with `n_init=1` and a different seed each time, for each of the five `init_means` methods, and records the final mean log-likelihood per sample (`lower_bound_`).
+    To see this, the next cell fits `GaussianMixture(n_components=4)` many times with `n_init=1` and a different seed each time, for each of the five `init_means` methods, and records the final mean log-likelihood per sample (`lower_bound_`). The share of runs that reach the best optimum is the last column of the table in *Initial Means* below.
     """)
     return
 
@@ -154,37 +155,6 @@ def _(GaussianMixture, MAX_ITER, N_SEEDS, X_tensor, device, np):
     BEST_LL = max(_v.max() for _v in sweep.values())  # best final log-likelihood found by any run
     TOL_HIT = 1e-3  # a run "reaches the best optimum" if it ends within this of BEST_LL
     return BEST_LL, MEAN_METHODS, TOL_HIT, sweep
-
-
-@app.cell
-def _(BEST_LL, MEAN_METHODS, N_SEEDS, SEED, np, plt, sweep):
-    _rng = np.random.default_rng(SEED)
-    _fig, _ax = plt.subplots(figsize=(8, 4))
-    for _i, _method in enumerate(MEAN_METHODS):
-        _ax.scatter(_i + _rng.uniform(-0.25, 0.25, N_SEEDS), sweep[_method], s=14, alpha=0.6)
-    _ax.axhline(BEST_LL, color='k', ls='--', lw=1, label='best log-likelihood found')
-    _ax.set_xticks(range(len(MEAN_METHODS)))
-    _ax.set_xticklabels(MEAN_METHODS)
-    _ax.set_ylabel('final mean log-likelihood per sample')
-    _ax.set_title(f'{N_SEEDS} single runs (n_init=1) per initialization method')
-    _ax.legend(loc='lower right')
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(BEST_LL, MEAN_METHODS, N_SEEDS, TOL_HIT, mo, sweep):
-    _rows = [
-        f"| `{_m}` | {sweep[_m].max():.4f} | {sweep[_m].min():.4f} | {(sweep[_m] > BEST_LL - TOL_HIT).mean():.0%} |"
-        for _m in MEAN_METHODS
-    ]
-    mo.md(
-        f"Over {N_SEEDS} seeds each, the best final log-likelihood is **{BEST_LL:.4f}**. A run counts as reaching it when it ends within {TOL_HIT:g} of that value:\n\n"
-        "| `init_means` | best run | worst run | runs reaching the best optimum |\n|---|---|---|---|\n" + "\n".join(_rows)
-        + "\n\nRuns that stop clearly below the best value have converged to a different local maximum. "
-        "Starting from k-means centres reaches the best optimum most often; the other methods more often end in a clearly worse one."
-    )
-    return
 
 
 @app.cell(hide_code=True)
@@ -218,7 +188,7 @@ def _(mo):
     $$
     \mu_i = \arg\max_{x} \min_{l < i} \lVert x - \mu_l \rVert,
     $$
-    then re-select the first centre as $\mu_1 = \arg\max_x \min_{l \ge 2} \lVert x - \mu_l \rVert$ so the arbitrary first pick does not bias the result. This spreads centres maximally but is sensitive to outliers, which are by definition the farthest points.
+    then re-select the first centre as $\mu_1 = \arg\max_x \min_{l \ge 2} \lVert x - \mu_l \rVert$ so the arbitrary first pick does not bias the result. This is Gonzalez's (1985) farthest-first traversal, the classical 2-approximation for the *k-center* objective (minimise the largest distance to a centre), not for the k-means objective or the likelihood. It spreads centres maximally, but outliers are by definition the farthest points, so it is sensitive to them; its only randomness is the first pick (torch's global RNG).
 
     The next figure shows where each method puts its four initial centres (red stars) for one seed. `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument. In the interactive version the **seed** slider changes the seed for all five methods at once: `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` varies much less (it ends on one of only a few different solutions). (The static docs page shows seed 0.)
     """)
@@ -236,8 +206,9 @@ def _(SEED, mo):
 @app.cell
 def _(GMMInitializer, MEAN_METHODS, X, X_tensor, init_seed, plt, torch):
     _seed = int(init_seed.value)
-    _fig, _axs = plt.subplots(1, len(MEAN_METHODS), figsize=(15, 3.4), sharex=True, sharey=True)
-    for _ax, _method in zip(_axs, MEAN_METHODS):
+    _fig, _axs = plt.subplots(3, 2, figsize=(8, 11), sharex=True, sharey=True, dpi=80)
+    _flat = _axs.ravel()
+    for _ax, _method in zip(_flat, MEAN_METHODS):
         torch.manual_seed(_seed)
         if _method in ('kpp', 'kmeans'):
             _means = getattr(GMMInitializer, _method)(X_tensor, 4, random_state=_seed)
@@ -248,8 +219,73 @@ def _(GMMInitializer, MEAN_METHODS, X, X_tensor, init_seed, plt, torch):
         _ax.scatter(_m[:, 0], _m[:, 1], marker='*', s=220, color='red', edgecolor='k', zorder=3)
         _ax.set_title(f"init_means='{_method}'")
         _ax.set_aspect('equal')
+    _key = _flat[-1]  # the sixth cell holds the legend
+    _key.axis('off')
+    _key.scatter([], [], s=12, color='gray', label='data')
+    _key.scatter([], [], marker='*', s=220, color='red', edgecolor='k', label='initial centre')
+    _key.legend(loc='center', frameon=False)
+    _key.set_title(f'seed = {_seed}')
     plt.tight_layout()
     plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(BEST_LL, MEAN_METHODS, N_SEEDS, TOL_HIT, mo, sweep):
+    _hit = {_m: f"{(sweep[_m] > BEST_LL - TOL_HIT).mean():.0%}" for _m in MEAN_METHODS}
+    mo.md(f"""
+    ### Which `init_means` when?
+
+    | `init_means` | What it does | Pros | Cons | Good for / bad for | Runs reaching the best optimum ({N_SEEDS} single runs, default blobs) |
+    |---|---|---|---|---|---|
+    | `random` | draws centres from $\\mathcal N(\\bar x,\\hat\\Sigma)$ (not data points) | cheapest; centres follow the global spread | centres can fall in empty space or pile into one cluster; ignores local structure | **good:** a quick baseline together with `n_init` restarts. **bad:** well separated or many clusters | {_hit['random']} |
+    | `points` | $K$ distinct data points, uniformly at random | cheap; centres sit on real data, more often in dense regions | two points can come from one cluster and none from a small one; ignores spread | **good:** clusters of similar size. **bad:** small clusters (rarely hit) | {_hit['points']} |
+    | `kpp` | first point uniform, then each next point drawn with probability $\\propto D^2$ to the nearest centre | spreads centres yet is randomized, so a lone outlier is rarely picked; $O(\\log K)$-competitive for the k-means objective | still seed dependent; no refinement step | **good:** a general-purpose start, mild outliers, many clusters. **bad:** nothing in particular; use `n_init` for unlucky draws | {_hit['kpp']} |
+    | `kmeans` (default) | k-means++ followed by Lloyd iterations until the centres stop moving | centres are already cluster means; reaches the best optimum most often here | costs a k-means run; favours round, similar-sized clusters and can cut an elongated cluster in two (EM usually repairs this) | **good:** compact, roughly round clusters, the safe default. **bad:** very elongated or very unequal clusters | {_hit['kmeans']} |
+    | `maxdist` | farthest-first traversal: random first point, then always the point farthest from all centres so far | no iterations; deterministic apart from the first point; finds one point per cluster when clusters are further apart than their diameter | picks extreme points: outliers, heavy tails or elongated clusters steal centres; ignores density; can leave a true cluster without a centre | **good:** compact, well separated clusters *without* outliers. **bad:** noisy data, outliers, overlapping or elongated clusters | {_hit['maxdist']} |
+    | tensor `(K, d)` | your own centres | uses prior knowledge or a previous fit; the same start every run | a wrong guess is a bad start, and `n_init` only repeats it | **good:** known cluster positions (see *Starting from Given Parameters*) | n/a |
+    """)
+    return
+
+
+@app.cell
+def _(GaussianMixture, MAX_ITER, N_SEEDS, device, generate_gmm_data, mo, np, torch):
+    # a small experiment on the claim in the table: four well separated, compact clusters, with and without 1% uniform outliers
+    _centres = np.array([(0, 0), (8, 0), (0, 8), (8, 8)], dtype=float)
+    _X_clean, _ = generate_gmm_data([_c for _c in _centres], [np.eye(2)] * 4, [300] * 4, device=device, random_state=1)
+    _out = torch.tensor(np.random.default_rng(0).uniform(-12, 20, (12, 2)), dtype=_X_clean.dtype, device=_X_clean.device)
+    _X_noisy = torch.cat([_X_clean, _out])
+
+    def _recovers(_X, _method, _seed):
+        """True when every true centre has a fitted mean within 1.5 (a crashed fit counts as a failure)."""
+        torch.manual_seed(_seed)
+        try:
+            _g = GaussianMixture(n_components=4, init_means=_method, random_state=_seed, max_iter=MAX_ITER, device=device).fit(_X)
+        except ValueError:
+            return False
+        _d = np.linalg.norm(_centres[:, None] - _g.means_.detach().cpu().numpy()[None], axis=2)
+        return bool((_d.min(axis=1) < 1.5).all())
+
+    _rows = []
+    for _method in ['maxdist', 'kmeans', 'kpp']:
+        _clean = sum(_recovers(_X_clean, _method, _s) for _s in range(N_SEEDS))
+        _noisy = sum(_recovers(_X_noisy, _method, _s) for _s in range(N_SEEDS))
+        _rows.append(f"| `{_method}` | {_clean}/{N_SEEDS} | {_noisy}/{N_SEEDS} |")
+    mo.md(
+        "On four well separated, compact clusters, the number of single runs (of "
+        f"{N_SEEDS}) in which every true cluster ends up with a fitted component:\n\n"
+        "| `init_means` | clean data | plus 12 uniform outliers (1%) |\n|---|---|---|\n" + "\n".join(_rows)
+        + "\n\n`maxdist` is excellent on the clean data and collapses as soon as a few outliers appear, because the outliers are the farthest points and take the centres. "
+        "`kpp` samples with probability $\\propto D^2$ instead of taking the maximum, so a lone outlier is rarely chosen."
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **Which one to use.** `kmeans` (the default) is the robust choice: it is cheap compared with EM and puts the centres where the clusters are. `kpp` is the randomized, outlier-tolerant version of farthest-first and a good lighter-weight alternative. Use `maxdist` only for clean, well separated data. The random methods (`random`, `points`, `kpp`) should be combined with `n_init` (below). Variants such as *greedy* k-means++ (several candidates per step, keep the best) and robust farthest-first traversals (trim outliers first, or start from the densest point) reduce these weaknesses further; tgmm does not implement them, but you can build such centres yourself and pass them as a tensor.
+    """)
     return
 
 
@@ -260,14 +296,14 @@ def _(mo):
 
     `init_weights` sets the starting mixing proportions $\pi_k$:
 
-    | `init_weights` | Initial $\pi_k$ |
-    | --- | --- |
-    | `'uniform'` / `'equal'` (default) | $1/K$ for every component |
-    | `'random'` | one draw from $\mathrm{Dirichlet}(1,\dots,1)$, i.e. uniform over the simplex |
-    | `'kmeans'` | $n_k / n$, where $n_k$ counts the points whose nearest initial mean is $\mu_k$ |
-    | tensor | the given values, renormalized to sum to 1 |
+    | `init_weights` | Initial $\pi_k$ | Pros | Cons | Good for / bad for |
+    | --- | --- | --- | --- | --- |
+    | `'uniform'` / `'equal'` (default) | $1/K$ for every component | never favours a component; always valid; nothing to tune | far from the truth when cluster sizes differ a lot (small clusters start over-weighted) | **good:** roughly balanced clusters. **bad:** very unequal sizes |
+    | `'random'` | one draw from $\mathrm{Dirichlet}(1,\dots,1)$, i.e. uniform over the simplex | different seeds start differently, which diversifies restarts | can start with a near-zero weight for a real cluster and adds noise | **good:** restarts with `n_init` when you want diversity. **bad:** a single run |
+    | `'kmeans'` | $n_k / n$, where $n_k$ counts the points whose nearest initial mean is $\mu_k$ | starts at the sizes the data suggest | only as good as the means; a component with no nearest points starts at weight $\approx 10^{-10}$ | **good:** unequal cluster sizes with sensible means. **bad:** poor or random means |
+    | tensor | the given values, renormalized to sum to 1 | uses known proportions | a wrong guess is a bad start | **good:** known class proportions |
 
-    The weights only enter the first E-step as the prior factor in $r_{ik} \propto \pi_k\,\mathcal{N}(x_i \mid \mu_k,\Sigma_k)$. Once the means are sensible, they are the least influential of the three initializations: the M-step recomputes $\pi_k = \frac{1}{n}\sum_i r_{ik}$ immediately. The next cell fixes the initial means (k-means, seed 0) and varies only the weights; `initial_weights_` records what each run started from.
+    The weights only enter the first E-step as the prior factor in $r_{ik} \propto \pi_k\,\mathcal{N}(x_i \mid \mu_k,\Sigma_k)$. Once the means are sensible, they are the least influential of the three initializations: the M-step recomputes $\pi_k = \frac{1}{n}\sum_i r_{ik}$ immediately. The cell below fixes the initial means (k-means, seed 0) and varies only the weights; `initial_weights_` records what each run started from.
     """)
     return
 
@@ -275,16 +311,15 @@ def _(mo):
 @app.cell
 def _(GMMInitializer, GaussianMixture, MAX_ITER, SEED, X_tensor, device, mo, torch):
     _means = GMMInitializer.kmeans(X_tensor, 4, random_state=SEED)
-    _rows = []
+    _res = {}
     for _method in ['uniform', 'random', 'kmeans']:
         torch.manual_seed(SEED)
         _gmm = GaussianMixture(n_components=4, init_means=_means, init_weights=_method, random_state=SEED, max_iter=MAX_ITER, device=device).fit(X_tensor)
-        _w0 = ', '.join(f'{_w:.2f}' for _w in _gmm.initial_weights_.cpu().tolist())
-        _w1 = ', '.join(f'{_w:.2f}' for _w in _gmm.weights_.cpu().tolist())
-        _rows.append(f"| `{_method}` | [{_w0}] | [{_w1}] | {float(_gmm.lower_bound_):.4f} | {_gmm.n_iter_} |")
+        _res[_method] = (float(_gmm.lower_bound_), _gmm.n_iter_)
     mo.md(
-        "| `init_weights` | initial $\\pi$ | fitted $\\pi$ | log-likelihood | EM iterations |\n|---|---|---|---|---|\n" + "\n".join(_rows)
-        + "\n\nThe fitted weights and log-likelihood hardly depend on the starting weights; only the number of EM iterations changes, and only slightly."
+        "From the same k-means means, the three weight starts end at log-likelihood "
+        + ", ".join(f"{_ll:.4f} (`{_m}`, {_it} EM iterations)" for _m, (_ll, _it) in _res.items())
+        + ": the starting weights barely matter."
     )
     return
 
@@ -296,17 +331,17 @@ def _(mo):
 
     `init_covariances` sets the starting $\Sigma_k$ (and the starting scale of the soft assignments). Written for `covariance_type='full'`:
 
-    | `init_covariances` | Initial $\Sigma_k$ |
-    | --- | --- |
-    | `'empirical'` (default) | assign every point to its nearest initial mean to get clusters $C_k$; $\Sigma_k = \widehat{\mathrm{Cov}}(C_k) + \texttt{reg\_covar}\, I$ (unbiased, $n_k - 1$); an empty cluster gets $(1+\texttt{reg\_covar})\,I$ |
-    | `'global'` | the sample covariance of the whole dataset $+\ \texttt{reg\_covar}\,I$, the same for every component |
-    | `'eye'` | $(1+\texttt{reg\_covar})\,I$ |
-    | `'random'` | $A A^\top + \texttt{reg\_covar}\, I$ with $A_{ab} \sim \mathcal{N}(0,1)$ |
-    | tensor | the given values (shape per `covariance_type`) |
+    | `init_covariances` | Initial $\Sigma_k$ | Pros | Cons | Good for / bad for |
+    | --- | --- | --- | --- | --- |
+    | `'empirical'` (default) | assign every point to its nearest initial mean to get clusters $C_k$; $\Sigma_k = \widehat{\mathrm{Cov}}(C_k) + \texttt{reg\_covar}\, I$ (unbiased, $n_k - 1$); an empty cluster gets $(1+\texttt{reg\_covar})\,I$ | adapts each component to its cluster's size and shape; the first E-step is already informative | needs sensible means; unreliable when a cluster has few points (singular when $n_k \le d$) | **good:** many points per cluster ($n_k \gg d$), clusters of different shapes. **bad:** high dimension with small clusters |
+    | `'global'` | the sample covariance of the whole dataset $+\ \texttt{reg\_covar}\,I$, the same for every component | always well conditioned; works with few points per cluster | too wide for tight clusters, so the first responsibilities are very soft; ignores shapes | **good:** high dimension or small clusters. **bad:** clusters much tighter than the whole data |
+    | `'eye'` | $(1+\texttt{reg\_covar})\,I$ | no data needed; trivially valid | wrong scale unless the data are standardized; ignores shape | **good:** standardized data, a neutral start. **bad:** features on very different scales |
+    | `'random'` | $A A^\top + \texttt{reg\_covar}\, I$ with $A_{ab} \sim \mathcal{N}(0,1)$ | different seeds start differently, which diversifies restarts | unrelated to the data's scale and shape, so it can start far from any good solution | **good:** restarts with many `n_init`. **bad:** a single run |
+    | tensor | the given values (shape per `covariance_type`) | uses prior knowledge or a previous fit | a wrong guess is a bad start | **good:** known cluster shapes |
 
     For the diagonal, spherical and tied covariance types the corresponding diagonal, mean-of-diagonal or pooled form is used (see [2. Covariance Structures](02_covariance_types.ipynb)). For the `tied_*` types `'empirical'` pools the within-cluster scatter, $\Sigma = \frac1n \sum_k \sum_{x\in C_k}(x - \bar x_{C_k})(x - \bar x_{C_k})^\top + \texttt{reg\_covar}\, I$.
 
-    The figure draws the 2σ ellipses each method starts from (around the same k-means initial means), then the table compares the resulting fits.
+    The figure draws the 2σ ellipses each method starts from (around the same k-means initial means); the sentence below it compares the resulting fits.
     """)
     return
 
@@ -333,8 +368,8 @@ def _(COV_METHODS, Ellipse, X, cov_runs, np, plt):
         angle = np.degrees(np.arctan2(V[1, 1], V[0, 1]))
         ax.add_patch(Ellipse(mean, 2 * n_std * np.sqrt(w[1]), 2 * n_std * np.sqrt(w[0]), angle=angle, fill=False, **kwargs))
 
-    _fig, _axs = plt.subplots(1, len(COV_METHODS), figsize=(15, 3.6), sharex=True, sharey=True)
-    for _ax, _method in zip(_axs, COV_METHODS):
+    _fig, _axs = plt.subplots(2, 2, figsize=(8, 7.2), sharex=True, sharey=True, dpi=80)
+    for _ax, _method in zip(_axs.ravel(), COV_METHODS):
         _g = cov_runs[_method]
         _mu, _S = _g.initial_means_.cpu().numpy(), _g.initial_covariances_.cpu().numpy()
         _ax.scatter(X[:, 0], X[:, 1], s=3, alpha=0.2, color='gray')
@@ -350,11 +385,12 @@ def _(COV_METHODS, Ellipse, X, cov_runs, np, plt):
 
 @app.cell
 def _(BEST_LL, COV_METHODS, N_SEEDS, TOL_HIT, cov_random_iters, cov_random_ll, cov_runs, mo):
-    _rows = [f"| `{_m}` | {float(cov_runs[_m].lower_bound_):.4f} | {cov_runs[_m].n_iter_} | {cov_runs[_m].converged_} |" for _m in COV_METHODS]
     _bad = float((cov_random_ll < BEST_LL - TOL_HIT).mean())
+    _data_driven = [_m for _m in COV_METHODS if _m != 'random']
     mo.md(
-        "| `init_covariances` | final log-likelihood | EM iterations | converged |\n|---|---|---|---|\n" + "\n".join(_rows)
-        + "\n\nThe three data-driven starts (`empirical`, `global`, `eye`) behave alike for these (good) initial means. A `random` start (matrices unrelated to the data's scale) is the risky one: "
+        "From the same k-means means, the data-driven starts end at log-likelihood "
+        + ", ".join(f"{float(cov_runs[_m].lower_bound_):.4f} (`{_m}`, {cov_runs[_m].n_iter_} EM iterations)" for _m in _data_driven)
+        + ". A `random` start (matrices unrelated to the data's scale) is the risky one: "
         f"over {N_SEEDS} seeds it ended in a clearly worse local maximum in {_bad:.0%} of the runs (worst log-likelihood {cov_random_ll.min():.4f}), and the number of EM iterations ranged from {cov_random_iters.min()} to {cov_random_iters.max()}."
     )
     return
@@ -505,14 +541,14 @@ def _(mo):
     ## Summary
 
     - EM only goes uphill, so it ends in the local maximum nearest its start; initialization decides which one.
-    - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often.
+    - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often. `maxdist` is only for clean, well separated data: a few outliers take its centres.
     - `init_weights` and `init_covariances` mostly affect speed once the means are good; a `random` covariance start is the exception and can cost many extra iterations or end in a worse optimum.
     - `n_init=n` keeps the best of $n$ runs (seeds `random_state + i`), failing with probability about $(1-p)^n$; the winner's seed is in `best_random_state_`.
     - To start from parameters you choose, pass `init_*` tensors (any start, `GMMInitializer` builds them) or use `warm_start=True` to continue a fitted model; continuing is exactly a fresh fit started from that model's parameters. Per-call `fit(...)` overrides (`max_iter`, `tol`, `random_state`, `warm_start`) leave the model's defaults untouched.
 
     **Next:** [4. Priors](04_priors.ipynb).
 
-    **References:** Arthur & Vassilvitskii (2007), *k-means++: the advantages of careful seeding*, SODA. Lloyd (1982), *Least squares quantization in PCM*, IEEE Trans. Information Theory 28(2).
+    **References:** Arthur & Vassilvitskii (2007), *k-means++: the advantages of careful seeding*, SODA. Lloyd (1982), *Least squares quantization in PCM*, IEEE Trans. Information Theory 28(2). Gonzalez (1985), *Clustering to minimize the maximum intercluster distance*, Theoretical Computer Science 38.
     """)
     return
 
