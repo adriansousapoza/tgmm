@@ -36,7 +36,7 @@ def _():
     FAST = _os.environ.get("TGMM_DOCS_FAST") == "1"
     MAX_ITER = 100 if FAST else 1000
     N_INIT = 1 if FAST else 5
-    return FAST, MAX_ITER
+    return (MAX_ITER,)
 
 
 @app.cell(hide_code=True)
@@ -304,7 +304,7 @@ def _(SEED, norm, np, plt):
     plt.title('Data and Gaussian Distributions')
     plt.legend()
     plt.gcf()
-    return data, real_means, real_stds, true_taus
+    return
 
 
 @app.cell(hide_code=True)
@@ -423,7 +423,7 @@ def _(mo):
     mo.md(r"""
     ### EM on these blobs
 
-    We fit one component per blob to the data above. To make the dynamics visible, the run starts from a deliberately uninformative guess: all four components start close together around $(0,0)$ (the origin plus a little seeded noise), each with the covariance of the whole data set and equal weights. The state was recorded after every EM iteration, and the video below shows three panels for each of them: **(left)** each point's responsibility for each component (the points are in the order of the blobs they were drawn from), **(middle)** the hard assignment (arg-max responsibility, used only for colouring) in data space, and **(right)** the data with the trajectory of each component's mean (dotted line, from the initial means marked `x` to the current means `o`) and its current $1\sigma$ (solid), $2\sigma$ and $3\sigma$ (dashed) covariance ellipses.
+    We fit one component per blob to the data above. To make the dynamics visible, the run starts from a deliberately uninformative guess: all four components start close together around $(0,0)$ (the origin plus a little seeded noise), each with the covariance of the whole data set and equal weights. The state was recorded after every EM iteration, and the video below shows three panels for each of them: **(left)** each point's responsibility for each component (the points are in the order of the blobs they were drawn from), **(middle)** the hard assignment (arg-max responsibility, used only for colouring) in data space, and **(right)** the data with the trajectory of each component's mean (dotted line, from the initial means marked `x` to the current means `o`) and the dashed ellipse that encloses $95\%$ of its Gaussian (a radius of $\sqrt{\chi^2_{2,\,0.95}}\approx 2.45$ standard deviations in 2-D; in 1-D the same level is about $1.96$, i.e. roughly two standard deviations).
     """)
     return
 
@@ -543,7 +543,7 @@ def _(
     y_pred,
 ):
     _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
-    _means = dict(mean_marker='h', mean_size=70, mean_color='black')  # the component means are black hexagons, the points are coloured or grey
+    _means = dict(mean_marker='h', mean_size=26, mean_color='black')  # the component means are small black hexagons, the points are coloured or grey
     plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=legend_labels, point_color='gray', **_means)
     plot_gmm(X=X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {gmm.score(X_tensor):.3f}', log_probs=log_probs, colorbar_label='Log-Likelihood')
     plot_gmm(X=X, ax=_axs[1, 0], true_labels=y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {i}' for i in range(n_components)])
@@ -727,7 +727,6 @@ def _(
     mo,
     plot_gmm,
     plt,
-    torch,
 ):
     _K = len(custom_n_samples)
     try:
@@ -746,7 +745,7 @@ def _(
         _samples, _sample_labels = custom_gmm.sample(len(custom_X_tensor))
         _samples, _sample_labels = _samples.detach().cpu().numpy(), _sample_labels.detach().cpu().numpy()
         _names = [f'Component {_i + 1}' for _i in range(_K)]
-        _means = dict(mean_marker='h', mean_size=70, mean_color='black')
+        _means = dict(mean_marker='h', mean_size=26, mean_color='black')
         _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
         plot_gmm(X=custom_X, gmm=custom_gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=_names, point_color='gray', **_means)
         plot_gmm(X=custom_X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {custom_gmm.score(custom_X_tensor):.3f}', log_probs=_log_probs, colorbar_label='Log-Likelihood')
@@ -755,7 +754,7 @@ def _(
         _fig.tight_layout()
         _out = plt.gcf()
     _out
-    return custom_gmm
+    return (custom_gmm,)
 
 
 @app.cell

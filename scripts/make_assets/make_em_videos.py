@@ -8,7 +8,7 @@ The tutorial only *loads* the finished videos. Both simulations are deterministi
   the real components, the responsibilities, the average log-likelihood and, for each component, its log-likelihood surface over
   (mean, std) with the path EM has taken.
 * ``em_2d``: EM on the four default blobs (notebooks/tutorial_data.py), started with all components close together around (0, 0);
-  each frame shows the responsibilities, the hard assignments, and the means trace with 1, 2 and 3 sigma covariance ellipses.
+  each frame shows the responsibilities, the hard assignments, and the means trace with one 95% covariance ellipse per component.
 """
 import pathlib
 import sys
@@ -17,7 +17,7 @@ import warnings
 import numpy as np
 import torch
 from matplotlib.patches import Ellipse
-from scipy.stats import norm
+from scipy.stats import chi2, norm
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "notebooks"))  # tutorial_data
@@ -116,7 +116,7 @@ def make_draw_1d(sim):
         # average log-likelihood after each iteration so far (the quantity EM never decreases)
         ax_ll.plot(ll, color="lightgray", linewidth=1)
         ax_ll.plot(np.arange(t + 1), ll[:t + 1], color="k", linewidth=1.5, label="Up to this iteration")
-        ax_ll.scatter([t], [ll[t]], color="orange", edgecolor="white", s=70, marker="8", zorder=5, label="Current iteration")
+        ax_ll.scatter([t], [ll[t]], color="orange", edgecolor="white", linewidths=0.5, s=32, marker="8", zorder=5, label="Current iteration")
         lo, hi = ll[min(2, len(ll) - 1):].min(), ll.max()  # zoom past the (terrible) initial guess so the slow climb is visible
         pad = 0.1 * max(hi - lo, 1e-3)
         ax_ll.set_ylim(lo - pad, hi + pad)
@@ -131,15 +131,15 @@ def make_draw_1d(sim):
             ax = fig.add_subplot(gs[1, k])
             cs = ax.contourf(sim["mean_range"], sim["std_range"], sim["surfaces"][k], levels=15, cmap="viridis")
             fig.colorbar(cs, ax=ax).ax.set_ylabel("Log-Likelihood")
-            ax.scatter(real_means[k], real_stds[k], color="black", edgecolor="white", linewidths=0.8, label="Real mean and std", s=45, marker="D")
-            ax.scatter(means[0, k], stds[0, k], color="red", label="Initial mean and std", s=60, marker="x", linewidths=1.8)
+            ax.scatter(real_means[k], real_stds[k], color="black", edgecolor="white", linewidths=0.5, label="Real mean and std", s=20, marker="D")
+            ax.scatter(means[0, k], stds[0, k], color="red", label="Initial mean and std", s=28, marker="x", linewidths=1.1)
             ax.plot(means[:t + 1, k], stds[:t + 1, k], color="red", linewidth=1.2, label="Path up to this iteration")
-            ax.scatter(means[t, k], stds[t, k], color="orange", edgecolor="white", linewidths=0.8, s=70, marker="8", zorder=5, label="Current estimate")
+            ax.scatter(means[t, k], stds[t, k], color="orange", edgecolor="white", linewidths=0.5, s=32, marker="8", zorder=5, label="Current estimate")
             ax.set_title(f"Log-Likelihood vs. Mean{k + 1} and Std{k + 1}")
             ax.set_xlabel("Mean")
             ax.set_ylabel("Standard Deviation")
             ax.legend(loc="lower left")
-        fig.suptitle(f"EM iteration {t} of {len(ll) - 1}: average log-likelihood {ll[t]:.4f}")
+        fig.suptitle(f"EM iteration {t} of {len(ll) - 1}")  # the log-likelihood has its own panel
         fig.tight_layout(rect=[0, 0, 1, 0.96])
         return fig
 
@@ -183,7 +183,8 @@ def make_draw_2d(sim):
     X, states, ll = sim["X"], sim["states"], sim["ll"]
     last = max(states)
 
-    DASH_1, DASH_2, DASH_3 = (0, (4, 1.5)), (0, (4, 3)), (0, (3, 5))  # dash patterns of the 1, 2 and 3 sigma ellipses (all thin)
+    DASH = (0, (4, 1.5))
+    R95 = float(chi2.ppf(0.95, df=2)) ** 0.5  # Mahalanobis radius of the ellipse that encloses 95% of a 2-D Gaussian: 2.4477 standard deviations
     def draw(t):
         fig, axs = plt.subplots(1, 3, figsize=(11, 3.9), squeeze=False)
         axs = axs[0]
@@ -201,29 +202,25 @@ def make_draw_2d(sim):
         axs[1].set_title(f"Hard assignments, iteration {t}")
         axs[1].set_xlabel("X1")
         axs[1].set_ylabel("X2")
-        # data, trace of the means, and the 1, 2 and 3 sigma ellipses of every component
-        axs[2].scatter(X[:, 0], X[:, 1], c="gray", s=5, alpha=0.5)
+        # data (small, black), trace of the means, and the 95% ellipse of every component
+        axs[2].scatter(X[:, 0], X[:, 1], c="black", s=1.5, alpha=0.45, linewidths=0)
         for k in range(K):
             eigvals, eigvecs = torch.linalg.eigh(covs[k])
             angle = torch.atan2(eigvecs[1, 0], eigvecs[0, 0]).item() * 180.0 / torch.pi
             width, height = 2 * torch.sqrt(eigvals).numpy()
-            for nsig, ls, alpha in ((1, DASH_1, 1.0), (2, DASH_2, 0.75), (3, DASH_3, 0.5)):  # all thin and dashed; fainter and sparser = larger
-                axs[2].add_patch(Ellipse(means[k].numpy(), nsig * width, nsig * height, angle=angle, edgecolor=COLORS[k], facecolor="none",
-                                         lw=0.7, linestyle=ls, alpha=alpha))
+            axs[2].add_patch(Ellipse(means[k].numpy(), R95 * width, R95 * height, angle=angle, edgecolor=COLORS[k], facecolor="none", lw=1.3, linestyle=DASH))
             trace = torch.stack([states[i][0][k] for i in range(t + 1)]).numpy()
             axs[2].plot(trace[:, 0], trace[:, 1], color=COLORS[k], linestyle=(0, (1.5, 2.5)), lw=0.7, alpha=0.9)
-            axs[2].scatter(trace[-1, 0], trace[-1, 1], color=COLORS[k], marker="o", s=16, edgecolor="white", linewidths=0.4, zorder=5)
-            axs[2].scatter(trace[0, 0], trace[0, 1], color=COLORS[k], marker="x", s=22, linewidths=0.8, zorder=5)
+            axs[2].scatter(trace[-1, 0], trace[-1, 1], color=COLORS[k], marker="o", s=7, edgecolor="white", linewidths=0.3, zorder=5)
+            axs[2].scatter(trace[0, 0], trace[0, 1], color=COLORS[k], marker="x", s=13, linewidths=0.7, zorder=5)
         axs[2].set_title(f"GMM, iteration {t}")
         axs[2].set_xlabel("X1")
         axs[2].set_ylabel("X2")
         axs[2].set_xlim(-8.5, 8.5)
         axs[2].set_ylim(-4.5, 8.5)
-        axs[2].scatter([], [], color="black", marker="x", s=22, linewidths=0.8, label="Initial means")
-        axs[2].scatter([], [], color="black", marker="o", s=16, label="Current means")
-        axs[2].plot([], [], color="black", linestyle=DASH_1, lw=0.7, label="1 $\\sigma$")
-        axs[2].plot([], [], color="black", linestyle=DASH_2, lw=0.7, alpha=0.75, label="2 $\\sigma$")
-        axs[2].plot([], [], color="black", linestyle=DASH_3, lw=0.7, alpha=0.5, label="3 $\\sigma$")
+        axs[2].scatter([], [], color="black", marker="x", s=13, linewidths=0.7, label="Initial means")
+        axs[2].scatter([], [], color="black", marker="o", s=7, label="Current means")
+        axs[2].plot([], [], color="black", linestyle=DASH, lw=1.3, label="95% region of each component")
         axs[2].plot([], [], color="black", linestyle=(0, (1.5, 2.5)), lw=0.7, label="Trace of means")
         axs[2].legend(loc="upper left", fontsize=6)
         fig.suptitle(f"EM iteration {t} of {last}: average log-likelihood {ll[t]:.4f}")
