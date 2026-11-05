@@ -200,7 +200,7 @@ def _(mo):
     $$
     HDBSCAN may find $m \neq K$ clusters, so the helper below keeps the $K$ largest when $m > K$ and, when $m < K$, adds the missing centres by $D^2$-sampling from the points no cluster claims (the noise points), giving them the global covariance and a share of the noise's weight. The helper uses `min_cluster_size` equal to 2% of the points and `min_samples` half of that: a rule of thumb, not a tuned value (the sensitivity to it is measured further down).
 
-    The next figure shows where each method puts its four initial centres (red stars) for one seed (the static docs page shows seed 0; the interactive version at the end of the notebook has a **seed** slider). `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument; the `hdbscan` start is deterministic here (the seed would only place padding centres). `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` varies much less (it ends on one of only a few different solutions).
+    The next figure shows where each method puts its four initial centres (red hexagons) for one seed (the static docs page shows seed 0; the interactive version at the end of the notebook has a **seed** slider). `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument; the `hdbscan` start is deterministic here (the seed would only place padding centres). `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` varies much less (it ends on one of only a few different solutions).
     """)
     return
 
@@ -291,7 +291,7 @@ def _(GMMInitializer, MEAN_METHODS, X, X_tensor, hd_labels, hdbscan_init, plt, t
                 _title = f"init_means='{_method}'"
             _m = _means.cpu().numpy()
             _h_data = _ax.scatter(X[:, 0], X[:, 1], s=3, alpha=0.2, color='gray', label='data')
-            _h_ctr = _ax.scatter(_m[:, 0], _m[:, 1], marker='*', s=220, color='red', edgecolor='k', zorder=3, label='initial centre')
+            _h_ctr = _ax.scatter(_m[:, 0], _m[:, 1], marker='H', s=130, color='red', edgecolor='k', zorder=3, label='initial centre')
             _ax.set_title(_title)
             _ax.set_aspect('equal')
         _fig.legend(handles=[_h_data, _h_ctr], loc='lower center', ncol=2, frameon=False)
@@ -494,7 +494,7 @@ def _(COV_METHODS, Ellipse, X, cov_runs, np, plt):
         _ax.scatter(X[:, 0], X[:, 1], s=3, alpha=0.2, color='gray')
         for _k in range(4):
             cov_ellipse(_ax, _mu[_k], _S[_k], color=f'C{_k}', lw=2)
-        _ax.scatter(_mu[:, 0], _mu[:, 1], marker='*', s=120, color='red', edgecolor='k', zorder=3)
+        _ax.scatter(_mu[:, 0], _mu[:, 1], marker='H', s=80, color='red', edgecolor='k', zorder=3)
         _ax.set_title(f"init_covariances='{_method}'")
         _ax.set_aspect('equal')
     plt.tight_layout()

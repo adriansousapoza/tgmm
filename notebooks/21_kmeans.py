@@ -221,7 +221,7 @@ def _(mo, n_iter, trace_main):
 
     ## Iteration by iteration
 
-    Every picture shows the state at the **start** of an iteration. The shaded regions are the **Voronoi cells** of the current centres (the set of locations nearer to one centre than to any other, which is exactly the assignment step applied to every possible point), the points are coloured by the cluster they belong to, the stars are the current centres and the arrows show where the update step is about to move them. The thin lines are the paths the centres have taken so far.
+    Every picture shows the state at the **start** of an iteration. The shaded regions are the **Voronoi cells** of the current centres (the set of locations nearer to one centre than to any other, which is exactly the assignment step applied to every possible point), the points are coloured by the cluster they belong to, the diamonds are the current centres and the arrows show where the update step is about to move them. The thin lines are the paths the centres have taken so far.
     """)
     return
 
@@ -247,7 +247,7 @@ def _(ListedColormap, X, np, plt):
         _path = np.stack(trace['centroids'][:t + 1])  # (t+1, k, d)
         for _i in range(_k):
             ax.plot(_path[:, _i, 0], _path[:, _i, 1], color=PALETTE[_i % 10], lw=1.2, alpha=0.9)
-        ax.scatter(_c[:, 0], _c[:, 1], marker='*', s=240, c=[PALETTE[_i % 10] for _i in range(_k)], edgecolor='k', zorder=5)
+        ax.scatter(_c[:, 0], _c[:, 1], marker='D', s=100, c=[PALETTE[_i % 10] for _i in range(_k)], edgecolor='k', zorder=5)
         if show_arrows:
             _u = trace['updated'][t]
             for _i in range(_k):
@@ -262,7 +262,7 @@ def _(ListedColormap, X, np, plt):
         _J = np.array(trace['inertia'])
         ax.plot(np.arange(len(_J)), _J, color='0.8', lw=1)
         ax.plot(np.arange(t + 1), _J[:t + 1], color='k', lw=1.6, marker='o', ms=3)
-        ax.scatter([t], [_J[t]], color='magenta', edgecolor='white', s=70, zorder=5)
+        ax.scatter([t], [_J[t]], color='orange', edgecolor='white', s=70, zorder=5)
         ax.set_xlabel('iteration')
         ax.set_ylabel('inertia $J$')
         ax.set_title('the objective, never increasing')

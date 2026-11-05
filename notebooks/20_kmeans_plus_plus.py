@@ -177,7 +177,7 @@ def _(mo):
 
     ## Step by step on the four blobs
 
-    Each panel shows the situation **just before** the next centre is drawn: every point is coloured and sized by its sampling probability relative to the largest one, $P(x)/\max P$, the centres chosen so far are the red stars, and the black ring marks the point that was then sampled. In step 1 all points are equally likely. From step 2 on, the points near a star are almost impossible to draw and the points far from every star are the likely ones.
+    Each panel shows the situation **just before** the next centre is drawn: every point is coloured and sized by its sampling probability relative to the largest one, $P(x)/\max P$, the centres chosen so far are the red hexagons, and the black ring marks the point that was then sampled. In step 1 all points are equally likely. From step 2 on, the points near a hexagon are almost impossible to draw and the points far from every hexagon are the likely ones.
     """)
     return
 
@@ -193,14 +193,14 @@ def _(np):
         return _p / _p.max()
 
     def draw_step(ax, X, trace, i, show_pick=True):
-        """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (stars) and the sampled point (ring)."""
+        """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (hexagons) and the sampled point (ring)."""
         _w = rel_weight(trace, i)
         _order = np.argsort(_w)
         _size = np.full(len(_w), 6.0) if i == 0 else 3 + 24 * _w
         _sc = ax.scatter(X[_order, 0], X[_order, 1], c=_w[_order], s=_size[_order], cmap='viridis', vmin=0, vmax=1, alpha=0.85, linewidths=0)
         _chosen = trace['idx'][:i]
         if _chosen:
-            ax.scatter(X[_chosen, 0], X[_chosen, 1], marker='*', s=260, c='red', edgecolor='k', zorder=4)
+            ax.scatter(X[_chosen, 0], X[_chosen, 1], marker='H', s=150, c='red', edgecolor='k', zorder=4)
         if show_pick:
             _p = trace['idx'][i]
             ax.scatter(X[_p, 0], X[_p, 1], s=230, facecolor='none', edgecolor='k', linewidth=2, zorder=5)
@@ -224,7 +224,7 @@ def _(K, X, draw_step, plt, trace_main):
         _axs.flat[_i].set_title('step 1: the first centre is uniform' if _i == 0 else f'step {_i + 1}: sample with $P(x)\\propto D(x)^2$')
     _ax = _axs.flat[K]
     _ax.scatter(X[:, 0], X[:, 1], s=4, color='0.65', alpha=0.6, linewidths=0)
-    _ax.scatter(X[trace_main['idx'], 0], X[trace_main['idx'], 1], marker='*', s=260, c='red', edgecolor='k', zorder=4)
+    _ax.scatter(X[trace_main['idx'], 0], X[trace_main['idx'], 1], marker='H', s=150, c='red', edgecolor='k', zorder=4)
     for _n, _p in enumerate(trace_main['idx']):
         _ax.annotate(str(_n + 1), (X[_p, 0], X[_p, 1]), textcoords='offset points', xytext=(8, 6), fontsize=9, weight='bold')
     _ax.set_aspect('equal')

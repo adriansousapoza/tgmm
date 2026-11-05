@@ -72,14 +72,14 @@ def rel_weight(trace, i):
 
 
 def draw_step(ax, X, trace, i, show_pick=True):
-    """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (stars) and the sampled point (ring)."""
+    """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (hexagons) and the sampled point (ring)."""
     w = rel_weight(trace, i)
     order = np.argsort(w)
     size = np.full(len(w), 6.0) if i == 0 else 3 + 24 * w
     sc = ax.scatter(X[order, 0], X[order, 1], c=w[order], s=size[order], cmap="viridis", vmin=0, vmax=1, alpha=0.85, linewidths=0)
     chosen = trace["idx"][:i]
     if chosen:
-        ax.scatter(X[chosen, 0], X[chosen, 1], marker="*", s=260, c="red", edgecolor="k", zorder=4)
+        ax.scatter(X[chosen, 0], X[chosen, 1], marker="H", s=150, c="red", edgecolor="k", zorder=4)
     if show_pick:
         p = trace["idx"][i]
         ax.scatter(X[p, 0], X[p, 1], s=230, facecolor="none", edgecolor="k", linewidth=2, zorder=5)
@@ -104,7 +104,7 @@ def make_kpp_video():
         fig, (ax, ax2) = plt.subplots(1, 2, figsize=(11, 4.9), gridspec_kw={"width_ratios": [1.7, 1]})
         if mode == "final":
             ax.scatter(X[:, 0], X[:, 1], s=4, color="0.65", alpha=0.6, linewidths=0)
-            ax.scatter(X[trace["idx"], 0], X[trace["idx"], 1], marker="*", s=260, c="red", edgecolor="k", zorder=4)
+            ax.scatter(X[trace["idx"], 0], X[trace["idx"], 1], marker="H", s=150, c="red", edgecolor="k", zorder=4)
             ax.set_aspect("equal")
             ax.set_title(f"seeding done: the {K} centres")
             ax2.axis("off")
@@ -202,7 +202,7 @@ def draw_lloyd(ax, trace, t, show_arrows=True):
     path = np.stack(trace["centroids"][:t + 1])  # (t+1, k, d)
     for i in range(k):
         ax.plot(path[:, i, 0], path[:, i, 1], color=PALETTE[i % 10], lw=1.2, alpha=0.9)
-    ax.scatter(c[:, 0], c[:, 1], marker="*", s=240, c=[PALETTE[i % 10] for i in range(k)], edgecolor="k", zorder=5)
+    ax.scatter(c[:, 0], c[:, 1], marker="D", s=100, c=[PALETTE[i % 10] for i in range(k)], edgecolor="k", zorder=5)
     if show_arrows:
         u = trace["updated"][t]
         for i in range(k):
@@ -218,7 +218,7 @@ def draw_inertia(ax, trace, t):
     J = np.array(trace["inertia"])
     ax.plot(np.arange(len(J)), J, color="0.8", lw=1)
     ax.plot(np.arange(t + 1), J[:t + 1], color="k", lw=1.6, marker="o", ms=3)
-    ax.scatter([t], [J[t]], color="magenta", edgecolor="white", s=70, zorder=5)
+    ax.scatter([t], [J[t]], color="orange", edgecolor="white", s=70, zorder=5)
     ax.set_xlabel("iteration")
     ax.set_ylabel("inertia $J$")
     ax.set_title("the objective, never increasing")

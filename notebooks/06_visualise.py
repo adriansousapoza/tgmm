@@ -149,7 +149,7 @@ def _(mo):
 
     **Component Centers/Means**
     - **`show_means`** *(bool, default=True)*: Display component center points
-    - **`mean_marker`** *(str, default='h')*: Marker style for means ('x', 'o', '*', 'h', etc.)
+    - **`mean_marker`** *(str, default='h')*: Marker style for means (any matplotlib marker: 'x', 'o', 'D', 'h', 'H', etc.)
     - **`mean_size`** *(float, default=25)*: Size of mean markers
     - **`mean_color`** *(str, default='black')*: Color of mean markers
 
@@ -444,7 +444,7 @@ def _(X, dynamic_figsize, gmm, plot_gmm, plt):
     _fig.suptitle('Component Means and Initial Means Visualization')
     plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, mean_marker='X', mean_size=100, mean_color='black', title='Large X Markers for Means', ax=_axes[0])
     # Different mean marker options
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, mean_marker='*', mean_size=150, mean_color='white', title='White Star Markers', ax=_axes[1])
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, mean_marker='D', mean_size=100, mean_color='white', title='White Diamond Markers', ax=_axes[1])
     plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, show_initial_means=True, initial_mean_marker='D', initial_mean_size=50, initial_mean_color='red', title='Final (black) and Initial (red) Means', ax=_axes[2])
     plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=False, show_ellipses=True, ellipse_alpha=0.2, title='Ellipses Only (No Mean Markers)', ax=_axes[3])
     plt.tight_layout()
@@ -604,7 +604,7 @@ def _(X, dynamic_figsize, gmm, log_probs, plot_gmm, plt):
     _fig.suptitle('Comprehensive GMM Visualization Examples')
     custom_labels = ['Cluster A', 'Cluster B', 'Cluster C', 'Cluster D']
     # Custom legend labels
-    plot_gmm(X, gmm=gmm, show_points=True, point_size=10, point_alpha=0.6, point_color='auto', color_by_cluster=True, cluster_colors='Set2', legend_labels=custom_labels, show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.4, ellipse_fill=True, ellipse_line_style='solid', ellipse_line_width=1.5, ellipse_line_color='darkblue', ellipse_line_alpha=0.8, show_means=True, mean_marker='*', mean_size=100, mean_color='black', show_initial_means=True, initial_mean_marker='D', initial_mean_size=60, initial_mean_color='red', title='Complete GMM Visualization', xlabel='Feature Dimension 1', ylabel='Feature Dimension 2', ax=_axes[0])
+    plot_gmm(X, gmm=gmm, show_points=True, point_size=10, point_alpha=0.6, point_color='auto', color_by_cluster=True, cluster_colors='Set2', legend_labels=custom_labels, show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.4, ellipse_fill=True, ellipse_line_style='solid', ellipse_line_width=1.5, ellipse_line_color='darkblue', ellipse_line_alpha=0.8, show_means=True, mean_marker='H', mean_size=100, mean_color='black', show_initial_means=True, initial_mean_marker='D', initial_mean_size=60, initial_mean_color='red', title='Complete GMM Visualization', xlabel='Feature Dimension 1', ylabel='Feature Dimension 2', ax=_axes[0])
     plot_gmm(X, gmm=gmm, show_points=True, point_size=5, point_alpha=0.8, point_color='black', show_ellipses=False, show_means=False, legend=False, title='Minimal: Points Only', ax=_axes[1])
     # Full-featured visualization
     plot_gmm(X, gmm=gmm, show_points=False, show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.6, ellipse_colors='viridis', show_means=True, mean_marker='X', mean_size=80, title='Ellipses and Means Only', ax=_axes[2])

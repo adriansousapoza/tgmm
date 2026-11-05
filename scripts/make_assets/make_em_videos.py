@@ -116,7 +116,7 @@ def make_draw_1d(sim):
         # average log-likelihood after each iteration so far (the quantity EM never decreases)
         ax_ll.plot(ll, color="lightgray", linewidth=1)
         ax_ll.plot(np.arange(t + 1), ll[:t + 1], color="k", linewidth=1.5, label="Up to this iteration")
-        ax_ll.scatter([t], [ll[t]], color="magenta", edgecolor="white", s=80, zorder=5, label="Current iteration")
+        ax_ll.scatter([t], [ll[t]], color="orange", edgecolor="white", s=70, marker="8", zorder=5, label="Current iteration")
         lo, hi = ll[min(2, len(ll) - 1):].min(), ll.max()  # zoom past the (terrible) initial guess so the slow climb is visible
         pad = 0.1 * max(hi - lo, 1e-3)
         ax_ll.set_ylim(lo - pad, hi + pad)
@@ -131,10 +131,10 @@ def make_draw_1d(sim):
             ax = fig.add_subplot(gs[1, k])
             cs = ax.contourf(sim["mean_range"], sim["std_range"], sim["surfaces"][k], levels=15, cmap="viridis")
             fig.colorbar(cs, ax=ax).ax.set_ylabel("Log-Likelihood")
-            ax.scatter(real_means[k], real_stds[k], color="red", label="Real mean and std", s=50, marker="o")
-            ax.scatter(means[0, k], stds[0, k], color="red", label="Initial mean and std", s=100, marker="*")
-            ax.plot(means[:t + 1, k], stds[:t + 1, k], color="magenta", label="Path up to this iteration")
-            ax.scatter(means[t, k], stds[t, k], color="magenta", edgecolor="white", s=80, zorder=5, label="Current estimate")
+            ax.scatter(real_means[k], real_stds[k], color="black", edgecolor="white", linewidths=0.8, label="Real mean and std", s=45, marker="D")
+            ax.scatter(means[0, k], stds[0, k], color="red", label="Initial mean and std", s=60, marker="x", linewidths=1.8)
+            ax.plot(means[:t + 1, k], stds[:t + 1, k], color="red", linewidth=1.2, label="Path up to this iteration")
+            ax.scatter(means[t, k], stds[t, k], color="orange", edgecolor="white", linewidths=0.8, s=70, marker="8", zorder=5, label="Current estimate")
             ax.set_title(f"Log-Likelihood vs. Mean{k + 1} and Std{k + 1}")
             ax.set_xlabel("Mean")
             ax.set_ylabel("Standard Deviation")
@@ -183,6 +183,7 @@ def make_draw_2d(sim):
     X, states, ll = sim["X"], sim["states"], sim["ll"]
     last = max(states)
 
+    DASH_1, DASH_2, DASH_3 = (0, (4, 1.5)), (0, (4, 3)), (0, (3, 5))  # dash patterns of the 1, 2 and 3 sigma ellipses (all thin)
     def draw(t):
         fig, axs = plt.subplots(1, 3, figsize=(11, 3.9), squeeze=False)
         axs = axs[0]
@@ -206,23 +207,24 @@ def make_draw_2d(sim):
             eigvals, eigvecs = torch.linalg.eigh(covs[k])
             angle = torch.atan2(eigvecs[1, 0], eigvecs[0, 0]).item() * 180.0 / torch.pi
             width, height = 2 * torch.sqrt(eigvals).numpy()
-            for nsig, ls, alpha in ((1, "-", 1.0), (2, "--", 0.7), (3, "--", 0.4)):
+            for nsig, ls, alpha in ((1, DASH_1, 1.0), (2, DASH_2, 0.75), (3, DASH_3, 0.5)):  # all thin and dashed; fainter and sparser = larger
                 axs[2].add_patch(Ellipse(means[k].numpy(), nsig * width, nsig * height, angle=angle, edgecolor=COLORS[k], facecolor="none",
-                                         lw=2 if nsig == 1 else 1.2, linestyle=ls, alpha=alpha))
+                                         lw=0.7, linestyle=ls, alpha=alpha))
             trace = torch.stack([states[i][0][k] for i in range(t + 1)]).numpy()
-            axs[2].plot(trace[:, 0], trace[:, 1], color=COLORS[k], linestyle=":")
-            axs[2].scatter(trace[-1, 0], trace[-1, 1], color=COLORS[k], marker="o", s=50, zorder=5)
-            axs[2].scatter(trace[0, 0], trace[0, 1], color=COLORS[k], marker="x", s=100, zorder=5)
+            axs[2].plot(trace[:, 0], trace[:, 1], color=COLORS[k], linestyle=(0, (1.5, 2.5)), lw=0.7, alpha=0.9)
+            axs[2].scatter(trace[-1, 0], trace[-1, 1], color=COLORS[k], marker="o", s=16, edgecolor="white", linewidths=0.4, zorder=5)
+            axs[2].scatter(trace[0, 0], trace[0, 1], color=COLORS[k], marker="x", s=22, linewidths=0.8, zorder=5)
         axs[2].set_title(f"GMM, iteration {t}")
         axs[2].set_xlabel("X1")
         axs[2].set_ylabel("X2")
         axs[2].set_xlim(-8.5, 8.5)
         axs[2].set_ylim(-4.5, 8.5)
-        axs[2].scatter([], [], color="black", marker="x", s=100, label="Initial means")
-        axs[2].scatter([], [], color="black", marker="o", s=50, label="Current means")
-        axs[2].plot([], [], color="black", linestyle="-", label="1 $\\sigma$")
-        axs[2].plot([], [], color="black", linestyle="--", label="2 and 3 $\\sigma$")
-        axs[2].plot([], [], color="black", linestyle=":", label="Trace of means")
+        axs[2].scatter([], [], color="black", marker="x", s=22, linewidths=0.8, label="Initial means")
+        axs[2].scatter([], [], color="black", marker="o", s=16, label="Current means")
+        axs[2].plot([], [], color="black", linestyle=DASH_1, lw=0.7, label="1 $\\sigma$")
+        axs[2].plot([], [], color="black", linestyle=DASH_2, lw=0.7, alpha=0.75, label="2 $\\sigma$")
+        axs[2].plot([], [], color="black", linestyle=DASH_3, lw=0.7, alpha=0.5, label="3 $\\sigma$")
+        axs[2].plot([], [], color="black", linestyle=(0, (1.5, 2.5)), lw=0.7, label="Trace of means")
         axs[2].legend(loc="upper left", fontsize=6)
         fig.suptitle(f"EM iteration {t} of {last}: average log-likelihood {ll[t]:.4f}")
         fig.tight_layout(rect=[0, 0, 1, 0.94])

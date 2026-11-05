@@ -518,7 +518,7 @@ def _(mo):
 
     Each panel is the output of one method of the fitted `gmm`, drawn with `plot_gmm` (introduced properly in [06 -- Visualization](06_visualise.ipynb)):
 
-    - **`gmm.fit(X)`** (top left): the learned `means_` and `covariances_`, drawn as the fitted covariance ellipses (1, 2 and 3 standard deviations) over the data, with the means as black stars. The box in its corner shows the information criteria `gmm.bic(X)`, `gmm.aic(X)` and `gmm.icl(X)` (lower is better; defined below the plots).
+    - **`gmm.fit(X)`** (top left): the learned `means_` and `covariances_`, drawn as the fitted covariance ellipses (1, 2 and 3 standard deviations) over the data, with the means as black hexagons. The box in its corner shows the information criteria `gmm.bic(X)`, `gmm.aic(X)` and `gmm.icl(X)` (lower is better; defined below the plots).
     - **`gmm.score_samples(X)`** (top right): each point coloured by its log-likelihood $\log p(x_i\mid\theta)$; points far from every component are the unlikely ones. The title also shows its average, `gmm.score(X)`.
     - **`gmm.predict(X)`** (bottom left): the hard cluster label of every point.
     - **`gmm.sample(n)`** (bottom right): new points drawn from the fitted mixture (shown without the ellipses, coloured by the component each point was drawn from, so you can compare their spread with the data; more in [05 -- Sampling](05_sampling.ipynb)). If the model is good they look like the original data.
@@ -543,7 +543,7 @@ def _(
     y_pred,
 ):
     _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
-    _means = dict(mean_marker='*', mean_size=140, mean_color='black')  # the component means are black stars, the points are coloured or grey
+    _means = dict(mean_marker='h', mean_size=70, mean_color='black')  # the component means are black hexagons, the points are coloured or grey
     plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=legend_labels, point_color='gray', **_means)
     plot_gmm(X=X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {gmm.score(X_tensor):.3f}', log_probs=log_probs, colorbar_label='Log-Likelihood')
     plot_gmm(X=X, ax=_axs[1, 0], true_labels=y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {i}' for i in range(n_components)])
@@ -746,7 +746,7 @@ def _(
         _samples, _sample_labels = custom_gmm.sample(len(custom_X_tensor))
         _samples, _sample_labels = _samples.detach().cpu().numpy(), _sample_labels.detach().cpu().numpy()
         _names = [f'Component {_i + 1}' for _i in range(_K)]
-        _means = dict(mean_marker='*', mean_size=140, mean_color='black')
+        _means = dict(mean_marker='h', mean_size=70, mean_color='black')
         _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
         plot_gmm(X=custom_X, gmm=custom_gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=_names, point_color='gray', **_means)
         plot_gmm(X=custom_X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {custom_gmm.score(custom_X_tensor):.3f}', log_probs=_log_probs, colorbar_label='Log-Likelihood')
