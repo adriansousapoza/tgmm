@@ -1,0 +1,8 @@
+/* The tutorials are notebooks with wide figures and videos: let the page use more of a wide screen than mkdocs-material's default
+   61rem grid, so figures are drawn closer to their natural size. */
+@media screen and (min-width: 100em) {
+  .md-grid { max-width: 90rem; }
+}
+@media screen and (min-width: 76.25em) and (max-width: 99.99em) {
+  .md-grid { max-width: 80rem; }
+}

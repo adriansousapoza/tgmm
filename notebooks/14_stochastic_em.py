@@ -294,82 +294,6 @@ def _(GaussianMixture, X, common_kwargs, mo, warnings):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Try annealing yourself
-
-    Pick the starting temperature $\beta_0$, the number of annealing iterations, the algorithm, and the jitter of the initial means (the seed). The cell fits the saddle data twice from that **same** start, once plainly and once with `temperature=(beta_0, n_anneal)`, and compares the two fits. The right panel plots the log-likelihood only from the iterations where $\beta=1$ (before that, the recorded values are tempered normalizers).
-
-    The controls only respond in a running notebook (`marimo edit`, or the molab link at the top of the page); on the static docs page they show the default setting.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    beta0_ui = mo.ui.slider(0.1, 0.95, step=0.05, value=0.9, label='starting temperature beta_0', debounce=True, show_value=True)
-    n_anneal_ui = mo.ui.slider(10, 60, step=5, value=30, label='annealing iterations n_anneal', debounce=True, show_value=True)
-    jitter_seed_ui = mo.ui.slider(0, 9, step=1, value=3, label='jitter seed of the initial means', debounce=True, show_value=True)
-    algorithm_ui = mo.ui.dropdown(['em', 'cem', 'sem'], value='em', label='algorithm')
-    mo.vstack([mo.hstack([beta0_ui, n_anneal_ui], justify='start'), mo.hstack([jitter_seed_ui, algorithm_ui], justify='start')])
-    return algorithm_ui, beta0_ui, jitter_seed_ui, n_anneal_ui
-
-
-@app.cell
-def _(GaussianMixture, SEED, X, algorithm_ui, beta0_ui, jitter_seed_ui, n_anneal_ui, torch, warnings):
-    _gen = torch.Generator().manual_seed(int(jitter_seed_ui.value))
-    _means0 = 0.3 * torch.randn(3, 2, generator=_gen)  # all three means start jittered around cluster 0 at the origin
-    _kw = dict(
-        n_components=3, n_features=2, random_state=SEED, max_iter=150, algorithm=algorithm_ui.value,
-        init_means=_means0, init_covariances=torch.stack([torch.eye(2)] * 3),
-    )
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        gmm_plain = GaussianMixture(**_kw).fit(X)
-        gmm_annealed = GaussianMixture(temperature=(float(beta0_ui.value), int(n_anneal_ui.value)), **_kw).fit(X)
-    return gmm_annealed, gmm_plain
-
-
-@app.cell
-def _(X, algorithm_ui, beta0_ui, gmm_annealed, gmm_plain, n_anneal_ui, np, plot_gmm, plt):
-    _fig, _axes = plt.subplots(1, 3, figsize=(15, 4.4))
-    _Xn = X.cpu().numpy()
-    for _ax, _g, _title in ((_axes[0], gmm_plain, f'beta = 1 (plain {algorithm_ui.value.upper()})'), (_axes[1], gmm_annealed, f'annealed, beta_0 = {beta0_ui.value:g}, n_anneal = {n_anneal_ui.value}')):
-        plot_gmm(_Xn, gmm=_g, ax=_ax, color_by_cluster=True, ellipse_std_devs=[2], ellipse_fill=False, ellipse_line_width=2, title=f'{_title}\nmean log-likelihood {_g.lower_bound_:.3f}', legend=False)
-        _ax.set_aspect('equal')
-    _hist_plain = gmm_plain.log_likelihood_history_.cpu().numpy()
-    _hist_ann = gmm_annealed.log_likelihood_history_.cpu().numpy()
-    _beta = np.asarray(gmm_annealed.annealing_schedule_)
-    _on = _beta >= 1.0 if len(_beta) == len(_hist_ann) else np.ones(len(_hist_ann), dtype=bool)
-    _axes[2].plot(_hist_plain, label='plain')
-    _axes[2].plot(np.nonzero(_on)[0], _hist_ann[_on], label='annealed (beta = 1 part)')
-    _axes[2].axvline(n_anneal_ui.value, color='0.6', ls=':')
-    _axes[2].set_xlabel('iteration')
-    _axes[2].set_ylabel('mean log-likelihood')
-    _axes[2].set_title('log-likelihood (dotted: end of annealing)')
-    _axes[2].legend()
-    plt.tight_layout()
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(gmm_annealed, gmm_plain, mo):
-    mo.md(f"""
-    **Final mean log-likelihood:** annealed {gmm_annealed.lower_bound_:.3f} vs. plain {gmm_plain.lower_bound_:.3f} (difference {gmm_annealed.lower_bound_ - gmm_plain.lower_bound_:+.3f}). The three-blob optimum has mean log-likelihood about -3.98 for this data.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **What to look for.** With `algorithm='em'` and `n_anneal=30`, $\beta_0=0.9$ reached the three-blob optimum from every jitter seed in 2-7 that we tried; $\beta_0=0.7$ did so for some seeds and not others; and a *hot* start, $\beta_0=0.3$, collapsed the fit for all of them (the means are pulled together until all three components describe the same blob, log-likelihood about -5.3, far below either alternative). So annealing is a heuristic: too little smoothing changes nothing, too much destroys the structure it was meant to find. Two more things to try with the default start. With `'cem'`, the C-step takes the `argmax` of the tempered posterior, which is the same as the plain `argmax` for every $\beta>0$, so annealing cannot change the hard partitions along the way; the only difference is that the convergence test is suspended while $\beta<1$, so the annealed run keeps iterating a little longer (here it ends at -4.4455 instead of -4.4475, still the poor optimum). With `'sem'`, the sampling already escapes the saddle without annealing (-3.981 either way).
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## SAEM: the "SEM that converges"
 
     SAEM blends each sweep's sampled-assignment statistics into a running average with a decaying
@@ -558,7 +482,92 @@ def _(mo):
     - `batch_size` alone is an exact memory bound; with `step_size` it becomes online EM, which approaches the full-data optimum in a few epochs.
     - `convergence='aitken'` makes `tol` a bound on the remaining gap to the limit.
     - None of the escape methods *guarantees* escaping every bad initialization; they change the odds.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself (interactive version)
+
+    The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
+
+    ### Try annealing yourself
+
+    Pick the starting temperature $\beta_0$, the number of annealing iterations, the algorithm, and the jitter of the initial means (the seed). The cell fits the saddle data twice from that **same** start, once plainly and once with `temperature=(beta_0, n_anneal)`, and compares the two fits. The right panel plots the log-likelihood only from the iterations where $\beta=1$ (before that, the recorded values are tempered normalizers).
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    # docs: hide-cell
+    beta0_ui = mo.ui.slider(0.1, 0.95, step=0.05, value=0.9, label='starting temperature beta_0', debounce=True, show_value=True)
+    n_anneal_ui = mo.ui.slider(10, 60, step=5, value=30, label='annealing iterations n_anneal', debounce=True, show_value=True)
+    jitter_seed_ui = mo.ui.slider(0, 9, step=1, value=3, label='jitter seed of the initial means', debounce=True, show_value=True)
+    algorithm_ui = mo.ui.dropdown(['em', 'cem', 'sem'], value='em', label='algorithm')
+    mo.vstack([mo.hstack([beta0_ui, n_anneal_ui], justify='start'), mo.hstack([jitter_seed_ui, algorithm_ui], justify='start')])
+    return algorithm_ui, beta0_ui, jitter_seed_ui, n_anneal_ui
+
+
+@app.cell
+def _(GaussianMixture, SEED, X, algorithm_ui, beta0_ui, jitter_seed_ui, n_anneal_ui, torch, warnings):
+    _gen = torch.Generator().manual_seed(int(jitter_seed_ui.value))
+    _means0 = 0.3 * torch.randn(3, 2, generator=_gen)  # all three means start jittered around cluster 0 at the origin
+    _kw = dict(
+        n_components=3, n_features=2, random_state=SEED, max_iter=150, algorithm=algorithm_ui.value,
+        init_means=_means0, init_covariances=torch.stack([torch.eye(2)] * 3),
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        gmm_plain = GaussianMixture(**_kw).fit(X)
+        gmm_annealed = GaussianMixture(temperature=(float(beta0_ui.value), int(n_anneal_ui.value)), **_kw).fit(X)
+    return gmm_annealed, gmm_plain
+
+
+@app.cell
+def _(X, algorithm_ui, beta0_ui, gmm_annealed, gmm_plain, n_anneal_ui, np, plot_gmm, plt):
+    _fig, _axes = plt.subplots(1, 3, figsize=(15, 4.4))
+    _Xn = X.cpu().numpy()
+    for _ax, _g, _title in ((_axes[0], gmm_plain, f'beta = 1 (plain {algorithm_ui.value.upper()})'), (_axes[1], gmm_annealed, f'annealed, beta_0 = {beta0_ui.value:g}, n_anneal = {n_anneal_ui.value}')):
+        plot_gmm(_Xn, gmm=_g, ax=_ax, color_by_cluster=True, ellipse_std_devs=[2], ellipse_fill=False, ellipse_line_width=2, title=f'{_title}\nmean log-likelihood {_g.lower_bound_:.3f}', legend=False)
+        _ax.set_aspect('equal')
+    _hist_plain = gmm_plain.log_likelihood_history_.cpu().numpy()
+    _hist_ann = gmm_annealed.log_likelihood_history_.cpu().numpy()
+    _beta = np.asarray(gmm_annealed.annealing_schedule_)
+    _on = _beta >= 1.0 if len(_beta) == len(_hist_ann) else np.ones(len(_hist_ann), dtype=bool)
+    _axes[2].plot(_hist_plain, label='plain')
+    _axes[2].plot(np.nonzero(_on)[0], _hist_ann[_on], label='annealed (beta = 1 part)')
+    _axes[2].axvline(n_anneal_ui.value, color='0.6', ls=':')
+    _axes[2].set_xlabel('iteration')
+    _axes[2].set_ylabel('mean log-likelihood')
+    _axes[2].set_title('log-likelihood (dotted: end of annealing)')
+    _axes[2].legend()
+    plt.tight_layout()
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(gmm_annealed, gmm_plain, mo):
+    mo.md(f"""
+    **Final mean log-likelihood:** annealed {gmm_annealed.lower_bound_:.3f} vs. plain {gmm_plain.lower_bound_:.3f} (difference {gmm_annealed.lower_bound_ - gmm_plain.lower_bound_:+.3f}). The three-blob optimum has mean log-likelihood about -3.98 for this data.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **What to look for.** With `algorithm='em'` and `n_anneal=30`, $\beta_0=0.9$ reached the three-blob optimum from every jitter seed in 2-7 that we tried; $\beta_0=0.7$ did so for some seeds and not others; and a *hot* start, $\beta_0=0.3$, collapsed the fit for all of them (the means are pulled together until all three components describe the same blob, log-likelihood about -5.3, far below either alternative). So annealing is a heuristic: too little smoothing changes nothing, too much destroys the structure it was meant to find. Two more things to try with the default start. With `'cem'`, the C-step takes the `argmax` of the tempered posterior, which is the same as the plain `argmax` for every $\beta>0$, so annealing cannot change the hard partitions along the way; the only difference is that the convergence test is suspended while $\beta<1$, so the annealed run keeps iterating a little longer (here it ends at -4.4455 instead of -4.4475, still the poor optimum). With `'sem'`, the sampling already escapes the saddle without annealing (-3.981 either way).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [15 -- Student-t Mixtures](15_student_t.ipynb), the first non-Gaussian family, or back to [13 -- Model Selection](13_model_selection.ipynb).
     """)
     return

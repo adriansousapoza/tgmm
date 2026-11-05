@@ -36,11 +36,15 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
   variable or sits inside `mo.ui.array` / `mo.ui.dictionary` / `mo.ui.batch`. Controls nested in a plain Python list or dict render
   fine but never update anything, so build groups of controls with `mo.ui.array`. Number fields (`mo.ui.number`) commit when they lose
   focus or on Enter. Check a new control by changing it in `marimo run` and confirming the output follows.
-- **Animations.** Show an EM run (or anything that changes over iterations) as one animation, not as a slider or a row of snapshots, so
-  the static docs page and the interactive notebook show the same thing. Render each frame with a fixed canvas (the tgmm theme saves
-  with `bbox='tight'`, which crops every frame differently), compact fonts (a wide figure is scaled down to the column) and about
-  150 dpi, and encode them as a lossless animated WebP (24-bit colour; a GIF's 256-colour palette bands contour plots and looks
-  blurry). See `anim_from_frames` in `01_introduction.py`.
+- **Animations.** Show an EM run (or anything that changes over iterations) as one video, not as a slider or a row of snapshots, so the
+  static docs page and the interactive notebook show the same thing and a reader can start, stop and scrub it. Render each frame with a
+  fixed canvas (the tgmm theme saves with `bbox='tight'`, which crops every frame differently), compact fonts (a wide figure is scaled
+  down to the column) and about 150 dpi, encode H.264 (yuv420p, even dimensions) with `imageio-ffmpeg` and embed it as a
+  `<video controls>` with a poster frame and no autoplay; fall back to a lossless animated WebP if `imageio_ffmpeg` cannot be imported
+  (a GIF's 256-colour palette bands contour plots). Videos are only built for the default data; anything the reader can change goes
+  in the final "Try it yourself" section with static results. See `anim_from_frames` in `01_introduction.py`.
+- **Interactive controls at the end.** Put every `mo.ui` control, and the figures that exist only to show it, in a final section
+  `## Try it yourself (interactive version)` after the Summary, so the static page reads as one story.
 - **Shared dataset.** The default four-blob data is defined once, in `tutorial_data.py` (a plain module next to the notebooks, not a
   tutorial). `01_introduction` builds and explains it; every later notebook that needs it does `from tutorial_data import
   make_default_data` and has no data section of its own. Use `--ignore-scripts` with `marimo check` so the module is not parsed as a

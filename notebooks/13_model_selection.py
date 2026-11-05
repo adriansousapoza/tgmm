@@ -517,18 +517,9 @@ def _(mo):
     mo.md(r"""
     ## How separation and noise move the choice
 
-    Three Gaussian blobs of unit variance whose centres are spread by `separation` (the corners of a triangle with side `separation`). In the interactive version the controls below set it, and whether 30 uniform background points are added; the curves are BIC and ICL for $K=1,\dots,6$ with full covariances. When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot. Background noise is not Gaussian, so the mixture tends to spend an extra component on it unless you model it explicitly (see [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb), and [12 -- HDBSCAN](12_hdbscan.ipynb) for removing it first).
+    Three Gaussian blobs of unit variance whose centres are spread by `separation` (the corners of a triangle with side `separation`). The table below sweeps it, with and without 30 uniform background points, and reports the $K=1,\dots,6$ that BIC and ICL choose with full covariances (a curve plot for any separation is in the interactive section at the end). When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot. Background noise is not Gaussian, so the mixture tends to spend an extra component on it unless you model it explicitly (see [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb), and [12 -- HDBSCAN](12_hdbscan.ipynb) for removing it first).
     """)
     return
-
-
-@app.cell
-def _(mo):
-    # docs: hide-cell
-    sep_slider = mo.ui.slider(1.0, 8.0, step=0.5, value=4.0, label='cluster separation', debounce=True, show_value=True)
-    noise_switch = mo.ui.switch(label='add 30 noise points')
-    mo.hstack([sep_slider, noise_switch], justify='start')
-    return noise_switch, sep_slider
 
 
 @app.cell
@@ -541,25 +532,6 @@ def _(np, torch):
             _Z = np.vstack([_Z, _rng.uniform(_Z.min(0) - 3, _Z.max(0) + 3, (30, 2))])
         return torch.tensor(_Z, dtype=torch.float32)
     return (three_blobs,)
-
-
-@app.cell
-def _(FAST, noise_switch, np, plt, sep_slider, select_model, three_blobs):
-    _res = select_model(three_blobs(sep_slider.value, noise_switch.value), n_components=range(1, 7),
-                        covariance_types=('full',), n_init=1 if FAST else 3, random_state=0)
-    _ks = [r['n_components'] for r in _res.table]
-    _bic = np.array([r['bic'] for r in _res.table])
-    _icl = np.array([r['icl'] for r in _res.table])
-    plt.figure(figsize=(6, 4))
-    for _y, _lab, _m in ((_bic, 'BIC', 'o'), (_icl, 'ICL', 's')):
-        plt.plot(_ks, _y, marker=_m, label=_lab)
-        plt.plot(_ks[int(_y.argmin())], _y.min(), 'k*', ms=14)
-    plt.xlabel('n_components (K)')
-    plt.ylabel('criterion (lower is better)')
-    plt.title(f'separation {sep_slider.value}: BIC picks K = {_ks[int(_bic.argmin())]}, ICL picks K = {_ks[int(_icl.argmin())]}')
-    plt.legend()
-    plt.gcf()
-    return
 
 
 @app.cell
@@ -595,7 +567,55 @@ def _(mo):
     - `icl(X, mode='hard' | 'soft')` can be computed on any fitted model; it equals BIC when responsibilities are one-hot.
     - The formulas $\mathrm{AIC}=-2\hat\ell+2p$, $\mathrm{BIC}=-2\hat\ell+p\ln n$ and $\mathrm{ICL}=\mathrm{BIC}+2\,\mathrm{EN}$ match the library to numerical precision, with $p=(K-1)+Kd+p_\Sigma$.
     - `select_model` sweeps $K$ and the covariance structure together (all 14 GPCM codes by default); on the iris petals BIC picks `VVE` with $K=3$ (per-component volume and shape, one shared orientation) and on the 10-D dataset `VVI` with $K=4$ (per-component volume and shape, axis-aligned) -- neither is the default `full` model -- and `volume_` / `shape_` / `orientation_` say which kind of parsimony a non-classic winner uses. Overlap widens the BIC-ICL gap and background noise adds a spurious component.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself (interactive version)
+
+    The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
+
+    ### BIC and ICL curves for any separation and noise
+
+    Set the cluster `separation` and whether 30 uniform background points are added; the curves are BIC and ICL for $K=1,\dots,6$ with full covariances, as in the table above. When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    # docs: hide-cell
+    sep_slider = mo.ui.slider(1.0, 8.0, step=0.5, value=4.0, label='cluster separation', debounce=True, show_value=True)
+    noise_switch = mo.ui.switch(label='add 30 noise points')
+    mo.hstack([sep_slider, noise_switch], justify='start')
+    return noise_switch, sep_slider
+
+
+@app.cell
+def _(FAST, noise_switch, np, plt, sep_slider, select_model, three_blobs):
+    _res = select_model(three_blobs(sep_slider.value, noise_switch.value), n_components=range(1, 7),
+                        covariance_types=('full',), n_init=1 if FAST else 3, random_state=0)
+    _ks = [r['n_components'] for r in _res.table]
+    _bic = np.array([r['bic'] for r in _res.table])
+    _icl = np.array([r['icl'] for r in _res.table])
+    plt.figure(figsize=(6, 4))
+    for _y, _lab, _m in ((_bic, 'BIC', 'o'), (_icl, 'ICL', 's')):
+        plt.plot(_ks, _y, marker=_m, label=_lab)
+        plt.plot(_ks[int(_y.argmin())], _y.min(), 'k*', ms=14)
+    plt.xlabel('n_components (K)')
+    plt.ylabel('criterion (lower is better)')
+    plt.title(f'separation {sep_slider.value}: BIC picks K = {_ks[int(_bic.argmin())]}, ICL picks K = {_ks[int(_icl.argmin())]}')
+    plt.legend()
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [14 -- Stochastic EM, Annealing and SAEM](14_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [02 -- Covariance Types](02_covariance_types.ipynb) for what each of the 14 covariance models assumes.
     """)
     return

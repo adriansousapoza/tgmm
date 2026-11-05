@@ -13,6 +13,8 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   02 Covariance types, 03 Initialization (new), 04 Priors (MAP and NIW, merged), 05 Sampling, 06-14 the rest in order,
   15-18 the other families, 19 Constraints, frozen components and sample weights (new). The default four-blob dataset lives in
   `notebooks/tutorial_data.py`.
+- Two algorithm walk-throughs: 20 k-means++ seeding and 21 k-means (Lloyd), with step-by-step visualisations; every notebook's
+  interactive controls now live in a final "Try it yourself" section.
 - Every tutorial page links to an interactive (molab) version of the notebook.
 - Tutorial data: the four-blob covariances are scaled by 0.6 so the blobs stay recoverable now that `generate_gmm_data` honours
   the covariance it is given (0.4.1).

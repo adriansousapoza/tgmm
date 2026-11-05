@@ -383,27 +383,24 @@ def _(chi2, confidence_ellipse_std_devs, np):
 
 
 @app.cell
-def _(mo):
-    coverage = mo.ui.slider(start=0.05, stop=0.99, step=0.01, value=0.95, label='enclosed probability q', show_value=True)
-    coverage
-    return (coverage,)
+def _(X, confidence_ellipse_std_devs, dynamic_figsize, gmm, plot_gmm, plt, torch):
+    def coverage_figure(q):
+        """Draw the fitted GMM with ellipses enclosing probability q; returns the figure and the share of each component's assigned points inside its ellipse."""
+        _r = confidence_ellipse_std_devs(q)
+        _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
+        _Xt = torch.as_tensor(X, dtype=gmm.means_.dtype, device=gmm.means_.device)
+        _lab = gmm.predict(_Xt)
+        _inside = []
+        for _k in range(gmm.n_components):
+            _dx = _Xt[_lab == _k] - gmm.means_[_k]
+            _inside.append(float(((_dx @ torch.linalg.inv(gmm.covariances_[_k]) * _dx).sum(1) <= _r[0] ** 2).float().mean()))
+        plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=_r, ellipse_alpha=0.3, title=f'{q:.0%} confidence ellipses (r = {_r[0]:.3f})', ax=_ax)
+        return _fig, _inside
 
-
-@app.cell
-def _(X, confidence_ellipse_std_devs, coverage, dynamic_figsize, gmm, plot_gmm, plt, torch):
-    _r = confidence_ellipse_std_devs(coverage.value)
-    _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=_r, ellipse_alpha=0.3, title=f'{coverage.value:.0%} confidence ellipses (r = {_r[0]:.3f})', ax=_ax)
-    # share of each component's assigned points that falls inside its ellipse
-    _Xt = torch.as_tensor(X, dtype=gmm.means_.dtype, device=gmm.means_.device)
-    _lab = gmm.predict(_Xt)
-    _inside = []
-    for _k in range(gmm.n_components):
-        _dx = _Xt[_lab == _k] - gmm.means_[_k]
-        _inside.append(float(((_dx @ torch.linalg.inv(gmm.covariances_[_k]) * _dx).sum(1) <= _r[0] ** 2).float().mean()))
+    _fig, _inside = coverage_figure(0.95)
     print(f"share of assigned points inside each component's ellipse: {[round(_v, 3) for _v in _inside]}")
     plt.gcf()
-    return
+    return (coverage_figure,)
 
 
 @app.cell(hide_code=True)
@@ -731,7 +728,44 @@ def _(mo):
     - `scale_alpha_by_weight` / `scale_size_by_weight` make component weights visible, and every call accepts `ax=` so panels compose into grids.
     - `ellipse_std_devs` is a Mahalanobis radius: 1, 2, 3 standard deviations enclose 39.3%, 86.5% and 98.9% in 2-D; `confidence_ellipse_std_devs(q)` gives the radius for a chosen coverage.
     - `match_predicted_to_true_labels` aligns arbitrary cluster indices with the truth, `gmm_proxy` plots parameters that were never fitted, and `plot_vmf` / `plot_vmf_cosine` cover directional data.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself (interactive version)
+
+    The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
+
+    ### Choose the enclosed probability
+
+    Move the slider to redraw the confidence ellipses with a different coverage $q$ (the radius is $r=\sqrt{\chi^2_{2,q}}$, as above). The title also reports the share of each component's assigned points that falls inside its ellipse.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    # docs: hide-cell
+    coverage = mo.ui.slider(start=0.05, stop=0.99, step=0.01, value=0.95, label='enclosed probability q', show_value=True)
+    coverage
+    return (coverage,)
+
+
+@app.cell
+def _(coverage, coverage_figure, plt):
+    # docs: hide-cell  (the static page already shows the 95% default above)
+    _fig, _inside = coverage_figure(coverage.value)
+    _fig.axes[0].set_title(_fig.axes[0].get_title() + f"\nshare of assigned points inside: {[round(_v, 2) for _v in _inside]}")
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [07 -- Classification EM](07_cem.ipynb), or [10 -- PCA Plotting](10_pca_plotting.ipynb) for plotting high-dimensional models.
     """)
     return

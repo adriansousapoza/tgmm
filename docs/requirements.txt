@@ -21,6 +21,7 @@ pymdown-extensions>=10.0
 # Tutorials are marimo notebooks, exported to .ipynb with outputs in CI
 marimo==0.25.1
 nbformat>=5.9
+imageio-ffmpeg>=0.5.1    # tutorial 01 encodes its EM animations as H.264 video (a pip-bundled ffmpeg binary)
 mkdocs-redirects>=1.2.1  # keeps the old user-guide / explainer / notebook URLs working
 
 # Needed to import the package for mkdocstrings

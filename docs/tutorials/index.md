@@ -36,3 +36,8 @@ and the settings (the first tutorial lets you move, reshape, add and remove the 
 17. [**Semi-Supervised and PU Fitting**](../notebooks/17_semi_supervised_pu.ipynb)
 18. [**Noise, Missing Values and Conditioning**](../notebooks/18_noise_missing_conditioning.ipynb)
 19. [**Constraints, Frozen Components and Sample Weights**](../notebooks/19_constraints_and_weights.ipynb)
+
+## Algorithm walk-throughs
+
+20. [**k-means++ Seeding Step by Step**](../notebooks/20_kmeans_plus_plus.ipynb): how `init_means='kpp'` picks its centres, with the sampling probabilities drawn at every step
+21. [**k-means (Lloyd's Algorithm) Step by Step**](../notebooks/21_kmeans.ipynb): how `init_means='kmeans'` iterates, with the Voronoi regions, the centroid paths and the inertia

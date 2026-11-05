@@ -392,43 +392,6 @@ def _(N_DRAW, X, dynamic_figsize, gmm, legend_labels, plot_gmm, plt, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Try it yourself
-
-    Choose a component (or the whole mixture), a number of points and a constraint. With these widgets at their defaults the plot shows the unconstrained mixture; in a running notebook (`marimo edit`, or the interactive version linked at the top of the docs page) moving a control re-draws the figure.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    n_widget = mo.ui.slider(50, 3000, value=800, step=50, label='number of samples')
-    component_widget = mo.ui.dropdown(['mixture', '1', '2', '3', '4'], value='mixture', label='component')
-    mode_widget = mo.ui.dropdown(['none', 'std_radius', 'confidence'], value='none', label='constraint')
-    radius_widget = mo.ui.slider(0.25, 4.0, value=1.0, step=0.25, label='std_radius (σ)')
-    confidence_widget = mo.ui.slider(0.1, 0.99, value=0.95, step=0.01, label='confidence')
-    mo.vstack([mo.hstack([n_widget, component_widget], justify='start'), mo.hstack([mode_widget, radius_widget, confidence_widget], justify='start')])
-    return component_widget, confidence_widget, mode_widget, n_widget, radius_widget
-
-
-@app.cell
-def _(X, component_widget, confidence_widget, gmm, legend_labels, mode_widget, n_widget, plot_gmm, plt, radius_widget):
-    _kw = {}
-    if component_widget.value != 'mixture':
-        _kw['component'] = int(component_widget.value) - 1
-    if mode_widget.value == 'std_radius':
-        _kw['std_radius'] = radius_widget.value
-    elif mode_widget.value == 'confidence':
-        _kw['confidence'] = confidence_widget.value
-    _s, _i = gmm.sample(n_widget.value, max_attempts_per_sample=5000, **_kw)
-    _fig, _ax = plt.subplots(figsize=(6, 5))
-    plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_ax, title=f'{n_widget.value} samples, ' + (', '.join(f'{_a}={_b}' for _a, _b in _kw.items()) or 'unconstrained'), true_labels=_i.cpu().numpy(), legend_labels=legend_labels, ellipse_fill=False)
-    plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## How Expensive Is Rejection? The Curse of Dimensionality
 
     **Why does `std_radius=1.0` become expensive in high dimensions?**
@@ -504,7 +467,55 @@ def _(mo):
     - `std_radius`, `std_range` and `confidence` / `confidence_range` constrain the Mahalanobis distance to the drawing component; `center_point` / `center_radius` constrain the Euclidean distance to a location. Only one constraint can be used at a time.
     - Constraints are enforced by rejection per point. Labels still follow $\pi_k$, and very restrictive regions need a larger `max_attempts_per_sample` (or raise `RuntimeError`).
     - In $d$ dimensions the squared Mahalanobis distance is $\chi^2_d$-distributed, so use a confidence level (or the $\chi^2$-quantile radius) rather than a fixed number of standard deviations; the acceptance probability of one attempt is $F_{\chi^2(d)}(r^2)$.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself (interactive version)
+
+    The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
+
+    ### Sample from the fitted mixture
+
+    Choose a component (or the whole mixture), a number of points and a constraint. With these controls at their defaults the plot shows the unconstrained mixture; moving a control re-draws the figure.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    # docs: hide-cell
+    n_widget = mo.ui.slider(50, 3000, value=800, step=50, label='number of samples')
+    component_widget = mo.ui.dropdown(['mixture', '1', '2', '3', '4'], value='mixture', label='component')
+    mode_widget = mo.ui.dropdown(['none', 'std_radius', 'confidence'], value='none', label='constraint')
+    radius_widget = mo.ui.slider(0.25, 4.0, value=1.0, step=0.25, label='std_radius (σ)')
+    confidence_widget = mo.ui.slider(0.1, 0.99, value=0.95, step=0.01, label='confidence')
+    mo.vstack([mo.hstack([n_widget, component_widget], justify='start'), mo.hstack([mode_widget, radius_widget, confidence_widget], justify='start')])
+    return component_widget, confidence_widget, mode_widget, n_widget, radius_widget
+
+
+@app.cell
+def _(X, component_widget, confidence_widget, gmm, legend_labels, mode_widget, n_widget, plot_gmm, plt, radius_widget):
+    _kw = {}
+    if component_widget.value != 'mixture':
+        _kw['component'] = int(component_widget.value) - 1
+    if mode_widget.value == 'std_radius':
+        _kw['std_radius'] = radius_widget.value
+    elif mode_widget.value == 'confidence':
+        _kw['confidence'] = confidence_widget.value
+    _s, _i = gmm.sample(n_widget.value, max_attempts_per_sample=5000, **_kw)
+    _fig, _ax = plt.subplots(figsize=(6, 5))
+    plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_ax, title=f'{n_widget.value} samples, ' + (', '.join(f'{_a}={_b}' for _a, _b in _kw.items()) or 'unconstrained'), true_labels=_i.cpu().numpy(), legend_labels=legend_labels, ellipse_fill=False)
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [06 -- Visualization](06_visualise.ipynb) for the plotting tools, or [10 -- PCA Plotting](10_pca_plotting.ipynb) for visualizing high-dimensional samples.
     """)
     return

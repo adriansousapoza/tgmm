@@ -172,6 +172,7 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 extra_css:
+  - stylesheets/extra.css
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css
 
 nav:
@@ -200,6 +201,8 @@ nav:
       - 17. Semi-Supervised and PU Fitting: notebooks/17_semi_supervised_pu.ipynb
       - 18. Noise, Missing Values and Conditioning: notebooks/18_noise_missing_conditioning.ipynb
       - 19. Constraints, Frozen Components and Sample Weights: notebooks/19_constraints_and_weights.ipynb
+      - 20. k-means++ Seeding Step by Step: notebooks/20_kmeans_plus_plus.ipynb
+      - 21. k-means (Lloyd's Algorithm) Step by Step: notebooks/21_kmeans.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - GPCM Covariance: api/covariance-gpcm.md

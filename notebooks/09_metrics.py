@@ -436,103 +436,6 @@ def _(gmm_ref, X_tensor, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Try it: how the indices react to separation, $K$ and noise
-
-    Three Gaussian blobs, a $k$-means clustering with the $K$ you choose, and every index above recomputed live with `ClusteringMetrics`. Move the **separation** slider to watch the indices degrade as the blobs overlap, change $K$ to see which indices are fooled, and switch on **noise** (30 uniform background points). In the interactive version of this notebook (see the link at the top of the page) the three controls are live; on the static page you see the default state.
-
-    `tgmm` treats noise by *dropping* the points labelled as noise and scaling the index by $f=(n-n_{\text{noise}})/n$ (multiplied for higher-is-better, divided for lower-is-better indices). The last column of the table does that; the third lets $k$-means swallow the noise into the clusters. The right panel fits a full-covariance `GaussianMixture` for $K=1,\dots,6$ on all points and compares BIC with ICL.
-
-    What to look for:
-
-    * **Separation.** As the blobs overlap, Silhouette and Calinski-Harabasz fall and Davies-Bouldin and WB rise (Silhouette 0.76 at separation 8, 0.54 at 4, 0.34 at 1). Dunn is the most erratic (it rests on one closest pair and one widest cluster, and is not even monotone: 0.018, 0.009, 0.037 at separations 1, 2, 3), which is why it is ranked behind the others.
-    * **$K$.** At separation 8 all six indices peak at the true $K=3$. When the blobs overlap (separation 1 or 2), Silhouette, Calinski-Harabasz and Wemmert-Gancarski still point at $K=3$, while Davies-Bouldin, WB and Dunn wander (they pick $K=6$ to $8$).
-    * **Noise.** At the default separation 4 with $K=3$, dropping the known noise and scaling by $f$ improves Calinski-Harabasz (238 to 307), WB (1.68 to 1.16) and Dunn (0.019 to 0.034) a lot, while Silhouette (0.486 to 0.477) and Davies-Bouldin (0.689 to 0.694) barely move. The mixture cannot drop noise: it spends extra components on the background, and BIC and ICL both pick $K=5$ instead of 3 once noise is switched on.
-    * **BIC vs. ICL.** ICL adds $-2\sum_i\log\max_k r_{ik}$ to BIC, which is near 0 for well-separated components and large when they overlap. At separation 3, BIC picks $K=2$ but ICL already prefers $K=1$.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    # docs: hide-cell
-    ix_sep = mo.ui.slider(1.0, 8.0, step=0.5, value=4.0, label='cluster separation', debounce=True, show_value=True)
-    ix_k = mo.ui.slider(2, 8, step=1, value=3, label='K for k-means', debounce=True, show_value=True)
-    ix_noise = mo.ui.switch(label='add noise points')
-    mo.hstack([ix_sep, ix_k, ix_noise], justify='start')
-    return ix_k, ix_noise, ix_sep
-
-
-@app.cell
-def _(
-    ClusteringMetrics,
-    GaussianMixture,
-    KMeans,
-    MAX_ITER,
-    SEED,
-    ix_k,
-    ix_noise,
-    ix_sep,
-    np,
-    torch,
-):
-    _rng = np.random.default_rng(0)
-    ix_X = np.vstack([_rng.normal(_c, 1.0, (80, 2)) for _c in np.array([[0, 0], [1, 0], [0.5, 0.87]]) * ix_sep.value])
-    ix_y = np.repeat([0, 1, 2], 80)
-    if ix_noise.value:
-        ix_X = np.vstack([ix_X, _rng.uniform(ix_X.min(0) - 3, ix_X.max(0) + 3, (30, 2))])
-        ix_y = np.r_[ix_y, -np.ones(30, int)]
-    ix_lab = KMeans(n_clusters=ix_k.value, n_init=1, random_state=1).fit_predict(ix_X)
-    ix_lab_noise = np.where(ix_y == -1, -1, ix_lab)
-    _Xt = torch.tensor(ix_X, dtype=torch.float32)
-
-    def _indices(_labels, _noise_label=None):
-        _l = torch.tensor(_labels)
-        _kw = dict(noise_label=_noise_label) if _noise_label is not None else {}
-        return {
-            'Silhouette': ClusteringMetrics.silhouette_score(_Xt, _l, **_kw),
-            'Calinski-Harabasz': ClusteringMetrics.calinski_harabasz_score(_Xt, _l, **_kw),
-            'Dunn': ClusteringMetrics.dunn_index(_Xt, _l, **_kw),
-            'Wemmert-Gancarski': ClusteringMetrics.wemmert_gancarski_index(_Xt, _l, **_kw),
-            'Davies-Bouldin': ClusteringMetrics.davies_bouldin_index(_Xt, _l, **_kw),
-            'WB-Index': ClusteringMetrics.wb_index(_Xt, _l, **_kw),
-        }
-
-    ix_plain = _indices(ix_lab)
-    ix_dropped = _indices(ix_lab_noise, -1)
-    ix_crit = np.zeros((6, 2))
-    for _kk in range(1, 7):
-        _g = GaussianMixture(n_components=_kk, covariance_type='full', init_means='kmeans', max_iter=MAX_ITER, random_state=SEED).fit(_Xt)
-        ix_crit[_kk - 1] = (_g.bic(_Xt), _g.icl(_Xt))
-    return ix_X, ix_crit, ix_dropped, ix_lab_noise, ix_plain
-
-
-@app.cell
-def _(ix_X, ix_crit, ix_k, ix_lab_noise, ix_noise, plt):
-    _fig, _axs = plt.subplots(1, 2, figsize=(12, 4.4))
-    _axs[0].scatter(*ix_X.T, c=ix_lab_noise, cmap='viridis', s=12)
-    _axs[0].set_aspect('equal')
-    _axs[0].set_title(f'k-means, K = {ix_k.value}' + (' (noise: label -1)' if ix_noise.value else ''))
-    for _j, _name in enumerate(('BIC', 'ICL')):
-        _axs[1].plot(range(1, 7), ix_crit[:, _j], marker='o', label=_name)
-        _axs[1].plot(1 + ix_crit[:, _j].argmin(), ix_crit[:, _j].min(), 'k*', ms=14)
-    _axs[1].set_xlabel('number of GMM components K')
-    _axs[1].set_ylabel('criterion (lower is better)')
-    _axs[1].legend()
-    _axs[1].set_title(f'BIC picks K = {1 + ix_crit[:, 0].argmin()}, ICL picks K = {1 + ix_crit[:, 1].argmin()}')
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(ix_crit, ix_dropped, ix_plain, mo):
-    _arrow = {'Silhouette': 'higher', 'Calinski-Harabasz': 'higher', 'Dunn': 'higher', 'Wemmert-Gancarski': 'higher', 'Davies-Bouldin': 'lower', 'WB-Index': 'lower'}
-    mo.md('| index | better | noise swallowed by clusters | noise labelled -1 (dropped, scaled) |\n|---|---|---|---|\n' + '\n'.join(f'| {_n} | {_arrow[_n]} | {ix_plain[_n]:.3f} | {ix_dropped[_n]:.3f} |' for _n in ix_plain) + f'\n\nICL - BIC at K = 3: {ix_crit[2, 1] - ix_crit[2, 0]:.1f} (twice the assignment entropy; it grows with overlap).')
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Supervised Cluster Scores
 
     When ground-truth labels are available, we can evaluate a clustering with scores that measure the agreement between a predicted partition $V$ (`labels_pred`) and a reference partition $U$ (`labels_true`). Most are built from the **contingency table**
@@ -992,7 +895,114 @@ def _(mo):
     - Supervised scores compare a clustering with ground truth. They are invariant to relabeling, expect non-negative 0-indexed labels, and `tgmm`'s versions can be checked directly against scikit-learn (AMI uses the exact chance correction). Purity only goes up with $K$.
     - Cluster indices are arbitrary, so predictions are matched to true classes before building a confusion matrix or classification report. The report's `roc_auc` is the balanced accuracy of the hard predictions.
     - `kl_divergence_gmm` estimates $D_{KL}(P\parallel Q)$ between two fitted mixtures by Monte Carlo sampling; it is asymmetric and noisy.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself (interactive version)
+
+    The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
+
+    ### How the indices react to separation, $K$ and noise
+
+    Three Gaussian blobs, a $k$-means clustering with the $K$ you choose, and every index above recomputed live with `ClusteringMetrics`. Move the **separation** slider to watch the indices degrade as the blobs overlap, change $K$ to see which indices are fooled, and switch on **noise** (30 uniform background points). In the interactive version of this notebook (see the link at the top of the page) the three controls are live; on the static page you see the default state.
+
+    `tgmm` treats noise by *dropping* the points labelled as noise and scaling the index by $f=(n-n_{\text{noise}})/n$ (multiplied for higher-is-better, divided for lower-is-better indices). The last column of the table does that; the third lets $k$-means swallow the noise into the clusters. The right panel fits a full-covariance `GaussianMixture` for $K=1,\dots,6$ on all points and compares BIC with ICL.
+
+    What to look for:
+
+    * **Separation.** As the blobs overlap, Silhouette and Calinski-Harabasz fall and Davies-Bouldin and WB rise (Silhouette 0.76 at separation 8, 0.54 at 4, 0.34 at 1). Dunn is the most erratic (it rests on one closest pair and one widest cluster, and is not even monotone: 0.018, 0.009, 0.037 at separations 1, 2, 3), which is why it is ranked behind the others.
+    * **$K$.** At separation 8 all six indices peak at the true $K=3$. When the blobs overlap (separation 1 or 2), Silhouette, Calinski-Harabasz and Wemmert-Gancarski still point at $K=3$, while Davies-Bouldin, WB and Dunn wander (they pick $K=6$ to $8$).
+    * **Noise.** At the default separation 4 with $K=3$, dropping the known noise and scaling by $f$ improves Calinski-Harabasz (238 to 307), WB (1.68 to 1.16) and Dunn (0.019 to 0.034) a lot, while Silhouette (0.486 to 0.477) and Davies-Bouldin (0.689 to 0.694) barely move. The mixture cannot drop noise: it spends extra components on the background, and BIC and ICL both pick $K=5$ instead of 3 once noise is switched on.
+    * **BIC vs. ICL.** ICL adds $-2\sum_i\log\max_k r_{ik}$ to BIC, which is near 0 for well-separated components and large when they overlap. At separation 3, BIC picks $K=2$ but ICL already prefers $K=1$.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    # docs: hide-cell
+    ix_sep = mo.ui.slider(1.0, 8.0, step=0.5, value=4.0, label='cluster separation', debounce=True, show_value=True)
+    ix_k = mo.ui.slider(2, 8, step=1, value=3, label='K for k-means', debounce=True, show_value=True)
+    ix_noise = mo.ui.switch(label='add noise points')
+    mo.hstack([ix_sep, ix_k, ix_noise], justify='start')
+    return ix_k, ix_noise, ix_sep
+
+
+@app.cell
+def _(
+    ClusteringMetrics,
+    GaussianMixture,
+    KMeans,
+    MAX_ITER,
+    SEED,
+    ix_k,
+    ix_noise,
+    ix_sep,
+    np,
+    torch,
+):
+    _rng = np.random.default_rng(0)
+    ix_X = np.vstack([_rng.normal(_c, 1.0, (80, 2)) for _c in np.array([[0, 0], [1, 0], [0.5, 0.87]]) * ix_sep.value])
+    ix_y = np.repeat([0, 1, 2], 80)
+    if ix_noise.value:
+        ix_X = np.vstack([ix_X, _rng.uniform(ix_X.min(0) - 3, ix_X.max(0) + 3, (30, 2))])
+        ix_y = np.r_[ix_y, -np.ones(30, int)]
+    ix_lab = KMeans(n_clusters=ix_k.value, n_init=1, random_state=1).fit_predict(ix_X)
+    ix_lab_noise = np.where(ix_y == -1, -1, ix_lab)
+    _Xt = torch.tensor(ix_X, dtype=torch.float32)
+
+    def _indices(_labels, _noise_label=None):
+        _l = torch.tensor(_labels)
+        _kw = dict(noise_label=_noise_label) if _noise_label is not None else {}
+        return {
+            'Silhouette': ClusteringMetrics.silhouette_score(_Xt, _l, **_kw),
+            'Calinski-Harabasz': ClusteringMetrics.calinski_harabasz_score(_Xt, _l, **_kw),
+            'Dunn': ClusteringMetrics.dunn_index(_Xt, _l, **_kw),
+            'Wemmert-Gancarski': ClusteringMetrics.wemmert_gancarski_index(_Xt, _l, **_kw),
+            'Davies-Bouldin': ClusteringMetrics.davies_bouldin_index(_Xt, _l, **_kw),
+            'WB-Index': ClusteringMetrics.wb_index(_Xt, _l, **_kw),
+        }
+
+    ix_plain = _indices(ix_lab)
+    ix_dropped = _indices(ix_lab_noise, -1)
+    ix_crit = np.zeros((6, 2))
+    for _kk in range(1, 7):
+        _g = GaussianMixture(n_components=_kk, covariance_type='full', init_means='kmeans', max_iter=MAX_ITER, random_state=SEED).fit(_Xt)
+        ix_crit[_kk - 1] = (_g.bic(_Xt), _g.icl(_Xt))
+    return ix_X, ix_crit, ix_dropped, ix_lab_noise, ix_plain
+
+
+@app.cell
+def _(ix_X, ix_crit, ix_k, ix_lab_noise, ix_noise, plt):
+    _fig, _axs = plt.subplots(1, 2, figsize=(12, 4.4))
+    _axs[0].scatter(*ix_X.T, c=ix_lab_noise, cmap='viridis', s=12)
+    _axs[0].set_aspect('equal')
+    _axs[0].set_title(f'k-means, K = {ix_k.value}' + (' (noise: label -1)' if ix_noise.value else ''))
+    for _j, _name in enumerate(('BIC', 'ICL')):
+        _axs[1].plot(range(1, 7), ix_crit[:, _j], marker='o', label=_name)
+        _axs[1].plot(1 + ix_crit[:, _j].argmin(), ix_crit[:, _j].min(), 'k*', ms=14)
+    _axs[1].set_xlabel('number of GMM components K')
+    _axs[1].set_ylabel('criterion (lower is better)')
+    _axs[1].legend()
+    _axs[1].set_title(f'BIC picks K = {1 + ix_crit[:, 0].argmin()}, ICL picks K = {1 + ix_crit[:, 1].argmin()}')
+    plt.gcf()
+    return
+
+
+@app.cell
+def _(ix_crit, ix_dropped, ix_plain, mo):
+    _arrow = {'Silhouette': 'higher', 'Calinski-Harabasz': 'higher', 'Dunn': 'higher', 'Wemmert-Gancarski': 'higher', 'Davies-Bouldin': 'lower', 'WB-Index': 'lower'}
+    mo.md('| index | better | noise swallowed by clusters | noise labelled -1 (dropped, scaled) |\n|---|---|---|---|\n' + '\n'.join(f'| {_n} | {_arrow[_n]} | {ix_plain[_n]:.3f} | {ix_dropped[_n]:.3f} |' for _n in ix_plain) + f'\n\nICL - BIC at K = 3: {ix_crit[2, 1] - ix_crit[2, 0]:.1f} (twice the assignment entropy; it grows with overlap).')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [13 -- Model Selection](13_model_selection.ipynb) for BIC, AIC and ICL sweeps with `select_model`, [12 -- HDBSCAN](12_hdbscan.ipynb) for density-based clusters scored with DBCV, or [10 -- PCA Plotting](10_pca_plotting.ipynb).
     """)
     return

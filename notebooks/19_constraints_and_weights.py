@@ -550,36 +550,7 @@ def _(GaussianMixture, MAX_ITER, X, fit_gmm, gmm_free, init_covs, init_means, in
 def _(mo):
     mo.md(r"""
     (A free 4-component full-covariance model in 2-d has $(K-1)+Kd+Kd(d+1)/2=3+8+12=23$ parameters.)
-
-    ## Try your own bounds
-
-    In the interactive version of this notebook (see the link at the top of the page) the controls below let you set the weight band, the box for the means and the variance cap, and the fit and picture
-    update. Statically you see the defaults: a weight band no blob touches, the mean box of the earlier section, and a variance cap of 3 that only the two elongated blobs reach.
     """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    # docs: hide-cell
-    w_lo = mo.ui.slider(0.0, 0.25, step=0.01, value=0.05, label='weight lower bound', show_value=True)
-    w_hi = mo.ui.slider(0.25, 1.0, step=0.01, value=0.40, label='weight upper bound', show_value=True)
-    box_hi = mo.ui.slider(-1.0, 3.0, step=0.1, value=1.5, label='upper bound of both mean coordinates', show_value=True)
-    var_hi = mo.ui.slider(0.1, 6.0, step=0.05, value=3.0, label='variance (eigenvalue) cap', show_value=True)
-    mo.vstack([mo.hstack([w_lo, w_hi], justify='start'), mo.hstack([box_hi, var_hi], justify='start')])
-    return box_hi, var_hi, w_hi, w_lo
-
-
-@app.cell
-def _(X_np, box_hi, fit_gmm, plot_gmm, plt, torch, var_hi, w_hi, w_lo):
-    _upper = max(box_hi.value, -0.99)
-    gmm_user = fit_gmm(weight_bounds=(w_lo.value, w_hi.value), mean_bounds=(torch.tensor([-1.0, -1.0]), torch.tensor([_upper, _upper])),
-                       covariance_bounds=(0.05, var_hi.value))
-    _fig, _ax = plt.subplots(figsize=(5.2, 4.4))
-    plot_gmm(X_np, gmm=gmm_user, ax=_ax, ellipse_std_devs=[2], point_size=3, legend=False,
-             title=f'weights {gmm_user.weights_.cpu().numpy().round(2).tolist()}')
-    plt.tight_layout()
-    plt.gcf()
     return
 
 
@@ -673,7 +644,52 @@ def _(mo):
     - EM remains valid: the constrained M-step is an ECM step whose block updates are each exact -- water-filling for the weights, clipping (diagonal / spherical) or coordinate ascent (full) for the means, variance or eigenvalue clipping for the covariances -- so the log-likelihood never decreases.
     - Where a bound binds the estimate sits on the boundary (see `active_constraints_`); `bic` / `aic` discount fixed parameters but not bounds.
     - `sample_weight` generalises row duplication (integer weights) and deletion (zero), and $(n,d)$ weights marginalise single features out of diagonal and spherical models.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself (interactive version)
+
+    The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
+
+    ### Try your own bounds
+
+    The controls below let you set the weight band, the box for the means and the variance cap, and the fit and picture
+    update. Statically you see the defaults: a weight band no blob touches, the mean box of the earlier section, and a variance cap of 3 that only the two elongated blobs reach.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # docs: hide-cell
+    w_lo = mo.ui.slider(0.0, 0.25, step=0.01, value=0.05, label='weight lower bound', show_value=True)
+    w_hi = mo.ui.slider(0.25, 1.0, step=0.01, value=0.40, label='weight upper bound', show_value=True)
+    box_hi = mo.ui.slider(-1.0, 3.0, step=0.1, value=1.5, label='upper bound of both mean coordinates', show_value=True)
+    var_hi = mo.ui.slider(0.1, 6.0, step=0.05, value=3.0, label='variance (eigenvalue) cap', show_value=True)
+    mo.vstack([mo.hstack([w_lo, w_hi], justify='start'), mo.hstack([box_hi, var_hi], justify='start')])
+    return box_hi, var_hi, w_hi, w_lo
+
+
+@app.cell
+def _(X_np, box_hi, fit_gmm, plot_gmm, plt, torch, var_hi, w_hi, w_lo):
+    _upper = max(box_hi.value, -0.99)
+    gmm_user = fit_gmm(weight_bounds=(w_lo.value, w_hi.value), mean_bounds=(torch.tensor([-1.0, -1.0]), torch.tensor([_upper, _upper])),
+                       covariance_bounds=(0.05, var_hi.value))
+    _fig, _ax = plt.subplots(figsize=(5.2, 4.4))
+    plot_gmm(X_np, gmm=gmm_user, ax=_ax, ellipse_std_devs=[2], point_size=3, legend=False,
+             title=f'weights {gmm_user.weights_.cpu().numpy().round(2).tolist()}')
+    plt.tight_layout()
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [17 -- Semi-Supervised and PU Fitting](17_semi_supervised_pu.ipynb) uses `frozen_components` as an anchor, and [13 -- Model Selection](13_model_selection.ipynb) shows how to choose among constrained and unconstrained models.
     """)
     return
