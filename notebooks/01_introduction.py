@@ -9,6 +9,9 @@
 #     "scipy",
 #     "pillow",
 # ]
+#
+# [tool.marimo.display]
+# dataframes = "plain"
 # ///
 
 import marimo
@@ -559,8 +562,8 @@ def _(mo):
 
 @app.cell
 def _(
-    data,
     anim_from_frames,
+    data,
     ll_history,
     mean_range,
     means,
@@ -734,10 +737,10 @@ def _(GaussianMixture, MAX_ITER, X_tensor, device, n_components, torch):
 @app.cell
 def _(
     X,
+    anim_from_frames,
     em_ll,
     em_means,
     em_states,
-    anim_from_frames,
     pick_frames,
     plot_2d_gmm_resp,
     plt,
@@ -767,7 +770,7 @@ def _(mo):
 
 @app.cell
 def _(GaussianMixture, X_tensor, device, n_components, np, torch):
-    gmm = GaussianMixture(n_components=n_components, init_means='kpp', verbose=True, verbose_interval=1)
+    gmm = GaussianMixture(n_components=n_components, init_means='kpp', verbose=True, verbose_interval=10)
     gmm.fit(X_tensor)
     y_pred = gmm.predict(X_tensor)
     log_probs = gmm.score_samples(X_tensor)
@@ -868,11 +871,21 @@ def _(mo):
 
 
 @app.cell
-def _(X, gmm, gmm_samples, legend_labels, log_probs, n_components, plot_gmm, plt, y_pred):
+def _(
+    X,
+    gmm,
+    gmm_samples,
+    legend_labels,
+    log_probs,
+    n_components,
+    plot_gmm,
+    plt,
+    y_pred,
+):
     _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
     plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='GMM', legend_labels=legend_labels)
     plot_gmm(X=X, ax=_axs[0, 1], title='Per-Sample Log-Likelihood', log_probs=log_probs, colorbar_label='Log-Likelihood')
-    plot_gmm(X=X, ax=_axs[1, 0], true_labels=y_pred, title='GMM Results', legend_labels=[f'Cluster {i}' for i in range(n_components)])
+    plot_gmm(X=X, ax=_axs[1, 0], true_labels=y_pred, title='GMM Predictions', legend_labels=[f'Cluster {i}' for i in range(n_components)])
     plot_gmm(X=gmm_samples, gmm=gmm, ax=_axs[1, 1], title='GMM Results (Generated Samples)')
     _fig.tight_layout()
     plt.gcf()

@@ -10,6 +10,9 @@
 #     "scipy",
 #     "mpltern",
 # ]
+#
+# [tool.marimo.display]
+# dataframes = "plain"
 # ///
 
 import marimo

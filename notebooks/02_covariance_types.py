@@ -10,6 +10,9 @@
 #     "scipy",
 #     "pandas",
 # ]
+#
+# [tool.marimo.display]
+# dataframes = "plain"
 # ///
 
 import marimo
@@ -375,7 +378,7 @@ def _(np, plt):
     plt.suptitle('Changing one factor of $\\Sigma=\\lambda D A D^{\\top}$ at a time')
     plt.tight_layout()
     plt.gcf()
-    return
+    return ellipse, unit_det
 
 
 @app.cell(hide_code=True)
@@ -412,7 +415,66 @@ def _(mo):
     | volume | $1$ | $K$ | -- |
     | shape (free ratios of $A$) | $d-1$ | $K(d-1)$ | $0$ |
     | orientation (free angles of $D$) | $d(d-1)/2$ | $K\,d(d-1)/2$ | $0$ |
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### All 14 models at a glance
+
+    Each panel draws the 1-standard-deviation ellipses of three components (illustrative parameters, no data),
+    one colour per component, with the model's covariance structure underneath. The layout and the order of the
+    panels follow Figure 2.3 of Bouveyron, Celeux, Murphy & Raftery (2019, p. 21), which sits next to Table 2.1
+    (the 14 parameterisations of $\Sigma_k$) on the same page; their Table 2.2 (p. 22) lists the parameter counts.
+    Read it with the three factors in mind. Where a factor is **E**qual the three ellipses share it (the same
+    size, the same elongation, the same direction); where it **V**aries they differ. Shape **I** gives circles and
+    orientation **I** gives axes parallel to the coordinate axes.
+    """)
+    return
+
+
+@app.cell
+def _(ellipse, np, plt, unit_det):
+    # Fig. 2.3 / Table 2.1 of Bouveyron et al. (2019), p. 21: two rows of seven models, in the book's order
+    book_layout = [['EII', 'VII', 'EEI', 'VEI', 'EVI', 'VVI', 'EEE'],
+                   ['VEE', 'EVE', 'EEV', 'VVE', 'EVV', 'VEV', 'VVV']]
+    covariance_equation = {
+        'EII': r'\lambda I', 'VII': r'\lambda_k I',
+        'EEI': r'\lambda A', 'VEI': r'\lambda_k A', 'EVI': r'\lambda A_k', 'VVI': r'\lambda_k A_k',
+        'EEE': r'\lambda D A D^\top', 'VEE': r'\lambda_k D A D^\top', 'EVE': r'\lambda D A_k D^\top', 'VVE': r'\lambda_k D A_k D^\top',
+        'EEV': r'\lambda D_k A D_k^\top', 'VEV': r'\lambda_k D_k A D_k^\top', 'EVV': r'\lambda D_k A_k D_k^\top', 'VVV': r'\lambda_k D_k A_k D_k^\top',
+    }
+    _centres = np.array([[0.0, 2.2], [-2.4, -1.5], [2.4, -1.5]])
+    _colors = ['#4c72b0', '#dd5555', '#55a868']
+    _volumes = {'E': [0.70] * 3, 'V': [0.25, 0.70, 1.50]}       # lambda_k: shared, or one per component
+    _ratios = {'I': [1.0] * 3, 'E': [5.0] * 3, 'V': [1.6, 5.0, 12.0]}  # a_1 / a_2 of A_k: circle, shared, or one per component
+    _angles = {'I': [0.0] * 3, 'E': [35.0] * 3, 'V': [20.0, 75.0, 130.0]}  # rotation of D_k in degrees: none, shared, or one per component
+    _fig, _axs = plt.subplots(2, 7, figsize=(14, 4.6), sharex=True, sharey=True)
+    for _row in range(2):
+        for _col in range(7):
+            _code_name = book_layout[_row][_col]
+            _ax = _axs[_row, _col]
+            for _k in range(3):
+                _pts = ellipse(_volumes[_code_name[0]][_k], unit_det(_ratios[_code_name[1]][_k], 1.0), _angles[_code_name[2]][_k])
+                _ax.plot(_centres[_k, 0] + _pts[0], _centres[_k, 1] + _pts[1], color=_colors[_k], lw=1.8)
+                _ax.plot(*_centres[_k], '.', color=_colors[_k], ms=4)
+            _ax.set_title(_code_name, fontsize=10, weight='bold')
+            _ax.text(0.5, 0.03, f'$\\Sigma_k={covariance_equation[_code_name]}$', transform=_ax.transAxes, ha='center', va='bottom', fontsize=8)
+            _ax.set_aspect('equal')
+            _ax.set_xticks([])
+            _ax.set_yticks([])
+    _axs[0, 0].set_xlim(-5.0, 5.0)
+    _axs[0, 0].set_ylim(-4.0, 4.0)
+    _fig.tight_layout()
+    plt.gcf()
+    return book_layout, covariance_equation
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     Because the count is a sum over the three factors, it is easy to see how each model scales. Volume
     costs $1$ or $K$ parameters, shape $d-1$ or $K(d-1)$, orientation $d(d-1)/2$ or $K\,d(d-1)/2$. Only
     a *per-component orientation* (`EEV`, `VEV`, `EVV`, `VVV`) makes the count grow like $K\,d^2$. A
@@ -480,11 +542,31 @@ def _(ALIASES, GPCM_CODES, SETTINGS, n_cov_params, pd):
 
 
 @app.cell(hide_code=True)
+def _(SETTINGS, mo, n_cov_params):
+    _vvv_small, _vvv_big = n_cov_params('VVV', *SETTINGS[0]), n_cov_params('VVV', *SETTINGS[-1])
+    _book = n_cov_params('VVV', 3, 27)  # Table 2.2 of the book: d = 27, G = 3
+    assert _book == 1134 and n_cov_params('EII', 3, 27) == 1
+    mo.md(rf"""
+    The table shows why constrained models can be estimated reliably from little data. The full model `VVV`
+    has $K\,d(d+1)/2$ covariance parameters, quadratic in the dimension: {_vvv_small:,} at $K={SETTINGS[0][0]}$, $d={SETTINGS[0][1]}$
+    but {_vvv_big:,} at $K={SETTINGS[-1][0]}$, $d={SETTINGS[-1][1]}$, while `EII` has exactly one in every setting.
+
+    This is the **curse of dimensionality** for mixture models: the number of parameters explodes with $d$ while the
+    data do not. With $n$ points a component sees about $n/K$ of them, and a component with fewer points than
+    dimensions has a *singular* empirical covariance (its rank is at most $n_k-1$, below $d$), so maximum likelihood is
+    degenerate there. That is why the $K=50$, $d=64$ check fits above had to start from identity covariances instead of the
+    default empirical ones, and even $n_k\ge d$ only makes the estimate non-singular, not accurate: in practice $n_k$
+    should be several times $d$. In high dimension you therefore need a constrained structure (diagonal, spherical, or one of the
+    GPCM models with a shared orientation or shape), more data, a prior on the covariances
+    ([04 -- Priors](04_priors.ipynb)), or a low-rank structure. Bouveyron et al. (2019, Table 2.2, p. 22) make the same point
+    for $d=27$ and $K=3$: {_book:,} covariance parameters for `VVV` against one for `EII`.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The table shows why constrained models can be estimated reliably from little data: at $K=50$ and $d=64$,
-    `VVV` needs $K\,d(d+1)/2$ covariance parameters, `EII` only one.
-
     ### Reading the decomposition off a fitted model
 
     Pass either the tgmm name or the mclust code to `covariance_type`; mclust codes are
@@ -760,15 +842,9 @@ def _(mo):
 
 
 @app.cell
-def _(GaussianMixture, K, SEED, X, device, plot_gmm, plt):
+def _(GaussianMixture, K, SEED, X, covariance_equation, device, plot_gmm, plt):
     # rows = (shape, orientation) pairs in the order of Celeux & Govaert (1995), Table 1; left column = equal volume, right = varying volume
     grid_rows = [('EII', 'VII'), ('EEI', 'VEI'), ('EVI', 'VVI'), ('EEE', 'VEE'), ('EVE', 'VVE'), ('EEV', 'VEV'), ('EVV', 'VVV')]
-    covariance_equation = {
-        'EII': r'\lambda I', 'VII': r'\lambda_k I',
-        'EEI': r'\lambda A', 'VEI': r'\lambda_k A', 'EVI': r'\lambda A_k', 'VVI': r'\lambda_k A_k',
-        'EEE': r'\lambda D A D^\top', 'VEE': r'\lambda_k D A D^\top', 'EVE': r'\lambda D A_k D^\top', 'VVE': r'\lambda_k D A_k D^\top',
-        'EEV': r'\lambda D_k A D_k^\top', 'VEV': r'\lambda_k D_k A D_k^\top', 'EVV': r'\lambda D_k A_k D_k^\top', 'VVV': r'\lambda_k D_k A_k D_k^\top',
-    }
     row_labels = ['shape I, orientation I', 'shape E, orientation I', 'shape V, orientation I', 'shape E, orientation E',
                   'shape V, orientation E', 'shape E, orientation V', 'shape V, orientation V']
     fits = {}
@@ -841,6 +917,7 @@ def _(mo):
       grows like $K\,d^2$, a shared orientation adds a $K$-independent $d^2$ term, and the identity orientation
       grows at most like $K\,d$ -- the formula is checked against fitted models and tabulated for
       $K\in\{5,50\}$ and $d\in\{4,64\}$.
+    - The count grows quadratically with $d$ for full covariances (the curse of dimensionality), which is why high-dimensional data needs constrained structures.
     - `volume_` / `shape_` / `orientation_` expose the fitted decomposition of the eight non-classic models.
 
     **Next:** [03 -- Initialization](03_initialization.ipynb) for how the starting means, covariances and
@@ -850,6 +927,7 @@ def _(mo):
 
     ## References
 
+    - Bouveyron, C., Celeux, G., Murphy, T. B. & Raftery, A. E. (2019). *Model-Based Clustering and Classification for Data Science: With Applications in R*. Cambridge University Press, doi:10.1017/9781108644181. Section 2.2 (pp. 18-23): Table 2.1, the 14 covariance parameterisations, and Figure 2.3, their contours (p. 21); Table 2.2, the numbers of covariance parameters (p. 22).
     - Celeux, G. & Govaert, G. (1995). Gaussian parsimonious clustering models. *Pattern Recognition*, 28(5), 781-793.
     - Banfield, J. D. & Raftery, A. E. (1993). Model-based Gaussian and non-Gaussian clustering. *Biometrics*, 49(3), 803-821.
     - Flury, B. N. (1984). Common principal components in $k$ groups. *JASA*, 79(388), 892-898.

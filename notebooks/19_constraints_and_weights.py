@@ -11,6 +11,9 @@
 #     "seaborn",
 #     "tqdm",
 # ]
+#
+# [tool.marimo.display]
+# dataframes = "plain"
 # ///
 
 import marimo

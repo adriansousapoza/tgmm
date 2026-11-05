@@ -9,6 +9,9 @@
 #     "scikit-learn",
 #     "scipy",
 # ]
+#
+# [tool.marimo.display]
+# dataframes = "plain"
 # ///
 
 import marimo
