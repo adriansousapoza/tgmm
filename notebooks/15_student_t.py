@@ -95,7 +95,10 @@ def _():
     from tgmm.metrics import ClusteringMetrics
     from tgmm.plotting import CATEGORICAL_PALETTE
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -206,14 +209,14 @@ def _(mo):
 def _(CATEGORICAL_PALETTE, np, plt, stats):
     x = np.linspace(-8, 8, 801)
     nus = [1, 3, 10, np.inf]
-    _fig, _axes = plt.subplots(1, 2, figsize=(13, 4.5))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     for _nu, _color in zip(nus, CATEGORICAL_PALETTE):
         pdf = stats.norm.pdf(x) if np.isinf(_nu) else stats.t.pdf(x, df=_nu)
         label = 'Gaussian ($\\nu=\\infty$)' if np.isinf(_nu) else f'$\\nu={_nu}$'
         _axes[0].plot(x, pdf, color=_color, label=label)
         _axes[1].semilogy(x, pdf, color=_color, label=label)
     _axes[0].set_title('Density')
-    _axes[1].set_title('Log density: the Gaussian tail collapses, the t tails do not')
+    _axes[1].set_title('Log density (tails)')
     _axes[1].set_ylim(1e-12, 1)
     for _ax in _axes:
         _ax.set_xlabel('$x$')
@@ -248,11 +251,11 @@ def _(CATEGORICAL_PALETTE, SEED, np, plt):
     w = rng.gamma(shape=nu_demo / 2, scale=2 / nu_demo, size=n_demo)  # rate nu/2 -> scale 2/nu
     x_gauss = z
     x_t = z / np.sqrt(w)[:, None]
-    _fig, _axes = plt.subplots(1, 2, figsize=(12, 5.2), sharex=True, sharey=True)
-    _axes[0].scatter(*x_gauss.T, s=8, color=CATEGORICAL_PALETTE[0])
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5), sharex=True, sharey=True)
+    _axes[0].scatter(*x_gauss.T, s=8, alpha=0.5, color=CATEGORICAL_PALETTE[0])
     _axes[0].set_title('Gaussian, $\\Sigma=I$')
-    _sc = _axes[1].scatter(*x_t.T, s=8, c=np.log(w), cmap='viridis_r', vmin=-4, vmax=1.5)
-    _axes[1].set_title(f'Student-t, $\\nu={nu_demo:g}$, $\\Sigma=I$ (colour: latent $\\log w$)')
+    _sc = _axes[1].scatter(*x_t.T, s=8, alpha=0.5, c=np.log(w), cmap='viridis_r', vmin=-4, vmax=1.5)
+    _axes[1].set_title(f'Student-t, $\\nu={nu_demo:g}$ (colour: $\\log w$)')
     _fig.colorbar(_sc, ax=_axes[1], label='$\\log w$')
     for _ax in _axes:
         _ax.set_xlim(-12, 12)
@@ -288,7 +291,7 @@ def _(mo):
 def _(CATEGORICAL_PALETTE, np, plt):
     delta = np.linspace(0, 60, 400)
     d_demo = 2
-    plt.figure(figsize=(7, 4.5))
+    plt.figure(figsize=(6.5, 4.5))
     for _nu, _color in zip([1, 3, 10, 100], CATEGORICAL_PALETTE):
         plt.plot(delta, (_nu + d_demo) / (_nu + delta), color=_color, label=f'$\\nu={_nu}$')
     plt.axhline(1.0, color='0.6', lw=1)
@@ -368,9 +371,9 @@ def _(SEED, plt, torch):
     n_out = int(0.05 * 2 * n_per)
     outliers = (torch.rand(n_out, 2, generator=_gen) - 0.5) * 40
     X = torch.cat([X_clean, outliers])
-    plt.figure(figsize=(5, 5))
-    plt.scatter(X[:-n_out, 0], X[:-n_out, 1], s=10, label='clean')
-    plt.scatter(X[-n_out:, 0], X[-n_out:, 1], s=10, c='red', marker='x', label='outliers')
+    plt.figure(figsize=(6.5, 4.5))
+    plt.scatter(X[:-n_out, 0], X[:-n_out, 1], s=8, alpha=0.5, label='clean')
+    plt.scatter(X[-n_out:, 0], X[-n_out:, 1], s=14, c='0.4', marker='x', linewidths=1, label='outliers')
     plt.legend()
     plt.title(f'{2 * n_per} clean points + {n_out} outliers (5%)')
     plt.gcf()
@@ -401,7 +404,7 @@ def _(GaussianMixture, SEED, StudentTMixture, X, torch, true_centers):
 
 @app.cell
 def _(X, gmm, match_err, plot_gmm, plt, stm):
-    _fig, _axes = plt.subplots(1, 2, figsize=(11, 5))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     plot_gmm(X, gmm=gmm, ax=_axes[0])
     _axes[0].set_title(f'GaussianMixture (mean error {match_err(gmm.means_):.2f})')
     plot_gmm(X, gmm=stm, ax=_axes[1])
@@ -430,8 +433,8 @@ def _(mo):
 @app.cell
 def _(X, plt, stm):
     weights = stm.sample_weights(X).cpu()
-    plt.figure(figsize=(5.5, 5))
-    _sc = plt.scatter(X[:, 0], X[:, 1], c=weights, cmap='viridis_r', s=12, vmin=0, vmax=1)
+    plt.figure(figsize=(6.5, 4.5))
+    _sc = plt.scatter(X[:, 0], X[:, 1], c=weights, cmap='viridis_r', s=8, vmin=0, vmax=1)
     plt.colorbar(_sc, label='sample weight $u_{ik}$ (low = likely outlier)')
     plt.title('StudentTMixture outlier weights')
     plt.gcf()
@@ -480,7 +483,7 @@ def _(
         _t = StudentTMixture(n_components=2, random_state=SEED, n_init=3).fit(_X_f)
         err_gauss.append(match_err(_g.means_))
         err_t.append(match_err(_t.means_))
-    plt.figure(figsize=(7, 4.5))
+    plt.figure(figsize=(6.5, 4.5))
     plt.plot([100 * f for f in fractions], err_gauss, marker='o', label='GaussianMixture')
     plt.plot([100 * f for f in fractions], err_t, marker='o', label='StudentTMixture')
     plt.xlabel('fraction of uniform outliers (%)')
@@ -691,11 +694,17 @@ def _(mo):
     - The EM loop, `algorithm`, `temperature`, `step_size`, `n_init` and the information criteria are shared by every
       family through `BaseMixture`.
     - Labels, noise, missing values and your own families work here too:
-      `fit(X, labels=...)` for supervised and semi-supervised fitting ([18](17_semi_supervised_pu.ipynb)); `noise=True`,
+      `fit(X, labels=...)` for supervised and semi-supervised fitting ([17](17_semi_supervised_pu.ipynb)); `noise=True`,
       `missing='em'`, `frozen_components`, `sample_weight` and the `Component` protocol with `GenericMixture`
-      ([19](18_noise_missing_conditioning.ipynb)). Gibbs mode (`n_components=None`), the GPCM covariance codes and MAP/NIW priors stay
+      ([18](18_noise_missing_conditioning.ipynb)). Gibbs mode (`n_components=None`), the GPCM covariance codes and MAP/NIW priors stay
       `GaussianMixture`-only.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **References**
 
     - Peel, D. & McLachlan, G. J. (2000). Robust mixture modelling using the t distribution. *Statistics and Computing*, 10, 339-348.

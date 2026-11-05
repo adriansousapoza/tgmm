@@ -88,21 +88,25 @@ def _():
     from sklearn.datasets import make_moons
     from sklearn.metrics import adjusted_rand_score
 
-    from tgmm import GaussianMixture, HDBSCAN, generate_gmm_data, plot_gmm, gmm_proxy, dynamic_figsize
+    from tgmm import GaussianMixture, HDBSCAN, generate_gmm_data, plot_gmm, gmm_proxy
+    from tgmm.plotting import CATEGORICAL_PALETTE
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 2
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     print(f'Using device: {device}')
     return (
+        CATEGORICAL_PALETTE,
         GaussianMixture,
         HDBSCAN,
         SEED,
         adjusted_rand_score,
         device,
-        dynamic_figsize,
         generate_gmm_data,
         gmm_proxy,
         make_moons,
@@ -134,13 +138,13 @@ def _(HDBSCAN, SEED, device, make_moons, plot_gmm, plt, torch):
     print(f'Number of clusters found: {hdbscan_moons.n_clusters_}')
     print(f'Number of noise points: {(labels_moons == -1).sum().item()}')
     print(f'Cluster sizes: {[(labels_moons == i).sum().item() for i in range(hdbscan_moons.n_clusters_)]}')
-    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    plot_gmm(X=X_moons, gmm=None, ax=_ax1, true_labels=y_moons, color_by_cluster=True, show_ellipses=False, show_means=False, point_size=20, point_alpha=0.6, title='Original Moons Dataset (Ground Truth)', legend=False)
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
+    plot_gmm(X=X_moons, gmm=None, ax=_ax1, true_labels=y_moons, color_by_cluster=True, show_ellipses=False, show_means=False, point_size=8, point_alpha=0.5, title='Original Moons Dataset (Ground Truth)', legend=False)
     _labels_np = labels_moons.cpu().numpy()
     _non_noise = _labels_np != -1
-    plot_gmm(X=X_moons[_non_noise], gmm=None, ax=_ax2, true_labels=_labels_np[_non_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=20, point_alpha=0.6, title=f'HDBSCAN Clustering ({hdbscan_moons.n_clusters_} clusters)', legend=False)
+    plot_gmm(X=X_moons[_non_noise], gmm=None, ax=_ax2, true_labels=_labels_np[_non_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=8, point_alpha=0.5, title=f'HDBSCAN Clustering ({hdbscan_moons.n_clusters_} clusters)', legend=False)
     if (~_non_noise).any():
-        _ax2.scatter(X_moons[~_non_noise, 0], X_moons[~_non_noise, 1], c='red', marker='x', s=50, label='Noise')
+        _ax2.scatter(X_moons[~_non_noise, 0], X_moons[~_non_noise, 1], c='0.4', marker='x', s=14, linewidths=1, label='Noise')
     _ax2.legend()
     # Plot results
     plt.tight_layout()
@@ -194,22 +198,22 @@ def _(HDBSCAN, SEED, device, generate_gmm_data, np, plot_gmm, plt):
     print(f'Correct noise/cluster calls: {correct_mask.sum()}/{len(y_test_np)}')
     print(f'False positives (wrongly flagged as noise): {false_positive_mask.sum()}')
     print(f'False negatives (noise missed): {false_negative_mask.sum()}')
-    _fig, (_ax1, _ax2, _ax3) = plt.subplots(1, 3, figsize=(18, 5))
-    plot_gmm(X=X_test_np[~true_is_noise], gmm=None, ax=_ax1, true_labels=y_test_np[~true_is_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=20, point_alpha=0.6, legend=False, title='Ground Truth (with uniform noise)', legend_labels=[f'Cluster {i}' for i in range(3)])
+    _fig, (_ax1, _ax2, _ax3) = plt.subplots(1, 3, figsize=(11, 3.8))
+    plot_gmm(X=X_test_np[~true_is_noise], gmm=None, ax=_ax1, true_labels=y_test_np[~true_is_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=8, point_alpha=0.5, legend=False, title='Ground Truth (with uniform noise)', legend_labels=[f'Cluster {i}' for i in range(3)])
     if true_is_noise.any():
-        _ax1.scatter(X_test_np[true_is_noise, 0], X_test_np[true_is_noise, 1], c='red', marker='x', s=50, label='Ground Truth Noise', linewidth=2)
+        _ax1.scatter(X_test_np[true_is_noise, 0], X_test_np[true_is_noise, 1], c='0.4', marker='x', s=14, linewidths=1, label='Ground Truth Noise')
     _ax1.legend()
-    plot_gmm(X=X_test_np[~pred_is_noise], gmm=None, ax=_ax2, true_labels=labels_torch_np[~pred_is_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=20, point_alpha=0.6, legend=False, title=f'PyTorch HDBSCAN ({hdbscan_torch.n_clusters_} clusters)')
+    plot_gmm(X=X_test_np[~pred_is_noise], gmm=None, ax=_ax2, true_labels=labels_torch_np[~pred_is_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=8, point_alpha=0.5, legend=False, title=f'PyTorch HDBSCAN ({hdbscan_torch.n_clusters_} clusters)')
     # Classify each point's noise/cluster call against ground truth
     if pred_is_noise.any():
-        _ax2.scatter(X_test_np[pred_is_noise, 0], X_test_np[pred_is_noise, 1], c='red', marker='x', s=50, label='Detected Noise', linewidth=2)
+        _ax2.scatter(X_test_np[pred_is_noise, 0], X_test_np[pred_is_noise, 1], c='0.4', marker='x', s=14, linewidths=1, label='Detected Noise')
     _ax2.legend()
-    _ax3.scatter(X_test_np[correct_mask, 0], X_test_np[correct_mask, 1], c='green', s=20, alpha=0.6, label='Correct')  # flagged as noise, actually a real point
+    _ax3.scatter(X_test_np[correct_mask, 0], X_test_np[correct_mask, 1], c='0.75', s=8, alpha=0.5, label='Correct')  # flagged as noise, actually a real point
     if false_positive_mask.any():  # actual noise, missed (kept as cluster)
-        _ax3.scatter(X_test_np[false_positive_mask, 0], X_test_np[false_positive_mask, 1], c='tomato', marker='x', s=50, label='False positive (wrongly flagged noise)', linewidth=2)
+        _ax3.scatter(X_test_np[false_positive_mask, 0], X_test_np[false_positive_mask, 1], c='orange', marker='x', s=14, linewidths=1, label='False positive (wrongly flagged noise)')
     if false_negative_mask.any():
-        _ax3.scatter(X_test_np[false_negative_mask, 0], X_test_np[false_negative_mask, 1], c='darkred', marker='x', s=50, label='False negative (noise missed)', linewidth=2)
-    _ax3.set_title('Noise Detection Accuracy', fontsize=14)
+        _ax3.scatter(X_test_np[false_negative_mask, 0], X_test_np[false_negative_mask, 1], c='black', marker='x', s=14, linewidths=1, label='False negative (noise missed)')
+    _ax3.set_title('Noise Detection Accuracy')
     _ax3.set_xlabel('Feature 1')
     _ax3.set_ylabel('Feature 2')
     # Visualize
@@ -245,16 +249,16 @@ def _(HDBSCAN, SEED, device, generate_gmm_data, np, plot_gmm, plt):
     # The smallest true cluster has 50 points, so anything below that won't change what counts as a
     # valid cluster: 10 and 30 would look identical. 70 and 100 cross the size of progressively larger true clusters.
     min_cluster_sizes = [10, 70, 100]
-    _fig, _axes = plt.subplots(1, 3, figsize=(18, 5))
+    _fig, _axes = plt.subplots(1, 3, figsize=(11, 3.8))
     X_np = X_complex.cpu().numpy()
     for _ax, min_size in zip(_axes, min_cluster_sizes):
         hdbscan_test = HDBSCAN(min_cluster_size=min_size, min_samples=5, device=device)
         labels_test = hdbscan_test.fit_predict(X_complex)
         _labels_np = labels_test.cpu().numpy()
         _non_noise = _labels_np != -1
-        plot_gmm(X=X_np[_non_noise], gmm=None, ax=_ax, true_labels=_labels_np[_non_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=20, point_alpha=0.6, legend=False, title=f'min_cluster_size={min_size}\n({hdbscan_test.n_clusters_} clusters, {(~_non_noise).sum()} noise)')
+        plot_gmm(X=X_np[_non_noise], gmm=None, ax=_ax, true_labels=_labels_np[_non_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=8, point_alpha=0.5, legend=False, title=f'min_cluster_size={min_size}\n({hdbscan_test.n_clusters_} clusters, {(~_non_noise).sum()} noise)')
         if (~_non_noise).any():
-            _ax.scatter(X_np[~_non_noise, 0], X_np[~_non_noise, 1], c='red', marker='x', s=50, label='Noise')
+            _ax.scatter(X_np[~_non_noise, 0], X_np[~_non_noise, 1], c='0.4', marker='x', s=14, linewidths=1, label='Noise')
         _ax.legend()
     plt.tight_layout()
     plt.gcf()
@@ -342,7 +346,7 @@ def _(HDBSCAN, adjusted_rand_score, device, np, plot_gmm, plt, torch):
     X_wedges, y_wedges = make_wedges(angles=[0, 30, 60], r_range=(2, 25), jitter_deg=3, n_per=150, seed=7)
     datasets = [('Collinear blobs\n(same direction,\ndifferent radius)', X_collinear, y_collinear), ('Rectilinear blob chains\n(axis-aligned square blobs,\ndiagonal corner)', X_chains, y_chains), ('Angular wedges\n(same radius range,\ndifferent direction)', X_wedges, y_wedges)]
     metrics = ['euclidean', 'manhattan', 'cosine']
-    _fig, _axes = plt.subplots(3, 3, figsize=(16, 15))
+    _fig, _axes = plt.subplots(3, 3, figsize=(11, 11.4))
     for _row, (_name, _X_ds, _y_ds) in enumerate(datasets):
         _X_tensor = torch.from_numpy(_X_ds).float().to(device)
         for _col, _metric in enumerate(metrics):
@@ -351,15 +355,14 @@ def _(HDBSCAN, adjusted_rand_score, device, np, plot_gmm, plt, torch):
             _labels = _hdbscan_metric.fit_predict(_X_tensor).cpu().numpy()
             _ari = adjusted_rand_score(_y_ds, _labels)
             _non_noise = _labels != -1
-            plot_gmm(X=_X_ds[_non_noise], gmm=None, ax=_ax, true_labels=_labels[_non_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=15, point_alpha=0.6, legend=False, title=f'{_metric}\nARI={_ari:.2f} ({_hdbscan_metric.n_clusters_} clusters)', xlabel=None, ylabel=None)
+            plot_gmm(X=_X_ds[_non_noise], gmm=None, ax=_ax, true_labels=_labels[_non_noise], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=6, point_alpha=0.5, legend=False, title=f'{_metric}\nARI={_ari:.2f} ({_hdbscan_metric.n_clusters_} clusters)', xlabel=None, ylabel=None)
             if _non_noise.sum() < len(_labels):
-                _ax.scatter(_X_ds[~_non_noise, 0], _X_ds[~_non_noise, 1], c='red', marker='x', s=30, alpha=1.0, linewidth=1.5)
-            _ax.set_title(_ax.get_title(), fontsize=11)
+                _ax.scatter(_X_ds[~_non_noise, 0], _X_ds[~_non_noise, 1], c='0.4', marker='x', s=12, linewidths=1)
             if _col == 0:
-                _ax.set_ylabel(_name, fontsize=10, fontweight='bold')
+                _ax.set_ylabel(_name)
             if _row == len(datasets) - 1:
                 _ax.set_xlabel('Feature 1')
-    _fig.suptitle('Metric vs. dataset shape (same min_cluster_size=30, min_samples=15 throughout)', fontsize=13)
+    _fig.suptitle('Metric vs. dataset shape (min_cluster_size=30, min_samples=15)')
     plt.tight_layout()
     plt.gcf()
     return
@@ -382,11 +385,11 @@ def _(mo):
 
 @app.cell
 def _(
+    CATEGORICAL_PALETTE,
     GaussianMixture,
     HDBSCAN,
     SEED,
     device,
-    dynamic_figsize,
     generate_gmm_data,
     gmm_proxy,
     np,
@@ -429,19 +432,19 @@ def _(
     print(f'HDBSCAN flagged {(~keep_mask).sum()} points as noise, kept {keep_mask.sum()}\n')
     print(f'Mean error vs. truth        - raw GMM: {mean_error(gmm_raw, centers_demo):.3f}   cleaned GMM: {mean_error(gmm_clean, centers_demo):.3f}')
     print(f'Covariance error vs. truth  - raw GMM: {cov_error(gmm_raw, centers_demo, covs_demo):.3f}   cleaned GMM: {cov_error(gmm_clean, centers_demo, covs_demo):.3f}')
-    _fig, _axes = plt.subplots(2, 2, figsize=dynamic_figsize(2, 2), sharex=True, sharey=True)
-    _axes[0, 0].scatter(X_demo_np[y_demo_np != -1, 0], X_demo_np[y_demo_np != -1, 1], c='steelblue', s=10, alpha=0.5)
-    _axes[0, 0].scatter(X_demo_np[y_demo_np == -1, 0], X_demo_np[y_demo_np == -1, 1], c='red', marker='x', s=25, alpha=0.7, label='Injected noise')
+    _fig, _axes = plt.subplots(2, 2, figsize=(11, 9), sharex=True, sharey=True)
+    _axes[0, 0].scatter(X_demo_np[y_demo_np != -1, 0], X_demo_np[y_demo_np != -1, 1], c=CATEGORICAL_PALETTE[0], s=8, alpha=0.5)
+    _axes[0, 0].scatter(X_demo_np[y_demo_np == -1, 0], X_demo_np[y_demo_np == -1, 1], c='0.4', marker='x', s=14, linewidths=1, label='Injected noise')
     plot_gmm(X=X_demo, gmm=true_proxy, ax=_axes[0, 0], title='True Gaussians + injected noise', show_points=False, show_ellipses=True, ellipse_std_devs=[1, 2], show_means=True, legend=True)
-    _axes[0, 0].legend(fontsize=8, loc='upper right')
-    plot_gmm(X=X_demo, gmm=gmm_raw, ax=_axes[0, 1], title='GMM fit directly on raw data', color_by_cluster=True, true_labels=y_demo_np, match_labels_to_true=True, show_ellipses=True, ellipse_std_devs=[1, 2], show_means=True, point_size=10, legend=True)
-    _axes[0, 1].legend(fontsize=8, loc='upper right')
-    _axes[1, 0].scatter(X_demo_np[keep_mask, 0], X_demo_np[keep_mask, 1], c='steelblue', s=10, alpha=0.5, label='Kept')
-    _axes[1, 0].scatter(X_demo_np[~keep_mask, 0], X_demo_np[~keep_mask, 1], c='red', marker='x', s=25, alpha=0.7, label='Flagged as noise')
+    _axes[0, 0].legend(loc='upper right')
+    plot_gmm(X=X_demo, gmm=gmm_raw, ax=_axes[0, 1], title='GMM fit directly on raw data', color_by_cluster=True, true_labels=y_demo_np, match_labels_to_true=True, show_ellipses=True, ellipse_std_devs=[1, 2], show_means=True, point_size=8, legend=True)
+    _axes[0, 1].legend(loc='upper right')
+    _axes[1, 0].scatter(X_demo_np[keep_mask, 0], X_demo_np[keep_mask, 1], c=CATEGORICAL_PALETTE[0], s=8, alpha=0.5, label='Kept')
+    _axes[1, 0].scatter(X_demo_np[~keep_mask, 0], X_demo_np[~keep_mask, 1], c='0.4', marker='x', s=14, linewidths=1, label='Flagged as noise')
     _axes[1, 0].set_title(f'HDBSCAN noise flagging ({(~keep_mask).sum()} removed)')
-    _axes[1, 0].legend(fontsize=8, loc='upper right')
-    plot_gmm(X=X_clean, gmm=gmm_clean, ax=_axes[1, 1], title='GMM fit after HDBSCAN noise removal', color_by_cluster=True, true_labels=y_demo_np[keep_mask], match_labels_to_true=True, show_ellipses=True, ellipse_std_devs=[1, 2], show_means=True, point_size=10, legend=True)
-    _axes[1, 1].legend(fontsize=8, loc='upper right')
+    _axes[1, 0].legend(loc='upper right')
+    plot_gmm(X=X_clean, gmm=gmm_clean, ax=_axes[1, 1], title='GMM fit after HDBSCAN noise removal', color_by_cluster=True, true_labels=y_demo_np[keep_mask], match_labels_to_true=True, show_ellipses=True, ellipse_std_devs=[1, 2], show_means=True, point_size=8, legend=True)
+    _axes[1, 1].legend(loc='upper right')
     plt.tight_layout()
     # Top-left: raw noisy data with the *true* generating Gaussians as reference
     # Top-right: GMM fit directly on the raw (noisy) data. true_labels +
@@ -464,7 +467,13 @@ def _(mo):
     - `min_samples` sets how conservative the density estimate (and hence the noise call) is; `min_cluster_size` sets the smallest group that can count as a cluster.
     - The distance metric defines what "dense" means: collinear blobs, axis-aligned chains and angular wedges each need a different metric to be recovered.
     - Used as a preprocessing step, HDBSCAN's noise label removes outliers that would otherwise inflate a `GaussianMixture`'s covariances and shift its means.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [13 -- Model Selection](13_model_selection.ipynb) for choosing the number of mixture components by BIC, AIC and ICL.
     """)
     return

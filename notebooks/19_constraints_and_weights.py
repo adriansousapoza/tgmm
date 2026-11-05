@@ -96,8 +96,10 @@ def _():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     torch.set_default_dtype(torch.float64)
-    # marimo embeds figures at 2 x figure.dpi, and tgmm's plot theme sets figure.dpi=300; keep outputs small.
-    plt.rcParams['figure.dpi'] = 75
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     return (
         GaussianMixture,
         Rectangle,
@@ -245,7 +247,7 @@ def _(fit_gmm, gmm_free, pd, torch):
 
 @app.cell
 def _(gmm_free, gmm_fw, gmm_wb, plt):
-    _fig, _ax = plt.subplots(figsize=(7, 3.2))
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
     _w = 0.26
     for _i, (_name, _g) in enumerate([('free', gmm_free), ('weight_bounds=(0.1, 0.32)', gmm_wb), ('fixed_weights=0.25', gmm_fw)]):
         _ax.bar([k + (_i - 1) * _w for k in range(4)], _g.weights_.cpu().numpy(), width=_w, label=_name)
@@ -253,7 +255,7 @@ def _(gmm_free, gmm_fw, gmm_wb, plt):
     _ax.set_xticks(range(4))
     _ax.set_xticklabels([f'component {k + 1}' for k in range(4)])
     _ax.set_ylabel('mixing weight $\\pi_k$')
-    _ax.legend(fontsize=8)
+    _ax.legend()
     plt.tight_layout()
     plt.gcf()
     return
@@ -317,11 +319,11 @@ def _(fit_gmm, pd, torch):
 
 @app.cell
 def _(MEAN_BOX, Rectangle, X_np, gmm_free, gmm_mb, plot_gmm, plt):
-    _fig, _axs = plt.subplots(1, 2, figsize=(9, 4.2), sharex=True, sharey=True)
-    plot_gmm(X_np, gmm=gmm_free, ax=_axs[0], title='free maximum-likelihood fit', ellipse_std_devs=[2], point_size=3, legend=False)
-    plot_gmm(X_np, gmm=gmm_mb, ax=_axs[1], title='mean_bounds: box [-1, 1.5]^2', ellipse_std_devs=[2], point_size=3, legend=False)
+    _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.5), sharex=True, sharey=True)
+    plot_gmm(X_np, gmm=gmm_free, ax=_axs[0], title='free maximum-likelihood fit', ellipse_std_devs=[2.4477], point_size=4, legend=False)
+    plot_gmm(X_np, gmm=gmm_mb, ax=_axs[1], title='mean_bounds: box [-1, 1.5]^2', ellipse_std_devs=[2.4477], point_size=4, legend=False)
     _lo, _hi = (b.cpu().numpy() for b in MEAN_BOX)
-    _axs[1].add_patch(Rectangle(_lo, *(_hi - _lo), fill=False, ls='--', lw=1.5, color='k'))
+    _axs[1].add_patch(Rectangle(_lo, *(_hi - _lo), fill=False, ls='--', color='k'))
     plt.tight_layout()
     plt.gcf()
     return
@@ -418,9 +420,9 @@ def _(X, gmm_cb, gmm_free, init_covs, mo, np):
 
 @app.cell
 def _(X_np, gmm_cb, gmm_free, plot_gmm, plt):
-    _fig, _axs = plt.subplots(1, 2, figsize=(9, 4.2), sharex=True, sharey=True)
-    plot_gmm(X_np, gmm=gmm_free, ax=_axs[0], title='free maximum-likelihood fit', ellipse_std_devs=[2], point_size=3, legend=False)
-    plot_gmm(X_np, gmm=gmm_cb, ax=_axs[1], title='covariance_bounds=(0.05, 0.5)', ellipse_std_devs=[2], point_size=3, legend=False)
+    _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.5), sharex=True, sharey=True)
+    plot_gmm(X_np, gmm=gmm_free, ax=_axs[0], title='free maximum-likelihood fit', ellipse_std_devs=[2.4477], point_size=4, legend=False)
+    plot_gmm(X_np, gmm=gmm_cb, ax=_axs[1], title='covariance_bounds=(0.05, 0.5)', ellipse_std_devs=[2.4477], point_size=4, legend=False)
     plt.tight_layout()
     plt.gcf()
     return
@@ -507,7 +509,7 @@ def _(GaussianMixture, SEED, X, n_total, np, torch):
 
 @app.cell
 def _(loglik_trace, plt):
-    _fig, _ax = plt.subplots(figsize=(6.5, 3.2))
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
     _ax.plot(range(1, len(loglik_trace) + 1), loglik_trace, 'o-', ms=3)
     _ax.set_xlabel('EM step (one iteration each, all constraints on)')
     _ax.set_ylabel('log-likelihood')
@@ -679,8 +681,8 @@ def _(X_np, box_hi, fit_gmm, plot_gmm, plt, torch, var_hi, w_hi, w_lo):
     _upper = max(box_hi.value, -0.99)
     gmm_user = fit_gmm(weight_bounds=(w_lo.value, w_hi.value), mean_bounds=(torch.tensor([-1.0, -1.0]), torch.tensor([_upper, _upper])),
                        covariance_bounds=(0.05, var_hi.value))
-    _fig, _ax = plt.subplots(figsize=(5.2, 4.4))
-    plot_gmm(X_np, gmm=gmm_user, ax=_ax, ellipse_std_devs=[2], point_size=3, legend=False,
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
+    plot_gmm(X_np, gmm=gmm_user, ax=_ax, ellipse_std_devs=[2.4477], point_size=4, legend=False,
              title=f'weights {gmm_user.weights_.cpu().numpy().round(2).tolist()}')
     plt.tight_layout()
     plt.gcf()

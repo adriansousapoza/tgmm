@@ -23,6 +23,7 @@ from _video import write_asset  # noqa: E402
 from tutorial_data import make_default_data  # noqa: E402
 
 from tgmm import GMMInitializer  # noqa: E402
+from tgmm.plotting import CATEGORICAL_PALETTE  # noqa: E402
 
 warnings.filterwarnings("ignore")
 SEED = 0  # the seed the notebooks use for their static figures
@@ -72,17 +73,17 @@ def rel_weight(trace, i):
 
 
 def draw_step(ax, X, trace, i, show_pick=True):
-    """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (hexagons) and the sampled point (ring)."""
+    """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (red crosses) and the sampled point (ring)."""
     w = rel_weight(trace, i)
     order = np.argsort(w)
-    size = np.full(len(w), 6.0) if i == 0 else 3 + 24 * w
-    sc = ax.scatter(X[order, 0], X[order, 1], c=w[order], s=size[order], cmap="viridis", vmin=0, vmax=1, alpha=0.85, linewidths=0)
+    size = np.full(len(w), 6.0) if i == 0 else 4 + 6 * w  # the point size follows the probability, within the standard 4-10
+    sc = ax.scatter(X[order, 0], X[order, 1], c=w[order], s=size[order], cmap="viridis", vmin=0, vmax=1, alpha=0.6, linewidths=0)
     chosen = trace["idx"][:i]
     if chosen:
-        ax.scatter(X[chosen, 0], X[chosen, 1], marker="H", s=150, c="red", edgecolor="k", zorder=4)
+        ax.scatter(X[chosen, 0], X[chosen, 1], marker="x", s=30, c="red", linewidths=1.2, zorder=4)
     if show_pick:
         p = trace["idx"][i]
-        ax.scatter(X[p, 0], X[p, 1], s=230, facecolor="none", edgecolor="k", linewidth=2, zorder=5)
+        ax.scatter(X[p, 0], X[p, 1], s=90, facecolor="none", edgecolor="k", linewidth=1.2, zorder=5)
     ax.set_aspect("equal")
     return sc
 
@@ -103,13 +104,13 @@ def make_kpp_video():
         i, mode = plan[f]
         fig, (ax, ax2) = plt.subplots(1, 2, figsize=(11, 4.9), gridspec_kw={"width_ratios": [1.7, 1]})
         if mode == "final":
-            ax.scatter(X[:, 0], X[:, 1], s=4, color="0.65", alpha=0.6, linewidths=0)
-            ax.scatter(X[trace["idx"], 0], X[trace["idx"], 1], marker="H", s=150, c="red", edgecolor="k", zorder=4)
+            ax.scatter(X[:, 0], X[:, 1], s=4, color="0.65", alpha=0.5, linewidths=0)
+            ax.scatter(X[trace["idx"], 0], X[trace["idx"], 1], marker="x", s=30, c="red", linewidths=1.2, zorder=4)
             ax.set_aspect("equal")
             ax.set_title(f"seeding done: the {K} centres")
             ax2.axis("off")
             ax2.text(0.02, 0.6, f"k-means cost of the seeds\n  $\\phi_{{seed}}$ = {phi_seed:,.0f}\n\nafter Lloyd's algorithm\n(tutorial 21)\n  $\\phi_{{k-means}}$ = {phi_kmeans:,.0f}",
-                     fontsize=10, va="center")
+                     va="center")
         else:
             draw_step(ax, X, trace, i, show_pick=(mode == "pick"))
             what = "sampled point (ring) becomes centre" if mode == "pick" else "probability map before the draw, centre"
@@ -121,11 +122,11 @@ def make_kpp_video():
             else:
                 order = np.argsort(trace["dist"][i].cpu().numpy())
                 ax2.plot([0, 1], [0, 1], color="0.6", ls="--", label="uniform sampling")
-                ax2.plot(np.arange(1, len(p) + 1) / len(p), np.cumsum(p[order]), color="C3", lw=2, label="$P(x)\\propto D(x)^2$")
+                ax2.plot(np.arange(1, len(p) + 1) / len(p), np.cumsum(p[order]), color=CATEGORICAL_PALETTE[1], lw=1.4, label="$P(x)\\propto D(x)^2$")
                 far = 1 - np.cumsum(p[order])[int(0.9 * len(p)) - 1]
                 if mode == "prob":
                     far10.append(float(far))
-                ax2.text(0.03, 0.62, f"the farthest 10% of the points\ncarry {far:.0%} of the probability", fontsize=9)
+                ax2.text(0.03, 0.62, f"the farthest 10% of the points\ncarry {far:.0%} of the probability")
                 ax2.legend(loc="lower right")
             ax2.set_xlabel("fraction of the points, nearest to the centres first")
             ax2.set_ylabel("probability carried")
@@ -181,7 +182,7 @@ def lloyd_trace(data, init, max_iter=1000, atol=1e-4):
     return {"centroids": cents, "labels": labs, "inertia": inertia, "updated": upd, "final": c}
 
 
-PALETTE = [plt.cm.tab10(i) for i in range(10)]
+PALETTE = list(CATEGORICAL_PALETTE)
 PAD = 0.6
 XLIM = (X[:, 0].min() - PAD, X[:, 0].max() + PAD)
 YLIM = (X[:, 1].min() - PAD, X[:, 1].max() + PAD)
@@ -196,18 +197,18 @@ def draw_lloyd(ax, trace, t, show_arrows=True):
     k = c.shape[0]
     cells = np.argmin(((GRID[:, None, :] - c[None]) ** 2).sum(-1), axis=1).reshape(GRID_SHAPE)
     ax.contourf(np.linspace(*XLIM, GRID_SHAPE[1]), np.linspace(*YLIM, GRID_SHAPE[0]), cells, levels=np.arange(k + 1) - 0.5,
-                colors=[PALETTE[i % 10] for i in range(k)], alpha=0.16)
+                colors=[PALETTE[i % len(PALETTE)] for i in range(k)], alpha=0.16)
     lab = trace["labels"][t]
-    ax.scatter(X[:, 0], X[:, 1], s=4, c=[PALETTE[i % 10] for i in lab], alpha=0.65, linewidths=0)
+    ax.scatter(X[:, 0], X[:, 1], s=4, c=[PALETTE[i % len(PALETTE)] for i in lab], alpha=0.5, linewidths=0)
     path = np.stack(trace["centroids"][:t + 1])  # (t+1, k, d)
     for i in range(k):
-        ax.plot(path[:, i, 0], path[:, i, 1], color=PALETTE[i % 10], lw=1.2, alpha=0.9)
-    ax.scatter(c[:, 0], c[:, 1], marker="D", s=100, c=[PALETTE[i % 10] for i in range(k)], edgecolor="k", zorder=5)
+        ax.plot(path[:, i, 0], path[:, i, 1], color=PALETTE[i % len(PALETTE)], lw=1.0, alpha=0.9)  # thin
+    ax.scatter(c[:, 0], c[:, 1], marker="h", s=25, c="black", zorder=5)  # centres look the same in every tutorial: black hexagons
     if show_arrows:
         u = trace["updated"][t]
         for i in range(k):
             if np.linalg.norm(u[i] - c[i]) > 1e-3:
-                ax.annotate("", xy=u[i], xytext=c[i], arrowprops={"arrowstyle": "->", "color": "k", "lw": 1.3}, zorder=6)
+                ax.annotate("", xy=u[i], xytext=c[i], arrowprops={"arrowstyle": "->", "color": "k", "lw": 1.0}, zorder=6)
     ax.set_xlim(XLIM)
     ax.set_ylim(YLIM)
     ax.set_aspect("equal")
@@ -217,8 +218,8 @@ def draw_inertia(ax, trace, t):
     """The inertia of every iteration (grey) and the part reached so far (black), with the current iteration marked."""
     J = np.array(trace["inertia"])
     ax.plot(np.arange(len(J)), J, color="0.8", lw=1)
-    ax.plot(np.arange(t + 1), J[:t + 1], color="k", lw=1.6, marker="o", ms=3)
-    ax.scatter([t], [J[t]], color="orange", edgecolor="white", s=70, zorder=5)
+    ax.plot(np.arange(t + 1), J[:t + 1], color="k", lw=1.4, marker="o", ms=3)
+    ax.scatter([t], [J[t]], marker="8", color="orange", edgecolor="white", s=30, zorder=5)  # the current iteration: orange octagon
     ax.set_xlabel("iteration")
     ax.set_ylabel("inertia $J$")
     ax.set_title("the objective, never increasing")

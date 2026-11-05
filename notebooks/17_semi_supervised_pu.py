@@ -79,15 +79,19 @@ def _():
 
     from tgmm import GaussianMixture, StudentTMixture, PositiveUnlabeledMixture
     from tgmm.metrics import ClusteringMetrics
-    from tgmm.plotting import plot_gmm
+    from tgmm.plotting import CATEGORICAL_PALETTE, plot_gmm
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     print(f'Using device: {device}')
     return (
+        CATEGORICAL_PALETTE,
         ClusteringMetrics,
         GaussianMixture,
         PositiveUnlabeledMixture,
@@ -192,14 +196,14 @@ def _(mo):
 
 
 @app.cell
-def _(SEED, plt, torch):
+def _(CATEGORICAL_PALETTE, SEED, plt, torch):
     _gen = torch.Generator().manual_seed(SEED)
     n_per = 200
     true_centers = torch.tensor([[0.0, 0.0], [3.0, 3.0], [3.0, -3.0]])
     X = torch.cat([torch.randn(n_per, 2, generator=_gen) * 1.6 + true_centers[0], torch.randn(n_per, 2, generator=_gen) * 1.6 + true_centers[1], torch.randn(n_per, 2, generator=_gen) * 1.6 + true_centers[2]])
     true_labels = torch.cat([torch.full((n_per,), _k) for _k in range(3)])
-    plt.figure(figsize=(5, 5))
-    plt.scatter(X[:, 0], X[:, 1], c=true_labels, cmap='viridis', s=10)
+    plt.figure(figsize=(6.5, 4.5))
+    plt.scatter(X[:, 0], X[:, 1], c=[CATEGORICAL_PALETTE[int(_k)] for _k in true_labels], s=8, alpha=0.5)
     plt.title('3 overlapping blobs (true labels)')
     plt.gcf()
     return X, true_labels
@@ -244,11 +248,11 @@ def _(
     plt,
     true_labels,
 ):
-    _fig, _axes = plt.subplots(1, 4, figsize=(20, 5))
-    for _ax, _frac in zip(_axes, label_fracs):
+    _fig, _axes = plt.subplots(2, 2, figsize=(11, 9))  # four panels: a 2-column grid
+    for _ax, _frac in zip(_axes.ravel(), label_fracs):
         _gmm = example_models[_frac]
         _ari = ClusteringMetrics.adjusted_rand_score(true_labels, _gmm.predict(X))
-        plot_gmm(X, gmm=_gmm, ax=_ax, title=f'{int(_frac * 100)}% labeled (seed 0, ARI={_ari:.2f})')
+        plot_gmm(X, gmm=_gmm, ax=_ax, title=f'{int(_frac * 100)}% labeled (seed 0, ARI={_ari:.2f})', ellipse_std_devs=[2.4477], point_size=6, legend=False)  # one 95% region per component
     plt.tight_layout()
     plt.gcf()
     return
@@ -473,12 +477,12 @@ def _(mo):
 @app.cell
 def _(X_pu, plt, positive_mask, pu):
     proba_positive = pu.predict_proba_positive(X_pu).cpu()
-    plt.figure(figsize=(6, 5))
-    _sc = plt.scatter(X_pu[:, 0], X_pu[:, 1], c=proba_positive, cmap='RdYlBu_r', s=12, vmin=0, vmax=1)
-    plt.scatter(X_pu[positive_mask, 0], X_pu[positive_mask, 1], marker='*', s=120, facecolors='none', edgecolors='black', linewidths=1.2, label='labeled positive')
+    plt.figure(figsize=(6.5, 4.5))
+    _sc = plt.scatter(X_pu[:, 0], X_pu[:, 1], c=proba_positive, cmap='viridis', s=8, alpha=0.6, vmin=0, vmax=1)
+    plt.scatter(X_pu[positive_mask, 0], X_pu[positive_mask, 1], marker='D', s=28, facecolors='none', edgecolors='black', linewidths=1.0, label='labeled positive')
     plt.colorbar(_sc, label='P(positive)')
     plt.legend()
-    plt.title('PositiveUnlabeledMixture: positive-probability map')
+    plt.title('positive-probability map')
     plt.xlabel('feature 1')
     plt.ylabel('feature 2')
     plt.gcf()
@@ -591,10 +595,16 @@ def _(mo):
     - Semi-supervised fitting (`fit(X, labels=...)` with `-1` for unknown) works on every tgmm mixture family, and a modest labeling budget can noticeably improve cluster recovery on ambiguous, overlapping data.
     - `PositiveUnlabeledMixture` estimates the class prior (the fraction of *unlabeled* rows that are positive) and a per-row positive probability from only a small labeled positive subset, under the SCAR assumption -- useful whenever confirming a negative is expensive or impossible, but confirming a positive is not.
     - `anchor` controls how tightly the positive block stays tied to the labeled positives, which is what keeps the problem identifiable.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb), or back to the [tutorial overview](../tutorials/index.md).
 
-    **References**
+    ## References
 
     - Elkan, C. & Noto, K. (2008). Learning classifiers from only positive and unlabeled data. *KDD*.
     - Fraley, C. & Raftery, A. E. (2002). Model-based clustering, discriminant analysis, and density estimation. *JASA*, 97(458), 611-631 (MclustDA).

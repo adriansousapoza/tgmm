@@ -95,7 +95,10 @@ def _():
     from tgmm.metrics import ClusteringMetrics
     from tgmm.plotting import CATEGORICAL_PALETTE, SEQUENTIAL_CMAP
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -153,11 +156,11 @@ def _(mo):
 def _(CATEGORICAL_PALETTE, i0e, np, plt):
     phi = np.linspace(0, 2 * np.pi, 721)
     kappas_demo = [0.0, 1.0, 5.0, 25.0]
-    _fig, _ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(5.5, 5.5))
+    _fig, _ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6.5, 4.5))
     for _kappa, _color in zip(kappas_demo, CATEGORICAL_PALETTE):
         density = np.exp(_kappa * (np.cos(phi) - 1.0)) / (2 * np.pi * i0e(_kappa))
         _ax.plot(phi, density, color=_color, label=f'$\\kappa$ = {_kappa:g}')  # e^{kappa cos(phi)} / (2 pi I_0(kappa)), with i0e(k) = e^{-k} I_0(k) for numerical stability
-    _ax.set_title('von Mises density, $\\mu$ = (1, 0): radius = density at that angle', pad=18)
+    _ax.set_title('von Mises density, $\\mu$ = (1, 0)', pad=14)
     _ax.set_rlabel_position(135)
     _ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
     plt.gcf()
@@ -191,16 +194,16 @@ def _(SEQUENTIAL_CMAP, np, plt):
     kappas_sphere = [0.5, 5.0, 30.0]
     densities = [vmf3_density(k) for k in kappas_sphere]
     norm = Normalize(vmin=0, vmax=max((dn.max() for dn in densities)))
-    _fig = plt.figure(figsize=(14, 4.8))
+    _fig = plt.figure(figsize=(11, 3.8))
     for idx, (_kappa, dens) in enumerate(zip(kappas_sphere, densities)):
         _ax = _fig.add_subplot(1, 3, idx + 1, projection='3d')
         _ax.plot_surface(sx, sy, sz, facecolors=SEQUENTIAL_CMAP(norm(dens)), rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
-        _ax.plot([0, 1.5 * mu3[0]], [0, 1.5 * mu3[1]], [0, 1.5 * mu3[2]], color='black', lw=2)
+        _ax.plot([0, 1.5 * mu3[0]], [0, 1.5 * mu3[1]], [0, 1.5 * mu3[2]], color='black', lw=1.4)
         _ax.set_box_aspect((1, 1, 1))
         _ax.set_axis_off()
         _ax.view_init(elev=20, azim=35)
         _ax.set_title(f'$\\kappa$ = {_kappa:g}   (peak density {dens.max():.2f})')
-    _fig.suptitle('von Mises-Fisher density on the sphere (black arrow: mean direction $\\mu$)')
+    _fig.suptitle('von Mises-Fisher density on the sphere (arrow: mean direction $\\mu$)')
     plt.gcf()
     return
 
@@ -231,12 +234,12 @@ def _(mo):
 @app.cell
 def _(CATEGORICAL_PALETTE, np, plt, vmf_angle_density, vmf_cap_angle):
     theta = np.linspace(0, np.pi, 1500)
-    _fig, _axes = plt.subplots(1, 2, figsize=(13, 4.5))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     for _d_demo, _color in zip([2, 3, 10, 50, 768], CATEGORICAL_PALETTE):
         _axes[0].plot(np.degrees(theta), vmf_angle_density(25.0, _d_demo, theta) * np.pi / 180, color=_color, label=f'd = {_d_demo}')
     _axes[0].set_xlabel('angle to mean direction (degrees)')
     _axes[0].set_ylabel('density')
-    _axes[0].set_title('Angle density, fixed $\\kappa$ = 25: dimension pushes the angle outward')
+    _axes[0].set_title('Angle density at $\\kappa$ = 25')
     _axes[0].legend()
     for _d_demo, _color in zip([2, 3, 10, 50], CATEGORICAL_PALETTE):
         kap = np.array([0.5, 1, 2, 5, 10, 25, 50, 100, 200])
@@ -245,7 +248,7 @@ def _(CATEGORICAL_PALETTE, np, plt, vmf_angle_density, vmf_cap_angle):
     _axes[1].set_xscale('log')
     _axes[1].set_xlabel('concentration $\\kappa$')
     _axes[1].set_ylabel('90% cap radius (degrees)')
-    _axes[1].set_title('Angular radius of the cap holding 90% of the mass')
+    _axes[1].set_title('Radius of the cap holding 90% of the mass')
     _axes[1].legend()
     plt.tight_layout()
     plt.gcf()
@@ -293,17 +296,17 @@ def _(CATEGORICAL_PALETTE, ive, np, plt):
     def banerjee_kappa(r_bar, d):
         return r_bar * (d - r_bar ** 2) / (1 - r_bar ** 2)
     kappa_grid = np.logspace(-1, 3, 300)
-    _fig, _axes = plt.subplots(1, 2, figsize=(13, 4.5))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     for _d_demo, _color in zip([2, 3, 10, 50], CATEGORICAL_PALETTE):
         r_bar = A_d(kappa_grid, _d_demo)
         _axes[0].semilogx(kappa_grid, r_bar, color=_color, label=f'd = {_d_demo}')
         _axes[1].semilogx(kappa_grid, banerjee_kappa(r_bar, _d_demo) / kappa_grid - 1, color=_color, label=f'd = {_d_demo}')
     _axes[0].set_xlabel('$\\kappa$')
     _axes[0].set_ylabel('$A_d(\\kappa)$  (expected resultant length)')
-    _axes[0].set_title('Concentration $\\kappa$ versus mean resultant length')
+    _axes[0].set_title('Concentration versus resultant length')
     _axes[1].set_xlabel('$\\kappa$')
     _axes[1].set_ylabel('relative error of $\\kappa^{(0)}$')
-    _axes[1].set_title('Closed-form approximation (before the Newton steps)')
+    _axes[1].set_title('Closed-form approximation error')
     for _ax in _axes:
         _ax.legend()
     plt.tight_layout()
@@ -395,7 +398,7 @@ def _(N_INIT, SEED, VonMisesFisherMixture, sample_vmf_mixture):
 
 @app.cell
 def _(X_circle, X_sphere, plot_vmf, plt, vmf_circle, vmf_sphere):
-    _fig = plt.figure(figsize=(13, 6.2))
+    _fig = plt.figure(figsize=(11, 4.5))
     _ax1 = _fig.add_subplot(1, 2, 1)
     plot_vmf(X_circle, vmf_circle, ax=_ax1, title='$d=2$: circle')
     _ax2 = _fig.add_subplot(1, 2, 2, projection='3d')
@@ -430,7 +433,7 @@ def _(mo):
 
 @app.cell
 def _(X_circle, X_sphere, plot_vmf_cosine, plt, vmf_circle, vmf_sphere):
-    _fig, _axes = plt.subplots(1, 2, figsize=(13, 4.5))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     plot_vmf_cosine(X_circle, vmf_circle, ax=_axes[0], title='$d=2$: angle to assigned mean')
     plot_vmf_cosine(X_sphere, vmf_sphere, ax=_axes[1], title='$d=3$: angle to assigned mean')
     plt.tight_layout()
@@ -709,12 +712,12 @@ def _(mo):
 
 @app.cell
 def _(SEQUENTIAL_CMAP, X_emb, plot_vmf_cosine, plt, pred_vmf, torch, vmf):
-    _fig, _axes = plt.subplots(1, 2, figsize=(14, 4.8))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     plot_vmf_cosine(X_emb, vmf, ax=_axes[0], title='$d=768$: angle to assigned mean direction')
     order = torch.argsort(pred_vmf).cpu()
     sim = (X_emb[order] @ X_emb[order].T).cpu().numpy()
     im = _axes[1].imshow(sim, cmap=SEQUENTIAL_CMAP, vmin=0, vmax=sim.max())
-    _axes[1].set_title('Cosine-similarity matrix, rows sorted by predicted cluster')
+    _axes[1].set_title('Cosine similarity, sorted by cluster')
     _axes[1].grid(False)
     _fig.colorbar(im, ax=_axes[1], label='cosine similarity')
     plt.tight_layout()
@@ -769,8 +772,17 @@ def _(mo):
     - The model shares `GaussianMixture`'s EM toolkit (`algorithm`, `temperature`, `step_size`, `n_init`) and its semi-supervised `fit(X, labels=...)`.
     - The density is evaluated stably even where `scipy.special.ive` underflows; with `algorithm='cem'` and a shared $\kappa$ the fit is spherical
       k-means; `sample` uses Wood's rejection sampler; the model has $(K-1)+K(d-1)+p_\kappa$ free parameters.
+    """)
+    return
 
-    **References**
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb), or back to
+    [15 -- Student-t Mixtures](15_student_t.ipynb).
+
+    ## References
 
     - Banerjee, A., Dhillon, I. S., Ghosh, J. & Sra, S. (2005). Clustering on the unit hypersphere using von Mises-Fisher distributions. *JMLR*, 6, 1345-1382.
     - Sra, S. (2012). A short note on parameter approximation for von Mises-Fisher distributions. *Computational Statistics*, 27, 177-190.

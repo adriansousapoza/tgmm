@@ -81,7 +81,10 @@ def _():
     from tutorial_data import make_default_data
 
     warnings.filterwarnings('ignore')
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 0
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -177,7 +180,7 @@ def _(mo):
 
     ## Step by step on the four blobs
 
-    Each panel shows the situation **just before** the next centre is drawn: every point is coloured and sized by its sampling probability relative to the largest one, $P(x)/\max P$, the centres chosen so far are the red hexagons, and the black ring marks the point that was then sampled. In step 1 all points are equally likely. From step 2 on, the points near a hexagon are almost impossible to draw and the points far from every hexagon are the likely ones.
+    Each panel shows the situation **just before** the next centre is drawn: every point is coloured and sized by its sampling probability relative to the largest one, $P(x)/\max P$, the centres chosen so far are the red crosses, and the black ring marks the point that was then sampled. In step 1 all points are equally likely. From step 2 on, the points near a cross are almost impossible to draw and the points far from every cross are the likely ones.
     """)
     return
 
@@ -193,17 +196,17 @@ def _(np):
         return _p / _p.max()
 
     def draw_step(ax, X, trace, i, show_pick=True):
-        """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (hexagons) and the sampled point (ring)."""
+        """The probability map of step i: points coloured and sized by P(x)/max P, the chosen centres (red crosses) and the sampled point (ring)."""
         _w = rel_weight(trace, i)
         _order = np.argsort(_w)
-        _size = np.full(len(_w), 6.0) if i == 0 else 3 + 24 * _w
-        _sc = ax.scatter(X[_order, 0], X[_order, 1], c=_w[_order], s=_size[_order], cmap='viridis', vmin=0, vmax=1, alpha=0.85, linewidths=0)
+        _size = np.full(len(_w), 6.0) if i == 0 else 4 + 6 * _w  # the point size follows the probability, within the standard 4-10
+        _sc = ax.scatter(X[_order, 0], X[_order, 1], c=_w[_order], s=_size[_order], cmap='viridis', vmin=0, vmax=1, alpha=0.6, linewidths=0)
         _chosen = trace['idx'][:i]
         if _chosen:
-            ax.scatter(X[_chosen, 0], X[_chosen, 1], marker='H', s=150, c='red', edgecolor='k', zorder=4)
+            ax.scatter(X[_chosen, 0], X[_chosen, 1], marker='x', s=30, c='red', linewidths=1.2, zorder=4)
         if show_pick:
             _p = trace['idx'][i]
-            ax.scatter(X[_p, 0], X[_p, 1], s=230, facecolor='none', edgecolor='k', linewidth=2, zorder=5)
+            ax.scatter(X[_p, 0], X[_p, 1], s=90, facecolor='none', edgecolor='k', linewidth=1.2, zorder=5)
         ax.set_aspect('equal')
         return _sc
 
@@ -218,15 +221,15 @@ def _(K, SEED, X_tensor, kpp_trace):
 
 @app.cell
 def _(K, X, draw_step, plt, trace_main):
-    _fig, _axs = plt.subplots(3, 2, figsize=(9, 11.5), sharex=True, sharey=True, layout='constrained')
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 13.5), sharex=True, sharey=True, layout='constrained')
     for _i in range(K):
         _sc = draw_step(_axs.flat[_i], X, trace_main, _i)
         _axs.flat[_i].set_title('step 1: the first centre is uniform' if _i == 0 else f'step {_i + 1}: sample with $P(x)\\propto D(x)^2$')
     _ax = _axs.flat[K]
-    _ax.scatter(X[:, 0], X[:, 1], s=4, color='0.65', alpha=0.6, linewidths=0)
-    _ax.scatter(X[trace_main['idx'], 0], X[trace_main['idx'], 1], marker='H', s=150, c='red', edgecolor='k', zorder=4)
+    _ax.scatter(X[:, 0], X[:, 1], s=4, color='0.65', alpha=0.5, linewidths=0)
+    _ax.scatter(X[trace_main['idx'], 0], X[trace_main['idx'], 1], marker='x', s=30, c='red', linewidths=1.2, zorder=4)
     for _n, _p in enumerate(trace_main['idx']):
-        _ax.annotate(str(_n + 1), (X[_p, 0], X[_p, 1]), textcoords='offset points', xytext=(8, 6), fontsize=9, weight='bold')
+        _ax.annotate(str(_n + 1), (X[_p, 0], X[_p, 1]), textcoords='offset points', xytext=(6, 5), weight='bold')
     _ax.set_aspect('equal')
     _ax.set_title(f'the {K} seeds (numbered in the order drawn)')
     _axs.flat[K + 1].axis('off')
@@ -409,14 +412,6 @@ def _(mo, results):
     - k-means++ draws the first centre uniformly and every later centre with probability $\propto D(x)^2$, the squared distance to the nearest centre so far.
     - `kpp_trace` above reproduces `GMMInitializer.kpp` exactly; the probability maps show how the draw moves from region to region.
     - $D^2$ sits between uniform sampling (ignores the centres) and farthest-first (all weight on one point): it spreads the seeds out, has a guarantee $\mathbb{{E}}[\phi]\le 8(\ln k+2)\phi_{{\mathrm{{opt}}}}$, and is robust to outliers.
-
-    **Next:** [21. k-means](21_kmeans.ipynb), what Lloyd's algorithm does with the seeds. Back to [3. Initialization](03_initialization.ipynb).
-
-    ## References
-
-    - Arthur, D. and Vassilvitskii, S. (2007). k-means++: the advantages of careful seeding. *Proceedings of the 18th ACM-SIAM Symposium on Discrete Algorithms*, 1027-1035.
-    - Gonzalez, T. F. (1985). Clustering to minimize the maximum intercluster distance. *Theoretical Computer Science* 38, 293-306 (farthest-first traversal).
-    - Bahmani, B., Moseley, B., Vattani, A., Kumar, R. and Vassilvitskii, S. (2012). Scalable k-means++. *Proceedings of the VLDB Endowment* 5(7), 622-633.
     """)
     return
 
@@ -456,7 +451,7 @@ def _(X, X_tensor, draw_step, k_try, kpp_trace, np, plt, potential, power_try, s
     _k = int(k_try.value)
     _trace = kpp_trace(X_tensor, _k, int(seed_try.value), power=float(power_try.value))
     _nrows = (_k + 1) // 2
-    _fig, _axs = plt.subplots(_nrows, 2, figsize=(9, 3.9 * _nrows), sharex=True, sharey=True, squeeze=False, layout='constrained')
+    _fig, _axs = plt.subplots(_nrows, 2, figsize=(11, 4.5 * _nrows), sharex=True, sharey=True, squeeze=False, layout='constrained')
     _sc = None
     for _i, _ax in enumerate(_axs.ravel()):
         if _i < _k:
@@ -467,6 +462,20 @@ def _(X, X_tensor, draw_step, k_try, kpp_trace, np, plt, potential, power_try, s
     _fig.colorbar(_sc, ax=_axs, shrink=0.5, location='right', label='relative sampling probability (farthest-first: relative distance $D$)')
     _fig.suptitle(f'k = {_k}, seed {int(seed_try.value)}: cost of these seeds $\\phi_{{seed}}$ = {potential(X_tensor, X_tensor[_trace["idx"]]):,.0f}')
     plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **Next:** [21. k-means](21_kmeans.ipynb), what Lloyd's algorithm does with the seeds. Back to [3. Initialization](03_initialization.ipynb).
+
+    ## References
+
+    - Arthur, D. and Vassilvitskii, S. (2007). k-means++: the advantages of careful seeding. *Proceedings of the 18th ACM-SIAM Symposium on Discrete Algorithms*, 1027-1035.
+    - Gonzalez, T. F. (1985). Clustering to minimize the maximum intercluster distance. *Theoretical Computer Science* 38, 293-306 (farthest-first traversal).
+    - Bahmani, B., Moseley, B., Vattani, A., Kumar, R. and Vassilvitskii, S. (2012). Scalable k-means++. *Proceedings of the VLDB Endowment* 5(7), 622-633.
+    """)
     return
 
 

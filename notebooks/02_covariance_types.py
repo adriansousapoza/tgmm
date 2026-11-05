@@ -103,20 +103,23 @@ def _():
     from tgmm import GaussianMixture
     from tutorial_data import make_default_data
     from tgmm.covariance.gpcm import GPCM_CODES, mstep_gpcm
-    from tgmm.plotting import plot_gmm, dynamic_figsize
+    from tgmm.plotting import CATEGORICAL_PALETTE, plot_gmm
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 75  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     print(f'Using device: {device}')
     return (
+        CATEGORICAL_PALETTE,
         GPCM_CODES,
         GaussianMixture,
         SEED,
         device,
-        dynamic_figsize,
         make_default_data,
         mstep_gpcm,
         np,
@@ -171,13 +174,12 @@ def _(
     SEED,
     X,
     device,
-    dynamic_figsize,
     legend_labels,
     plot_gmm,
     plt,
 ):
     classic_types = ['tied_spherical', 'spherical', 'tied_diag', 'diag', 'tied_full', 'full']
-    _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2), dpi=75)
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 4.5 * 3))
     for _ax, _cov_type in zip(_axs.ravel(), classic_types):
         _gmm = GaussianMixture(n_components=K, covariance_type=_cov_type, init_means='kmeans', random_state=SEED, device=device)
         _gmm.fit(X)
@@ -364,7 +366,7 @@ def _(np, plt):
         s = np.sqrt(a * b)
         return (a / s, b / s)
     base = dict(volume=1.0, shape=unit_det(4.0, 1.0), angle=30)
-    _fig, _axs = plt.subplots(1, 3, figsize=(13, 4.2), sharex=True, sharey=True)
+    _fig, _axs = plt.subplots(1, 3, figsize=(11, 3.8), sharex=True, sharey=True)
     panels = [('volume $\\lambda$ varies', [dict(base, volume=v) for v in (0.25, 1.0, 2.5)], lambda c: f"$\\lambda$={c['volume']}"), ('shape $A$ varies', [dict(base, shape=unit_det(a, 1.0)) for a in (1.0, 4.0, 12.0)], lambda c: f"$a_1/a_2$={c['shape'][0] / c['shape'][1]:.0f}"), ('orientation $D$ varies', [dict(base, angle=a) for a in (0, 30, 90)], lambda c: f"angle={c['angle']}$^\\circ$")]
     for _ax, (title, configs, label) in zip(_axs, panels):
         for cfg in configs:
@@ -374,7 +376,7 @@ def _(np, plt):
         _ax.set_aspect('equal')
         _ax.axhline(0, color='0.85', lw=0.8)
         _ax.axvline(0, color='0.85', lw=0.8)
-        _ax.legend(loc='upper right', fontsize=8)
+        _ax.legend(loc='upper right')
     plt.suptitle('Changing one factor of $\\Sigma=\\lambda D A D^{\\top}$ at a time')
     plt.tight_layout()
     plt.gcf()
@@ -436,7 +438,7 @@ def _(mo):
 
 
 @app.cell
-def _(ellipse, np, plt, unit_det):
+def _(CATEGORICAL_PALETTE, ellipse, np, plt, unit_det):
     # Fig. 2.3 / Table 2.1 of Bouveyron et al. (2019), p. 21: two rows of seven models, in the book's order
     book_layout = [['EII', 'VII', 'EEI', 'VEI', 'EVI', 'VVI', 'EEE'],
                    ['VEE', 'EVE', 'EEV', 'VVE', 'EVV', 'VEV', 'VVV']]
@@ -447,21 +449,21 @@ def _(ellipse, np, plt, unit_det):
         'EEV': r'\lambda D_k A D_k^\top', 'VEV': r'\lambda_k D_k A D_k^\top', 'EVV': r'\lambda D_k A_k D_k^\top', 'VVV': r'\lambda_k D_k A_k D_k^\top',
     }
     _centres = np.array([[0.0, 2.2], [-2.4, -1.5], [2.4, -1.5]])
-    _colors = ['#4c72b0', '#dd5555', '#55a868']
+    _colors = CATEGORICAL_PALETTE[:3]
     _volumes = {'E': [0.70] * 3, 'V': [0.25, 0.70, 1.50]}       # lambda_k: shared, or one per component
     _ratios = {'I': [1.0] * 3, 'E': [5.0] * 3, 'V': [1.6, 5.0, 12.0]}  # a_1 / a_2 of A_k: circle, shared, or one per component
     _angles = {'I': [0.0] * 3, 'E': [35.0] * 3, 'V': [20.0, 75.0, 130.0]}  # rotation of D_k in degrees: none, shared, or one per component
-    _fig, _axs = plt.subplots(2, 7, figsize=(14, 4.6), sharex=True, sharey=True)
+    _fig, _axs = plt.subplots(2, 7, figsize=(11, 3.6), sharex=True, sharey=True)  # the book's 2 x 7 layout, scaled to the 11-inch width
     for _row in range(2):
         for _col in range(7):
             _code_name = book_layout[_row][_col]
             _ax = _axs[_row, _col]
             for _k in range(3):
                 _pts = ellipse(_volumes[_code_name[0]][_k], unit_det(_ratios[_code_name[1]][_k], 1.0), _angles[_code_name[2]][_k])
-                _ax.plot(_centres[_k, 0] + _pts[0], _centres[_k, 1] + _pts[1], color=_colors[_k], lw=1.8)
-                _ax.plot(*_centres[_k], '.', color=_colors[_k], ms=4)
-            _ax.set_title(_code_name, fontsize=10, weight='bold')
-            _ax.text(0.5, 0.03, f'$\\Sigma_k={covariance_equation[_code_name]}$', transform=_ax.transAxes, ha='center', va='bottom', fontsize=8)
+                _ax.plot(_centres[_k, 0] + _pts[0], _centres[_k, 1] + _pts[1], color=_colors[_k])
+                _ax.plot(*_centres[_k], 'h', color='black', ms=3)
+            _ax.set_title(_code_name)
+            _ax.text(0.5, 0.03, f'$\\Sigma_k={covariance_equation[_code_name]}$', transform=_ax.transAxes, ha='center', va='bottom', fontsize=6)  # exception to the style: seven panels in a row (the book's layout) leave little room for the equation
             _ax.set_aspect('equal')
             _ax.set_xticks([])
             _ax.set_yticks([])
@@ -836,7 +838,7 @@ def _(mo):
     orientation. Compare the panels with the true covariances of the four clusters (two spherical of
     different size, one axis-aligned, one tilted); the parameter counts are in the table above. The ellipses
     are the fitted components' 1-, 2- and 3-standard-deviation contours (one colour per fitted component) and the
-    black dots their means.
+    black hexagons their means.
     """)
     return
 
@@ -848,7 +850,7 @@ def _(GaussianMixture, K, SEED, X, covariance_equation, device, plot_gmm, plt):
     row_labels = ['shape I, orientation I', 'shape E, orientation I', 'shape V, orientation I', 'shape E, orientation E',
                   'shape V, orientation E', 'shape E, orientation V', 'shape V, orientation V']
     fits = {}
-    _fig, _axs = plt.subplots(7, 2, figsize=(9, 24), dpi=60)
+    _fig, _axs = plt.subplots(7, 2, figsize=(11, 4.5 * 7))
     for _row, (_codes, _label) in enumerate(zip(grid_rows, row_labels)):
         for _col, _code_name in enumerate(_codes):
             _ax = _axs[_row, _col]
@@ -857,9 +859,9 @@ def _(GaussianMixture, K, SEED, X, covariance_equation, device, plot_gmm, plt):
             fits[_code_name] = _gmm
             plot_gmm(X.cpu().numpy(), gmm=_gmm, ax=_ax, legend=False, title=f'{_code_name}:  $\\Sigma_k={covariance_equation[_code_name]}$\nmean log-lik = {float(_gmm.score(X)):.3f}')
             _ax.set_xlabel('')
-            _ax.set_ylabel(_label if _col == 0 else '', fontsize=9)
-    _fig.text(0.28, 0.995, 'equal volume (E**)', ha='center', va='top', fontsize=12, weight='bold')
-    _fig.text(0.74, 0.995, 'varying volume (V**)', ha='center', va='top', fontsize=12, weight='bold')
+            _ax.set_ylabel(_label if _col == 0 else '')
+    _fig.text(0.28, 0.995, 'equal volume (E**)', ha='center', va='top', fontsize=plt.rcParams['figure.titlesize'], weight='bold')
+    _fig.text(0.74, 0.995, 'varying volume (V**)', ha='center', va='top', fontsize=plt.rcParams['figure.titlesize'], weight='bold')
     plt.tight_layout(rect=[0, 0, 1, 0.985])
     plt.gcf()
     return
@@ -901,7 +903,13 @@ def _(mo):
       simply start from identity / random matrices.
     - **`reg_covar`** is added to the *assembled* covariances, not to the decomposition, so `volume_`,
       `shape_` and `orientation_` describe the unregularised fit.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Summary
 
     - Every covariance type is the same M-step objective $J=\sum_k[n_k\log|\Sigma_k|+\mathrm{tr}(\Sigma_k^{-1}W_k)]$
@@ -919,7 +927,13 @@ def _(mo):
       $K\in\{5,50\}$ and $d\in\{4,64\}$.
     - The count grows quadratically with $d$ for full covariances (the curse of dimensionality), which is why high-dimensional data needs constrained structures.
     - `volume_` / `shape_` / `orientation_` expose the fitted decomposition of the eight non-classic models.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [03 -- Initialization](03_initialization.ipynb) for how the starting means, covariances and
     weights are chosen, [04 -- Priors](04_priors.ipynb) for regularising covariance estimates (classic types), and
     [13 -- Model Selection](13_model_selection.ipynb) for choosing the covariance structure and the number of

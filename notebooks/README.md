@@ -70,6 +70,37 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
 - **Checks.** `marimo check --ignore-scripts notebooks/` must be clean (no cycles, no multiple definitions, no unused-import
   warnings), and `python notebooks/NN_name.py` must exit 0.
 
+## Figure style (the same in every tutorial and every video)
+
+The tgmm plotting theme is made for papers (16 pt titles, 20 pt figure titles, 300 dpi); the tutorials override it with one block, applied
+right after `tgmm` is imported in the setup cell (the block is identical in every notebook; `tests/test_style.py` checks it):
+
+```python
+# --- figure style (see notebooks/README.md) ---
+DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+           'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+plt.rcParams.update(DOCS_RC)
+```
+
+- **Size.** A figure is at most 11 inches wide (the docs column is scaled down, so anything wider has unreadable text). Single panel
+  `(6.5, 4.5)`; two or three panels in a row `(11, 4.5)` / `(11, 3.8)`; more panels: a 2-column grid `(11, 4.5 * rows)` (never four or
+  more panels in one row). If an export would exceed 8 MB, lower only `figure.dpi` and say why in a comment.
+- **Titles.** One short title per panel (taken from rcParams: do not pass `fontsize`), a `suptitle` only for multi-panel figures, one line.
+- **Colours.** Components use tgmm's `CATEGORICAL_PALETTE` (what `plot_gmm` uses); sequential data `viridis`; noise or unassigned points
+  grey; red marks the initial guess; orange the current estimate; black the fitted means/centres and the real values. No pink or magenta.
+- **Markers.** Fitted component means and centres: black hexagon `'h'`, `s=25` (the `plot_gmm` default, never above 40). Initial guess or
+  chosen seeds: red cross `'x'`, `s=30`, linewidth 1.2. Current estimate (videos): orange octagon `'8'`, `s=30`, white edge. Real or true
+  values: black diamond `'D'`, `s=20`. Never stars. Data points `s=4`-`8` with `alpha=0.5`.
+- **Lines.** 1.4 pt; solid for estimated, dashed for real/true; covariance ellipses show the 95% region (or 1, 2 and 3 standard deviations
+  where the levels matter).
+- **Videos** (`scripts/make_assets/`): 11 inches wide at 150 dpi with the compact fonts of `_video.RC` (they are scaled down further) and
+  the same markers and colours.
+
+## Page structure (the same in every tutorial)
+
+Title and short introduction (`What you'll learn`, `Prerequisites`, `See also`); `## Setup`; the numbered body sections; `## Summary`;
+`## Try it yourself (interactive version)` if the notebook has controls; then one final cell with the `Next` links and the references.
+
 ## Tests
 
 `tests/test_notebooks.py` runs every notebook as a script with `TGMM_DOCS_FAST=1` (180 s timeout,

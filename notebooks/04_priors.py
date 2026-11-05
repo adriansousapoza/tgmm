@@ -100,23 +100,36 @@ def _():
     from scipy.ndimage import gaussian_filter
 
 
-    from tgmm import GaussianMixture, GMMInitializer, dynamic_figsize, generate_gmm_data, plot_gmm
+    from tgmm import GaussianMixture, GMMInitializer, confidence_ellipse_std_devs, generate_gmm_data, plot_gmm
+    from tgmm.plotting import CATEGORICAL_PALETTE
     from tutorial_data import default_blobs, make_default_data
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 45  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
+    plt.rcParams['figure.dpi'] = 60  # lower than the style's 100 only because this notebook has about 40 panels: it keeps the export under 8 MB
+
+    def fig_size(nrows, ncols):
+        """Figure size of the figure style: 6.5 in wide for one column, else 11 in; 4.5 in per row (3.8 for three columns)."""
+        return (6.5 if ncols == 1 else 11, (3.8 if ncols == 3 else 4.5) * nrows)
+
+    CONF95 = confidence_ellipse_std_devs(0.95)  # one ellipse per component: the region holding 95% of its data (about 2.45 sd in 2-D)
 
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     print(f'Using device: {device}')
     return (
+        CATEGORICAL_PALETTE,
+        CONF95,
         GMMInitializer,
         GaussianMixture,
         SEED,
         default_blobs,
         device,
-        dynamic_figsize,
+        fig_size,
         gaussian_filter,
         generate_gmm_data,
         invgamma,
@@ -215,7 +228,7 @@ def _(mo):
 
 
 @app.cell
-def _(dynamic_figsize, np, plt, scipy):
+def _(fig_size, np, plt, scipy):
     import mpltern  # noqa: F401  (importing it registers matplotlib's 'ternary' projection)
 
     def dirichlet_pdf(x, y, z, alpha):
@@ -237,11 +250,11 @@ def _(dynamic_figsize, np, plt, scipy):
     y_grid = B_mesh[mask]
     z_grid = C[mask]
     _nrows, _ncols = (3, 2)
-    _fig, _axes = plt.subplots(nrows=_nrows, ncols=_ncols, subplot_kw={'projection': 'ternary'}, figsize=dynamic_figsize(_nrows, _ncols))
+    _fig, _axes = plt.subplots(nrows=_nrows, ncols=_ncols, subplot_kw={'projection': 'ternary'}, figsize=fig_size(_nrows, _ncols))
     for _ax, (_alpha, _title) in zip(_axes.flat, alpha_list):
         densities = dirichlet_pdf(x_grid, y_grid, z_grid, _alpha)
         vertices = [(0, 0, 1), (0, 1, 0), (1, 0, 0), (0, 0, 1)]
-        _ax.plot([v[0] for v in vertices], [v[1] for v in vertices], [v[2] for v in vertices], color='k', lw=2)
+        _ax.plot([v[0] for v in vertices], [v[1] for v in vertices], [v[2] for v in vertices], color='k')
         triang = _ax.tricontourf(x_grid, y_grid, z_grid, densities, levels=15, cmap='viridis')
         _ax.tricontour(x_grid, y_grid, z_grid, densities, levels=triang.levels, colors='k', linewidths=0.5)
         _ax.grid(False)
@@ -283,24 +296,25 @@ def _(
     X,
     X_tensor,
     device,
-    dynamic_figsize,
+    fig_size,
     n_components,
     n_features,
     np,
     plot_gmm,
     plt,
     torch,
+    CONF95,
 ):
     weigths = np.array([0.0001, 10000.0])
     _weights = [torch.tensor([weight], device=device) for weight in weigths]
     _nrows, _ncols = (2, 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = fig_size(_nrows, _ncols)
     _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     _fig.suptitle('Different Priors: Small vs Large Weight')
     for _ax, _weight in zip(_axs, weigths):
         _gmm_weight_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=MAX_ITER, device=device, weight_concentration_prior=_weight, random_state=SEED, init_means='random')
         _gmm_weight_prior.fit(X_tensor)
-        plot_gmm(X=X, gmm=_gmm_weight_prior, ax=_ax, title=f'alpha={_weight.item()}\nLL={_gmm_weight_prior.lower_bound_:.4f}', scale_alpha_by_weight=True, ellipse_line_style='dashed', ellipse_alpha=0.7, scale_size_by_weight=False, ellipse_colors='yellow', ellipse_std_devs=[2], mean_color='red')
+        plot_gmm(X=X, gmm=_gmm_weight_prior, ax=_ax, title=f'alpha={_weight.item()}\nLL={_gmm_weight_prior.lower_bound_:.4f}', scale_alpha_by_weight=True, scale_size_by_weight=False, ellipse_std_devs=CONF95)
     plt.tight_layout()
     plt.gcf()
     return
@@ -324,12 +338,13 @@ def _(
     X,
     X_tensor,
     device,
-    dynamic_figsize,
+    fig_size,
     n_components,
     n_features,
     plot_gmm,
     plt,
     torch,
+    CONF95,
 ):
     # Example: One dominant prior and three nearly zero priors.
     # Here, we expect the first component to dominate.
@@ -338,13 +353,13 @@ def _(
     weight3 = torch.tensor([1000.0, 1000.0, 1000.0, 1], device=device)
     _weights = [weight1, weight2, weight3]
     _nrows, _ncols = (len(_weights), 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = fig_size(_nrows, _ncols)
     _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     _fig.suptitle('Different Priors: Unbalanced Weights')
     for _ax, _weight in zip(_axs, _weights):
         _gmm_weight_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=MAX_ITER, device=device, weight_concentration_prior=_weight, random_state=SEED, init_means='random')
         _gmm_weight_prior.fit(X_tensor)
-        plot_gmm(X=X, gmm=_gmm_weight_prior, ax=_ax, title=f'alpha={_weight.tolist()}\nLL={_gmm_weight_prior.lower_bound_:.4f}', scale_alpha_by_weight=True, scale_size_by_weight=False, ellipse_colors='yellow', ellipse_std_devs=[2], ellipse_line_style='dashed', ellipse_alpha=0.7, mean_color='red')
+        plot_gmm(X=X, gmm=_gmm_weight_prior, ax=_ax, title=f'alpha={_weight.tolist()}\nLL={_gmm_weight_prior.lower_bound_:.4f}', scale_alpha_by_weight=True, scale_size_by_weight=False, ellipse_std_devs=CONF95)
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
     return
@@ -389,15 +404,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    GMMInitializer,
-    X_tensor,
-    device,
-    dynamic_figsize,
-    n_components,
-    np,
-    plt,
-):
+def _(GMMInitializer, X_tensor, device, fig_size, n_components, np, plt, CATEGORICAL_PALETTE):
     # Visualize the mean prior distributions as 1D Gaussians
     _precision_values = [1, 10, 1000]
     _init_means_kmeans = GMMInitializer.kmeans(X_tensor.cpu(), k=n_components)
@@ -406,17 +413,17 @@ def _(
     x_range = np.linspace(-3, 5, 1000)
     _nrows, _ncols = (len(_precision_values), 1)
     # Create a range for plotting the Gaussian distributions
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = fig_size(_nrows, _ncols)
     _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     _fig.suptitle('Mean Prior Distributions (1D Visualization)', y=1)
-    colors = ['red', 'blue', 'green', 'orange']
+    colors = CATEGORICAL_PALETTE[:4]
     component_labels = [f'Component {i + 1}' for i in range(n_components)]
     for _ax, _precision in zip(_axs, _precision_values):
         prior_std = 1.0 / np.sqrt(_precision)
         for _i in range(n_components):
             mean_val = _mean_prior[_i, 0].cpu().numpy()
             gaussian_pdf = 1 / (prior_std * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((x_range - mean_val) / prior_std) ** 2)
-            _ax.plot(x_range, gaussian_pdf, color=colors[_i], linewidth=2, label=f'{component_labels[_i]}')
+            _ax.plot(x_range, gaussian_pdf, color=colors[_i], label=f'{component_labels[_i]}')
             _ax.axvline(mean_val, color=colors[_i], linestyle='--', alpha=0.7)  # Standard deviation of the prior (inverse of precision)
         _ax.set_title(f'Precision λ = {_precision} (σ = {prior_std:.4f})')
         _ax.set_xlabel('Mean Value (First Dimension)')
@@ -437,11 +444,12 @@ def _(
     X,
     X_tensor,
     device,
-    dynamic_figsize,
+    fig_size,
     n_components,
     n_features,
     plot_gmm,
     plt,
+    CONF95,
 ):
     # Define a list of precision values to compare
     _precision_values = [1, 100.0, 1000.0]
@@ -449,13 +457,13 @@ def _(
     # Create the initial means using K-means on the CPU
     _mean_prior = _init_means_kmeans.clone().to(device)
     _nrows, _ncols = (len(_precision_values), 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = fig_size(_nrows, _ncols)
     _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     for _ax, _precision in zip(_axs, _precision_values):
         gmm_mean_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=MAX_ITER, device=device, mean_prior=_mean_prior, mean_precision_prior=_precision, random_state=SEED, init_means=_mean_prior)
         gmm_mean_prior.fit(X_tensor)
         _title = f'Mean Prior (precision={_precision})\nLL={gmm_mean_prior.lower_bound_:.2f}'
-        plot_gmm(X=X, gmm=gmm_mean_prior, ax=_ax, title=_title, ellipse_alpha=0.5, ellipse_line_style='dashed', show_initial_means=True, ellipse_colors='blue', ellipse_std_devs=[2], mean_color='yellow', mean_size=50, initial_mean_size=50, scale_alpha_by_weight=True, scale_size_by_weight=False)  # Create a new GMM instance for each precision value
+        plot_gmm(X=X, gmm=gmm_mean_prior, ax=_ax, title=_title, show_initial_means=True, initial_mean_marker='x', initial_mean_size=30, initial_mean_color='red', ellipse_std_devs=CONF95, scale_alpha_by_weight=True, scale_size_by_weight=False)  # Create a new GMM instance for each precision value
         _ax.legend()
     plt.tight_layout()
     plt.gcf()
@@ -565,7 +573,7 @@ def _(mo):
 @app.cell
 def _(invgamma, np, plt):
     _x = np.linspace(0.001, 2, 1000)
-    _fig, _axes = plt.subplots(3, 1, figsize=(10, 18))
+    _fig, _axes = plt.subplots(3, 1, figsize=(6.5, 13.5))
     fixed_theta = 1
     alphas = [1, 2, 3, 7]
     # -------------------------------
@@ -672,7 +680,7 @@ def _(mo):
 
 
 @app.cell
-def _(dynamic_figsize, gaussian_filter, np, plt, wishart):
+def _(fig_size, gaussian_filter, np, plt, wishart):
     covariance_matrix = np.array([[1, 0.5], [0.5, 1]])
     dfs = [2, 3, 4]
     scales = [0.5, 1, 2]
@@ -686,9 +694,9 @@ def _(dynamic_figsize, gaussian_filter, np, plt, wishart):
     xmin, xmax = (-0.01, 2)
     ymin, ymax = (-0.01, 2)
     _nrows, _ncols = (len(dfs), len(scale_matrices))
-    _figsize = dynamic_figsize(_nrows, _ncols, base_width=7, base_height=6)
+    _figsize = fig_size(_nrows, _ncols)
     _fig, _axes = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
-    _fig.suptitle('Hexbin Plots with Smoothed Gradient Contours\nof 2D Inverse Wishart Distributions', fontsize=16)
+    _fig.suptitle('Hexbin Plots with Smoothed Gradient Contours\nof 2D Inverse Wishart Distributions')
     idx = 0
     for _i, df in enumerate(dfs):
         for _j, scale_matrix in enumerate(scale_matrices):
@@ -765,13 +773,14 @@ def _(
     X,
     X_tensor,
     device,
-    dynamic_figsize,
+    fig_size,
     n_components,
     n_features,
     np,
     plot_gmm,
     plt,
     torch,
+    CONF95,
 ):
     _data_covariance = np.cov(X_tensor.cpu().numpy(), rowvar=False)  # shape (2, 2)
     _data_covariance = torch.tensor(_data_covariance, dtype=torch.float32, device=device)
@@ -779,15 +788,15 @@ def _(
     degrees_of_freedom_prior = float(n_features + 2)
     _prior_strengths = [1, 5, 25, 100]
     _nrows, _ncols = (2, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols, base_width=5, base_height=4)
-    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize, dpi=50)
+    _figsize = fig_size(_nrows, _ncols)
+    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     _fig.suptitle('Covariance Priors: Varying Strength')
     for _ax, _strength in zip(_axs.ravel(), _prior_strengths):
         _cov_prior = _data_covariance * _strength
         _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=degrees_of_freedom_prior)
         _gmm_cov_prior.fit(X_tensor)
         _title = f'DOF={degrees_of_freedom_prior}, Strength={_strength}\nLL={_gmm_cov_prior.lower_bound_:.2f}'
-        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='green', ellipse_std_devs=[1, 2, 3])
+        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_std_devs=CONF95)
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
     return
@@ -812,13 +821,14 @@ def _(
     X,
     X_tensor,
     device,
-    dynamic_figsize,
+    fig_size,
     n_components,
     n_features,
     np,
     plot_gmm,
     plt,
     torch,
+    CONF95,
 ):
     _data_covariance = np.cov(X_tensor.cpu().numpy(), rowvar=False)  # shape (2, 2)
     _data_covariance = torch.tensor(_data_covariance, dtype=torch.float32, device=device)
@@ -827,15 +837,15 @@ def _(
     # Instead of varying strength, we fix the strength and vary DOF.
     fixed_strength = 5
     _nrows, _ncols = (2, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols, base_width=5, base_height=4)
-    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize, dpi=50)
+    _figsize = fig_size(_nrows, _ncols)
+    _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     _fig.suptitle('Covariance Priors: Varying DOF')
     for _ax, _dof in zip(_axs.ravel(), _dof_values):
         _cov_prior = _data_covariance * fixed_strength
         _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=_dof)
         _gmm_cov_prior.fit(X_tensor)
         _title = f'DOF={_dof}, Strength={fixed_strength}\nLL={_gmm_cov_prior.lower_bound_:.2f}'
-        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='red', ellipse_std_devs=[1, 2, 3])
+        plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_std_devs=CONF95)
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
     return
@@ -858,13 +868,14 @@ def _(
     X,
     X_tensor,
     device,
-    dynamic_figsize,
+    fig_size,
     n_components,
     n_features,
     np,
     plot_gmm,
     plt,
     torch,
+    CONF95,
 ):
     # Compute data covariance from the tensor data.
     _data_covariance = np.cov(X_tensor.cpu().numpy(), rowvar=False)  # shape (2, 2)
@@ -874,7 +885,7 @@ def _(
     # Define the lists of prior strengths and degrees of freedom to explore.
     _dof_values = [n_features + 8, n_features + 98, n_features + 498]
     _nrows, _ncols = (len(_dof_values), len(_prior_strengths))
-    _figsize = dynamic_figsize(_nrows, _ncols, base_width=6, base_height=6)
+    _figsize = fig_size(_nrows, _ncols)
     # Create a 3x3 grid.
     _fig, _axs = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     _fig.suptitle('Covariance Priors: Varying Strength and DOF')
@@ -886,7 +897,7 @@ def _(
             _gmm_cov_prior = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, device=device, covariance_prior=_cov_prior, degrees_of_freedom_prior=_dof)  # Compute covariance prior for this combination.
             _gmm_cov_prior.fit(X_tensor)
             _title = f'DOF={_dof}, Strength={_strength}\nLL={_gmm_cov_prior.lower_bound_:.2f}'
-            plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_colors='orange', ellipse_std_devs=[1, 2, 3])
+            plot_gmm(X=X, gmm=_gmm_cov_prior, ax=_ax, title=_title, ellipse_std_devs=CONF95)
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.gcf()
     return
@@ -916,12 +927,13 @@ def _(
     X,
     X_tensor,
     device,
-    dynamic_figsize,
+    fig_size,
     n_components,
     n_features,
     plot_gmm,
     plt,
     torch,
+    CONF95,
 ):
     # Both fits start from the same k-means centres, so the differences come from the priors alone
     _common = dict(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=10 * MAX_ITER, tol=1e-9, device=device, random_state=SEED, init_means='kmeans')
@@ -934,9 +946,9 @@ def _(
     ).fit(X_tensor)
     print(f'MLE: converged={gmm_mle.converged_}, mean log-likelihood = {gmm_mle.score(X_tensor):.4f}')
     print(f'MAP: converged={gmm_map.converged_}, mean log-likelihood = {gmm_map.score(X_tensor):.4f}')
-    _fig, _axs = plt.subplots(1, 2, figsize=dynamic_figsize(1, 2, base_width=5.5, base_height=4.5), dpi=50)
+    _fig, _axs = plt.subplots(1, 2, figsize=fig_size(1, 2))
     for _ax, _gmm, _name in zip(_axs, (gmm_mle, gmm_map), ('MLE (no priors)', 'MAP (weight + NIW priors)')):
-        plot_gmm(X, gmm=_gmm, ax=_ax, title=f'{_name}\nmean log-lik = {_gmm.score(X_tensor):.3f}', legend=False)
+        plot_gmm(X, gmm=_gmm, ax=_ax, title=f'{_name}\nmean log-lik = {_gmm.score(X_tensor):.3f}', legend=False, ellipse_std_devs=CONF95)
     plt.tight_layout()
     plt.gcf()
     return gmm_mle, gmm_map
@@ -1085,9 +1097,11 @@ def _(
     niw_nu0,
     plot_gmm,
     plt,
+    fig_size,
+    CONF95,
 ):
-    _fig, _axes = plt.subplots(2, 2, figsize=(10, 8), dpi=50)
-    _fig.suptitle('Comparison: Different Prior Configurations', fontsize=14)
+    _fig, _axes = plt.subplots(2, 2, figsize=fig_size(2, 2))
+    _fig.suptitle('Comparison: Different Prior Configurations')
     _configs = {
         'No Prior (MLE)': dict(),
         'Mean Prior Only': dict(mean_prior=niw_mu0, mean_precision_prior=niw_kappa0),
@@ -1097,7 +1111,7 @@ def _(
     for _ax, (_name, _kw) in zip(_axes.ravel(), _configs.items()):
         _gmm = GaussianMixture(n_features=n_features, n_components=n_components, covariance_type='full', max_iter=MAX_ITER, device=device, **_kw)
         _gmm.fit(niw_X_tensor)
-        plot_gmm(X=niw_X, gmm=_gmm, ax=_ax, title=f'{_name}\nLL: {_gmm.lower_bound_:.2f}')
+        plot_gmm(X=niw_X, gmm=_gmm, ax=_ax, title=f'{_name}\nLL: {_gmm.lower_bound_:.2f}', ellipse_std_devs=CONF95)
     plt.tight_layout()
     plt.gcf()
     return
@@ -1114,7 +1128,7 @@ def _(mo):
 
 
 @app.cell
-def _(GaussianMixture, np, plt, torch):
+def _(GaussianMixture, np, plt, torch, fig_size):
     def analyze_niw_hyperparameters(X_tensor, n_components, n_features, device, title_suffix="", fast=False):
         """Run NIW hyperparameter sensitivity analysis on given data (coarser grids when `fast`)."""
         kappa_grid = [0.1, 10.0, 1000] if fast else [0.1, 1.0, 10.0, 100.0, 1000]
@@ -1143,7 +1157,7 @@ def _(GaussianMixture, np, plt, torch):
         psi_labels = [f'{v:g}' for v in psi_scales]
         m0_labels = ['0' if m == 0 else f'±{m}' for m in m0_scales]
 
-        fig, axes = plt.subplots(2, 3, figsize=(20, 12), dpi=70)
+        fig, axes = plt.subplots(2, 3, figsize=fig_size(2, 3))
         axes = axes.flatten()
         for idx, combo in enumerate(param_combinations):
             ll_matrix = np.zeros((len(combo['y_grid']), len(combo['x_grid'])))
@@ -1168,20 +1182,20 @@ def _(GaussianMixture, np, plt, torch):
 
             ax = axes[idx]
             im = ax.imshow(ll_matrix, cmap='RdYlGn', aspect='auto')
-            ax.set_title(f'{combo["y_label"]} vs {combo["x_label"]}', fontsize=11, pad=10)
-            ax.set_xlabel(combo['x_label'], fontsize=9)
-            ax.set_ylabel(combo['y_label'], fontsize=9)
+            ax.set_title(f'{combo["y_label"]} vs {combo["x_label"]}', pad=10)
+            ax.set_xlabel(combo['x_label'])
+            ax.set_ylabel(combo['y_label'])
             ax.set_xticks(range(len(combo['x_grid'])))
-            ax.set_xticklabels(m0_labels if combo['x'] == 'm0' else psi_labels if combo['x'] == 'psi' else [f'{v}' for v in combo['x_grid']], fontsize=8)
+            ax.set_xticklabels(m0_labels if combo['x'] == 'm0' else psi_labels if combo['x'] == 'psi' else [f'{v}' for v in combo['x_grid']])
             ax.set_yticks(range(len(combo['y_grid'])))
-            ax.set_yticklabels(m0_labels if combo['y'] == 'm0' else psi_labels if combo['y'] == 'psi' else [f'{v}' for v in combo['y_grid']], fontsize=8)
+            ax.set_yticklabels(m0_labels if combo['y'] == 'm0' else psi_labels if combo['y'] == 'psi' else [f'{v}' for v in combo['y_grid']])
             cbar = plt.colorbar(im, ax=ax)
-            cbar.set_label('LL', rotation=270, labelpad=12, fontsize=8)
+            cbar.set_label('LL', rotation=270, labelpad=12)
             for i in range(len(combo['y_grid'])):
                 for j in range(len(combo['x_grid'])):
                     ax.text(j, i, f'{ll_matrix[i, j]:.3f}', ha='center', va='center', fontweight='bold', fontsize=8)
 
-        plt.suptitle(f'NIW Prior Hyperparameter Interactions: Log-Likelihood Heatmaps{title_suffix}', fontsize=14, y=0.995)
+        plt.suptitle(f'NIW Prior Hyperparameter Interactions: Log-Likelihood Heatmaps{title_suffix}', y=0.995)
         plt.tight_layout()
         return fig
 
@@ -1296,7 +1310,7 @@ def _(
     SEED,
     default_blobs,
     device,
-    dynamic_figsize,
+    fig_size,
     generate_gmm_data,
     n_components,
     np,
@@ -1342,7 +1356,7 @@ def _(
     gap = ll_map - ll_mle  # paired difference per training set: positive means the prior helped on new data
     print(f'{len(train_sizes)} training sizes x {n_repeats} training sets; failed fits: MLE {int(np.isnan(ll_mle).sum())}, MAP {int(np.isnan(ll_map).sum())}')
 
-    _fig, _axs = plt.subplots(1, 2, figsize=dynamic_figsize(1, 2, base_width=5.5, base_height=4), dpi=60)
+    _fig, _axs = plt.subplots(1, 2, figsize=fig_size(1, 2))
     for _ll, _label, _color in ((ll_mle, 'maximum likelihood', 'tab:red'), (ll_map, 'NIW prior (MAP)', 'tab:green')):
         _axs[0].errorbar(train_sizes, np.nanmean(_ll, axis=1), yerr=np.nanstd(_ll, axis=1), marker='o', capsize=3, color=_color, label=_label)
     _axs[0].set_xscale('log')
@@ -1395,7 +1409,13 @@ def _(mo):
     - A mean prior alone or a covariance prior alone changes just that update; given both, tgmm uses the coupled NIW update with $\mu_k=\mu_n$, $\Sigma_k = \Psi_n/\nu_n$, where $\Psi_n$ gains a term that grows when the data mean disagrees with $\mu_0$. An independent mean prior is not available.
     - How much any prior matters depends on the component sizes: its weight is $\kappa_0/(\kappa_0+n_k)$ for the mean and $\nu_0/(\nu_0+n_k)$ for the covariance. With few points per component it can rescue a fit on new data; with many it washes out; a wrong prior costs something in between.
     - `mean_prior` / `covariance_prior` support the six classic covariance types; `weight_concentration_prior` works with all 14 GPCM models too.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [05 -- Sampling](05_sampling.ipynb) draws from a fitted mixture. See also [11 -- Dirichlet Process Mixtures](11_dpgmm.ipynb), where the same NIW prior is the base measure of a nonparametric sampler.
     """)
     return

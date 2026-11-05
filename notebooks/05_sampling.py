@@ -80,16 +80,19 @@ def _():
     import matplotlib.pyplot as plt
     from scipy.stats import chi2
 
-    from tgmm import GaussianMixture, dynamic_figsize, plot_gmm
+    from tgmm import GaussianMixture, plot_gmm
     from tutorial_data import make_default_data
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
 
     SEED = 0
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    return GaussianMixture, SEED, chi2, device, dynamic_figsize, make_default_data, np, plot_gmm, plt, torch
+    return GaussianMixture, SEED, chi2, device, make_default_data, np, plot_gmm, plt, torch
 
 
 @app.cell(hide_code=True)
@@ -251,13 +254,13 @@ def _(N_DRAW, gmm, np):
 
 
 @app.cell
-def _(component_samples, dynamic_figsize, gmm, legend_labels, mixed_samples, plot_gmm, plt, X):
+def _(component_samples, gmm, legend_labels, mixed_samples, plot_gmm, plt, X):
     _nrows, _ncols = (3, 2)
-    _fig, _axs = plt.subplots(_nrows, _ncols, figsize=dynamic_figsize(_nrows, _ncols))
+    _fig, _axs = plt.subplots(_nrows, _ncols, figsize=(11, 4.5 * _nrows))
     _axs = _axs.flatten()
     _colors = ['C0', 'C1', 'C2', 'C3']
     for _k in range(gmm.n_components):
-        plot_gmm(X=component_samples[_k], gmm=gmm, ax=_axs[_k], title=f'component={_k}', legend_labels=[f'Component {_k + 1}'], ellipse_fill=False, color_by_cluster=True, point_color=_colors[_k])
+        plot_gmm(X=component_samples[_k], gmm=gmm, ax=_axs[_k], title=f'component={_k}', legend=False, ellipse_fill=False, color_by_cluster=True, point_color=_colors[_k])
     plot_gmm(X=mixed_samples, gmm=gmm, ax=_axs[4], title='component=None (mixture)', legend_labels=legend_labels, ellipse_fill=False)
     plot_gmm(X=X, gmm=gmm, ax=_axs[5], title='Original Data', legend_labels=legend_labels, ellipse_fill=False)
     plt.suptitle('Component-specific vs mixed sampling')
@@ -309,13 +312,13 @@ def _(mo):
 
 
 @app.cell
-def _(N_DRAW, X, dynamic_figsize, gmm, legend_labels, plot_gmm, plt):
-    _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2))
+def _(N_DRAW, X, gmm, legend_labels, plot_gmm, plt):
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 4.5 * 3))
     _axs = _axs.flatten()
     _colors = ['C0', 'C1', 'C2', 'C3']
     for _k in range(gmm.n_components):
         _s, _ = gmm.sample(N_DRAW, component=_k, std_radius=1.0)
-        plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[_k], title=f'Component {_k + 1}: within 1σ', legend_labels=[f'Component {_k + 1} (1σ)'], ellipse_fill=False, color_by_cluster=False, point_color=_colors[_k])
+        plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[_k], title=f'Component {_k + 1}: within 1σ', legend=False, ellipse_fill=False, color_by_cluster=False, point_color=_colors[_k])
     _s, _ = gmm.sample(N_DRAW * gmm.n_components, std_radius=1.0)
     plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[4], title='Mixture: within 1σ', legend_labels=legend_labels, ellipse_fill=False)
     plot_gmm(X=X, gmm=gmm, ax=_axs[5], title='Original Data', legend_labels=legend_labels, ellipse_fill=False)
@@ -334,19 +337,19 @@ def _(mo):
 
 
 @app.cell
-def _(N_DRAW, X, dynamic_figsize, gmm, legend_labels, plot_gmm, plt):
+def _(N_DRAW, X, gmm, legend_labels, plot_gmm, plt):
     _specs = [
         ('Component 1: std_range=(2, 3)', dict(component=0, std_range=(2, 3))),
         ('Component 2: std_range=(1, 2)', dict(component=1, std_range=(1, 2))),
         ('Component 3: confidence=0.95', dict(component=2, confidence=0.95)),
         ('Component 4: std_range=(3, inf)', dict(component=3, std_range=(3, float('inf')), max_attempts_per_sample=5000)),
     ]
-    _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2))
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 4.5 * 3))
     _axs = _axs.flatten()
     _colors = ['C0', 'C1', 'C2', 'C3']
     for _k, (_title, _kw) in enumerate(_specs):
         _s, _ = gmm.sample(N_DRAW, **_kw)
-        plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[_k], title=_title, legend_labels=[f'Component {_k + 1}'], ellipse_fill=False, color_by_cluster=False, point_color=_colors[_k])
+        plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[_k], title=_title, legend=False, ellipse_fill=False, color_by_cluster=False, point_color=_colors[_k])
     _s, _ = gmm.sample(N_DRAW * gmm.n_components, confidence_range=(0.68, 0.95))
     plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[4], title='Mixture: confidence_range=(0.68, 0.95)', legend_labels=legend_labels, ellipse_fill=False)
     plot_gmm(X=X, gmm=gmm, ax=_axs[5], title='Original Data', legend_labels=legend_labels, ellipse_fill=False)
@@ -367,21 +370,21 @@ def _(mo):
 
 
 @app.cell
-def _(N_DRAW, X, dynamic_figsize, gmm, legend_labels, plot_gmm, plt, torch):
+def _(N_DRAW, X, gmm, legend_labels, plot_gmm, plt, torch):
     center_point = torch.tensor([1.0, 0.0])
     center_radius = 2.0
-    _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2))
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 4.5 * 3))
     _axs = _axs.flatten()
     _colors = ['C0', 'C1', 'C2', 'C3']
     _c = center_point.cpu().numpy()
     for _k in range(gmm.n_components):
         _s, _ = gmm.sample(N_DRAW, component=_k, center_point=center_point, center_radius=center_radius, max_attempts_per_sample=10000)
-        plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[_k], title=f'Component {_k + 1}', legend_labels=[f'Component {_k + 1}'], ellipse_fill=False, color_by_cluster=False, point_color=_colors[_k])
+        plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[_k], title=f'Component {_k + 1}', legend=False, ellipse_fill=False, color_by_cluster=False, point_color=_colors[_k])
     _s, _ = gmm.sample(N_DRAW * gmm.n_components, center_point=center_point, center_radius=center_radius, max_attempts_per_sample=10000)
     plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_axs[4], title='Mixture', legend_labels=legend_labels, ellipse_fill=False)
     for _ax in _axs[:5]:
-        _ax.add_patch(plt.Circle(_c, center_radius, fill=False, color='red', linewidth=2, linestyle='--', alpha=0.8))
-        _ax.plot(_c[0], _c[1], 'r*', markersize=12)
+        _ax.add_patch(plt.Circle(_c, center_radius, fill=False, color='red', linewidth=1.4, linestyle='--', alpha=0.8))
+        _ax.plot(_c[0], _c[1], 'x', color='red', markersize=5.5, markeredgewidth=1.2)  # the centre point: a red cross
     plot_gmm(X=X, gmm=gmm, ax=_axs[5], title='Original Data (no constraint)', legend_labels=legend_labels, ellipse_fill=False)
     plt.suptitle(f'center_point={_c.tolist()}, center_radius={center_radius}')
     plt.tight_layout(rect=[0, 0, 1, 0.96])
@@ -507,7 +510,7 @@ def _(X, component_widget, confidence_widget, gmm, legend_labels, mode_widget, n
     elif mode_widget.value == 'confidence':
         _kw['confidence'] = confidence_widget.value
     _s, _i = gmm.sample(n_widget.value, max_attempts_per_sample=5000, **_kw)
-    _fig, _ax = plt.subplots(figsize=(6, 5))
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
     plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_ax, title=f'{n_widget.value} samples, ' + (', '.join(f'{_a}={_b}' for _a, _b in _kw.items()) or 'unconstrained'), true_labels=_i.cpu().numpy(), legend_labels=legend_labels, ellipse_fill=False)
     plt.gcf()
     return

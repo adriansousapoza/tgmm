@@ -80,14 +80,19 @@ def _():
     from matplotlib.colors import ListedColormap
 
     from tgmm import ClusteringMetrics, GaussianMixture, GMMInitializer
+    from tgmm.plotting import CATEGORICAL_PALETTE
     from tutorial_data import make_default_data
 
     warnings.filterwarnings('ignore')
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 0
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     return (
+        CATEGORICAL_PALETTE,
         ClusteringMetrics,
         GMMInitializer,
         GaussianMixture,
@@ -221,14 +226,14 @@ def _(mo, n_iter, trace_main):
 
     ## Iteration by iteration
 
-    Every picture shows the state at the **start** of an iteration. The shaded regions are the **Voronoi cells** of the current centres (the set of locations nearer to one centre than to any other, which is exactly the assignment step applied to every possible point), the points are coloured by the cluster they belong to, the diamonds are the current centres and the arrows show where the update step is about to move them. The thin lines are the paths the centres have taken so far.
+    Every picture shows the state at the **start** of an iteration. The shaded regions are the **Voronoi cells** of the current centres (the set of locations nearer to one centre than to any other, which is exactly the assignment step applied to every possible point), the points are coloured by the cluster they belong to, the black hexagons are the current centres and the arrows show where the update step is about to move them. The thin lines are the paths the centres have taken so far.
     """)
     return
 
 
 @app.cell
-def _(ListedColormap, X, np, plt):
-    PALETTE = [plt.cm.tab10(_i) for _i in range(10)]
+def _(CATEGORICAL_PALETTE, ListedColormap, X, np, plt):
+    PALETTE = list(CATEGORICAL_PALETTE)
     _pad = 0.6
     XLIM = (X[:, 0].min() - _pad, X[:, 0].max() + _pad)
     YLIM = (X[:, 1].min() - _pad, X[:, 1].max() + _pad)
@@ -241,18 +246,18 @@ def _(ListedColormap, X, np, plt):
         _c = trace['centroids'][t]
         _k = _c.shape[0]
         _cells = np.argmin(((GRID[:, None, :] - _c[None]) ** 2).sum(-1), axis=1).reshape(GRID_SHAPE)
-        ax.contourf(np.linspace(*XLIM, GRID_SHAPE[1]), np.linspace(*YLIM, GRID_SHAPE[0]), _cells, levels=np.arange(_k + 1) - 0.5, colors=[PALETTE[_i % 10] for _i in range(_k)], alpha=0.16)
+        ax.contourf(np.linspace(*XLIM, GRID_SHAPE[1]), np.linspace(*YLIM, GRID_SHAPE[0]), _cells, levels=np.arange(_k + 1) - 0.5, colors=[PALETTE[_i % len(PALETTE)] for _i in range(_k)], alpha=0.16)
         _lab = trace['labels'][t]
-        ax.scatter(X[:, 0], X[:, 1], s=4, c=[PALETTE[_i % 10] for _i in _lab], alpha=0.65, linewidths=0)
+        ax.scatter(X[:, 0], X[:, 1], s=4, c=[PALETTE[_i % len(PALETTE)] for _i in _lab], alpha=0.5, linewidths=0)
         _path = np.stack(trace['centroids'][:t + 1])  # (t+1, k, d)
         for _i in range(_k):
-            ax.plot(_path[:, _i, 0], _path[:, _i, 1], color=PALETTE[_i % 10], lw=1.2, alpha=0.9)
-        ax.scatter(_c[:, 0], _c[:, 1], marker='D', s=100, c=[PALETTE[_i % 10] for _i in range(_k)], edgecolor='k', zorder=5)
+            ax.plot(_path[:, _i, 0], _path[:, _i, 1], color=PALETTE[_i % len(PALETTE)], lw=1.0, alpha=0.9)  # thin
+        ax.scatter(_c[:, 0], _c[:, 1], marker='h', s=25, c='black', zorder=5)  # centres look the same in every tutorial: black hexagons
         if show_arrows:
             _u = trace['updated'][t]
             for _i in range(_k):
                 if np.linalg.norm(_u[_i] - _c[_i]) > 1e-3:
-                    ax.annotate('', xy=_u[_i], xytext=_c[_i], arrowprops={'arrowstyle': '->', 'color': 'k', 'lw': 1.3}, zorder=6)
+                    ax.annotate('', xy=_u[_i], xytext=_c[_i], arrowprops={'arrowstyle': '->', 'color': 'k', 'lw': 1.0}, zorder=6)
         ax.set_xlim(XLIM)
         ax.set_ylim(YLIM)
         ax.set_aspect('equal')
@@ -261,8 +266,8 @@ def _(ListedColormap, X, np, plt):
         """The inertia of every iteration (grey) and the part reached so far (black), with the current iteration marked."""
         _J = np.array(trace['inertia'])
         ax.plot(np.arange(len(_J)), _J, color='0.8', lw=1)
-        ax.plot(np.arange(t + 1), _J[:t + 1], color='k', lw=1.6, marker='o', ms=3)
-        ax.scatter([t], [_J[t]], color='orange', edgecolor='white', s=70, zorder=5)
+        ax.plot(np.arange(t + 1), _J[:t + 1], color='k', lw=1.4, marker='o', ms=3)
+        ax.scatter([t], [_J[t]], marker='8', color='orange', edgecolor='white', s=30, zorder=5)  # the current iteration: orange octagon
         ax.set_xlabel('iteration')
         ax.set_ylabel('inertia $J$')
         ax.set_title('the objective, never increasing')
@@ -274,7 +279,7 @@ def _(ListedColormap, X, np, plt):
 @app.cell
 def _(draw_inertia, draw_lloyd, n_iter, np, plt, trace_main):
     _shown = sorted(set(int(_t) for _t in np.clip([0, 1, 2, 4, n_iter - 1], 0, n_iter - 1)))
-    _fig, _axs = plt.subplots(3, 2, figsize=(9, 11.5), layout='constrained')
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 13.5), layout='constrained')
     for _ax, _t in zip(_axs.ravel(), _shown):
         draw_lloyd(_ax, trace_main, _t)
         _ax.set_title(f'iteration {_t}' + (' (the k-means++ seeds)' if _t == 0 else ' (converged)' if _t == n_iter - 1 else ''))
@@ -427,14 +432,6 @@ def _(mo, sens):
     - `lloyd_trace` above reproduces `GMMInitializer.kmeans` exactly: the same k-means++ start, the same empty-cluster remedy and the same stopping rule.
     - Lloyd's algorithm only finds a local minimum, and there are more of them the larger $k$ is, so restart it (`n_init`) rather than trust one run.
     - The clusters are Voronoi cells. k-means is the hard-assignment, equal-spherical-covariance limit of EM, so it is a good way to start a mixture but a poor model for elongated or unequal clusters.
-
-    **Next:** back to [3. Initialization](03_initialization.ipynb), or on to [7. Classification EM (CEM)](07_cem.ipynb) for hard assignments with full covariances.
-
-    ## References
-
-    - Lloyd, S. P. (1982). Least squares quantization in PCM. *IEEE Transactions on Information Theory* 28(2), 129-137.
-    - Arthur, D. and Vassilvitskii, S. (2007). k-means++: the advantages of careful seeding. *Proceedings of the 18th ACM-SIAM Symposium on Discrete Algorithms*, 1027-1035.
-    - Celeux, G. and Govaert, G. (1992). A classification EM algorithm for clustering and two stochastic versions. *Computational Statistics & Data Analysis* 14(3), 315-332.
     """)
     return
 
@@ -477,7 +474,7 @@ def _(GMMInitializer, X_tensor, draw_inertia, draw_lloyd, k_try, lloyd_trace, np
     _trace = lloyd_trace(X_tensor, _init)
     _n = len(_trace['inertia'])
     _shown = sorted(set(int(_t) for _t in np.clip([0, 1, 2, 4, _n - 1], 0, _n - 1)))
-    _fig, _axs = plt.subplots(3, 2, figsize=(9, 11.5), layout='constrained')
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 13.5), layout='constrained')
     for _ax, _t in zip(_axs.ravel(), _shown):
         draw_lloyd(_ax, _trace, _t)
         _ax.set_title(f'iteration {_t}' + (' (start)' if _t == 0 else ' (converged)' if _t == _n - 1 else ''))
@@ -486,6 +483,20 @@ def _(GMMInitializer, X_tensor, draw_inertia, draw_lloyd, k_try, lloyd_trace, np
     draw_inertia(_axs.ravel()[-1], _trace, _n - 1)
     _fig.suptitle(f'k = {_k}, seed {_s}: {_n} iterations, final inertia {_trace["inertia"][-1]:,.0f}')
     plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **Next:** back to [3. Initialization](03_initialization.ipynb), or on to [7. Classification EM (CEM)](07_cem.ipynb) for hard assignments with full covariances.
+
+    ## References
+
+    - Lloyd, S. P. (1982). Least squares quantization in PCM. *IEEE Transactions on Information Theory* 28(2), 129-137.
+    - Arthur, D. and Vassilvitskii, S. (2007). k-means++: the advantages of careful seeding. *Proceedings of the 18th ACM-SIAM Symposium on Discrete Algorithms*, 1027-1035.
+    - Celeux, G. and Govaert, G. (1992). A classification EM algorithm for clustering and two stochastic versions. *Computational Statistics & Data Analysis* 14(3), 315-332.
+    """)
     return
 
 

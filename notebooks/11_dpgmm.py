@@ -85,7 +85,8 @@ def _():
     from sklearn.decomposition import PCA
     from sklearn.metrics import adjusted_rand_score
 
-    from tgmm import GaussianMixture, plot_gmm, dynamic_figsize
+    from tgmm import GaussianMixture, plot_gmm
+    from tgmm.plotting import CATEGORICAL_PALETTE
     from tgmm.synthetic_data import generate_gmm_data
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -94,16 +95,20 @@ def _():
     torch.manual_seed(SEED)
 
     torch.set_default_dtype(torch.float64)
-    # marimo embeds figures at 2 x figure.dpi, and tgmm's plot theme sets figure.dpi=300: the 12-panel
-    # comparison figures below would then exceed marimo's output size limit, so use a lower resolution.
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
+    # Lower resolution than the style's 100 dpi: marimo embeds figures at 2 x figure.dpi, and the three 12-panel comparison figures below
+    # would push this notebook's export past marimo's output size limit.
     plt.rcParams['figure.dpi'] = 60
     return (
+        CATEGORICAL_PALETTE,
         GaussianMixture,
         PCA,
         SEED,
         SimpleNamespace,
         adjusted_rand_score,
-        dynamic_figsize,
         generate_gmm_data,
         math,
         np,
@@ -152,21 +157,21 @@ def _(mo):
 
 
 @app.cell
-def _(SEED, dynamic_figsize, np, plt):
+def _(CATEGORICAL_PALETTE, SEED, np, plt):
     def sample_stick_breaking(alpha, n_sticks=25, seed=0):
         rng = np.random.RandomState(seed)
         v = rng.beta(1.0, alpha, size=n_sticks)
         remaining = np.cumprod(np.concatenate([[1.0], 1 - v[:-1]]))
         pi = v * remaining
         return pi
-    _fig, _axes = plt.subplots(1, 3, figsize=dynamic_figsize(1, 3), sharey=True)
+    _fig, _axes = plt.subplots(1, 3, figsize=(11, 3.8), sharey=True)
     for _ax, alpha in zip(_axes, [0.5, 2.0, 10.0]):
         pi = sample_stick_breaking(alpha, n_sticks=25, seed=SEED)
-        _ax.bar(np.arange(1, len(pi) + 1), pi, color='#4C72B0')
+        _ax.bar(np.arange(1, len(pi) + 1), pi, color=CATEGORICAL_PALETTE[0])
         _ax.set_title(f'alpha = {alpha}\n(sum of first 5 pieces = {pi[:5].sum():.2f})')
         _ax.set_xlabel('stick-breaking index k')
     _axes[0].set_ylabel('pi_k (weight of piece k)')
-    _fig.suptitle('One realization of stick-breaking for increasing alpha', fontsize=14)
+    _fig.suptitle('One realization of stick-breaking for increasing alpha')
     plt.tight_layout()
     plt.gcf()
     return
@@ -361,7 +366,6 @@ def _(
     GaussianMixture,
     PCA,
     SEED,
-    dynamic_figsize,
     generate_gmm_data,
     np,
     plt,
@@ -381,8 +385,8 @@ def _(
     print(f'n_samples={n_samples}, true_k={true_k}, d={D}')
     pca = PCA(n_components=2, random_state=SEED).fit(X.cpu().numpy())
     X_pca = pca.transform(X.cpu().numpy())
-    _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
-    _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=true_labels, cmap='turbo', s=12, alpha=0.7)
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
+    _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=true_labels, cmap='turbo', s=8, alpha=0.5)  # 10 clusters: more than the 8 categorical colours
     _ax.set_title('Ground truth (color = true cluster), PCA projection')
     plt.tight_layout()
     GIBBS_PRIOR = GaussianMixture.suggest_priors(X, n_components=20, random_state=SEED)
@@ -439,20 +443,22 @@ def _(
     X,
     X_pca,
     adjusted_rand_score,
-    dynamic_figsize,
     plt,
     true_labels,
 ):
     SNAPSHOT_ITERS = [0, 1, 3, 10, N_SWEEPS]
-    _fig, _axes = plt.subplots(1, len(SNAPSHOT_ITERS), figsize=dynamic_figsize(1, len(SNAPSHOT_ITERS)), sharey=True)
-    for _ax, n_iter in zip(_axes, SNAPSHOT_ITERS):
+    _nrows = (len(SNAPSHOT_ITERS) + 1) // 2
+    _fig, _axes = plt.subplots(_nrows, 2, figsize=(11, 4.5 * _nrows), sharex=True, sharey=True, squeeze=False)
+    for _ax in _axes.ravel()[len(SNAPSHOT_ITERS):]:
+        _ax.axis('off')
+    for _ax, n_iter in zip(_axes.ravel(), SNAPSHOT_ITERS):
         _model = GaussianMixture(n_components=None, max_components=None, max_iter=n_iter, burn_in=0, random_state=SEED, device='cpu', weight_threshold=1.0, mean_prior=MEAN_PRIOR, mean_precision_prior=MEAN_PRECISION_PRIOR, covariance_prior=COVARIANCE_PRIOR, degrees_of_freedom_prior=DEGREES_OF_FREEDOM_PRIOR)
         _model.fit(X)
         predicted = _model.predict(X)
         ari = adjusted_rand_score(true_labels.cpu().numpy(), predicted.cpu().numpy())
-        _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=predicted.cpu().numpy(), cmap='turbo', s=12, alpha=0.7)
+        _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=predicted.cpu().numpy(), cmap='turbo', s=8, alpha=0.5)
         _ax.set_title(f'sweep {n_iter}\nn={_model.n_components_}, ARI={ari:.2f}')
-    _fig.suptitle('Unbounded Gibbs: hard assignment after increasingly many sweeps', fontsize=14)
+    _fig.suptitle('Unbounded Gibbs: hard assignment after increasingly many sweeps')
     plt.tight_layout()
     plt.gcf()
     return
@@ -489,6 +495,7 @@ def _(mo):
 
 @app.cell
 def _(
+    CATEGORICAL_PALETTE,
     COVARIANCE_PRIOR,
     DEGREES_OF_FREEDOM_PRIOR,
     GaussianMixture,
@@ -497,18 +504,17 @@ def _(
     N_SWEEPS,
     SEED,
     X,
-    dynamic_figsize,
     plt,
     true_k,
 ):
     _model = GaussianMixture(n_components=None, max_components=None, max_iter=N_SWEEPS + 10, burn_in=0, random_state=SEED, device='cpu', weight_threshold=1.0, mean_prior=MEAN_PRIOR, mean_precision_prior=MEAN_PRECISION_PRIOR, covariance_prior=COVARIANCE_PRIOR, degrees_of_freedom_prior=DEGREES_OF_FREEDOM_PRIOR)
     _model.fit(X)
     history = _model.n_components_history_
-    _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
-    _ax.plot(range(len(history)), history, marker='o', markersize=3, color='#4C72B0')
-    _ax.axhline(true_k, color='red', linestyle='--', label=f'true_k = {true_k}')
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
+    _ax.plot(range(len(history)), history, marker='o', markersize=3, color=CATEGORICAL_PALETTE[0])
+    _ax.axhline(true_k, color='black', linestyle='--', label=f'true_k = {true_k}')
     _ax.set_xlabel('sweep')
-    _ax.set_ylabel('number of components (all sizes, before weight_threshold)')
+    _ax.set_ylabel('number of components (before weight_threshold)')
     _ax.set_title('Unbounded Gibbs: raw component count per sweep')
     _ax.legend()
     plt.tight_layout()
@@ -775,6 +781,7 @@ def _(mo):
 
 @app.cell
 def _(
+    CATEGORICAL_PALETTE,
     CLUSTER_COUNTS,
     D_1,
     FAST,
@@ -787,7 +794,6 @@ def _(
     PCA,
     SEED,
     adjusted_rand_score,
-    dynamic_figsize,
     make_high_dim_blobs,
     make_viz_proxy,
     math,
@@ -910,7 +916,7 @@ def _(
         # LL is monotonic in K on training data (every extra component can only fit at least as well), so it has no
         # interior optimum and just keeps climbing: it is plotted for comparison, not as a selector. Data curves are
         # solid; the vertical "best K" markers are dashed in their curve's own colour; true_k is a neutral gray dotted line. ---
-        fig_ic, axes_ic = plt.subplots(1, len(CLUSTER_COUNTS), figsize=dynamic_figsize(1, len(CLUSTER_COUNTS)), sharey=False)
+        fig_ic, axes_ic = plt.subplots(1, len(CLUSTER_COUNTS), figsize=(11, 3.8), sharey=False)
         for col, k in enumerate(CLUSTER_COUNTS):
             sweep = gmm_rows[k]['sweep']
             ks = [t['n_components_'] for t in sweep]
@@ -918,28 +924,28 @@ def _(
             aic_best_k = min(sweep, key=lambda t: t['aic'])['n_components_']
             ll_best_k = max(sweep, key=lambda t: t['ll'])['n_components_']
             ax = axes_ic[col]
-            ax.plot(ks, [t['bic'] for t in sweep], marker='o', markersize=3, color='#4C72B0', linestyle='-', label='BIC')
-            ax.plot(ks, [t['aic'] for t in sweep], marker='o', markersize=3, color='#DD8452', linestyle='-', label='AIC')
+            ax.plot(ks, [t['bic'] for t in sweep], marker='o', markersize=3, color=CATEGORICAL_PALETTE[0], linestyle='-', label='BIC')
+            ax.plot(ks, [t['aic'] for t in sweep], marker='o', markersize=3, color=CATEGORICAL_PALETTE[1], linestyle='-', label='AIC')
             ax.axvline(k, color='gray', linestyle=':', label=f'true_k={k}')
-            ax.axvline(bic_best_k, color='#4C72B0', linestyle='--', alpha=0.6, label=f'BIC-best K={bic_best_k}')
-            ax.axvline(aic_best_k, color='#DD8452', linestyle='--', alpha=0.6, label=f'AIC-best K={aic_best_k}')
+            ax.axvline(bic_best_k, color=CATEGORICAL_PALETTE[0], linestyle='--', alpha=0.6, label=f'BIC-best K={bic_best_k}')
+            ax.axvline(aic_best_k, color=CATEGORICAL_PALETTE[1], linestyle='--', alpha=0.6, label=f'AIC-best K={aic_best_k}')
             ax.set_xlabel('K')
             if col == 0:
                 ax.set_ylabel('information criterion (lower is better)')
             ax_ll = ax.twinx()
-            ax_ll.plot(ks, [t['ll'] for t in sweep], marker='o', markersize=3, color='#55A868', linestyle='-', alpha=0.8, label='log-likelihood (training, monotonic)')
-            ax.axvline(ll_best_k, color='#55A868', linestyle='--', alpha=0.6, label=f'best-LL K={ll_best_k}')  # highest LL is "best" -- always K_SWEEP_MAX
+            ax_ll.plot(ks, [t['ll'] for t in sweep], marker='o', markersize=3, color=CATEGORICAL_PALETTE[2], linestyle='-', alpha=0.8, label='log-likelihood (training, monotonic)')
+            ax.axvline(ll_best_k, color=CATEGORICAL_PALETTE[2], linestyle='--', alpha=0.6, label=f'best-LL K={ll_best_k}')  # highest LL is "best" -- always K_SWEEP_MAX
             if col == len(CLUSTER_COUNTS) - 1:
                 ax_ll.set_ylabel('avg. log-likelihood per point')
             ax.set_title(f'true_k={k}')
             lines1, labels1 = ax.get_legend_handles_labels()
             lines2, labels2 = ax_ll.get_legend_handles_labels()
-            ax.legend(lines1 + lines2, labels1 + labels2, fontsize='x-small', loc='center right')
-        fig_ic.suptitle(f'{round_name}: classical GMM, BIC/AIC (left) vs log-likelihood (right, monotonic) over K=1..{K_SWEEP_MAX}', fontsize=13)
+            ax.legend(lines1 + lines2, labels1 + labels2, loc='center right')
+        fig_ic.suptitle(f'{round_name}: BIC / AIC and log-likelihood (right axis) over K=1..{K_SWEEP_MAX}')
         fig_ic.tight_layout()
         # --- one combined 4-row x 3-col figure: true data / GMM / Gibbs truncated / Gibbs unbounded
         # (rows 2-3 start from the same K, GIBBS_INIT_K) ---
-        fig, axes = plt.subplots(4, 3, figsize=dynamic_figsize(4, 3))
+        fig, axes = plt.subplots(4, 3, figsize=(11, 15.2))
         for col, k in enumerate(CLUSTER_COUNTS):
             d = datasets[k]
             X_pca = d['X_pca']
@@ -947,7 +953,7 @@ def _(
             # Row 0: true clusters, samples, and generating distributions
             means_2d, covs_2d = project_gaussian_params(d['true_means'], d['true_covs'], pca)
             proxy = make_viz_proxy(means_2d, covs_2d, torch.full((k,), 1.0 / k), d['labels'])
-            plot_gmm(X_pca, gmm=proxy, color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2], point_size=8, legend=False, ax=axes[0, col], title=f'true_k={k}: {k} true clusters, n={len(X_pca)}')
+            plot_gmm(X_pca, gmm=proxy, color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2.45], point_size=8, legend=False, ax=axes[0, col], title=f'true_k={k}: {k} true clusters, n={len(X_pca)}')
             dpgmm_rows = {}
             for key, label, cfg in method_configs():
                 r = fit_dpgmm_and_summarize(d['X'], d['labels'], pca, label, cfg['truncation_level'], WEIGHT_THRESHOLD, SEED, init_k=cfg['init_k'])
@@ -955,12 +961,12 @@ def _(
                 results[k, key] = r
             gmm_r = gmm_rows[k]
             for row_idx, r in enumerate([gmm_r, dpgmm_rows['gibbs_trunc'], dpgmm_rows['gibbs_unbounded']], start=1):
-                plot_gmm(X_pca, gmm=r['proxy'], color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2], point_size=8, legend=False, ax=axes[row_idx, col], title=f"true_k={k}: {r['title']}")
-        fig.suptitle(f'{round_name}: true data vs. classical GMM vs. Gibbs-mode GaussianMixture (PCA projection)', fontsize=16)
+                plot_gmm(X_pca, gmm=r['proxy'], color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2.45], point_size=8, legend=False, ax=axes[row_idx, col], title=f"true_k={k}: {r['title']}")
+        fig.suptitle(f'{round_name}: truth vs. classical GMM vs. Gibbs mode (PCA projection)')
         # one legend for the whole figure (only when distribution info was supplied -- rounds 1/2 are pure Gaussian)
         if legend_info_fn is not None:
             handles = legend_info_fn(datasets[K_MAX]['cluster_info'])
-            fig.legend(handles=handles, loc='center left', bbox_to_anchor=(1.0, 0.5), fontsize='x-small')
+            fig.legend(handles=handles, loc='center left', bbox_to_anchor=(1.0, 0.5))
         fig.tight_layout()
         # --- summary table ---
         lines = [f"{'true_k':>6}  {'method':<24} {'n':>3}  {'ARI':>6}  {'LL':>9}  {'seconds':>8}"]
@@ -1174,7 +1180,13 @@ def _(mo):
     - A Gibbs run is a *trace*, not a convergence curve: the component count rises and falls and then stabilizes; `burn_in` only affects the recorded history, not the fitted parameters.
     - Truncated (`max_components=K`) and unbounded (`max_components=None`) samplers share the same occupancy-driven logic and agree when given the same starting partition (`init_k`); remaining differences are a mixing effect.
     - Compared with classical EM plus a BIC sweep, Gibbs mode lands at or close to the true cluster count on separated data (a short chain or a small sample can leave a few extra small components), tends to be more variable when clusters overlap, and inherits every shortcoming of the Gaussian assumption on non-Gaussian shapes.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [12 -- HDBSCAN](12_hdbscan.ipynb) for a nonparametric alternative that needs no component count and no Gaussian assumption, and [13 -- Model Selection](13_model_selection.ipynb) for the classical BIC/AIC/ICL route.
     """)
     return

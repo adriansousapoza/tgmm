@@ -87,7 +87,11 @@ def _():
 
     from tgmm import GaussianMixture, plot_gmm, generate_gmm_data
 
-    plt.rcParams['figure.dpi'] = 75  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
+    plt.rcParams['figure.dpi'] = 75  # lower than the style's 100 only to keep the export under 8 MB (the page embeds two videos and four large figures)
     SEED = 0
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -291,7 +295,7 @@ def _(SEED, norm, np, plt):
     _total_size = sum(cluster_sizes)
     # True mixing coefficients based on the actual data proportions
     true_taus = [size / _total_size for size in cluster_sizes]
-    plt.figure(figsize=(8, 4.5))
+    plt.figure(figsize=(6.5, 4.5))
     plt.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
     _x = np.linspace(min(data), max(data), 1000)
     # Plotting the histogram and the weighted Gaussians
@@ -521,7 +525,7 @@ def _(mo):
     - **`gmm.fit(X)`** (top left): the learned `means_` and `covariances_`, drawn as the fitted covariance ellipses (1, 2 and 3 standard deviations) over the data, with the means as black hexagons. The box in its corner shows the information criteria `gmm.bic(X)`, `gmm.aic(X)` and `gmm.icl(X)` (lower is better; defined below the plots).
     - **`gmm.score_samples(X)`** (top right): each point coloured by its log-likelihood $\log p(x_i\mid\theta)$; points far from every component are the unlikely ones. The title also shows its average, `gmm.score(X)`.
     - **`gmm.predict(X)`** (bottom left): the hard cluster label of every point.
-    - **`gmm.sample(n)`** (bottom right): new points drawn from the fitted mixture (shown without the ellipses, coloured by the component each point was drawn from, so you can compare their spread with the data; more in [05 -- Sampling](05_sampling.ipynb)). If the model is good they look like the original data.
+    - **`gmm.sample(n)`** (bottom right): new points drawn from the fitted mixture, in the same grey as the data in the first panel and without the ellipses, so you can compare them with the original data (more in [05 -- Sampling](05_sampling.ipynb)). Unlike the predictions, which colour the *real* points by their cluster, the samples carry no label here: if the model is good the grey cloud looks like the data.
 
     Below them, `gmm.predict_proba(X)` is drawn one component at a time, for the observed data and for the generated samples. The information criteria are defined and checked right after the plots.
     """)
@@ -533,7 +537,6 @@ def _(
     X,
     X_tensor,
     gmm,
-    gmm_labels,
     gmm_samples,
     legend_labels,
     log_probs,
@@ -543,13 +546,13 @@ def _(
     y_pred,
 ):
     _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
-    _means = dict(mean_marker='h', mean_size=26, mean_color='black')  # the component means are small black hexagons, the points are coloured or grey
-    plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=legend_labels, point_color='gray', **_means)
+    _means = dict(mean_marker='h', mean_size=25, mean_color='black')  # the component means are small black hexagons, the points are coloured or grey
+    plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=legend_labels, point_color='#6b6b6b', **_means)
     plot_gmm(X=X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {gmm.score(X_tensor):.3f}', log_probs=log_probs, colorbar_label='Log-Likelihood')
-    plot_gmm(X=X, ax=_axs[1, 0], true_labels=y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {i}' for i in range(n_components)])
-    plot_gmm(X=gmm_samples, gmm=gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, true_labels=gmm_labels, legend_labels=legend_labels, **_means)
+    plot_gmm(X=X, gmm=gmm, show_ellipses=False, ax=_axs[1, 0], true_labels=y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {i}' for i in range(n_components)])
+    plot_gmm(X=gmm_samples, gmm=gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, point_color='#6b6b6b', **_means)  # one solid grey like the data in the first panel (a colormap name such as 'gray' would shade the points)
     _ic = f'gmm.bic(X) = {gmm.bic(X_tensor):.1f}\ngmm.aic(X) = {gmm.aic(X_tensor):.1f}\ngmm.icl(X) = {gmm.icl(X_tensor):.1f}'  # lower is better
-    _axs[0, 0].text(0.02, 0.02, _ic, transform=_axs[0, 0].transAxes, ha='left', va='bottom', fontsize=8, family='monospace', zorder=10,
+    _axs[0, 0].text(0.02, 0.02, _ic, transform=_axs[0, 0].transAxes, ha='left', va='bottom', fontsize=plt.rcParams['legend.fontsize'], family='monospace', zorder=10,
                     bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.75, edgecolor='0.7'))
     _fig.tight_layout()
     plt.gcf()
@@ -559,13 +562,13 @@ def _(
 @app.cell
 def _(X, n_components, plot_gmm, plt, probs):
     _nrows = (n_components + 1) // 2
-    _fig, _axs = plt.subplots(_nrows, 2, figsize=(9, 3.8 * _nrows), squeeze=False)
+    _fig, _axs = plt.subplots(_nrows, 2, figsize=(11, 4.5 * _nrows), squeeze=False)
     for _k, _ax in enumerate(_axs.ravel()):
         if _k < n_components:
             plot_gmm(X=X, ax=_ax, title=f'Component {_k + 1} Probability', log_probs=probs[:, _k], colormap='RdBu', colorbar_label='Probability')
         else:
             _ax.axis('off')
-    plt.suptitle('gmm.predict_proba(X): responsibilities of the observed data', fontsize=11)
+    plt.suptitle('gmm.predict_proba(X): responsibilities of the observed data')
     plt.tight_layout()
     plt.gcf()
     return
@@ -635,7 +638,21 @@ def _(GaussianMixture, X_tensor, device, gmm, n_components, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 9. Design Your Own Mixture (interactive version)
+    ## Summary
+
+    - A GMM generates a point by drawing a hidden component $z_i\sim\pi$ and then $x_i\sim\mathcal N(\mu_{z_i},\Sigma_{z_i})$; maximum likelihood has no closed form because of the sum inside the logarithm.
+    - EM alternates the E-step (responsibilities $r_{ik}$ from the current parameters) and the M-step ($r$-weighted maximum-likelihood updates). Each iteration is guaranteed not to decrease the log-likelihood, but only a local optimum is reached, so the result depends on the initialization.
+    - Even from a deliberately poor start the 1-D example recovers the true components, and in 2-D the responsibilities sharpen into confident assignments while the covariance ellipses settle onto the blobs.
+    - `GaussianMixture(n_components=K).fit(X)` is all that is needed for a first fit; `predict`, `predict_proba`, `score_samples`, `score`, `bic`, `aic`, `icl` and `sample` give labels, soft assignments, per-point log-likelihoods, information criteria and new data.
+    - `plot_gmm` overlays the fitted means and covariance ellipses on the data and can colour points by cluster, responsibility or log-likelihood; `save`/`load` and `save_state_dict`/`load_state_dict` persist a fitted model.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Try it yourself (interactive version)
 
     The page you are reading shows the fixed default data. To specify the mixture yourself, open the interactive version of this notebook (the molab link at the top of the page, or `marimo edit` locally): the number fields below only work there, and all of this notebook's interactive controls live in this last section. The result is static: one `GaussianMixture` fit to your blobs and the same views as in section 7 (`score_samples`, `predict`, `sample`, `predict_proba`), with no video.
 
@@ -742,15 +759,14 @@ def _(
         print(f'gmm.icl(X)   = {custom_gmm.icl(custom_X_tensor):.1f}')
         _log_probs = custom_gmm.score_samples(custom_X_tensor).detach().cpu()
         _y_pred = custom_gmm.predict(custom_X_tensor).detach().cpu().numpy()
-        _samples, _sample_labels = custom_gmm.sample(len(custom_X_tensor))
-        _samples, _sample_labels = _samples.detach().cpu().numpy(), _sample_labels.detach().cpu().numpy()
+        _samples = custom_gmm.sample(len(custom_X_tensor))[0].detach().cpu().numpy()
         _names = [f'Component {_i + 1}' for _i in range(_K)]
-        _means = dict(mean_marker='h', mean_size=26, mean_color='black')
+        _means = dict(mean_marker='h', mean_size=25, mean_color='black')
         _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
-        plot_gmm(X=custom_X, gmm=custom_gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=_names, point_color='gray', **_means)
+        plot_gmm(X=custom_X, gmm=custom_gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=_names, point_color='#6b6b6b', **_means)
         plot_gmm(X=custom_X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {custom_gmm.score(custom_X_tensor):.3f}', log_probs=_log_probs, colorbar_label='Log-Likelihood')
-        plot_gmm(X=custom_X, ax=_axs[1, 0], true_labels=_y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {_i}' for _i in range(_K)])
-        plot_gmm(X=_samples, gmm=custom_gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, true_labels=_sample_labels, legend_labels=_names, **_means)
+        plot_gmm(X=custom_X, gmm=custom_gmm, show_ellipses=False, ax=_axs[1, 0], true_labels=_y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {_i}' for _i in range(_K)], **_means)
+        plot_gmm(X=_samples, gmm=custom_gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, point_color='#6b6b6b', **_means)
         _fig.tight_layout()
         _out = plt.gcf()
     _out
@@ -765,13 +781,13 @@ def _(custom_X, custom_X_tensor, custom_gmm, plot_gmm, plt):
         _K = custom_gmm.n_components
         _probs = custom_gmm.predict_proba(custom_X_tensor).detach().cpu()
         _nrows = (_K + 1) // 2
-        _fig, _axs = plt.subplots(_nrows, 2, figsize=(9, 3.8 * _nrows), squeeze=False)
+        _fig, _axs = plt.subplots(_nrows, 2, figsize=(11, 4.5 * _nrows), squeeze=False)
         for _k, _ax in enumerate(_axs.ravel()):
             if _k < _K:
                 plot_gmm(X=custom_X, ax=_ax, title=f'Component {_k + 1} Probability', log_probs=_probs[:, _k], colormap='RdBu', colorbar_label='Probability')
             else:
                 _ax.axis('off')
-        plt.suptitle('gmm.predict_proba(X): responsibilities of your data', fontsize=11)
+        plt.suptitle('gmm.predict_proba(X): responsibilities of your data')
         plt.tight_layout()
         _out = plt.gcf()
     _out
@@ -781,9 +797,7 @@ def _(custom_X, custom_X_tensor, custom_gmm, plot_gmm, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Where to Go Next
-
-    This notebook fitted one kind of mixture (`covariance_type='full'`, maximum likelihood, EM from a k-means++ start). Each of the following changes one ingredient:
+    **Where to go next.** This notebook fitted one kind of mixture (`covariance_type='full'`, maximum likelihood, EM from a k-means++ start). Each of the following changes one ingredient:
 
     - **The shape of each component:** diagonal, spherical, shared (`tied_*`) and the 14 GPCM structures, in [02 -- Covariance Types](02_covariance_types.ipynb).
     - **The starting point and restarts:** `init_means`, `init_weights`, `init_covariances`, `n_init`, `warm_start`, in [03 -- Initialization](03_initialization.ipynb).
@@ -791,20 +805,6 @@ def _(mo):
     - **Hard assignments:** `algorithm='cem'` (Classification EM), in [07 -- CEM](07_cem.ipynb).
     - **Regularizing the estimates:** priors and MAP estimation, in [04 -- Priors](04_priors.ipynb) (MAP and the NIW prior).
     - **Choosing $K$:** [13 -- Model Selection](13_model_selection.ipynb).
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Summary
-
-    - A GMM generates a point by drawing a hidden component $z_i\sim\pi$ and then $x_i\sim\mathcal N(\mu_{z_i},\Sigma_{z_i})$; maximum likelihood has no closed form because of the sum inside the logarithm.
-    - EM alternates the E-step (responsibilities $r_{ik}$ from the current parameters) and the M-step ($r$-weighted maximum-likelihood updates). Each iteration is guaranteed not to decrease the log-likelihood, but only a local optimum is reached, so the result depends on the initialization.
-    - Even from a deliberately poor start the 1-D example recovers the true components, and in 2-D the responsibilities sharpen into confident assignments while the covariance ellipses settle onto the blobs.
-    - `GaussianMixture(n_components=K).fit(X)` is all that is needed for a first fit; `predict`, `predict_proba`, `score_samples`, `score`, `bic`, `aic`, `icl` and `sample` give labels, soft assignments, per-point log-likelihoods, information criteria and new data.
-    - `plot_gmm` overlays the fitted means and covariance ellipses on the data and can colour points by cluster, responsibility or log-likelihood; `save`/`load` and `save_state_dict`/`load_state_dict` persist a fitted model.
 
     **Next:** [02 -- Covariance Types](02_covariance_types.ipynb), then [03 -- Initialization](03_initialization.ipynb) and [05 -- Sampling](05_sampling.ipynb).
     """)

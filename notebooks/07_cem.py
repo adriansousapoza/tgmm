@@ -85,19 +85,23 @@ def _():
     import matplotlib.pyplot as plt
     from scipy.optimize import linear_sum_assignment
 
-    from tgmm import ClusteringMetrics, GaussianMixture, plot_gmm, dynamic_figsize, generate_gmm_data
+    from tgmm import ClusteringMetrics, GaussianMixture, confidence_ellipse_std_devs, plot_gmm, generate_gmm_data
     from tutorial_data import default_blobs, make_default_data
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
+    CONF_95 = confidence_ellipse_std_devs(0.95)  # the radius that encloses 95% of a 2-D Gaussian (about 2.45 standard deviations)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     return (
+        CONF_95,
         GaussianMixture,
         SEED,
         device,
-        dynamic_figsize,
         generate_gmm_data,
         ClusteringMetrics,
         linear_sum_assignment,
@@ -182,13 +186,13 @@ def _(mo):
 
 
 @app.cell
-def _(GaussianMixture, SEED, device, dynamic_figsize, make_default_data, plot_gmm, plt):
+def _(GaussianMixture, SEED, device, make_default_data, plot_gmm, plt):
     _X_default, _ = make_default_data(SEED, device=device)
     _gmm_em = GaussianMixture(n_components=4, covariance_type='full', random_state=0, max_iter=200, device=device).fit(_X_default)
     _gmm_cem = GaussianMixture(n_components=4, covariance_type='full', algorithm='cem', random_state=0, max_iter=200, device=device).fit(_X_default)
-    _fig, _axes = plt.subplots(1, 2, figsize=dynamic_figsize(1, 2))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     plot_gmm(_X_default.cpu().numpy(), gmm=_gmm_em, ax=_axes[0], title=f'Standard EM ({_gmm_em.n_iter_} iters, LL={_gmm_em.lower_bound_:.3f})')
-    plot_gmm(_X_default.cpu().numpy(), gmm=_gmm_cem, ax=_axes[1], title=f'CEM ({_gmm_cem.n_iter_} iters, LL={_gmm_cem.lower_bound_:.3f})')
+    plot_gmm(_X_default.cpu().numpy(), gmm=_gmm_cem, ax=_axes[1], legend=False, title=f'CEM ({_gmm_cem.n_iter_} iters, LL={_gmm_cem.lower_bound_:.3f})')
     plt.tight_layout()
     plt.gcf()
     return
@@ -276,12 +280,12 @@ def _(mo, stats_cem, stats_em, summary_table):
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm_cem, gmm_em, labels, plot_gmm, plt):
-    _fig, _axes = plt.subplots(1, 3, figsize=dynamic_figsize(1, 3))
+def _(CONF_95, X, gmm_cem, gmm_em, labels, plot_gmm, plt):
+    _fig, _axes = plt.subplots(1, 3, figsize=(11, 3.8))
     _fig.suptitle('Comparing the best fit of EM vs CEM')
     plot_gmm(X=X, true_labels=labels, ax=_axes[0], title='True Components', show_ellipses=False, show_means=False)
-    plot_gmm(X=X, gmm=gmm_em, ax=_axes[1], title=f'Standard EM Clustering\n(Iterations: {gmm_em.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=[3], ellipse_fill=True, ellipse_alpha=0.1)
-    plot_gmm(X=X, gmm=gmm_cem, ax=_axes[2], title=f'Classification EM Clustering\n(Iterations: {gmm_cem.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=[3], ellipse_fill=True, ellipse_alpha=0.1)
+    plot_gmm(X=X, gmm=gmm_em, ax=_axes[1], legend=False, title=f'Standard EM Clustering\n(Iterations: {gmm_em.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=CONF_95, ellipse_fill=True, ellipse_alpha=0.1)
+    plot_gmm(X=X, gmm=gmm_cem, ax=_axes[2], legend=False, title=f'Classification EM Clustering\n(Iterations: {gmm_cem.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=CONF_95, ellipse_fill=True, ellipse_alpha=0.1)
     plt.tight_layout()
     plt.gcf()
     return
@@ -370,7 +374,7 @@ def _(FAST, GaussianMixture, X_tensor, device, torch, warnings):
 
 @app.cell
 def _(plt, trace_steps, traces):
-    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4))
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
     for _alg, _label in (('em', 'EM'), ('cem', 'CEM')):
         _axes[0].plot(trace_steps, traces[_alg][:, 0], marker='o', label=_label)
         _axes[1].plot(trace_steps, traces[_alg][:, 1], marker='o', label=_label)
@@ -459,19 +463,19 @@ def _(ClusteringMetrics, X_sep_tensor, gmm_cem_sep, gmm_em_sep, labels_sep, mo, 
 
 @app.cell
 def _(
+    CONF_95,
     X_sep,
-    dynamic_figsize,
     gmm_cem_sep,
     gmm_em_sep,
     labels_sep,
     plot_gmm,
     plt,
 ):
-    _fig, _axes = plt.subplots(1, 3, figsize=dynamic_figsize(1, 3))
+    _fig, _axes = plt.subplots(1, 3, figsize=(11, 3.8))
     _fig.suptitle('Comparing the best fit of EM vs CEM')
     plot_gmm(X=X_sep, true_labels=labels_sep, ax=_axes[0], title='True Components', show_ellipses=False, show_means=False)
-    plot_gmm(X=X_sep, gmm=gmm_em_sep, ax=_axes[1], title=f'Standard EM Clustering\n(Iterations: {gmm_em_sep.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=[3], ellipse_fill=True, ellipse_alpha=0.1)
-    plot_gmm(X=X_sep, gmm=gmm_cem_sep, ax=_axes[2], title=f'Classification EM Clustering\n(Iterations: {gmm_cem_sep.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=[3], ellipse_fill=True, ellipse_alpha=0.1)
+    plot_gmm(X=X_sep, gmm=gmm_em_sep, ax=_axes[1], legend=False, title=f'Standard EM Clustering\n(Iterations: {gmm_em_sep.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=CONF_95, ellipse_fill=True, ellipse_alpha=0.1)
+    plot_gmm(X=X_sep, gmm=gmm_cem_sep, ax=_axes[2], legend=False, title=f'Classification EM Clustering\n(Iterations: {gmm_cem_sep.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=CONF_95, ellipse_fill=True, ellipse_alpha=0.1)
     plt.tight_layout()
     plt.gcf()
     return
@@ -486,7 +490,13 @@ def _(mo):
     - With overlapping clusters, EM's soft assignments reach a higher mixture log-likelihood and for most blobs larger (less truncated) covariances, while CEM stops earlier on a cruder partition.
     - With well-separated clusters the two reach the same best solution and CEM needs fewer iterations.
     - Use `algorithm='cem'` when speed or a crisp partition matters more than the exact maximum-likelihood fit; `lower_bound_` stays the mixture log-likelihood, so fits remain comparable.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [08 -- Supervised Fitting](08_supervised_gmm.ipynb), which adds label information, or [14 -- Stochastic EM](14_stochastic_em.ipynb) for the stochastic variants.
     """)
     return

@@ -85,22 +85,26 @@ def _():
     from tqdm import tqdm
     from sklearn.cluster import KMeans
 
-    from tgmm import GaussianMixture, ClusteringMetrics, dynamic_figsize, plot_gmm, match_predicted_to_true_labels
+    from tgmm import GaussianMixture, ClusteringMetrics, confidence_ellipse_std_devs, plot_gmm, match_predicted_to_true_labels
     from tutorial_data import make_default_data
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
 
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
+    CONF_95 = confidence_ellipse_std_devs(0.95)  # the radius that encloses 95% of a 2-D Gaussian (about 2.45 standard deviations)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     return (
+        CONF_95,
         ClusteringMetrics,
         GaussianMixture,
         KMeans,
         SEED,
         device,
-        dynamic_figsize,
         make_default_data,
         match_predicted_to_true_labels,
         np,
@@ -290,29 +294,29 @@ def _(
         bic_vals[_i] = _gmm.bic(X_tensor)
         aic_vals[_i] = _gmm.aic(X_tensor)
     sweep = {
-        'Silhouette': (silhouette_vals, 'max', 'o-b'),
-        'Davies-Bouldin': (davies_vals, 'min', 'o-g'),
-        'Calinski-Harabasz': (calinski_vals, 'max', 'o-y'),
+        'Silhouette': (silhouette_vals, 'max', 'o-'),
+        'Davies-Bouldin': (davies_vals, 'min', 'o-'),
+        'Calinski-Harabasz': (calinski_vals, 'max', 'o-'),
         'Dunn': (dunn_vals, 'max', 'o-'),
-        'WB-Index': (wb_vals, 'min', 'o-r'),
-        'Wemmert-Gancarski': (wg_vals, 'max', 'o-k'),
+        'WB-Index': (wb_vals, 'min', 'o-'),
+        'Wemmert-Gancarski': (wg_vals, 'max', 'o-'),
         'DBCV': (dbcv_vals, 'max', 'o-'),
-        'BIC': (bic_vals, 'min', 'o-m'),
-        'AIC': (aic_vals, 'min', 'o-c'),
+        'BIC': (bic_vals, 'min', 'o-'),
+        'AIC': (aic_vals, 'min', 'o-'),
     }
     best_k = {_name: int(components_range[(_v.argmax() if _w == 'max' else _v.argmin()).item()]) for _name, (_v, _w, _f) in sweep.items()}
     return best_k, components_range, labels_by_k, sweep
 
 
 @app.cell
-def _(best_k, components_range, dynamic_figsize, n_components, plt, sweep):
+def _(best_k, components_range, n_components, plt, sweep):
     _names = ['Silhouette', 'Davies-Bouldin', 'Calinski-Harabasz', 'Dunn', 'BIC', 'AIC']
-    _fig, _axs = plt.subplots(3, 2, figsize=dynamic_figsize(3, 2))
+    _fig, _axs = plt.subplots(3, 2, figsize=(11, 13.5))
     for _ax, _name in zip(_axs.ravel(), _names):
         _vals, _dir, _fmt = sweep[_name]
         _ax.plot(components_range, _vals.cpu(), _fmt)
-        _ax.axvline(x=n_components, color='r', linestyle='--', label='True # of Components')
-        _ax.axvline(x=best_k[_name], color='k', linestyle=':', label='Predicted Ideal # of Components')
+        _ax.axvline(x=n_components, color='k', linestyle='--', label='True # of Components')
+        _ax.axvline(x=best_k[_name], color='orange', linestyle='-', label='Predicted Ideal # of Components')
         _ax.set_title(f"{_name} ({'higher' if _dir == 'max' else 'lower'} is better)")
         _ax.set_xlabel('Number of Components')
         _ax.grid(True)
@@ -326,12 +330,12 @@ def _(best_k, components_range, dynamic_figsize, n_components, plt, sweep):
 @app.cell
 def _(best_k, components_range, n_components, plt, sweep):
     _names = ['WB-Index', 'Wemmert-Gancarski', 'DBCV']
-    _fig, _axs = plt.subplots(1, 3, figsize=(13, 3.6))
+    _fig, _axs = plt.subplots(1, 3, figsize=(11, 3.8))
     for _ax, _name in zip(_axs, _names):
         _vals, _dir, _fmt = sweep[_name]
         _ax.plot(components_range, _vals.cpu(), _fmt)
-        _ax.axvline(x=n_components, color='r', linestyle='--', label='True # of Components')
-        _ax.axvline(x=best_k[_name], color='k', linestyle=':', label='Predicted Ideal # of Components')
+        _ax.axvline(x=n_components, color='k', linestyle='--', label='True # of Components')
+        _ax.axvline(x=best_k[_name], color='orange', linestyle='-', label='Predicted Ideal # of Components')
         _ax.set_title(f"{_name} ({'higher' if _dir == 'max' else 'lower'} is better)")
         _ax.set_xlabel('Number of Components')
         _ax.grid(True)
@@ -537,6 +541,7 @@ def _(mo):
 
 @app.cell
 def _(
+    CONF_95,
     ClusteringMetrics,
     GaussianMixture,
     MAX_ITER,
@@ -584,8 +589,8 @@ def _(
             abs_diff = None
             rel_diff = None
         rows.append({'Metric': metric, 'Torch Score': torch_val, 'Sklearn Score': sklearn_val, 'Absolute Difference': abs_diff, 'Relative Difference (%)': rel_diff})
-    _fig, ax = plt.subplots()
-    plot_gmm(X=X_np, gmm=_gmm, true_labels=y_tensor, match_labels_to_true=True, ax=ax, title='GMM Predictions', show_ellipses=True, show_incorrect_predictions=True, ellipse_fill=False, ellipse_std_devs=[3], point_size=10)
+    _fig, ax = plt.subplots(figsize=(6.5, 4.5))
+    plot_gmm(X=X_np, gmm=_gmm, true_labels=y_tensor, match_labels_to_true=True, ax=ax, title='GMM Predictions', show_ellipses=True, show_incorrect_predictions=True, ellipse_fill=False, ellipse_std_devs=CONF_95)
     plt.gcf()
     return labels_pred_1, rows
 
@@ -667,11 +672,11 @@ def _(ClusteringMetrics, labels_by_k, plt, torch, y_tensor):
     _pur = [ClusteringMetrics.purity_score(_yt, labels_by_k[_k].long()) for _k in _ks]
     _ari = [ClusteringMetrics.adjusted_rand_score(_yt, labels_by_k[_k].long()) for _k in _ks]
     _nmi = [ClusteringMetrics.normalized_mutual_info_score(_yt, labels_by_k[_k].long()) for _k in _ks]
-    plt.figure(figsize=(6, 3.6))
+    plt.figure(figsize=(6.5, 4.5))
     plt.plot(_ks, _pur, 'o-', label='purity')
     plt.plot(_ks, _ari, 's-', label='ARI')
     plt.plot(_ks, _nmi, '^-', label='NMI')
-    plt.axvline(4, color='r', linestyle='--', label='true K')
+    plt.axvline(4, color='k', linestyle='--', label='true K')
     plt.xlabel('Number of components')
     plt.ylabel('score vs. true labels')
     plt.grid(True)
@@ -725,7 +730,7 @@ def _(
     cm = ClusteringMetrics.confusion_matrix(y_tensor.clone().detach().to(dtype=torch.long), matched_pred.clone().detach().to(dtype=torch.long))
     cm_np = cm.cpu().numpy().astype(float)
     cm_percent = (cm_np.T / cm_np.sum(axis=1)).T * 100
-    plt.figure()
+    plt.figure(figsize=(6.5, 4.5))
     sns.heatmap(cm_percent, annot=True, fmt='.1f', cmap='Blues')
     plt.title('Confusion Matrix (%)')
     plt.xlabel('Predicted Label')
@@ -854,7 +859,7 @@ def _(
             gmm_test = GaussianMixture(n_features=n_features, n_components=_n, covariance_type='full', max_iter=MAX_ITER, init_means='kmeans', device=device)
             gmm_test.fit(X_tensor)
             kl_vals[_i] = ClusteringMetrics.kl_divergence_gmm(gmm_true, gmm_test, n_samples=10000)
-        plt.figure()
+        plt.figure(figsize=(6.5, 4.5))
         plt.plot(test_range, kl_vals.cpu().numpy(), marker='o')
         plt.yscale('log')
         plt.title('KL Divergence: True GMM vs. Various n_components')
@@ -978,13 +983,13 @@ def _(
 
 @app.cell
 def _(ix_X, ix_crit, ix_k, ix_lab_noise, ix_noise, plt):
-    _fig, _axs = plt.subplots(1, 2, figsize=(12, 4.4))
+    _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.5))
     _axs[0].scatter(*ix_X.T, c=ix_lab_noise, cmap='viridis', s=12)
     _axs[0].set_aspect('equal')
     _axs[0].set_title(f'k-means, K = {ix_k.value}' + (' (noise: label -1)' if ix_noise.value else ''))
     for _j, _name in enumerate(('BIC', 'ICL')):
         _axs[1].plot(range(1, 7), ix_crit[:, _j], marker='o', label=_name)
-        _axs[1].plot(1 + ix_crit[:, _j].argmin(), ix_crit[:, _j].min(), 'k*', ms=14)
+        _axs[1].plot(1 + ix_crit[:, _j].argmin(), ix_crit[:, _j].min(), 'kD', ms=6)
     _axs[1].set_xlabel('number of GMM components K')
     _axs[1].set_ylabel('criterion (lower is better)')
     _axs[1].legend()

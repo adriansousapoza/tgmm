@@ -86,7 +86,10 @@ def _():
     from tgmm.plotting import CATEGORICAL_PALETTE, plot_gmm
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -159,12 +162,12 @@ def _(CATEGORICAL_PALETTE, SEED, generate_gmm_data, np, plt):
 
     X, true_labels = generate_gmm_data(centers, covs, n_samples, random_state=SEED)
 
-    plt.figure(figsize=(5, 5))
+    plt.figure(figsize=(6.5, 4.5))
     for _k in range(len(centers)):
         _mask = true_labels == _k
-        plt.scatter(X[_mask, 0], X[_mask, 1], s=10, color=CATEGORICAL_PALETTE[_k % len(CATEGORICAL_PALETTE)],
+        plt.scatter(X[_mask, 0], X[_mask, 1], s=8, alpha=0.5, color=CATEGORICAL_PALETTE[_k % len(CATEGORICAL_PALETTE)],
                     label=f'true component {_k}')
-    plt.legend(fontsize=8)
+    plt.legend()
     plt.title('Overlapping blobs (true generating components)')
     plt.gca().set_aspect('equal')
     plt.gcf()
@@ -219,7 +222,7 @@ def _(np, plt, result):
     best_bic_k = ks[int(np.argmin(bics))]
     best_icl_k = ks[int(np.argmin(icls))]
 
-    plt.figure(figsize=(6, 4))
+    plt.figure(figsize=(6.5, 4.5))
     plt.plot(ks, bics, marker='o', label='BIC')
     plt.plot(ks, icls, marker='s', label='ICL')
     plt.axvline(best_bic_k, color='C0', linestyle='--', alpha=0.5)
@@ -363,12 +366,12 @@ def _(mo):
 
 
 @app.cell
-def _(load_iris, plt, torch):
+def _(CATEGORICAL_PALETTE, load_iris, plt, torch):
     iris = load_iris()
     X_iris = torch.tensor(iris.data[:, [2, 3]], dtype=torch.float64)  # petal length, petal width
 
-    plt.figure(figsize=(5, 4))
-    plt.scatter(X_iris[:, 0], X_iris[:, 1], c=iris.target, cmap='viridis', s=15)
+    plt.figure(figsize=(6.5, 4.5))
+    plt.scatter(X_iris[:, 0], X_iris[:, 1], c=[CATEGORICAL_PALETTE[int(_t) % len(CATEGORICAL_PALETTE)] for _t in iris.target], s=8, alpha=0.5)
     plt.xlabel('petal length (cm)')
     plt.ylabel('petal width (cm)')
     plt.title('Iris petal measurements (true species)')
@@ -398,7 +401,7 @@ def _(mo):
 
 @app.cell
 def _(GPCM_CODES, iris_df, plt):
-    plt.figure(figsize=(9, 5))
+    plt.figure(figsize=(6.5, 4.5))
     for _code_name in GPCM_CODES:
         _sub = iris_df[iris_df['covariance_type'] == _code_name].sort_values('n_components')
         _sub = _sub.dropna(subset=['bic'])
@@ -408,7 +411,7 @@ def _(GPCM_CODES, iris_df, plt):
     plt.xlabel('n_components (K)')
     plt.ylabel('BIC (lower is better)')
     plt.title('BIC across all 14 GPCM models, iris petal data')
-    plt.legend(ncol=2, fontsize=8)
+    plt.legend(ncol=2)
     plt.gcf()
     return
 
@@ -425,8 +428,8 @@ def _(mo):
 def _(X_iris, iris, iris_result, plot_gmm, plt):
     iris_best = iris_result.best_
     print(f'Winning model: {iris_best.covariance_type_} (K={iris_best.n_components}), BIC={iris_best.bic(X_iris):.2f}')
-    plt.figure(figsize=(6, 5))
-    plot_gmm(X_iris.cpu().numpy(), gmm=iris_best, true_labels=iris.target, color_by_cluster=True)
+    plt.figure(figsize=(6.5, 4.5))
+    plot_gmm(X_iris.cpu().numpy(), gmm=iris_best, true_labels=iris.target, color_by_cluster=True, mean_marker='h', mean_size=25, mean_color='black')
     plt.title(f'{iris_best.covariance_type_} (K={iris_best.n_components}) fit to iris petal measurements')
     plt.gcf()
     return (iris_best,)
@@ -601,10 +604,10 @@ def _(FAST, noise_switch, np, plt, sep_slider, select_model, three_blobs):
     _ks = [r['n_components'] for r in _res.table]
     _bic = np.array([r['bic'] for r in _res.table])
     _icl = np.array([r['icl'] for r in _res.table])
-    plt.figure(figsize=(6, 4))
+    plt.figure(figsize=(6.5, 4.5))
     for _y, _lab, _m in ((_bic, 'BIC', 'o'), (_icl, 'ICL', 's')):
         plt.plot(_ks, _y, marker=_m, label=_lab)
-        plt.plot(_ks[int(_y.argmin())], _y.min(), 'k*', ms=14)
+        plt.plot(_ks[int(_y.argmin())], _y.min(), 'kD', ms=6)  # the minimum: a black diamond
     plt.xlabel('n_components (K)')
     plt.ylabel('criterion (lower is better)')
     plt.title(f'separation {sep_slider.value}: BIC picks K = {_ks[int(_bic.argmin())]}, ICL picks K = {_ks[int(_icl.argmin())]}')

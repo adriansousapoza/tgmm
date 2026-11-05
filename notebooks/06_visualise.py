@@ -44,7 +44,7 @@ def _(mo):
     mo.md(r"""
     # `plot_gmm`: Visualizing Gaussian Mixtures
 
-    `plot_gmm` is the plotting workhorse of `tgmm` and is used by nearly every tutorial that follows. This notebook goes through its parameters one group at a time -- point styling, cluster coloring, confidence ellipses, mean markers, weight-based scaling and continuous log-likelihood coloring -- showing how each changes the figure. It then covers the helpers around it (`confidence_ellipse_std_devs`, `match_predicted_to_true_labels`, `gmm_proxy`, `dynamic_figsize`) and the directional counterparts `plot_vmf` and `plot_vmf_cosine`.
+    `plot_gmm` is the plotting workhorse of `tgmm` and is used by nearly every tutorial that follows. This notebook goes through its parameters one group at a time -- point styling, cluster coloring, confidence ellipses, mean markers, weight-based scaling and continuous log-likelihood coloring -- showing how each changes the figure. It then covers the helpers around it (`confidence_ellipse_std_devs`, `match_predicted_to_true_labels`, `gmm_proxy`) and the directional counterparts `plot_vmf` and `plot_vmf_cosine`.
 
     `plot_gmm` accepts any fitted `tgmm` mixture: it only needs `means_`, `covariances_`, `weights_`, `covariance_type` and `predict`, so it also draws every GPCM covariance code from [02 -- Covariance Types](02_covariance_types.ipynb). It draws **two-dimensional** data only (`X.shape[1] == 2`); for more features, project to 2-D first (see [10 -- PCA Plotting](10_pca_plotting.ipynb)).
 
@@ -81,19 +81,22 @@ def _():
     from scipy.stats import chi2
     from tutorial_data import default_blobs, make_default_data
     from tgmm import (
-        CATEGORICAL_PALETTE, GaussianMixture, SEQUENTIAL_CMAP, VonMisesFisherMixture, confidence_ellipse_std_devs, dynamic_figsize,
-        gmm_proxy, match_predicted_to_true_labels, plot_gmm, plot_vmf, plot_vmf_cosine,
+        CATEGORICAL_PALETTE, GaussianMixture, SEQUENTIAL_CMAP, VonMisesFisherMixture, confidence_ellipse_std_devs, gmm_proxy, match_predicted_to_true_labels, plot_gmm, plot_vmf, plot_vmf_cosine,
         vmf_angle_density, vmf_cap_angle,
     )
 
-    plt.rcParams['figure.dpi'] = 55  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
+    plt.rcParams['figure.dpi'] = 70  # lower than the style's 100 only to keep the exported page under 8 MB
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     return (
         CATEGORICAL_PALETTE, GaussianMixture, SEED, SEQUENTIAL_CMAP, VonMisesFisherMixture, chi2, confidence_ellipse_std_devs, default_blobs, device,
-        dynamic_figsize, gmm_proxy, make_default_data, match_predicted_to_true_labels, np, plot_gmm, plot_vmf,
+        gmm_proxy, make_default_data, match_predicted_to_true_labels, np, plot_gmm, plot_vmf,
         plot_vmf_cosine, plt, torch, vmf_angle_density, vmf_cap_angle,
     )
 
@@ -245,9 +248,9 @@ def _(mo):
 
 
 @app.cell
-def _(CATEGORICAL_PALETTE, SEQUENTIAL_CMAP, X, dynamic_figsize, plot_gmm, plt):
+def _(CATEGORICAL_PALETTE, SEQUENTIAL_CMAP, X, plot_gmm, plt):
     _nrows, _ncols = (1, 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = (6.5, 4.5)
     _fig, _ax = plt.subplots(nrows=_nrows, ncols=_ncols, figsize=_figsize)
     plot_gmm(X, gmm=None, show_points=True, point_size=5, point_alpha=0.5, point_color='auto', color_by_cluster=False, true_labels=None, match_labels_to_true=False, cluster_colors=CATEGORICAL_PALETTE, show_incorrect_predictions=False, log_probs=None, colormap=SEQUENTIAL_CMAP, colorbar_label='Log Probability', show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.5, ellipse_colors='auto', ellipse_fill=True, ellipse_line_style='dotted', ellipse_line_width=2, ellipse_line_color='#0b0b0b', ellipse_line_alpha=0.5, show_means=True, mean_marker='h', mean_size=25, mean_color='black', show_initial_means=False, initial_mean_marker='H', initial_mean_size=25, initial_mean_color='red', scale_alpha_by_weight=False, scale_size_by_weight=False, ax=_ax, title='GMM Visualization', xlabel='Feature 1', ylabel='Feature 2', legend=True, legend_labels=None)
     plt.tight_layout()
@@ -264,9 +267,9 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, plot_gmm, plt):
+def _(X, plot_gmm, plt):
     _nrows, _ncols = (1, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = (11, 4.5)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('Different Point Styling Options without True Labels')
@@ -288,9 +291,9 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, labels, plot_gmm, plt):
+def _(X, labels, plot_gmm, plt):
     _nrows, _ncols = (2, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = (11, 9)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('Cluster Visualization with True Labels')
@@ -311,17 +314,17 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm, plot_gmm, plt):
+def _(X, gmm, plot_gmm, plt):
     _nrows, _ncols = (2, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = (11, 9)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('GMM Visualization with Different Ellipse Options')
     plot_gmm(X, gmm=gmm, color_by_cluster=True, title='GMM with Ellipses (Default)', ax=_axes[0])
     # Basic GMM with ellipses
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[2], title='2σ Ellipses Only', ax=_axes[1])
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[1, 2, 3], title='1σ, 2σ and 3σ Ellipses', ax=_axes[2])
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[0.5, 1, 1.5, 2, 2.5, 3], title='Multiple Ellipse Levels', ax=_axes[3])
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[2], title='2σ Ellipses Only', ax=_axes[1], legend=False)
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[1, 2, 3], title='1σ, 2σ and 3σ Ellipses', ax=_axes[2], legend=False)
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[0.5, 1, 1.5, 2, 2.5, 3], title='Multiple Ellipse Levels', ax=_axes[3], legend=False)
     plt.tight_layout()
     # Different ellipse standard deviations
     plt.gcf()
@@ -337,16 +340,16 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm, plot_gmm, plt):
+def _(X, gmm, plot_gmm, plt):
     _nrows, _ncols = (3, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols)
-    _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize, dpi=55)  # the module default (300 dpi) makes this grid too large for the notebook output
+    _figsize = (11, 13.5)
+    _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
-    ellipse_styles = [{'ellipse_fill': True, 'ellipse_alpha': 0.3, 'title': 'Filled Ellipses'}, {'ellipse_fill': False, 'ellipse_line_width': 3, 'title': 'Outline Only'}, {'ellipse_line_style': 'dashed', 'ellipse_line_width': 2, 'title': 'Dashed Lines'}, {'ellipse_line_color': 'red', 'ellipse_line_alpha': 1.0, 'title': 'Red Borders'}, {'ellipse_colors': 'Set3', 'title': 'Different Ellipse Colors'}, {'ellipse_alpha': 0.8, 'ellipse_line_width': 4, 'ellipse_line_color': 'black', 'title': 'High Contrast'}]
+    ellipse_styles = [{'ellipse_fill': True, 'ellipse_alpha': 0.3, 'title': 'Filled Ellipses'}, {'ellipse_fill': False, 'ellipse_line_width': 2, 'title': 'Outline Only'}, {'ellipse_line_style': 'dashed', 'ellipse_line_width': 1.4, 'title': 'Dashed Lines'}, {'ellipse_line_color': 'red', 'ellipse_line_alpha': 1.0, 'title': 'Red Borders'}, {'ellipse_colors': 'Set3', 'title': 'Different Ellipse Colors'}, {'ellipse_alpha': 0.8, 'ellipse_line_width': 2, 'ellipse_line_color': 'black', 'title': 'High Contrast'}]
     # Different ellipse styling options
     for _i, style_options in enumerate(ellipse_styles):
         _title = style_options.pop('title')
-        plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[1, 2], title=_title, ax=_axes[_i], **style_options)
+        plot_gmm(X, gmm=gmm, color_by_cluster=True, ellipse_std_devs=[1, 2], title=_title, ax=_axes[_i], legend=(_i == 0), **style_options)
     plt.tight_layout()
     plt.gcf()
     return
@@ -383,11 +386,11 @@ def _(chi2, confidence_ellipse_std_devs, np):
 
 
 @app.cell
-def _(X, confidence_ellipse_std_devs, dynamic_figsize, gmm, plot_gmm, plt, torch):
+def _(X, confidence_ellipse_std_devs, gmm, plot_gmm, plt, torch):
     def coverage_figure(q):
         """Draw the fitted GMM with ellipses enclosing probability q; returns the figure and the share of each component's assigned points inside its ellipse."""
         _r = confidence_ellipse_std_devs(q)
-        _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
+        _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
         _Xt = torch.as_tensor(X, dtype=gmm.means_.dtype, device=gmm.means_.device)
         _lab = gmm.predict(_Xt)
         _inside = []
@@ -412,9 +415,9 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm, log_probs, plot_gmm, plt):
+def _(X, gmm, log_probs, plot_gmm, plt):
     _nrows, _ncols = (2, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = (11, 9)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('Continuous Coloring with Log Probabilities')
@@ -431,22 +434,24 @@ def _(X, dynamic_figsize, gmm, log_probs, plot_gmm, plt):
 def _(mo):
     mo.md(r"""
     ## Mean Markers and Initial Means
+
+    `mean_marker`, `mean_size` and `mean_color` style the fitted means, and `initial_mean_*` the starting points EM began from (a fitted model remembers them in `initial_means_`). Any matplotlib marker works and larger sizes are possible, but the tutorials keep markers small (`mean_size` at most 40) so they do not hide the data: component means are black hexagons (`'h'`, `s=25`, the default), initial guesses are red crosses (`'x'`, `s=30`). The panels below show other options at `s=40`.
     """)
     return
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm, plot_gmm, plt):
+def _(X, gmm, plot_gmm, plt):
     _nrows, _ncols = (2, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = (11, 9)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('Component Means and Initial Means Visualization')
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, mean_marker='X', mean_size=100, mean_color='black', title='Large X Markers for Means', ax=_axes[0])
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, mean_marker='X', mean_size=40, mean_color='black', title='X Markers for Means', ax=_axes[0])
     # Different mean marker options
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, mean_marker='D', mean_size=100, mean_color='white', title='White Diamond Markers', ax=_axes[1])
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, show_initial_means=True, initial_mean_marker='D', initial_mean_size=50, initial_mean_color='red', title='Final (black) and Initial (red) Means', ax=_axes[2])
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=False, show_ellipses=True, ellipse_alpha=0.2, title='Ellipses Only (No Mean Markers)', ax=_axes[3])
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, mean_marker='D', mean_size=40, mean_color='white', title='White Diamond Markers', ax=_axes[1], legend=False)
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=True, show_initial_means=True, initial_mean_marker='x', initial_mean_size=30, initial_mean_color='red', title='Final (black) and Initial (red) Means', ax=_axes[2])
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, show_means=False, show_ellipses=True, ellipse_alpha=0.2, title='Ellipses Only (No Mean Markers)', ax=_axes[3], legend=False)
     plt.tight_layout()
     # Show initial means if available
     plt.gcf()
@@ -462,16 +467,16 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm, plot_gmm, plt):
-    _nrows, _ncols = (3, 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+def _(X, gmm, plot_gmm, plt):
+    _nrows, _ncols = (1, 3)
+    _figsize = (11, 3.8)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('Weight-Based Scaling of Ellipses')
     plot_gmm(X, gmm=gmm, color_by_cluster=True, title='No Weight Scaling', ax=_axes[0])
     # Regular visualization
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, scale_alpha_by_weight=True, title='Alpha Scaled by Weight', ax=_axes[1])
-    plot_gmm(X, gmm=gmm, color_by_cluster=True, scale_size_by_weight=True, title='Mean Size Scaled by Weight', ax=_axes[2], mean_size=80)
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, scale_alpha_by_weight=True, title='Alpha Scaled by Weight', ax=_axes[1], legend=False)
+    plot_gmm(X, gmm=gmm, color_by_cluster=True, scale_size_by_weight=True, title='Mean Size Scaled by Weight', ax=_axes[2], mean_size=40, legend=False)
     plt.tight_layout()
     # Print component weights for reference
     print(f'Component weights: {gmm.weights_.detach().cpu().numpy()}')
@@ -488,9 +493,9 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm, labels, plot_gmm, plt):
-    _nrows, _ncols = (3, 1)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+def _(X, gmm, labels, plot_gmm, plt):
+    _nrows, _ncols = (1, 3)
+    _figsize = (11, 3.8)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('Prediction Accuracy Comparison')
@@ -537,12 +542,12 @@ def _(mo):
 
 
 @app.cell
-def _(GaussianMixture, MAX_ITER, SEED, X, X_tensor, dynamic_figsize, plot_gmm, plt):
+def _(GaussianMixture, MAX_ITER, SEED, X, X_tensor, plot_gmm, plt):
     _cov_types = ['full', 'diag', 'spherical', 'VEI']
-    _fig, _axes = plt.subplots(2, 2, figsize=dynamic_figsize(2, 2))
-    for _ax, _ct in zip(_axes.ravel(), _cov_types):
+    _fig, _axes = plt.subplots(2, 2, figsize=(11, 9))
+    for _i, (_ax, _ct) in enumerate(zip(_axes.ravel(), _cov_types)):
         _m = GaussianMixture(n_components=4, covariance_type=_ct, max_iter=MAX_ITER, random_state=SEED).fit(X_tensor)
-        plot_gmm(X, gmm=_m, color_by_cluster=True, ellipse_std_devs=[1, 2], ax=_ax, title=f"covariance_type='{_ct}'   (BIC = {_m.bic(X_tensor):.0f})")
+        plot_gmm(X, gmm=_m, color_by_cluster=True, ellipse_std_devs=[1, 2], ax=_ax, legend=(_i == 0), title=f"covariance_type='{_ct}'   (BIC = {_m.bic(X_tensor):.0f})")
     plt.tight_layout()
     plt.gcf()
     return
@@ -559,9 +564,9 @@ def _(mo):
 
 
 @app.cell
-def _(X, centers, covs, dynamic_figsize, gmm_proxy, labels, n_samples, np, plot_gmm, plt):
+def _(X, centers, covs, gmm_proxy, labels, n_samples, np, plot_gmm, plt):
     _truth = gmm_proxy(means=np.stack(centers), covariances=np.stack(covs), weights=np.array(n_samples) / sum(n_samples), covariance_type='full', predicted_labels=labels.astype(int))
-    _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
     plot_gmm(X, gmm=_truth, color_by_cluster=True, ellipse_std_devs=[1, 2], scale_alpha_by_weight=True, title='True generating components (via gmm_proxy)', ax=_ax)
     plt.gcf()
     return
@@ -596,19 +601,19 @@ def _(mo):
 
 
 @app.cell
-def _(X, dynamic_figsize, gmm, log_probs, plot_gmm, plt):
+def _(X, gmm, log_probs, plot_gmm, plt):
     _nrows, _ncols = (2, 2)
-    _figsize = dynamic_figsize(_nrows, _ncols)
+    _figsize = (11, 9)
     _fig, _axes = plt.subplots(_nrows, _ncols, figsize=_figsize)
     _axes = _axes.flatten()
     _fig.suptitle('Comprehensive GMM Visualization Examples')
     custom_labels = ['Cluster A', 'Cluster B', 'Cluster C', 'Cluster D']
     # Custom legend labels
-    plot_gmm(X, gmm=gmm, show_points=True, point_size=10, point_alpha=0.6, point_color='auto', color_by_cluster=True, cluster_colors='Set2', legend_labels=custom_labels, show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.4, ellipse_fill=True, ellipse_line_style='solid', ellipse_line_width=1.5, ellipse_line_color='darkblue', ellipse_line_alpha=0.8, show_means=True, mean_marker='H', mean_size=100, mean_color='black', show_initial_means=True, initial_mean_marker='D', initial_mean_size=60, initial_mean_color='red', title='Complete GMM Visualization', xlabel='Feature Dimension 1', ylabel='Feature Dimension 2', ax=_axes[0])
+    plot_gmm(X, gmm=gmm, show_points=True, point_size=8, point_alpha=0.6, point_color='auto', color_by_cluster=True, cluster_colors='Set2', legend_labels=custom_labels, show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.4, ellipse_fill=True, ellipse_line_style='solid', ellipse_line_width=1.5, ellipse_line_color='darkblue', ellipse_line_alpha=0.8, show_means=True, mean_marker='H', mean_size=40, mean_color='black', show_initial_means=True, initial_mean_marker='x', initial_mean_size=30, initial_mean_color='red', title='Complete GMM Visualization', xlabel='Feature Dimension 1', ylabel='Feature Dimension 2', ax=_axes[0])
     plot_gmm(X, gmm=gmm, show_points=True, point_size=5, point_alpha=0.8, point_color='black', show_ellipses=False, show_means=False, legend=False, title='Minimal: Points Only', ax=_axes[1])
     # Full-featured visualization
-    plot_gmm(X, gmm=gmm, show_points=False, show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.6, ellipse_colors='viridis', show_means=True, mean_marker='X', mean_size=80, title='Ellipses and Means Only', ax=_axes[2])
-    plot_gmm(X, gmm=gmm, log_probs=log_probs, colormap='coolwarm', colorbar_label='Log-Likelihood', show_ellipses=True, ellipse_std_devs=[2], ellipse_fill=False, ellipse_line_width=3, ellipse_line_color='black', title='Log Probabilities + Ellipses', ax=_axes[3])
+    plot_gmm(X, gmm=gmm, show_points=False, show_ellipses=True, ellipse_std_devs=[1, 2, 3], ellipse_alpha=0.6, ellipse_colors='viridis', show_means=True, mean_marker='X', mean_size=40, title='Ellipses and Means Only', ax=_axes[2])
+    plot_gmm(X, gmm=gmm, log_probs=log_probs, colormap='coolwarm', colorbar_label='Log-Likelihood', show_ellipses=True, ellipse_std_devs=[2], ellipse_fill=False, ellipse_line_width=2, ellipse_line_color='black', title='Log Probabilities + Ellipses', ax=_axes[3])
     plt.tight_layout()
     # Minimal visualization
     # Ellipses only
@@ -648,7 +653,7 @@ def _(SEED, VonMisesFisherMixture, np, torch):
 
 @app.cell
 def _(X_sphere, plot_vmf, plt, vmf_sphere):
-    _fig = plt.figure(figsize=(5.5, 5.5))
+    _fig = plt.figure(figsize=(6.5, 4.5))
     _ax = _fig.add_subplot(projection='3d')
     plot_vmf(X_sphere, vmf_sphere, ax=_ax, cap_masses=(0.5, 0.9), title='plot_vmf on the sphere: means, 50% and 90% caps')
     plt.gcf()
@@ -675,8 +680,8 @@ def _(SEED, VonMisesFisherMixture, np, torch):
 
 
 @app.cell
-def _(X_hd, dynamic_figsize, plot_vmf_cosine, plt, vmf_hd):
-    _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
+def _(X_hd, plot_vmf_cosine, plt, vmf_hd):
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
     plot_vmf_cosine(X_hd, vmf_hd, ax=_ax, title='plot_vmf_cosine in d = 20: angle to the mean direction')
     plt.gcf()
     return

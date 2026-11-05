@@ -55,7 +55,7 @@ def _(mo):
 
     **Prerequisites:** [06 -- Visualization](06_visualise.ipynb).
 
-    **See also:** the [Plotting & Visualization user guide](../user-guide/plotting.md).
+    **See also:** [06 -- Visualization](06_visualise.ipynb) for the `plot_gmm` options used here.
     """)
     return
 
@@ -79,20 +79,24 @@ def _():
     from sklearn.preprocessing import StandardScaler
 
 
-    from tgmm import GaussianMixture, plot_gmm, dynamic_figsize, gmm_proxy
+    from tgmm import GaussianMixture, confidence_ellipse_std_devs, plot_gmm, gmm_proxy
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; keep embedded figure outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
 
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
+    CONF_95 = confidence_ellipse_std_devs(0.95)  # the radius that encloses 95% of a 2-D Gaussian (about 2.45 standard deviations)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     return (
+        CONF_95,
         GaussianMixture,
         SEED,
         StandardScaler,
         device,
-        dynamic_figsize,
         gmm_proxy,
         make_blobs,
         np,
@@ -218,8 +222,8 @@ def _(
 
 @app.cell
 def _(
+    CONF_95,
     X_pca,
-    dynamic_figsize,
     gmm_2d,
     log_probs,
     plot_gmm,
@@ -227,16 +231,14 @@ def _(
     sample_core_pca,
     sample_tails_pca,
 ):
-    nrows, ncols = (2, 2)
-    figsize = dynamic_figsize(nrows, ncols)
-    _fig, _axes = plt.subplots(nrows, ncols, figsize=figsize)
+    _fig, _axes = plt.subplots(2, 2, figsize=(11, 9))
     _axes = _axes.flatten()
-    _fig.suptitle('High-Dimensional GMM Visualization with PCA', fontsize=16)
-    plot_gmm(X_pca, gmm=gmm_2d, color_by_cluster=True, title='GMM fitted to PCA Data', ax=_axes[0], point_size=30)
+    _fig.suptitle('High-Dimensional GMM Visualization with PCA')
+    plot_gmm(X_pca, gmm=gmm_2d, color_by_cluster=True, title='GMM fitted to PCA Data', ax=_axes[0], point_size=8)
     # 1. The 2-D GMM fitted to the PCA data, colored by cluster
-    plot_gmm(X_pca, gmm=gmm_2d, log_probs=log_probs, title='Log Probabilities', ax=_axes[1], show_ellipses=False, point_size=30)
-    plot_gmm(sample_core_pca, gmm=gmm_2d, title='Sampling from the Core Region (<95%)', ax=_axes[2], show_ellipses=True, ellipse_std_devs=[2], ellipse_line_color='red', ellipse_fill=False, point_size=30, mean_color='red', mean_size=50)
-    plot_gmm(sample_tails_pca, gmm=gmm_2d, title='Sampling from the Tail Region (>95%)', ax=_axes[3], show_ellipses=True, ellipse_std_devs=[2], ellipse_line_color='red', ellipse_fill=False, point_size=30, mean_color='red', mean_size=50)
+    plot_gmm(X_pca, gmm=gmm_2d, log_probs=log_probs, title='Log Probabilities', ax=_axes[1], show_ellipses=False, point_size=8)
+    plot_gmm(sample_core_pca, gmm=gmm_2d, title='Sampling from the Core Region (<95%)', ax=_axes[2], legend=False, show_ellipses=True, ellipse_std_devs=CONF_95, ellipse_line_color='black', ellipse_fill=False, point_size=8, mean_color='black', mean_size=25)
+    plot_gmm(sample_tails_pca, gmm=gmm_2d, title='Sampling from the Tail Region (>95%)', ax=_axes[3], legend=False, show_ellipses=True, ellipse_std_devs=CONF_95, ellipse_line_color='black', ellipse_fill=False, point_size=8, mean_color='black', mean_size=25)
     plt.tight_layout()
     # 2. Continuous coloring with the high-dimensional model's log probabilities
     # 3. Samples from the high-dimensional model's core region, projected with the same PCA
@@ -270,7 +272,6 @@ def _(mo):
 @app.cell
 def _(
     X_pca,
-    dynamic_figsize,
     gmm_2d,
     gmm_high_dim,
     gmm_proxy,
@@ -287,9 +288,9 @@ def _(
     means_proj = pca.transform(means_hd)  # A (mu_k - m)
     covs_proj = np.einsum('ij,kjl,ml->kim', A, covs_hd, A)  # A Sigma_k A^T
     proj_proxy = gmm_proxy(means=means_proj, covariances=covs_proj, weights=gmm_high_dim.weights_.cpu().numpy(), covariance_type='full', predicted_labels=predicted_labels)
-    _fig, _axes = plt.subplots(1, 2, figsize=dynamic_figsize(1, 2))
-    plot_gmm(X_pca, gmm=proj_proxy, color_by_cluster=True, ax=_axes[0], point_size=30, title='(a) High-dimensional GMM, projected')
-    plot_gmm(X_pca, gmm=gmm_2d, color_by_cluster=True, ax=_axes[1], point_size=30, title='(b) GMM fitted to the projected data')
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    plot_gmm(X_pca, gmm=proj_proxy, color_by_cluster=True, ax=_axes[0], point_size=8, title='(a) High-dimensional GMM, projected')
+    plot_gmm(X_pca, gmm=gmm_2d, color_by_cluster=True, ax=_axes[1], point_size=8, legend=False, title='(b) GMM fitted to the projected data')
     plt.tight_layout()
     plt.gcf()
     return
@@ -304,7 +305,13 @@ def _(mo):
     - Check `explained_variance_ratio_`: a projection that keeps little variance can hide cluster separation or make clusters appear to overlap.
     - Samples from the high-dimensional model (e.g. via `confidence_range`) can be pushed through the same PCA to compare core and tail regions in the plane.
     - A linear projection of a GMM is again a GMM with parameters $(\pi_k, A\mu_k, A\Sigma_k A^\top)$; this differs from refitting a GMM to the projected points, which is only equivalent for invertible maps.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [04 -- Priors](04_priors.ipynb) for regularizing mixture fits, or [05 -- Sampling](05_sampling.ipynb) for the sampling options used here.
     """)
     return

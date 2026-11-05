@@ -84,7 +84,10 @@ def _():
     from tgmm import GaussianMixture, plot_gmm
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -167,9 +170,9 @@ def _(plt, torch):
     init_means = torch.tensor([0.0, 0.0]).unsqueeze(0).repeat(3, 1) + torch.randn(3, 2) * 0.3
     init_covariances = torch.stack([torch.eye(2)] * 3)
 
-    plt.figure(figsize=(5, 5))
-    plt.scatter(X[:, 0], X[:, 1], s=8, alpha=0.4, label='data')
-    plt.scatter(init_means[:, 0], init_means[:, 1], c='red', marker='x', s=120, label='initial means (all 3)')
+    plt.figure(figsize=(6.5, 4.5))
+    plt.scatter(X[:, 0], X[:, 1], s=8, alpha=0.5, label='data')
+    plt.scatter(init_means[:, 0], init_means[:, 1], c='red', marker='x', s=30, linewidths=1.2, label='initial means (all 3)')
     plt.legend()
     plt.title('Saddle initialization: all 3 components start near one cluster')
     plt.gca().set_aspect('equal')
@@ -222,11 +225,11 @@ def _(mo):
 
 @app.cell
 def _(gmm_cem, gmm_daem, gmm_em, gmm_sem, plt):
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(6.5, 4.5))
     plt.plot(gmm_em.log_likelihood_history_, label='EM', marker='.')
     plt.plot(gmm_cem.log_likelihood_history_, label='CEM', marker='.')
     plt.plot(gmm_sem.log_likelihood_history_, label='SEM', alpha=0.8)
-    plt.plot(gmm_daem.log_likelihood_history_, label='DAEM', linewidth=2)
+    plt.plot(gmm_daem.log_likelihood_history_, label='DAEM')
     plt.xlabel('iteration / sweep')
     plt.ylabel('mean log-likelihood')
     plt.title('EM vs CEM vs SEM vs DAEM from the same saddle initialization')
@@ -251,7 +254,7 @@ def _(mo):
 @app.cell
 def _(gmm_daem, gmm_sem, plt):
     _tail = gmm_sem.log_likelihood_history_[-50:]
-    plt.figure(figsize=(8, 3))
+    plt.figure(figsize=(6.5, 4.5))
     plt.plot(_tail, marker='.')
     plt.axhline(gmm_daem.lower_bound_, color='C3', linestyle='--', label='DAEM/best optimum')
     plt.xlabel('sweep (last 50)')
@@ -320,7 +323,7 @@ def _(GaussianMixture, plt, torch):
     print('SAEM means:\n', gmm_saem2.means_)
     print(f'SAEM converged: {gmm_saem2.converged_}, iterations: {gmm_saem2.n_iter_}')
 
-    plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(6.5, 4.5))
     plt.plot(gmm_saem2.log_likelihood_history_, marker='.')
     plt.xlabel('iteration')
     plt.ylabel('mean log-likelihood')
@@ -419,7 +422,7 @@ def _(GaussianMixture, X_big, mo, warnings):
 
 @app.cell
 def _(gmm_online, plt):
-    plt.figure(figsize=(7, 3.5))
+    plt.figure(figsize=(6.5, 4.5))
     plt.plot(range(1, len(gmm_online.log_likelihood_history_) + 1), gmm_online.log_likelihood_history_, marker='o')
     plt.xlabel('epoch')
     plt.ylabel('mean log-likelihood (full data)')
@@ -528,10 +531,10 @@ def _(GaussianMixture, SEED, X, algorithm_ui, beta0_ui, jitter_seed_ui, n_anneal
 
 @app.cell
 def _(X, algorithm_ui, beta0_ui, gmm_annealed, gmm_plain, n_anneal_ui, np, plot_gmm, plt):
-    _fig, _axes = plt.subplots(1, 3, figsize=(15, 4.4))
+    _fig, _axes = plt.subplots(1, 3, figsize=(11, 3.8))
     _Xn = X.cpu().numpy()
     for _ax, _g, _title in ((_axes[0], gmm_plain, f'beta = 1 (plain {algorithm_ui.value.upper()})'), (_axes[1], gmm_annealed, f'annealed, beta_0 = {beta0_ui.value:g}, n_anneal = {n_anneal_ui.value}')):
-        plot_gmm(_Xn, gmm=_g, ax=_ax, color_by_cluster=True, ellipse_std_devs=[2], ellipse_fill=False, ellipse_line_width=2, title=f'{_title}\nmean log-likelihood {_g.lower_bound_:.3f}', legend=False)
+        plot_gmm(_Xn, gmm=_g, ax=_ax, color_by_cluster=True, ellipse_std_devs=[2], ellipse_fill=False, ellipse_line_width=1.4, mean_marker='h', mean_size=25, mean_color='black', title=f'{_title}\nmean log-likelihood {_g.lower_bound_:.3f}', legend=False)
         _ax.set_aspect('equal')
     _hist_plain = gmm_plain.log_likelihood_history_.cpu().numpy()
     _hist_ann = gmm_annealed.log_likelihood_history_.cpu().numpy()

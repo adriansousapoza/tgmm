@@ -86,12 +86,15 @@ def _():
 
 
     from tgmm import (
-        GaussianMixture, plot_gmm, dynamic_figsize, generate_gmm_data,
+        GaussianMixture, plot_gmm, generate_gmm_data,
         gmm_proxy, confidence_ellipse_std_devs, ClusteringMetrics,
     )
     from tutorial_data import default_blobs
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
     SEED = 42
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -102,7 +105,6 @@ def _():
         confidence_ellipse_std_devs,
         default_blobs,
         device,
-        dynamic_figsize,
         generate_gmm_data,
         gmm_proxy,
         np,
@@ -250,7 +252,6 @@ def _(
     centers,
     confidence_ellipse_std_devs,
     covs,
-    dynamic_figsize,
     gmm_cem,
     gmm_em,
     gmm_proxy,
@@ -271,9 +272,9 @@ def _(
     CONF_95 = confidence_ellipse_std_devs(0.95)      # chi2-based 95% CI multiplier, not "2 std devs"
 
     ellipse_kwargs = dict(show_ellipses=True, ellipse_std_devs=CONF_95, ellipse_fill=True, ellipse_alpha=0.15)
-    mean_kwargs = dict(show_means=True, mean_color='black', mean_size=60)
+    mean_kwargs = dict(show_means=True, mean_marker='h', mean_color='black', mean_size=25)
 
-    fig, axes = plt.subplots(2, 2, figsize=dynamic_figsize(2, 2))
+    fig, axes = plt.subplots(2, 2, figsize=(11, 9))
     fig.suptitle('True labels vs. EM vs. CEM vs. Supervised')
 
     # True classes: the 4 physical Gaussians via gmm_proxy (a stand-in `gmm=`
@@ -315,10 +316,10 @@ def _(
     legend_handles = (
         [Patch(facecolor=BLUE_SHADES[i], edgecolor='none', label=f'Class {i}') for i in range(n_components)]
         + [Patch(facecolor=WRONG_COLOR, edgecolor='none', label='Incorrect (EM/CEM)'),
-           Line2D([0], [0], marker='h', color='w', markerfacecolor='black', markersize=9, label='Component mean'),
-           Line2D([0], [0], color='gray', linestyle='dotted', linewidth=2, label='95% confidence region')]
+           Line2D([0], [0], marker='h', color='w', markerfacecolor='black', markersize=5, label='Component mean'),
+           Line2D([0], [0], color='gray', linestyle='dotted', linewidth=1.4, label='95% confidence region')]
     )
-    fig.legend(handles=legend_handles, loc='center left', bbox_to_anchor=(1.0, 0.5), fontsize='small')
+    fig.legend(handles=legend_handles, loc='center left', bbox_to_anchor=(1.0, 0.5))
 
     plt.tight_layout()
     plt.gcf()
@@ -447,7 +448,13 @@ def _(mo):
     - Supervised fits trade the flexibility of unsupervised fitting for fidelity to the labels -- useful when the labels are trusted.
     - The labelled M-step is the class-conditional maximum likelihood (QDA/LDA-style), checked numerically above; `predict_class` returns labels, `predict` component indices, and `components_per_class` gives a class several components.
     - With partial labels, `unlabeled_weight` and `label_confidence` set how strongly the labels compete with the data.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb) for the full treatment of partially labeled data and `PositiveUnlabeledMixture`, or [09 -- Clustering Metrics](09_metrics.ipynb) to quantify agreement with labels.
     """)
     return

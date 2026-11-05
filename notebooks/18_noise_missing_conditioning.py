@@ -90,7 +90,10 @@ def _():
     from tgmm.metrics import ClusteringMetrics
     from tgmm.plotting import CATEGORICAL_PALETTE
 
-    plt.rcParams['figure.dpi'] = 100  # tgmm's theme uses 300 dpi; marimo embeds figures at 2x, so keep outputs small
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
 
     SEED = 42
     np.random.seed(SEED)
@@ -144,9 +147,9 @@ def _(SEED, plt, torch):
     X_noise = torch.cat([_blobs, _background])
     y_noise = torch.cat([torch.arange(3).repeat_interleave(200), torch.full((60,), -1)])  # -1 = background
 
-    plt.figure(figsize=(5.5, 4.5))
-    plt.scatter(X_noise[:, 0], X_noise[:, 1], c=y_noise, cmap='viridis', s=8)
-    plt.title('Three blobs plus 60 uniform background points (yellow = background)')
+    plt.figure(figsize=(6.5, 4.5))
+    plt.scatter(X_noise[:, 0], X_noise[:, 1], c=y_noise, cmap='viridis', s=8, alpha=0.5)
+    plt.title('Three blobs plus uniform background (yellow)')
     plt.gcf()
     return X_noise, y_noise
 
@@ -193,7 +196,7 @@ def _(
 def _(mo):
     mo.md(r"""
     The plain model inflates its covariances to swallow the background (left); the noise model keeps them tight (right) (true trace of each
-    covariance is $2\times0.7^2\approx0.98$). The figure draws the 2-$\sigma$ ellipse of every component for both fits and colours
+    covariance is $2\times0.7^2\approx0.98$). The figure draws the 95% ellipse of every component for both fits and colours
     the points by the noise model's `noise_proba(X)`, the posterior probability that a point belongs to the uniform component.
     """)
     return
@@ -205,17 +208,17 @@ def _(CATEGORICAL_PALETTE, X_noise, gmm_noise, gmm_plain, math, plt, torch):
         mean, cov = mean.cpu(), cov.cpu()  # the fitted model may live on the GPU; the ellipse is drawn on the CPU
         _vals, _vecs = torch.linalg.eigh(cov)
         _t = torch.linspace(0, 2 * math.pi, 100)
-        _pts = (_vecs @ torch.diag(2 * _vals.sqrt()) @ torch.stack([_t.cos(), _t.sin()])).T + mean
-        ax.plot(_pts[:, 0], _pts[:, 1], color=color, lw=2)
+        _pts = (_vecs @ torch.diag(2.4477 * _vals.sqrt()) @ torch.stack([_t.cos(), _t.sin()])).T + mean  # the 95% region: sqrt(chi2.ppf(0.95, 2)) = 2.4477
+        ax.plot(_pts[:, 0], _pts[:, 1], color=color)
 
 
     _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5), sharex=True, sharey=True)
-    _axes[0].scatter(X_noise[:, 0], X_noise[:, 1], s=6, color='0.6')
+    _axes[0].scatter(X_noise[:, 0], X_noise[:, 1], s=6, color='0.6', alpha=0.5)
     for _k in range(3):
         _ellipse(_axes[0], gmm_plain.means_[_k], gmm_plain.covariances_[_k], CATEGORICAL_PALETTE[_k])
     _axes[0].set_title('GaussianMixture (plain)')
 
-    _sc = _axes[1].scatter(X_noise[:, 0], X_noise[:, 1], c=gmm_noise.noise_proba(X_noise).detach().cpu().numpy(), cmap='viridis_r', s=8, vmin=0, vmax=1)
+    _sc = _axes[1].scatter(X_noise[:, 0], X_noise[:, 1], c=gmm_noise.noise_proba(X_noise).detach().cpu().numpy(), cmap='viridis_r', s=8, alpha=0.6, vmin=0, vmax=1)
     for _k in range(3):
         _ellipse(_axes[1], gmm_noise.means_[_k], gmm_noise.covariances_[_k], CATEGORICAL_PALETTE[_k])
     _axes[1].set_title('noise=True, colour = noise_proba(X)')
@@ -405,9 +408,9 @@ def _(
     print(f'RMSE of the {int(holes_mask.sum())} imputed entries: model-based {_rmse_model:.2f}  vs  column mean {_rmse_mean:.2f}')
 
     _incomplete = holes_mask.any(1)
-    plt.figure(figsize=(5.5, 4.5))
-    plt.scatter(X_complete[~_incomplete, 0], X_complete[~_incomplete, 1], s=8, color='0.75', label='complete rows')
-    plt.scatter(X_imputed[_incomplete, 0], X_imputed[_incomplete, 1], s=12, color=CATEGORICAL_PALETTE[1], label='imputed rows')
+    plt.figure(figsize=(6.5, 4.5))
+    plt.scatter(X_complete[~_incomplete, 0], X_complete[~_incomplete, 1], s=8, color='0.75', alpha=0.5, label='complete rows')
+    plt.scatter(X_imputed[_incomplete, 0], X_imputed[_incomplete, 1], s=8, color=CATEGORICAL_PALETTE[1], alpha=0.6, label='imputed rows')
     plt.legend()
     plt.title('Imputed rows sit on the cluster structure')
     plt.gcf()
@@ -495,10 +498,10 @@ def _(
     print(f'weights {tuple(cond_sine.weights_.shape)}, means {tuple(cond_sine.means_.shape)}, covariances {tuple(cond_sine.covariances_.shape)}')
     print(f'RMSE of the GMR curve against the noiseless sin(2x): {_rmse:.3f}')
 
-    plt.figure(figsize=(7, 4))
-    plt.scatter(XY_sine[:, 0], XY_sine[:, 1], s=6, color='0.7', label='data')
-    plt.plot(x_grid[:, 0], torch.sin(2 * x_grid[:, 0]), 'k--', lw=1, label='sin(2x)')
-    plt.plot(x_grid[:, 0], gmr_mean, color=CATEGORICAL_PALETTE[1], lw=2.5, label='E[y | x] (GMR)')
+    plt.figure(figsize=(6.5, 4.5))
+    plt.scatter(XY_sine[:, 0], XY_sine[:, 1], s=6, color='0.7', alpha=0.5, label='data')
+    plt.plot(x_grid[:, 0], torch.sin(2 * x_grid[:, 0]), 'k--', label='sin(2x)')
+    plt.plot(x_grid[:, 0], gmr_mean, color=CATEGORICAL_PALETTE[1], label='E[y | x] (GMR)')
     plt.legend()
     plt.title('Gaussian mixture regression with 8 components')
     plt.gcf()
@@ -535,12 +538,12 @@ def _(
     cond_cross = gmm_cross.condition(_x_query, [0])        # one conditional mixture per query row
 
     y_axis = torch.linspace(-3, 3, 300)[:, None]
-    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4))
-    _axes[0].scatter(XY_cross[:, 0], XY_cross[:, 1], s=5, color='0.7')
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    _axes[0].scatter(XY_cross[:, 0], XY_cross[:, 1], s=5, color='0.7', alpha=0.5)
     for _i, _xq in enumerate(_x_query[:, 0].tolist()):
-        _axes[0].axvline(_xq, color=CATEGORICAL_PALETTE[_i], lw=1.5)
+        _axes[0].axvline(_xq, color=CATEGORICAL_PALETTE[_i])
         _single = gmm_cross.condition(torch.tensor([[_xq]]), [0])      # a single-row conditional broadcasts against the whole grid
-        _axes[1].plot(y_axis[:, 0], _single.log_prob(y_axis).exp().cpu(), color=CATEGORICAL_PALETTE[_i], lw=2, label=f'x = {_xq}')
+        _axes[1].plot(y_axis[:, 0], _single.log_prob(y_axis).exp().cpu(), color=CATEGORICAL_PALETTE[_i], label=f'x = {_xq}')
     _axes[0].set_title('X-shaped data: y = ±x')
     _axes[1].set_title('conditional density p(y | x): two peaks')
     _axes[1].set_xlabel('y')
@@ -813,12 +816,12 @@ def _(
 
     _grid = torch.linspace(0, 9, 300, dtype=torch.float64)[:, None]
     _pdf_total = generic.score_samples(_grid).exp()
-    plt.figure(figsize=(7, 4))
+    plt.figure(figsize=(6.5, 4.5))
     plt.hist(X_wait[:, 0], bins=50, density=True, color='0.8', label='data')
     for _k, _name in enumerate(['exponential', 'normal']):
-        plt.plot(_grid[:, 0], generic.weights_[_k] * generic.components_[_k].log_probability(_grid).exp(), lw=2,
+        plt.plot(_grid[:, 0], generic.weights_[_k] * generic.components_[_k].log_probability(_grid).exp(),
                  color=CATEGORICAL_PALETTE[_k], label=f'{_name} (weighted)')
-    plt.plot(_grid[:, 0], _pdf_total, 'k', lw=1.5, label='mixture')
+    plt.plot(_grid[:, 0], _pdf_total, 'k', label='mixture')
     plt.legend()
     plt.title('GenericMixture of an exponential and a normal')
     plt.gcf()
@@ -839,10 +842,16 @@ def _(mo):
     - `frozen_components` pins components at their initial parameters, and `sample_weight` counts rows (integer weights equal duplication; per-feature weights for factorising models).
     - `GenericMixture` fits any family that implements `log_probability`, `summarize` and `from_summaries` (or any `nn.Module` with `log_prob`), with `batch_size`,
       `sample_weight`, frozen components and information criteria included.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb) for another way of steering the fit, or back to the [tutorial overview](../tutorials/index.md).
 
-    **References**
+    ## References
 
     - Banfield, J. D. & Raftery, A. E. (1993). Model-based Gaussian and non-Gaussian clustering. *Biometrics*, 49(3).
     - Ghahramani, Z. & Jordan, M. I. (1994). Supervised learning from incomplete data via an EM approach. *NeurIPS 6*.
