@@ -124,17 +124,24 @@ class GaussianMixture(BaseMixture):
         to ensure both reproducibility and diversity. (default: 1)
     init_means : str or torch.Tensor, optional
         Method for initializing means, or a tensor of initial means.
-        - If str: 'kmeans', 'kpp', 'random', 'points', 'maxdist'
+        - If str: 'kmeans', 'kpp', 'random', 'points', 'maxdist', 'hdbscan'. ``'hdbscan'`` runs
+          :class:`~tgmm.hdbscan.HDBSCAN` and starts from the means of the clusters it finds (noise ignored;
+          the ``n_components`` largest are kept, missing centres are added by k-means++); it is the
+          outlier-robust choice for clusters that are not simple blobs. See
+          :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters` (use it to tune ``min_cluster_size`` and pass
+          the result as a tensor).
         - If tensor: shape (n_components, n_features) exactly (no broadcasting)
         (default: 'kmeans')
     init_weights : str or torch.Tensor, optional
         Method for initializing weights, or a tensor of initial weights.
-        - If str: 'uniform', 'random', 'kmeans'
+        - If str: 'uniform', 'random', 'kmeans', 'hdbscan' (the sizes of the HDBSCAN clusters, noise given to
+          the nearest mean; requires ``init_means='hdbscan'``)
         - If tensor: shape (n_components,)
         (default: 'uniform')
     init_covariances : str or torch.Tensor, optional
         Method for initializing covariances, or a tensor of initial covariances.
-        - If str: 'empirical', 'eye', 'random', 'global'
+        - If str: 'empirical', 'eye', 'random', 'global', 'hdbscan' (the scatter of each HDBSCAN cluster,
+          noise left out; requires ``init_means='hdbscan'``)
         - If tensor: shape depends on covariance_type (supports broadcasting)
           * full: (n_features, n_features) or (n_components, n_features, n_features)
           * diag: (n_features,) or (n_components, n_features)
@@ -1145,6 +1152,7 @@ class GaussianMixture(BaseMixture):
         # ===============================================================
         # 1. Initialize means
         # ===============================================================
+        hdb_labels = None   # per-point HDBSCAN cluster labels, set when init_means='hdbscan' (weights/covariances reuse them)
         if isinstance(self.init_means, torch.Tensor):
             # User-provided tensor
             if self.init_means.shape != (self.n_components, self.n_features):
@@ -1179,10 +1187,13 @@ class GaussianMixture(BaseMixture):
                     self.means_ = GMMInitializer.maxdist(X_cpu, self.n_components).to(self.device)
                 elif init_method == 'random':
                     self.means_ = GMMInitializer.random(X_cpu, self.n_components).to(self.device)
+                elif init_method == 'hdbscan':
+                    means_hdb, hdb_labels = self._hdbscan_init(X)
+                    self.means_ = means_hdb.to(self.device)
                 else:
                     raise ValueError(
                         f"Unsupported init_means method: '{init_method}'. "
-                        f"Supported: 'kmeans', 'kpp', 'points', 'maxdist', 'random'."
+                        f"Supported: 'kmeans', 'kpp', 'points', 'maxdist', 'random', 'hdbscan'."
                     )
         else:
             raise TypeError(
@@ -1234,10 +1245,31 @@ class GaussianMixture(BaseMixture):
                         X_for_weights, self.means_
                     )
                     self.weights_ = weights.to(self.device)
+            elif init_method == 'hdbscan':
+                if X is None:
+                    warnings.warn(
+                        "'hdbscan' weight initialization requires data. "
+                        "Falling back to uniform weights.",
+                        UserWarning
+                    )
+                    self.weights_ = GMMInitializer.init_weights_uniform(
+                        self.n_components, self.device, dtype=self.dtype
+                    )
+                else:
+                    if hdb_labels is None:
+                        raise ValueError(
+                            "init_weights='hdbscan' needs the HDBSCAN clustering of init_means='hdbscan' "
+                            "(the cluster labels belong to those means); set init_means='hdbscan' or use "
+                            "init_weights='kmeans'."
+                        )
+                    weights = GMMInitializer.init_weights_from_labels(
+                        X.to(self.means_.device), self.means_, hdb_labels
+                    )
+                    self.weights_ = weights.to(device=self.device, dtype=self.dtype)
             else:
                 raise ValueError(
                     f"Unsupported init_weights method: '{init_method}'. "
-                    f"Supported methods: 'uniform', 'random', 'kmeans'."
+                    f"Supported methods: 'uniform', 'random', 'kmeans', 'hdbscan'."
                 )
         else:
             raise TypeError(
@@ -1320,7 +1352,36 @@ class GaussianMixture(BaseMixture):
             # Use initialization method from GMMInitializer
             init_method = self.init_covariances.lower()
 
-            if self.covariance_type_ in _NEW_GPCM_CODES:
+            if init_method == 'hdbscan':
+                # The scatter of each HDBSCAN cluster (noise left out), from the clustering of init_means='hdbscan'.
+                if X is None:
+                    warnings.warn(
+                        "'hdbscan' covariance initialization requires data. "
+                        "Falling back to identity initialization.",
+                        UserWarning
+                    )
+                    self.covariances_ = GMMInitializer.init_covariances_eye(
+                        self.n_components, self.n_features,
+                        'full' if self.covariance_type_ in _NEW_GPCM_CODES else self.covariance_type,
+                        self.reg_covar, self.device, dtype=self.dtype
+                    )
+                else:
+                    if hdb_labels is None:
+                        raise ValueError(
+                            "init_covariances='hdbscan' needs the HDBSCAN clustering of init_means='hdbscan' "
+                            "(the cluster labels belong to those means); set init_means='hdbscan' or use "
+                            "init_covariances='empirical'."
+                        )
+                    if self.covariance_type_ in _NEW_GPCM_CODES:
+                        self.covariances_ = self._init_covariances_gpcm_empirical(
+                            X.to(self.means_.device), labels=hdb_labels.to(self.means_.device))
+                    else:
+                        covs = GMMInitializer.init_covariances_empirical(
+                            X.to(self.means_.device), self.means_,
+                            self.covariance_type, self.reg_covar, labels=hdb_labels
+                        )
+                        self.covariances_ = covs.to(self.device)
+            elif self.covariance_type_ in _NEW_GPCM_CODES:
                 # 'eye'/'random' don't need a GPCM projection (there's
                 # nothing fit yet to project) -- just build plain full
                 # matrices directly, same as the 'full' type; volume_/
@@ -1369,7 +1430,7 @@ class GaussianMixture(BaseMixture):
                 else:
                     raise ValueError(
                         f"Unsupported init_covariances method: '{init_method}'. "
-                        f"Supported methods: 'eye', 'random', 'global', 'empirical'."
+                        f"Supported methods: 'eye', 'random', 'global', 'empirical', 'hdbscan'."
                     )
             elif init_method == 'eye':
                 self.covariances_ = GMMInitializer.init_covariances_eye(
@@ -1422,7 +1483,7 @@ class GaussianMixture(BaseMixture):
             else:
                 raise ValueError(
                     f"Unsupported init_covariances method: '{init_method}'. "
-                    f"Supported methods: 'eye', 'random', 'global', 'empirical'."
+                    f"Supported methods: 'eye', 'random', 'global', 'empirical', 'hdbscan'."
                 )
         else:
             raise TypeError(
@@ -1446,7 +1507,7 @@ class GaussianMixture(BaseMixture):
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
 
-    def _init_covariances_gpcm_empirical(self, X: torch.Tensor) -> torch.Tensor:
+    def _init_covariances_gpcm_empirical(self, X: torch.Tensor, labels: Optional[torch.Tensor] = None) -> torch.Tensor:
         r"""
         `init_covariances='empirical'` for the 8 new GPCM codes: assign
         each point to its nearest current mean (hard, k-means-style),
@@ -1455,9 +1516,13 @@ class GaussianMixture(BaseMixture):
         call -- the plan's own instruction (projecting the *constrained*
         MLE of that starting point, not the raw unconstrained empirical
         covariance, which wouldn't satisfy the code's constraints).
+
+        ``labels`` (used by `init_covariances='hdbscan'`) replaces the nearest-mean assignment: an integer tensor in
+        ``{-1, 0, ..., n_components-1}`` where ``-1`` leaves a point out of every scatter.
         """
-        distances = torch.cdist(X, self.means_)
-        labels = torch.argmin(distances, dim=1)
+        if labels is None:
+            distances = torch.cdist(X, self.means_)
+            labels = torch.argmin(distances, dim=1)
         nk = torch.zeros(self.n_components, dtype=self.dtype, device=self.device)
         W = torch.zeros(self.n_components, self.n_features, self.n_features, dtype=self.dtype, device=self.device)
         for k in range(self.n_components):

@@ -5,6 +5,24 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (HDBSCAN initialisation)
+
+- `init_means='hdbscan'` (`GaussianMixture`): start EM from the means of the clusters
+  `tgmm.HDBSCAN` finds (noise ignored). It needs no number of clusters to find them, finds non-convex and very unequal
+  clusters and is robust to outliers, which makes it the safe alternative to `'maxdist'` (farthest-first traversal puts
+  centres on outliers). `k` only decides how many clusters are kept (the `n_components` largest) and how many extra centres
+  are added (k-means++ seeding on the points no cluster claimed, noise first); with no cluster found it is plain
+  k-means++. The clustering is computed once per data set (cached across `n_init`), and large data is clustered on a random
+  subsample (`max_points=5000`, HDBSCAN needs the full `N x N` distance matrix).
+- `init_weights='hdbscan'` (cluster sizes, noise given to the nearest mean) and `init_covariances='hdbscan'` (the scatter
+  of each cluster, noise left out; all classic covariance types and the GPCM codes). Both reuse the clustering of
+  `init_means='hdbscan'` and raise a clear error otherwise.
+- `GMMInitializer.hdbscan(data, k, min_cluster_size=None, min_samples=None, max_points=5000, random_state=None, **hdbscan_kwargs)`
+  returns the centres; `GMMInitializer.hdbscan_clusters(...)` also returns the per-point labels (`-1` = noise). Pass the
+  centres as a tensor to tune the clustering (`min_cluster_size`, `cluster_selection_method`, ...).
+  `GMMInitializer.init_weights_from_labels` and the new optional `labels` argument of
+  `GMMInitializer.init_covariances_empirical` (points labelled `-1` are left out) are the building blocks.
+
 ### Removed (breaking)
 
 tgmm now only provides **Gaussian mixtures**. These were introduced in 0.4.0 and are last available in 0.4.3:
