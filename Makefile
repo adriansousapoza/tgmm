@@ -2,7 +2,7 @@
 PYTHON ?= python
 NOTEBOOKS := $(sort $(wildcard notebooks/[0-9][0-9]_*.py))
 
-.PHONY: docs docs-build notebooks-export notebooks-check notebooks-test
+.PHONY: docs docs-build notebooks-export notebooks-check notebooks-test assets
 
 # Export every notebook to docs/notebooks/*.ipynb (with outputs), post-process, then serve the site.
 docs: notebooks-export
@@ -26,3 +26,8 @@ notebooks-check:
 
 notebooks-test:
 	$(PYTHON) -m pytest -m notebooks tests/test_notebooks.py -v
+
+# Re-render the videos the tutorials load (notebooks/assets/*.mp4). Slow (minutes): the notebooks only show the finished files.
+assets:
+	$(PYTHON) scripts/make_assets/make_em_videos.py
+	$(PYTHON) scripts/make_assets/make_seeding_videos.py

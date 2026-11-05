@@ -7,8 +7,6 @@
 #     "numpy",
 #     "matplotlib",
 #     "scipy",
-#     "pillow",
-#     "imageio-ffmpeg",
 # ]
 #
 # [tool.marimo.display]
@@ -73,14 +71,11 @@ def _(mo):
 
 @app.cell
 def _():
-    import base64
-    import io
     import warnings
 
     import matplotlib.pyplot as plt
     import numpy as np
     import torch
-    from PIL import Image
 
     from tgmm import GMMInitializer, generate_gmm_data
     from tutorial_data import make_default_data
@@ -91,7 +86,7 @@ def _():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    return GMMInitializer, Image, SEED, base64, device, generate_gmm_data, io, make_default_data, np, plt, torch
+    return GMMInitializer, SEED, device, generate_gmm_data, make_default_data, np, plt, torch
 
 
 @app.cell(hide_code=True)
@@ -104,7 +99,7 @@ def _(mo):
 
 @app.cell
 def _(SEED, device, make_default_data):
-    X_tensor, _ = make_default_data(SEED, device=device)
+    X_tensor, _ = make_default_data(SEED, device='cpu')  # on the CPU: the page then matches the pre-rendered video on every machine (the seeding draws differ between devices)
     X = X_tensor.cpu().numpy()
     K = 4
     return K, X, X_tensor
@@ -251,60 +246,42 @@ def _(mo):
 
 
 @app.cell
-def _(Image, base64, io, mo, plt):
-    ANIM_RC = {'font.size': 8, 'axes.titlesize': 9, 'axes.labelsize': 8, 'xtick.labelsize': 7, 'ytick.labelsize': 7, 'legend.fontsize': 6.5, 'figure.titlesize': 11, 'savefig.bbox': 'standard'}
-    ANIM_DPI = 150  # an 11-inch figure is 1650 px wide: crisp when the page scales it down to the notebook column
+def _(mo):
+    # docs: hide-cell
+    import base64 as _base64
+    import json as _json
+    import pathlib as _pathlib
 
-    def _encode_mp4(imgs, fps, hold):
-        """H.264 video (yuv420p, constant frame rate) of the frames, with the ffmpeg binary that ships with the imageio-ffmpeg package."""
-        import pathlib
-        import subprocess
-        import tempfile
+    _RAW = 'https://raw.githubusercontent.com/adriansousapoza/tgmm/main/notebooks/assets'
+    _SCRIPT = 'https://github.com/adriansousapoza/tgmm/blob/main/scripts/make_assets/make_seeding_videos.py'
 
-        import imageio_ffmpeg
+    def _local(name, ext):
+        _nb = mo.notebook_dir()
+        _p = None if _nb is None else _pathlib.Path(_nb) / 'assets' / f'{name}.{ext}'
+        return _p if _p is not None and _p.is_file() else None
 
-        _w, _h = imgs[0].size
-        with tempfile.TemporaryDirectory() as _dir:
-            _path = pathlib.Path(_dir) / 'anim.mp4'  # a file, not a pipe: '+faststart' moves the index to the front, so playback can start at once
-            _cmd = [imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{_w}x{_h}', '-r', str(fps), '-i', '-',
-                    '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', str(_path)]
-            _proc = subprocess.Popen(_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-            for _img in imgs + [imgs[-1]] * hold:
-                _proc.stdin.write(_img.tobytes())
-            _proc.stdin.close()
-            _err = _proc.stderr.read().decode(errors='replace')
-            if _proc.wait() != 0:
-                raise RuntimeError(f'ffmpeg failed: {_err}')
-            return _path.read_bytes()
+    def asset_info(name):
+        """The numbers the asset script wrote next to ``<name>.mp4`` ({} if they are not available)."""
+        _p = _local(name, 'json')
+        return _json.loads(_p.read_text()) if _p is not None else {}
 
-    def anim_from_frames(draw, frames, fps=2, hold=4):
-        """Render ``draw(t)`` (it returns a matplotlib figure) for every t in ``frames`` into a video the reader can play, pause and scrub.
+    def show_video(name):
+        """Show the pre-rendered ``notebooks/assets/<name>.mp4`` (play, pause, drag the timeline); no autoplay.
 
-        Every frame has the same size (the tgmm theme saves with a tight bounding box, which would crop each frame differently). The video is
-        embedded as a ``<video controls>`` (no autoplay); without a usable ffmpeg it falls back to a lossless animated WebP.
+        The file is embedded in the page, so the exported docs page is self-contained; if the asset folder is not next to the notebook
+        (e.g. the notebook was opened on its own), the same file on GitHub is used instead.
         """
-        _imgs = []
-        for _t in frames:
-            with plt.rc_context(ANIM_RC):
-                _fig = draw(_t)
-                _buf = io.BytesIO()
-                _fig.savefig(_buf, format='png', dpi=ANIM_DPI)
-            plt.close(_fig)
-            _imgs.append(Image.open(_buf).convert('RGB'))
-        try:
-            _data = _encode_mp4(_imgs, fps, hold)
-            _poster = io.BytesIO()
-            _imgs[0].save(_poster, format='JPEG', quality=85)
-            _html = (f'<video controls loop muted playsinline preload="metadata" poster="data:image/jpeg;base64,{base64.b64encode(_poster.getvalue()).decode()}" '
-                     f'style="width:100%;height:auto"><source src="data:video/mp4;base64,{base64.b64encode(_data).decode()}" type="video/mp4"></video>')
-        except (ImportError, OSError, RuntimeError):  # no usable ffmpeg: a lossless animated WebP instead
-            _out = io.BytesIO()
-            _imgs[0].save(_out, format='WEBP', save_all=True, append_images=_imgs[1:], lossless=True, method=4, loop=0, duration=[1000 // fps] * (len(_imgs) - 1) + [2500])
-            _data = _out.getvalue()
-            _html = f'<img src="data:image/webp;base64,{base64.b64encode(_data).decode()}" style="width:100%;height:auto">'
-        return mo.Html(_html), len(_imgs), len(_data)
+        _mp4, _jpg = _local(name, 'mp4'), _local(name, 'jpg')
+        if _mp4 is not None:
+            _src = 'data:video/mp4;base64,' + _base64.b64encode(_mp4.read_bytes()).decode()
+            _poster = '' if _jpg is None else f' poster="data:image/jpeg;base64,{_base64.b64encode(_jpg.read_bytes()).decode()}"'
+        else:
+            _src, _poster = f'{_RAW}/{name}.mp4', f' poster="{_RAW}/{name}.jpg"'
+        _video = mo.Html(f'<video controls loop muted playsinline preload="metadata"{_poster} style="width:100%;height:auto"><source src="{_src}" type="video/mp4"></video>')
+        _note = mo.md(f'*This video was rendered once by [`make_seeding_videos.py`]({_SCRIPT}) (`make assets` regenerates it), so the notebook only has to load it.*')
+        return mo.vstack([_video, _note])
 
-    return (anim_from_frames,)
+    return asset_info, show_video
 
 
 @app.cell
@@ -318,46 +295,8 @@ def _(GMMInitializer, K, SEED, X_tensor, torch):
 
 
 @app.cell
-def _(K, X, X_tensor, anim_from_frames, draw_step, np, phi_kmeans, plt, potential, trace_main):
-    _plan = [(_i, _mode) for _i in range(K) for _mode in ('prob', 'pick')] + [(K, 'final')]
-    _phi_seed = potential(X_tensor, X_tensor[trace_main['idx']])
-
-    def draw_kpp_frame(f):
-        _i, _mode = _plan[f]
-        _fig, (_ax, _ax2) = plt.subplots(1, 2, figsize=(11, 4.9), gridspec_kw={'width_ratios': [1.7, 1]})
-        if _mode == 'final':
-            _ax.scatter(X[:, 0], X[:, 1], s=4, color='0.65', alpha=0.6, linewidths=0)
-            _ax.scatter(X[trace_main['idx'], 0], X[trace_main['idx'], 1], marker='*', s=260, c='red', edgecolor='k', zorder=4)
-            _ax.set_aspect('equal')
-            _ax.set_title(f'seeding done: the {K} centres')
-            _ax2.axis('off')
-            _ax2.text(0.02, 0.6, f'k-means cost of the seeds\n  $\\phi_{{seed}}$ = {_phi_seed:,.0f}\n\nafter Lloyd\'s algorithm\n(tutorial 21)\n  $\\phi_{{k-means}}$ = {phi_kmeans:,.0f}', fontsize=10, va='center')
-        else:
-            draw_step(_ax, X, trace_main, _i, show_pick=(_mode == 'pick'))
-            _what = 'sampled point (ring) becomes centre' if _mode == 'pick' else 'probability map before the draw, centre'
-            _ax.set_title(f'step {_i + 1} of {K}: {_what} {_i + 1}' if _i else f'step 1 of {K}: the first centre is a uniformly random point')
-            _p = trace_main['prob'][_i].cpu().numpy()
-            if _i == 0:
-                _ax2.plot([0, 1], [0, 1], color='0.5')
-                _ax2.text(0.5, 0.2, 'every point has\nprobability 1/N', ha='center')
-            else:
-                _order = np.argsort(trace_main['dist'][_i].cpu().numpy())
-                _ax2.plot([0, 1], [0, 1], color='0.6', ls='--', label='uniform sampling')
-                _ax2.plot(np.arange(1, len(_p) + 1) / len(_p), np.cumsum(_p[_order]), color='C3', lw=2, label='$P(x)\\propto D(x)^2$')
-                _far = 1 - np.cumsum(_p[_order])[int(0.9 * len(_p)) - 1]
-                _ax2.text(0.03, 0.62, f'the farthest 10% of the points\ncarry {_far:.0%} of the probability', fontsize=9)
-                _ax2.legend(loc='lower right')
-            _ax2.set_xlabel('fraction of the points, nearest to the centres first')
-            _ax2.set_ylabel('probability carried')
-            _ax2.set_title('where the sampling probability sits')
-            _ax2.set_xlim(0, 1)
-            _ax2.set_ylim(0, 1.02)
-        _fig.tight_layout()
-        return _fig
-
-    video_kpp, n_frames_kpp, video_kpp_bytes = anim_from_frames(draw_kpp_frame, range(len(_plan)), fps=1, hold=3)
-    print(f'k-means++ video: {n_frames_kpp} frames, {video_kpp_bytes / 1e3:.0f} kB')
-    video_kpp
+def _(show_video):
+    show_video('kmeans_pp')
     return
 
 

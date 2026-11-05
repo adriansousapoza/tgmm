@@ -7,8 +7,6 @@
 #     "numpy",
 #     "matplotlib",
 #     "scipy",
-#     "pillow",
-#     "imageio-ffmpeg",
 # ]
 #
 # [tool.marimo.display]
@@ -48,7 +46,7 @@ def _(mo):
 
     This is the starting point for `tgmm`. It explains what a Gaussian mixture model (GMM) is and how the Expectation-Maximization (EM) algorithm fits one, first on a small 1-D example and then on a 2-D dataset of four Gaussians, and then fits a `GaussianMixture` and goes through everything you do with a fitted model: predicting labels and soft assignments, scoring, sampling, inspecting the learned parameters, plotting, and saving.
 
-    The data on this page are fixed defaults, but they are also *yours to change*: in the interactive version of this notebook (see the link at the top of the page) the last section lets you define your own 1-D mixture (the mean, standard deviation and number of points of each component) and your own 2-D blobs (the centre, covariance and number of points of each blob) and shows a fit to them.
+    The data on this page are fixed defaults, but they are also *yours to change*: in the interactive version of this notebook (see the link at the top of the page) the last section lets you define your own 2-D blobs (the centre, covariance and number of points of each blob) and shows a fit to them. The two EM videos are rendered ahead of time and only loaded here.
 
     **What you'll learn**
 
@@ -57,7 +55,7 @@ def _(mo):
     - How a poor start is repaired iteration by iteration in 1-D, and how responsibilities and covariance ellipses evolve in 2-D (two videos you can play, pause and scrub)
     - Fit a `GaussianMixture` and use `predict`, `predict_proba`, `score_samples`, `score`, `bic`, `aic`, `icl` and `sample`
     - Inspect `weights_`, `means_` and `covariances_`, visualize them with `plot_gmm`, and `save`/`load` a model
-    - Define your own 1-D and 2-D mixtures in the interactive version and fit them
+    - Define your own 2-D blobs in the interactive version and fit them
 
     **Prerequisites:** none.
 
@@ -79,14 +77,11 @@ def _(mo):
 @app.cell
 def _():
     import base64
-    import io
     import warnings
 
     import numpy as np
     import torch
     import matplotlib.pyplot as plt
-    from matplotlib.patches import Ellipse
-    from PIL import Image
     from scipy.optimize import linear_sum_assignment
     from scipy.stats import norm
 
@@ -97,20 +92,15 @@ def _():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    COLORS = ['#e41a1c', '#ff7f00', '#984ea3', '#4daf4a', '#377eb8', '#a65628']  # one colour per blob / component (up to 6)
 
     # Convergence warnings are expected below: several cells deliberately stop EM after one or a few iterations.
     warnings.filterwarnings('ignore', message='.*EM did not converge.*')
     return (
-        COLORS,
-        Ellipse,
         GaussianMixture,
-        Image,
         SEED,
         base64,
         device,
         generate_gmm_data,
-        io,
         linear_sum_assignment,
         norm,
         np,
@@ -118,6 +108,35 @@ def _():
         plt,
         torch,
     )
+
+
+@app.cell
+def _(base64, mo):
+    # docs: hide-cell
+    import json as _json
+
+    _RAW = 'https://raw.githubusercontent.com/adriansousapoza/tgmm/main/notebooks/assets/'  # where a hosted copy of this notebook finds the files
+
+    def asset_info(name):
+        """The numbers saved next to notebooks/assets/<name>.mp4 (``{}`` if the file is not there)."""
+        _dir = mo.notebook_dir()
+        _path = _dir / 'assets' / f'{name}.json' if _dir is not None else None
+        return _json.loads(_path.read_text()) if _path is not None and _path.exists() else {}
+
+    def show_video(name):
+        """Show the video notebooks/assets/<name>.mp4 (with its poster frame). The videos are rendered ahead of time by scripts/make_assets/."""
+        _dir = mo.notebook_dir()
+        _mp4 = _dir / 'assets' / f'{name}.mp4' if _dir is not None else None
+        if _mp4 is not None and _mp4.exists():  # embedded, so the exported docs page is self-contained
+            _src = 'data:video/mp4;base64,' + base64.b64encode(_mp4.read_bytes()).decode()
+            _jpg = _mp4.with_suffix('.jpg')
+            _poster = 'data:image/jpeg;base64,' + base64.b64encode(_jpg.read_bytes()).decode() if _jpg.exists() else ''
+        else:
+            _src, _poster = _RAW + f'{name}.mp4', _RAW + f'{name}.jpg'
+        return mo.Html(f'<video controls loop muted playsinline preload="metadata" poster="{_poster}" style="width:100%;height:auto">'
+                       f'<source src="{_src}" type="video/mp4"></video>')
+
+    return asset_info, show_video
 
 
 @app.cell(hide_code=True)
@@ -252,7 +271,7 @@ def _(mo):
     mo.md(r"""
     ## 3. A 1-D Example
 
-    We start with the simplest case: one feature ($d=1$), generated from three true Gaussian components so that there is ground truth to compare the fit with. (This section and the next use `tgmm`'s internal `_e_step` / `_m_step` methods so each iteration is visible, with hand-rolled plotting so you can see exactly what is drawn; [06 -- Visualization](06_visualise.ipynb) introduces `plot_gmm`, which is used for the rest of this notebook.)
+    We start with the simplest case: one feature ($d=1$), generated from three true Gaussian components so that there is ground truth to compare the fit with. (The EM runs in this section and the next were recorded ahead of time, one E-step and one M-step at a time with `tgmm`'s internal `_e_step` / `_m_step` methods, so that every iteration can be shown as a video; [06 -- Visualization](06_visualise.ipynb) introduces `plot_gmm`, which is used for the rest of this notebook.)
     """)
     return
 
@@ -300,148 +319,16 @@ def _(mo):
     return
 
 
-@app.cell
-def _(data, torch):
-    # Convert data to a torch tensor
-    X_1d = torch.tensor(data, dtype=torch.float32).reshape(-1, 1)
-    initial_means = torch.tensor([[9.5], [10.0], [10.5]], dtype=torch.float32)
-    # Initial parameters for the Gaussian Mixture Model
-    initial_covariances = torch.tensor([[[2.5 ** 2]], [[2.5 ** 2]], [[2.5 ** 2]]], dtype=torch.float32)
-    initial_weights = torch.tensor([0.33, 0.33, 0.33], dtype=torch.float32)
-    return X_1d, initial_covariances, initial_means, initial_weights
-
-
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
+def _(asset_info, mo):
+    _i = asset_info('em_1d')
+    _f = lambda key, spec='': format(_i[key], spec) if key in _i else 'n/a'
+    mo.md(rf"""
     ### Full EM run: watching convergence
 
-    Now we run EM to (near) convergence, one E-step and M-step at a time, recording $(\mu_k,\sigma_k,\pi_k)$ and the log-likelihood after every iteration.
+    From this start, EM was run to convergence one E-step and one M-step at a time, recording $(\mu_k,\sigma_k,\pi_k)$ and the average log-likelihood after every iteration. The run needed **{_f('iterations')} iterations**: the average log-likelihood rose from {_f('ll_first', '.2f')} for the initial guess to {_f('ll_last', '.4f')}, and it never decreased (the largest drop between two iterations was {_f('largest_drop', '.1e')}). The fitted means ended at {', '.join(f'{_m:.2f}' for _m in _i.get('final_means', []))}, close to the true $-2$, $2$ and $6$.
     """)
     return
-
-
-@app.cell
-def _(
-    FAST,
-    GaussianMixture,
-    MAX_ITER,
-    X_1d,
-    initial_covariances,
-    initial_means,
-    initial_weights,
-    np,
-    torch,
-):
-    _gmm_full = GaussianMixture(n_features=1, n_components=3, covariance_type='full', init_means=initial_means, init_covariances=initial_covariances, init_weights=initial_weights, device='cpu')
-    _gmm_full._allocate_parameters(X_1d, set_random_state=False)
-    means = [initial_means.squeeze().cpu().numpy()]  # parameters after iteration 0 (the initial guess), 1, 2, ...
-    stds = [np.sqrt(initial_covariances[:, 0, 0].cpu().numpy())]
-    taus = [initial_weights.cpu().numpy()]
-    _resp, _lp = _gmm_full._e_step(X_1d)
-    ll_history = [_lp.mean().item()]  # average log-likelihood of the initial guess
-    for _step in range(MAX_ITER):
-        _gmm_full._m_step(X_1d, _resp)  # M-step from the current responsibilities ...
-        _resp, _lp = _gmm_full._e_step(X_1d)  # ... then the E-step under the updated parameters
-        means.append(_gmm_full.means_.squeeze().cpu().numpy())
-        stds.append(torch.sqrt(_gmm_full.covariances_[:, 0, 0]).cpu().numpy())
-        taus.append(_gmm_full.weights_.cpu().numpy())
-        ll_history.append(_lp.mean().item())
-        if abs(ll_history[-1] - ll_history[-2]) < 1e-9:
-            break
-    means, stds, taus = np.array(means), np.array(stds), np.array(taus)
-    ll_history = np.array(ll_history)
-    GRID = 25 if FAST else 50
-    print(f'EM iterations run: {len(ll_history) - 1}')
-    print(f'Average log-likelihood: {ll_history[0]:.4f} (initial guess) -> {ll_history[-1]:.4f} (final)')
-    print(f'Never decreases (largest drop between iterations: {max(0.0, -np.diff(ll_history).min()):.2e})')
-    return GRID, ll_history, means, stds, taus
-
-
-@app.cell
-def _(GRID, data, means, norm, np, stds, taus):
-    def log_likelihood(data, means_np, stds_np, taus_np):
-        likelihood = np.zeros((data.shape[0], len(means_np)))
-        for i in range(len(means_np)):
-            likelihood[:, i] = norm.pdf(data, means_np[i], stds_np[i])
-        total_likelihood = np.dot(likelihood, taus_np)
-        return np.sum(np.log(total_likelihood))
-
-    mean_range = np.linspace(min(data), max(data), GRID)
-    std_range = np.linspace(0.01, 5, GRID)
-    surfaces = [np.zeros((len(std_range), len(mean_range))) for _ in range(3)]
-    for _i, _m in enumerate(mean_range):
-        for _j, _s in enumerate(std_range):
-            for _k in range(3):  # vary component _k's (mean, std); the others stay at their converged values
-                _means_k = list(means[-1])
-                _stds_k = list(stds[-1])
-                _means_k[_k], _stds_k[_k] = _m, _s
-                surfaces[_k][_j, _i] = log_likelihood(data, _means_k, _stds_k, taus[-1])
-    return mean_range, std_range, surfaces
-
-
-@app.cell
-def _(FAST, Image, base64, io, mo, np, plt):
-    ANIM_RC = {'font.size': 8, 'axes.titlesize': 9, 'axes.labelsize': 8, 'xtick.labelsize': 7, 'ytick.labelsize': 7, 'legend.fontsize': 6.5, 'figure.titlesize': 11, 'savefig.bbox': 'standard'}
-    ANIM_DPI = 150  # a figure of 11 inches is 1650 px wide: crisp when the page scales it down to the notebook column
-    ANIM_FPS = 4
-    ANIM_HOLD = 8  # the last frame is repeated, so the end of the run stays on screen for a moment
-
-    def pick_frames(n_iterations):
-        """Iterations to animate, 0..n_iterations, denser early on (where EM changes fastest); always includes both ends."""
-        _m = min(40 if FAST else 60, n_iterations + 1)
-        return [int(_i) for _i in np.unique(np.round(n_iterations * np.linspace(0, 1, _m) ** 2).astype(int))]
-
-    def _encode_mp4(imgs):
-        """H.264 video (yuv420p, constant frame rate) of the frames, with the ffmpeg binary that ships with the imageio-ffmpeg package."""
-        import pathlib
-        import subprocess
-        import tempfile
-
-        import imageio_ffmpeg
-
-        _w, _h = imgs[0].size
-        with tempfile.TemporaryDirectory() as _dir:
-            _path = pathlib.Path(_dir) / 'anim.mp4'  # a file, not a pipe: '+faststart' moves the index to the front, so the browser can start playing at once
-            _cmd = [imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{_w}x{_h}', '-r', str(ANIM_FPS), '-i', '-',
-                    '-vf', 'crop=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-preset', 'slow', '-crf', '21', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', str(_path)]
-            _proc = subprocess.Popen(_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-            for _img in imgs + [imgs[-1]] * ANIM_HOLD:
-                _proc.stdin.write(_img.tobytes())
-            _proc.stdin.close()
-            _err = _proc.stderr.read().decode(errors='replace')
-            if _proc.wait() != 0:
-                raise RuntimeError(f'ffmpeg failed: {_err}')
-            return _path.read_bytes()
-
-    def anim_from_frames(draw, frames):
-        """Render ``draw(t)`` (it returns a matplotlib figure) for every t in ``frames`` into a video the reader can play, pause and scrub.
-
-        Every frame has the same size (the tgmm theme saves with a tight bounding box, which would crop each frame differently). The video is
-        embedded in the page as a ``<video controls>`` (no autoplay). If no ffmpeg is available it falls back to a lossless animated WebP.
-        """
-        _imgs = []
-        for _t in frames:
-            with plt.rc_context(ANIM_RC):  # compact fonts for the small figure; no tight bbox
-                _fig = draw(_t)
-                _buf = io.BytesIO()
-                _fig.savefig(_buf, format='png', dpi=ANIM_DPI)
-            plt.close(_fig)
-            _imgs.append(Image.open(_buf).convert('RGB'))
-        try:
-            _data = _encode_mp4(_imgs)
-            _poster = io.BytesIO()
-            _imgs[0].save(_poster, format='JPEG', quality=85)
-            _html = (f'<video controls loop muted playsinline preload="metadata" poster="data:image/jpeg;base64,{base64.b64encode(_poster.getvalue()).decode()}" '
-                     f'style="width:100%;height:auto"><source src="data:video/mp4;base64,{base64.b64encode(_data).decode()}" type="video/mp4"></video>')
-        except (ImportError, OSError, RuntimeError):  # no usable ffmpeg: a lossless animated WebP instead
-            _out = io.BytesIO()
-            _imgs[0].save(_out, format='WEBP', save_all=True, append_images=_imgs[1:], lossless=True, method=4, loop=0, duration=[1000 // ANIM_FPS] * (len(_imgs) - 1) + [2500])
-            _data = _out.getvalue()
-            _html = f'<img src="data:image/webp;base64,{base64.b64encode(_data).decode()}" style="width:100%;height:auto">'
-        return mo.Html(_html), len(_imgs), len(_data)
-
-    return anim_from_frames, pick_frames
 
 
 @app.cell(hide_code=True)
@@ -449,92 +336,17 @@ def _(mo):
     mo.md(r"""
     ### The whole run, iteration by iteration
 
-    The video replays the run above: **press play, or drag the timeline to scrub through the iterations**. Iteration $0$ is the bad initial guess and the last frame the converged fit (the frames are denser at the start, where EM changes fastest). At iteration $t$ the top row shows the fitted components against the real ones **(left)**, each point's responsibility for each component **(middle)**, and the average log-likelihood climbing over the iterations so far **(right)**; the bottom row shows, for each component, the **log-likelihood surface** over its $(\text{mean},\text{std})$ with the path EM has taken up to $t$ and the current estimate. The surface is the one EM is climbing: the other components are held at their converged values, and each estimate walks uphill to the maximum.
+    The video replays the run: **press play, or drag the timeline to scrub through the iterations**. Iteration $0$ is the bad initial guess and the last frame the converged fit (the frames are denser at the start, where EM changes fastest). At iteration $t$ the top row shows the fitted components against the real ones **(left)**, each point's responsibility for each component **(middle)**, and the average log-likelihood climbing over the iterations so far **(right)**; the bottom row shows, for each component, the **log-likelihood surface** over its $(\text{mean},\text{std})$ with the path EM has taken up to $t$ and the current estimate. The surface is the one EM is climbing: the other components are held at their converged values, and each estimate walks uphill to the maximum.
     """)
     return
 
 
-@app.cell
-def _(
-    anim_from_frames,
-    data,
-    ll_history,
-    mean_range,
-    means,
-    norm,
-    np,
-    pick_frames,
-    plt,
-    real_means,
-    real_stds,
-    std_range,
-    stds,
-    surfaces,
-    taus,
-    true_taus,
-):
-    def draw_1d_frame(_t):
-        _colors = ['r', 'b', 'g']
-        _fig = plt.figure(figsize=(11, 6.4))
-        _gs = _fig.add_gridspec(2, 3)
-        _ax_fit = _fig.add_subplot(_gs[0, 0])
-        _ax_resp = _fig.add_subplot(_gs[0, 1])
-        _ax_ll = _fig.add_subplot(_gs[0, 2])
-        _x = np.linspace(min(data), max(data), 1000)
-        _ax_fit.hist(data, bins=30, density=True, alpha=0.6, color='g', label='Data histogram')
-        _est = 0
-        _real = 0
-        for _k in range(3):
-            _comp = taus[_t, _k] * norm.pdf(_x, means[_t, _k], stds[_t, _k])
-            _ax_fit.plot(_x, _comp, color=_colors[_k], linestyle='-', label=f'Gaussian {_k + 1} (estimated)')
-            _ax_fit.plot(_x, true_taus[_k] * norm.pdf(_x, real_means[_k], real_stds[_k]), color=_colors[_k], linestyle='--', label=f'Gaussian {_k + 1} (real)')
-            _est = _est + _comp
-            _real = _real + true_taus[_k] * norm.pdf(_x, real_means[_k], real_stds[_k])
-        _ax_fit.plot(_x, _est, 'k-', label='GMM (estimated)')
-        _ax_fit.plot(_x, _real, 'k--', label='GMM (real)')
-        _ax_fit.set_title('Data and Gaussian Distributions')
-        _ax_fit.set_ylim(0, 1.7 * max(np.histogram(data, bins=30, density=True)[0].max(), _real.max()))  # headroom for the legend
-        _ax_fit.legend(ncol=2, loc='upper left', handlelength=1.6, columnspacing=0.9)
-        # responsibilities r_ik of the parameters after iteration t (the E-step formula, evaluated directly)
-        _dens = taus[_t] * norm.pdf(data[:, None], means[_t], stds[_t])
-        _r = _dens / np.maximum(_dens.sum(axis=1, keepdims=True), 1e-300)
-        for _k in range(3):
-            _ax_resp.scatter(data, _r[:, _k], color=_colors[_k], label=f'Responsibility of cluster {_k + 1}', alpha=0.6, marker='x', s=12)
-        _ax_resp.set_title('Responsibilities')
-        _ax_resp.legend()
-        # average log-likelihood after each iteration so far (the quantity EM never decreases)
-        _ax_ll.plot(ll_history, color='lightgray', linewidth=1)
-        _ax_ll.plot(np.arange(_t + 1), ll_history[:_t + 1], color='k', linewidth=1.5, label='Up to this iteration')
-        _ax_ll.scatter([_t], [ll_history[_t]], color='magenta', edgecolor='white', s=80, zorder=5, label='Current iteration')
-        _lo, _hi = ll_history[min(2, len(ll_history) - 1):].min(), ll_history.max()  # zoom past the (terrible) initial guess so the slow climb is visible
-        _pad = 0.1 * max(_hi - _lo, 1e-3)
-        _ax_ll.set_ylim(_lo - _pad, _hi + _pad)
-        _ax_ll.set_xlim(0, len(ll_history) - 1)
-        if ll_history[0] < _lo - _pad:
-            _ax_ll.text(0.07, 0.04, f'iteration 0: {ll_history[0]:.2f} (off scale)', transform=_ax_ll.transAxes, fontsize=7, va='bottom')
-        _ax_ll.set_title('Average log-likelihood')
-        _ax_ll.set_xlabel('EM iteration')
-        _ax_ll.set_ylabel('Average log-likelihood')
-        _ax_ll.legend(loc='lower right')
-        for _k in range(3):
-            _ax = _fig.add_subplot(_gs[1, _k])
-            _cs = _ax.contourf(mean_range, std_range, surfaces[_k], levels=15, cmap='viridis')
-            _fig.colorbar(_cs, ax=_ax).ax.set_ylabel('Log-Likelihood')
-            _ax.scatter(real_means[_k], real_stds[_k], color='red', label='Real mean and std', s=50, marker='o')
-            _ax.scatter(means[0, _k], stds[0, _k], color='red', label='Initial mean and std', s=100, marker='*')
-            _ax.plot(means[:_t + 1, _k], stds[:_t + 1, _k], color='magenta', label='Path up to this iteration')
-            _ax.scatter(means[_t, _k], stds[_t, _k], color='magenta', edgecolor='white', s=80, zorder=5, label='Current estimate')
-            _ax.set_title(f'Log-Likelihood vs. Mean{_k + 1} and Std{_k + 1}')
-            _ax.set_xlabel('Mean')
-            _ax.set_ylabel('Standard Deviation')
-            _ax.legend(loc='lower left')
-        _fig.suptitle(f'EM iteration {_t} of {len(ll_history) - 1}: average log-likelihood {ll_history[_t]:.4f}')
-        _fig.tight_layout(rect=[0, 0, 1, 0.96])
-        return _fig
-
-    anim_1d, n_frames_1d, anim_1d_bytes = anim_from_frames(draw_1d_frame, pick_frames(len(ll_history) - 1))
-    print(f'1-D video: {n_frames_1d} frames, {anim_1d_bytes / 1e6:.2f} MB')
-    anim_1d
+@app.cell(hide_code=True)
+def _(mo, show_video):
+    mo.vstack([
+        show_video('em_1d'),
+        mo.md("<small>This video was rendered ahead of time by [`scripts/make_assets/make_em_videos.py`](https://github.com/adriansousapoza/tgmm/blob/main/scripts/make_assets/make_em_videos.py) (`make assets` regenerates it); the notebook only loads it from `notebooks/assets/`.</small>"),
+    ])
     return
 
 
@@ -569,7 +381,14 @@ def _(np):
 
 
 @app.cell
-def _(SEED, default_centers, default_covs, default_n_samples, device, generate_gmm_data):
+def _(
+    SEED,
+    default_centers,
+    default_covs,
+    default_n_samples,
+    device,
+    generate_gmm_data,
+):
     centers, covs, n_samples = default_centers, default_covs, default_n_samples
 
     # Generate the synthetic data (a seeded draw: the same blobs always give the same points)
@@ -604,110 +423,29 @@ def _(mo):
     mo.md(r"""
     ### EM on these blobs
 
-    We fit one component per blob to the data above, starting from means placed on a horizontal line *above* the data, and record the state after every EM iteration. The helper below draws the three panels for a given iteration: **(left)** each point's responsibility per component, **(middle)** the hard assignment (arg-max responsibility, used only for colouring) in data space, and **(right)** the trajectory of each component's mean and its current $1\sigma$ covariance ellipse, with the initial means marked `x` and the current means `o`.
+    We fit one component per blob to the data above. To make the dynamics visible, the run starts from a deliberately uninformative guess: all four components start close together around $(0,0)$ (the origin plus a little seeded noise), each with the covariance of the whole data set and equal weights. The state was recorded after every EM iteration, and the video below shows three panels for each of them: **(left)** each point's responsibility for each component (the points are in the order of the blobs they were drawn from), **(middle)** the hard assignment (arg-max responsibility, used only for colouring) in data space, and **(right)** the data with the trajectory of each component's mean (dotted line, from the initial means marked `x` to the current means `o`) and its current $1\sigma$ (solid), $2\sigma$ and $3\sigma$ (dashed) covariance ellipses.
     """)
     return
-
-
-@app.cell
-def _(COLORS, Ellipse, torch):
-    def plot_2d_gmm_resp(snapshot, X, em_means, axs, row):
-        """One row of the 2-D EM figure: responsibilities, hard assignments, means trace and covariance ellipses."""
-        _means, _covs, _resp, _iteration = snapshot
-        _K = _means.shape[0]
-        for _k in range(_K):
-            axs[row, 0].plot(_resp[:, _k].cpu().numpy(), label=f'Cluster {_k + 1}', color=COLORS[_k], marker='.', markersize=2, linestyle='None', alpha=0.5)
-        axs[row, 0].legend(markerscale=4)
-        axs[row, 0].set_title(f'Responsibilities, iteration {_iteration}')
-        axs[row, 0].set_xlabel('Data point index')
-        axs[row, 0].set_ylabel('Probability')
-
-        # colour each point by the component with the highest responsibility
-        _assignment = _resp.cpu().max(dim=1)[1]
-        axs[row, 1].scatter(X[:, 0], X[:, 1], c=[COLORS[_c] for _c in _assignment], s=10, alpha=0.5)
-        axs[row, 1].set_title(f'Hard assignments, iteration {_iteration}')
-        axs[row, 1].set_xlabel('X1')
-        axs[row, 1].set_ylabel('X2')
-
-        # data, trace of the means, and a 1-sigma ellipse per component
-        axs[row, 2].scatter(X[:, 0], X[:, 1], c='gray', s=5, alpha=0.5)
-        for _k in range(_K):
-            _eigvals, _eigvecs = torch.linalg.eigh(_covs[_k].cpu())
-            _angle = torch.atan2(_eigvecs[1, 0], _eigvecs[0, 0]).item() * 180.0 / torch.pi
-            _width, _height = 2 * torch.sqrt(_eigvals).cpu().numpy()
-            axs[row, 2].add_patch(Ellipse(_means[_k].cpu().numpy(), _width, _height, angle=_angle, edgecolor=COLORS[_k], facecolor='none', lw=2))
-            _trace = torch.stack([_m[_k] for _m in em_means[:_iteration + 1]]).cpu().numpy()
-            axs[row, 2].plot(_trace[:, 0], _trace[:, 1], color=COLORS[_k], linestyle='--')
-            axs[row, 2].scatter(_trace[-1, 0], _trace[-1, 1], color=COLORS[_k], marker='o', s=50)
-            axs[row, 2].scatter(_trace[0, 0], _trace[0, 1], color=COLORS[_k], marker='x', s=100)
-        axs[row, 2].set_title(f'GMM, iteration {_iteration}')
-        axs[row, 2].set_xlabel('X1')
-        axs[row, 2].set_ylabel('X2')
-        axs[row, 2].scatter([], [], color='black', marker='x', s=100, label='Initial means')
-        axs[row, 2].scatter([], [], color='black', marker='o', s=50, label='Current means')
-        axs[row, 2].plot([], [], color='black', linestyle='-', label='Gaussian components')
-        axs[row, 2].plot([], [], color='black', linestyle='--', label='Trace of means')
-        axs[row, 2].legend()
-
-    return (plot_2d_gmm_resp,)
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Running EM and recording every iteration
+def _(asset_info, mo):
+    _i = asset_info('em_2d')
+    _f = lambda key, spec='': format(_i[key], spec) if key in _i else 'n/a'
+    mo.md(rf"""
+    ### Watching EM separate the blobs
 
-    One E-step and M-step at a time, we store the state after every iteration (convergence, or the iteration cap in the fast docs build). The video below replays it: **press play, or drag the timeline to scrub through the iterations**, and watch how the soft responsibilities sharpen into confident assignments as the ellipses settle onto the blobs.
+    EM converged after **{_f('iterations')} iterations**; the average log-likelihood rose from {_f('ll_first', '.2f')} to {_f('ll_last', '.4f')}. **Press play, or drag the timeline to scrub through the iterations**: watch how the soft responsibilities sharpen into confident assignments, and how the four components, which start on top of each other, spread out and settle onto the blobs.
     """)
     return
 
 
-@app.cell
-def _(GaussianMixture, MAX_ITER, X_tensor, device, n_components, torch):
-    # initial means: n_components points on a horizontal line above the data
-    means_init = torch.stack([torch.linspace(-1.0, 2.0, n_components), torch.full((n_components,), 5.0)], dim=1).to(device)
-    gmm_steps = GaussianMixture(n_features=2, n_components=n_components, covariance_type='full', init_means=means_init, device=device)
-    gmm_steps._allocate_parameters(X_tensor)
-    em_means = [gmm_steps.means_.clone()]  # means after iteration 0 (initial), 1, 2, ...
-    _resp, _lp = gmm_steps._e_step(X_tensor)
-    _ll_prev = _lp.mean().item()
-    em_states = {0: (gmm_steps.means_.clone(), gmm_steps.covariances_.clone(), _resp.clone(), 0)}  # state after every iteration (0 = initial guess)
-    em_ll = {0: _ll_prev}  # average log-likelihood after every iteration
-    for _it in range(1, MAX_ITER + 1):
-        gmm_steps._m_step(X_tensor, _resp)
-        _resp, _lp = gmm_steps._e_step(X_tensor)
-        em_means.append(gmm_steps.means_.clone())
-        _ll = _lp.mean().item()
-        em_states[_it] = (gmm_steps.means_.clone(), gmm_steps.covariances_.clone(), _resp.clone(), _it)
-        em_ll[_it] = _ll
-        if abs(_ll - _ll_prev) < 1e-6:
-            break
-        _ll_prev = _ll
-    print(f'EM iterations recorded: {max(em_states)}')
-    return em_ll, em_means, em_states
-
-
-@app.cell
-def _(
-    X,
-    anim_from_frames,
-    em_ll,
-    em_means,
-    em_states,
-    pick_frames,
-    plot_2d_gmm_resp,
-    plt,
-):
-    def draw_2d_frame(_t):
-        _fig, _axs = plt.subplots(1, 3, figsize=(11, 3.9), squeeze=False)
-        plot_2d_gmm_resp(em_states[_t], X, em_means, _axs, 0)
-        _fig.suptitle(f'EM iteration {_t} of {max(em_states)}: average log-likelihood {em_ll[_t]:.4f}')
-        _fig.tight_layout(rect=[0, 0, 1, 0.94])
-        return _fig
-
-    anim_2d, n_frames_2d, anim_2d_bytes = anim_from_frames(draw_2d_frame, pick_frames(max(em_states)))
-    print(f'2-D video: {n_frames_2d} frames, {anim_2d_bytes / 1e6:.2f} MB')
-    anim_2d
+@app.cell(hide_code=True)
+def _(mo, show_video):
+    mo.vstack([
+        show_video('em_2d'),
+        mo.md("<small>This video was rendered ahead of time by [`scripts/make_assets/make_em_videos.py`](https://github.com/adriansousapoza/tgmm/blob/main/scripts/make_assets/make_em_videos.py) (`make assets` regenerates it); the notebook only loads it from `notebooks/assets/`.</small>"),
+    ])
     return
 
 
@@ -742,7 +480,7 @@ def _(GaussianMixture, X_tensor, device, n_components, np, torch):
         assert np.isclose(torch.sum(probs[_i]).item(), 1.0), f'Probabilities for sample {_i} do not sum to 1'
     print('Number of iterations:                                  ', gmm.n_iter_)
     print('Converged:                                             ', gmm.converged_)
-    return generated_probs, gmm, gmm_samples, log_probs, probs, y_pred
+    return gmm, gmm_labels, gmm_samples, log_probs, probs, y_pred
 
 
 @app.cell(hide_code=True)
@@ -780,10 +518,10 @@ def _(mo):
 
     Each panel is the output of one method of the fitted `gmm`, drawn with `plot_gmm` (introduced properly in [06 -- Visualization](06_visualise.ipynb)):
 
-    - **`gmm.fit(X)`** (top left): the learned `means_` and `covariances_`, drawn as the fitted covariance ellipses over the data. The box in its corner shows the information criteria `gmm.bic(X)`, `gmm.aic(X)` and `gmm.icl(X)` (lower is better; defined below the plots).
+    - **`gmm.fit(X)`** (top left): the learned `means_` and `covariances_`, drawn as the fitted covariance ellipses (1, 2 and 3 standard deviations) over the data, with the means as black stars. The box in its corner shows the information criteria `gmm.bic(X)`, `gmm.aic(X)` and `gmm.icl(X)` (lower is better; defined below the plots).
     - **`gmm.score_samples(X)`** (top right): each point coloured by its log-likelihood $\log p(x_i\mid\theta)$; points far from every component are the unlikely ones. The title also shows its average, `gmm.score(X)`.
     - **`gmm.predict(X)`** (bottom left): the hard cluster label of every point.
-    - **`gmm.sample(n)`** (bottom right): new points drawn from the fitted mixture (shown without the ellipses, so you can compare their spread with the data; more in [05 -- Sampling](05_sampling.ipynb)). If the model is good they look like the original data.
+    - **`gmm.sample(n)`** (bottom right): new points drawn from the fitted mixture (shown without the ellipses, coloured by the component each point was drawn from, so you can compare their spread with the data; more in [05 -- Sampling](05_sampling.ipynb)). If the model is good they look like the original data.
 
     Below them, `gmm.predict_proba(X)` is drawn one component at a time, for the observed data and for the generated samples. The information criteria are defined and checked right after the plots.
     """)
@@ -795,6 +533,7 @@ def _(
     X,
     X_tensor,
     gmm,
+    gmm_labels,
     gmm_samples,
     legend_labels,
     log_probs,
@@ -804,10 +543,11 @@ def _(
     y_pred,
 ):
     _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
-    plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=legend_labels)
+    _means = dict(mean_marker='*', mean_size=140, mean_color='black')  # the component means are black stars, the points are coloured or grey
+    plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=legend_labels, point_color='gray', **_means)
     plot_gmm(X=X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {gmm.score(X_tensor):.3f}', log_probs=log_probs, colorbar_label='Log-Likelihood')
     plot_gmm(X=X, ax=_axs[1, 0], true_labels=y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {i}' for i in range(n_components)])
-    plot_gmm(X=gmm_samples, gmm=gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False)
+    plot_gmm(X=gmm_samples, gmm=gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, true_labels=gmm_labels, legend_labels=legend_labels, **_means)
     _ic = f'gmm.bic(X) = {gmm.bic(X_tensor):.1f}\ngmm.aic(X) = {gmm.aic(X_tensor):.1f}\ngmm.icl(X) = {gmm.icl(X_tensor):.1f}'  # lower is better
     _axs[0, 0].text(0.02, 0.02, _ic, transform=_axs[0, 0].transAxes, ha='left', va='bottom', fontsize=8, family='monospace', zorder=10,
                     bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.75, edgecolor='0.7'))
@@ -828,47 +568,6 @@ def _(X, n_components, plot_gmm, plt, probs):
     plt.suptitle('gmm.predict_proba(X): responsibilities of the observed data', fontsize=11)
     plt.tight_layout()
     plt.gcf()
-    return
-
-
-@app.cell
-def _(generated_probs, gmm, gmm_samples, n_components, plot_gmm, plt):
-    _nrows = (n_components + 1) // 2
-    _fig, _axs = plt.subplots(_nrows, 2, figsize=(9, 3.8 * _nrows), squeeze=False)
-    for _k, _ax in enumerate(_axs.ravel()):
-        if _k < n_components:
-            plot_gmm(X=gmm_samples, gmm=gmm, ax=_ax, show_ellipses=False, title=f'Component {_k + 1} Probability', log_probs=generated_probs[:, _k], colormap='PRGn', colorbar_label='Probability')
-        else:
-            _ax.axis('off')
-    _fig.suptitle('gmm.predict_proba(gmm_samples): responsibilities of the generated samples', fontsize=11)
-    plt.tight_layout()
-    plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Information criteria
-
-    The box in the top-left panel above shows three information criteria of the fitted model (lower is better). With $n\,\text{score}(X)$ the maximized log-likelihood and $p$ the parameter count from section 2: **BIC** is $-2\,n\,\text{score}+p\log n$ (`bic(X)`), **AIC** is $-2\,n\,\text{score}+2p$ (`aic(X)`), and **ICL**, the integrated completed likelihood (`icl(X, mode='hard' or 'soft')`), is BIC plus the entropy of the assignments, $-2\sum_i\log r_{i\hat z_i}$ (hard) or $-2\sum_{i,k}r_{ik}\log r_{ik}$ (soft), so it also penalizes overlapping components. How to use them to choose $K$ is the subject of [13 -- Model Selection](13_model_selection.ipynb); new data from the fitted mixture come from `sample(n)` ([05 -- Sampling](05_sampling.ipynb)). The cell below checks the three criteria against their definitions.
-    """)
-    return
-
-
-@app.cell
-def _(X_tensor, gmm, n_components, np, probs):
-    _n, _d = X_tensor.shape
-    _p = (n_components - 1) + n_components * _d + n_components * _d * (_d + 1) // 2  # full covariance
-    _bic = -2 * _n * gmm.score(X_tensor) + _p * np.log(_n)
-    _r = np.clip(probs.detach().cpu().numpy().astype(np.float64), 1e-300, 1.0)  # responsibilities r_ik
-    _icl_hard = _bic - 2 * np.log(_r.max(axis=1)).sum()    # BIC - 2 sum_i log r_{i, z_hat_i}
-    _icl_soft = _bic - 2 * (_r * np.log(_r)).sum()         # BIC - 2 sum_ik r_ik log r_ik
-    print(f'free parameters p = (K-1) + K*d + K*d*(d+1)/2 = {_p}')
-    print(f'bic  from the definition: {_bic:.3f}   gmm.bic(X) = {gmm.bic(X_tensor):.3f}')
-    print(f'aic  from the definition: {-2 * _n * gmm.score(X_tensor) + 2 * _p:.3f}   gmm.aic(X) = {gmm.aic(X_tensor):.3f}')
-    print(f'icl (hard) from the definition: {_icl_hard:.3f}   gmm.icl(X, "hard") = {gmm.icl(X_tensor, "hard"):.3f}')
-    print(f'icl (soft) from the definition: {_icl_soft:.3f}   gmm.icl(X, "soft") = {gmm.icl(X_tensor, "soft"):.3f}')
     return
 
 
@@ -938,109 +637,7 @@ def _(mo):
     mo.md(r"""
     ## 9. Design Your Own Mixture (interactive version)
 
-    The page you are reading shows the fixed default data. To specify the mixture yourself, open the interactive version of this notebook (the molab link at the top of the page, or `marimo edit` locally): the number fields below only work there, and all of this notebook's interactive controls live in this last section. Each designer shows static results, no videos: one `GaussianMixture` fit to your data and its plot.
-
-    ### A 1-D mixture of your own
-
-    For every component you type its **mean** $\mu_k$, its **standard deviation** $\sigma_k$ and its **number of points** $n_k$ (so the true mixing weight is $\pi_k=n_k/n$). The **number of components** field ($K=2,\dots,4$) adds or removes components, and **Reset** restores the defaults, the three components of section 3. The standard deviation must be positive and $n_k\ge 1$; otherwise the panel warns you and uses the closest valid value. The result is one fit with `GaussianMixture(n_components=K, n_features=1)` drawn over the histogram of your data, next to the true components.
-    """)
-    return
-
-
-@app.cell
-def _(SEED, mo, np):
-    # docs: hide-cell
-    # (mean, std, n) per component: the three defaults, then a spare fourth for "add a component"
-    DEFAULT_ROWS_1D = [(-2.0, 2.0, 2000.0), (2.0, 1.0, 1000.0), (6.0, 3.0, 3000.0), (10.0, 1.5, 1000.0)]
-    # Fixed standard normals, so that changing one field never reshuffles the other components' points. Each slot reads its own slice of
-    # the pool (the defaults read the slices the original example always used) and, when n exceeds the slot's default size, a second fixed stream.
-    NOISE_POOL_1D = np.random.RandomState(SEED).standard_normal(13000)
-    SLOT_OFFSETS_1D = [6000, 8000, 9000, 12000]
-    SLOT_CAPS_1D = [2000, 1000, 3000, 1000]
-
-    def draw_component_1d(k, mean, std, n):
-        """n points of component k: mean + std * (fixed standard normals)."""
-        _z = NOISE_POOL_1D[SLOT_OFFSETS_1D[k]:SLOT_OFFSETS_1D[k] + min(n, SLOT_CAPS_1D[k])]
-        if n > SLOT_CAPS_1D[k]:
-            _z = np.concatenate([_z, np.random.RandomState(SEED + 1 + k).standard_normal(n - SLOT_CAPS_1D[k])])
-        return mean + std * _z
-
-    reset_1d = mo.ui.button(label='Reset to the default 1-D mixture')
-    return DEFAULT_ROWS_1D, draw_component_1d, reset_1d
-
-
-@app.cell
-def _(DEFAULT_ROWS_1D, mo, reset_1d):
-    # docs: hide-cell
-    _ = reset_1d.value  # pressing Reset re-runs this cell, which recreates every field at its default
-    _spec = [('mean', -50, 50, 0.1), ('std', 0.0, 30, 0.1), ('n', 1, 20000, 1)]
-    # mo.ui.array (not a plain list): marimo only re-runs dependent cells when a field's value changes if the field sits in an array
-    fields_1d = mo.ui.array([mo.ui.array([mo.ui.number(start=_lo, stop=_hi, step=_st, value=_v, label=_nm, debounce=True)
-                                          for (_nm, _lo, _hi, _st), _v in zip(_spec, DEFAULT_ROWS_1D[_i])]) for _i in range(4)])
-    k_1d = mo.ui.number(start=2, stop=4, step=1, value=3, label='number of components K', debounce=True)
-    return fields_1d, k_1d
-
-
-@app.cell
-def _(fields_1d, k_1d, mo, reset_1d):
-    # docs: hide-cell
-    def _panel(_i):
-        _mean, _std, _n = fields_1d.value[_i]
-        _f = fields_1d[_i]
-        _note = '' if (_std > 0 and _n >= 1) else '<small>⚠️ need std > 0 and n ≥ 1; the closest valid value is used</small>'
-        return mo.vstack([mo.md(f'**Component {_i + 1}**  ·  mean, standard deviation, number of points n'),
-                          mo.hstack([_f[0], _f[1], _f[2]], justify='start'),
-                          mo.md(_note)])
-
-    mo.vstack([
-        mo.hstack([k_1d, reset_1d], justify='start', align='end'),
-        *[_panel(_i) for _i in range(int(k_1d.value))],
-    ])
-    return
-
-
-@app.cell
-def _(GaussianMixture, MAX_ITER, SEED, draw_component_1d, fields_1d, k_1d, mo, norm, np, plt, torch):
-    # The fields' values, clipped to valid ones
-    _rows = [(float(_m), max(float(_s), 0.05), max(int(_n), 1)) for _m, _s, _n in fields_1d.value[:int(k_1d.value)]]
-    _K = len(_rows)
-    custom_data_1d = np.concatenate([draw_component_1d(_k, *_r) for _k, _r in enumerate(_rows)])
-    _true_w = np.array([_r[2] for _r in _rows], float) / sum(_r[2] for _r in _rows)
-    _X = torch.tensor(custom_data_1d, dtype=torch.float32).reshape(-1, 1)
-    try:
-        custom_gmm_1d = GaussianMixture(n_components=_K, n_features=1, random_state=SEED, max_iter=MAX_ITER, device='cpu')
-        custom_gmm_1d.fit(_X)
-    except Exception as _e:  # e.g. too few points for the number of components
-        custom_gmm_1d = None
-        _out = mo.md(f'⚠️ the fit failed for this mixture ({_e}); try more points or a larger standard deviation')
-    else:
-        _w = custom_gmm_1d.weights_.cpu().numpy()
-        _mu = custom_gmm_1d.means_.cpu().numpy()[:, 0]
-        _sd = np.sqrt(custom_gmm_1d.covariances_.cpu().numpy()[:, 0, 0])
-        print(f'fitted GMM: BIC = {custom_gmm_1d.bic(_X):.1f}, AIC = {custom_gmm_1d.aic(_X):.1f}')
-        for _k in np.argsort(_mu):
-            print(f'  weight {_w[_k]:.3f}  mean {_mu[_k]:7.3f}  std {_sd[_k]:6.3f}')
-        print('true mixture:')
-        for _r, _tw in zip(_rows, _true_w):
-            print(f'  weight {_tw:.3f}  mean {_r[0]:7.3f}  std {_r[1]:6.3f}')
-        _x = np.linspace(custom_data_1d.min(), custom_data_1d.max(), 800)
-        plt.figure(figsize=(8, 4.5))
-        plt.hist(custom_data_1d, bins=40, density=True, alpha=0.5, color='g', label='your data')
-        for _k in np.argsort(_mu):
-            plt.plot(_x, _w[_k] * norm.pdf(_x, _mu[_k], _sd[_k]), color='C0', label='fitted component' if _k == np.argsort(_mu)[0] else None)
-        plt.plot(_x, sum(_w[_k] * norm.pdf(_x, _mu[_k], _sd[_k]) for _k in range(_K)), 'k-', label='fitted GMM')
-        plt.plot(_x, sum(_tw * norm.pdf(_x, _r[0], _r[1]) for _r, _tw in zip(_rows, _true_w)), 'k--', label='true GMM')
-        plt.title(f'1-D mixture of your own: K = {_K} fitted components')
-        plt.legend()
-        _out = plt.gcf()
-    _out
-    return custom_data_1d, custom_gmm_1d
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Your own 2-D blobs
+    The page you are reading shows the fixed default data. To specify the mixture yourself, open the interactive version of this notebook (the molab link at the top of the page, or `marimo edit` locally): the number fields below only work there, and all of this notebook's interactive controls live in this last section. The result is static: one `GaussianMixture` fit to your blobs and the same views as in section 7 (`score_samples`, `predict`, `sample`, `predict_proba`), with no video.
 
     For every blob you type the centre $(x, y)$, the covariance matrix
 
@@ -1048,7 +645,7 @@ def _(mo):
     \Sigma = \begin{pmatrix}\Sigma_{11} & \Sigma_{12}\\ \Sigma_{12} & \Sigma_{22}\end{pmatrix}
     $$
 
-    (symmetric, so you enter $\Sigma_{11}$, $\Sigma_{12}=\Sigma_{21}$ and $\Sigma_{22}$) and the number of points $n$. A valid covariance has $\Sigma_{11}>0$, $\Sigma_{22}>0$ and $\Sigma_{12}^2<\Sigma_{11}\Sigma_{22}$ (positive definite); the panel shows the standard deviations $\sqrt{\Sigma_{11}},\sqrt{\Sigma_{22}}$ and the correlation $\rho=\Sigma_{12}/\sqrt{\Sigma_{11}\Sigma_{22}}$, and warns you if the matrix is not valid (it then uses the closest valid one). Equal variances and $\Sigma_{12}=0$ give a spherical blob, $\Sigma_{12}=0$ with unequal variances an axis-aligned one, and $\Sigma_{12}\neq 0$ a tilted ("full") one. The **number of blobs** field ($K = 1,\dots,6$) adds or removes blobs, and **Reset** restores the four default blobs of section 4. The result is one fit with the default constructor, `GaussianMixture(n_components=K)`: its plot next to your data and its `score`, `bic`, `aic` and `icl`.
+    (symmetric, so you enter $\Sigma_{11}$, $\Sigma_{12}=\Sigma_{21}$ and $\Sigma_{22}$) and the number of points $n$. A valid covariance has $\Sigma_{11}>0$, $\Sigma_{22}>0$ and $\Sigma_{12}^2<\Sigma_{11}\Sigma_{22}$ (positive definite); the panel shows the standard deviations $\sqrt{\Sigma_{11}},\sqrt{\Sigma_{22}}$ and the correlation $\rho=\Sigma_{12}/\sqrt{\Sigma_{11}\Sigma_{22}}$, and warns you if the matrix is not valid (it then uses the closest valid one). Equal variances and $\Sigma_{12}=0$ give a spherical blob, $\Sigma_{12}=0$ with unequal variances an axis-aligned one, and $\Sigma_{12}\neq 0$ a tilted ("full") one. The **number of blobs** field ($K = 1,\dots,6$) adds or removes blobs, and **Reset** restores the four default blobs of section 4. The fit uses the default constructor, `GaussianMixture(n_components=K)`.
     """)
     return
 
@@ -1116,12 +713,22 @@ def _(SEED, blob_fields, blob_spec, device, generate_gmm_data, k_blobs):
     custom_centers, custom_covs, custom_n_samples = blob_spec(blob_fields.value, int(k_blobs.value))
     custom_X_tensor, custom_y_tensor = generate_gmm_data(custom_centers, custom_covs, custom_n_samples, device=device, random_state=SEED)
     custom_X = custom_X_tensor.cpu().numpy()
-    custom_labels = custom_y_tensor.cpu().numpy()
-    return custom_X, custom_X_tensor, custom_labels, custom_n_samples
+    return custom_X, custom_X_tensor, custom_n_samples
 
 
 @app.cell
-def _(GaussianMixture, MAX_ITER, SEED, custom_X, custom_X_tensor, custom_labels, custom_n_samples, mo, plot_gmm, plt):
+def _(
+    GaussianMixture,
+    MAX_ITER,
+    SEED,
+    custom_X,
+    custom_X_tensor,
+    custom_n_samples,
+    mo,
+    plot_gmm,
+    plt,
+    torch,
+):
     _K = len(custom_n_samples)
     try:
         custom_gmm = GaussianMixture(n_components=_K, random_state=SEED, max_iter=MAX_ITER)
@@ -1134,13 +741,42 @@ def _(GaussianMixture, MAX_ITER, SEED, custom_X, custom_X_tensor, custom_labels,
         print(f'gmm.bic(X)   = {custom_gmm.bic(custom_X_tensor):.1f}')
         print(f'gmm.aic(X)   = {custom_gmm.aic(custom_X_tensor):.1f}')
         print(f'gmm.icl(X)   = {custom_gmm.icl(custom_X_tensor):.1f}')
-        _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.6))
-        plot_gmm(X=custom_X, true_labels=custom_labels, ax=_axs[0], title='Your data', legend_labels=[f'Blob {_i + 1}' for _i in range(_K)])
-        plot_gmm(X=custom_X, gmm=custom_gmm, ax=_axs[1], title=f'gmm.fit(X) with K = {_K}')
+        _log_probs = custom_gmm.score_samples(custom_X_tensor).detach().cpu()
+        _y_pred = custom_gmm.predict(custom_X_tensor).detach().cpu().numpy()
+        _samples, _sample_labels = custom_gmm.sample(len(custom_X_tensor))
+        _samples, _sample_labels = _samples.detach().cpu().numpy(), _sample_labels.detach().cpu().numpy()
+        _names = [f'Component {_i + 1}' for _i in range(_K)]
+        _means = dict(mean_marker='*', mean_size=140, mean_color='black')
+        _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
+        plot_gmm(X=custom_X, gmm=custom_gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=_names, point_color='gray', **_means)
+        plot_gmm(X=custom_X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {custom_gmm.score(custom_X_tensor):.3f}', log_probs=_log_probs, colorbar_label='Log-Likelihood')
+        plot_gmm(X=custom_X, ax=_axs[1, 0], true_labels=_y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {_i}' for _i in range(_K)])
+        plot_gmm(X=_samples, gmm=custom_gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, true_labels=_sample_labels, legend_labels=_names, **_means)
         _fig.tight_layout()
         _out = plt.gcf()
     _out
-    return custom_gmm,
+    return custom_gmm
+
+
+@app.cell
+def _(custom_X, custom_X_tensor, custom_gmm, plot_gmm, plt):
+    if custom_gmm is None:
+        _out = None
+    else:
+        _K = custom_gmm.n_components
+        _probs = custom_gmm.predict_proba(custom_X_tensor).detach().cpu()
+        _nrows = (_K + 1) // 2
+        _fig, _axs = plt.subplots(_nrows, 2, figsize=(9, 3.8 * _nrows), squeeze=False)
+        for _k, _ax in enumerate(_axs.ravel()):
+            if _k < _K:
+                plot_gmm(X=custom_X, ax=_ax, title=f'Component {_k + 1} Probability', log_probs=_probs[:, _k], colormap='RdBu', colorbar_label='Probability')
+            else:
+                _ax.axis('off')
+        plt.suptitle('gmm.predict_proba(X): responsibilities of your data', fontsize=11)
+        plt.tight_layout()
+        _out = plt.gcf()
+    _out
+    return
 
 
 @app.cell(hide_code=True)
