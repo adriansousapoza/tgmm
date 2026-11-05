@@ -34,7 +34,7 @@ def _():
     FAST = _os.environ.get("TGMM_DOCS_FAST") == "1"
     MAX_ITER = 100 if FAST else 1000
     N_INIT = 1 if FAST else 5
-    return FAST, MAX_ITER, N_INIT
+    return FAST, MAX_ITER
 
 
 @app.cell(hide_code=True)
@@ -516,29 +516,35 @@ def _(GRID, data, means, norm, np, stds, taus):
 
 @app.cell
 def _(FAST, Image, base64, io, mo, np, plt):
-    GIF_DPI = 55  # tgmm's theme uses 300 dpi; the animations are small on purpose (they are embedded in the page)
+    ANIM_RC = {'font.size': 8, 'axes.titlesize': 9, 'axes.labelsize': 8, 'xtick.labelsize': 7, 'ytick.labelsize': 7, 'legend.fontsize': 6.5, 'figure.titlesize': 11, 'savefig.bbox': 'standard'}
+    ANIM_DPI = 150  # a figure of 11 inches is 1650 px wide: crisp when the page scales it down to the notebook column
 
     def pick_frames(n_iterations):
         """Iterations to animate, 0..n_iterations, denser early on (where EM changes fastest); always includes both ends."""
-        _m = min(12 if FAST else 40, n_iterations + 1)
+        _m = min(20 if FAST else 40, n_iterations + 1)
         return [int(_i) for _i in np.unique(np.round(n_iterations * np.linspace(0, 1, _m) ** 2).astype(int))]
 
-    def gif_from_frames(draw, frames, frame_ms=250, hold_ms=2500):
-        """Render ``draw(t)`` (it returns a matplotlib figure) for every t in ``frames`` into a looping GIF; shown as an <img>."""
+    def anim_from_frames(draw, frames, frame_ms=250, hold_ms=2500):
+        """Render ``draw(t)`` (it returns a matplotlib figure) for every t in ``frames`` into a looping, lossless animated WebP; shown as an <img>.
+
+        Lossless 24-bit colour (a GIF would need a 256-colour palette, which bands the contour surfaces); every frame has the same size
+        (the tgmm theme saves with a tight bounding box, which would crop each frame differently).
+        """
         _imgs = []
         for _t in frames:
-            _fig = draw(_t)
-            _buf = io.BytesIO()
-            _fig.savefig(_buf, format='png', dpi=GIF_DPI)
+            with plt.rc_context(ANIM_RC):  # compact fonts for the small figure; no tight bbox (it would crop each frame differently)
+                _fig = draw(_t)
+                _buf = io.BytesIO()
+                _fig.savefig(_buf, format='png', dpi=ANIM_DPI)
             plt.close(_fig)
-            _imgs.append(Image.open(_buf).convert('P', palette=Image.ADAPTIVE, colors=128))
+            _imgs.append(Image.open(_buf).convert('RGB'))
         _out = io.BytesIO()
-        _imgs[0].save(_out, format='GIF', save_all=True, append_images=_imgs[1:], loop=0, optimize=True, duration=[frame_ms] * (len(_imgs) - 1) + [hold_ms])
+        _imgs[0].save(_out, format='WEBP', save_all=True, append_images=_imgs[1:], lossless=True, method=4, loop=0, duration=[frame_ms] * (len(_imgs) - 1) + [hold_ms])
         _data = _out.getvalue()
-        _html = f'<img src="data:image/gif;base64,{base64.b64encode(_data).decode()}" style="width:100%;height:auto">'  # fill the notebook column
+        _html = f'<img src="data:image/webp;base64,{base64.b64encode(_data).decode()}" style="width:100%;height:auto">'  # fill the notebook column
         return mo.Html(_html), len(_imgs), len(_data)
 
-    return gif_from_frames, pick_frames
+    return anim_from_frames, pick_frames
 
 
 @app.cell(hide_code=True)
@@ -554,7 +560,7 @@ def _(mo):
 @app.cell
 def _(
     data,
-    gif_from_frames,
+    anim_from_frames,
     ll_history,
     mean_range,
     means,
@@ -572,7 +578,7 @@ def _(
 ):
     def draw_1d_frame(_t):
         _colors = ['r', 'b', 'g']
-        _fig = plt.figure(figsize=(15, 7.5))
+        _fig = plt.figure(figsize=(11, 6.4))
         _gs = _fig.add_gridspec(2, 3)
         _ax_fit = _fig.add_subplot(_gs[0, 0])
         _ax_resp = _fig.add_subplot(_gs[0, 1])
@@ -590,14 +596,15 @@ def _(
         _ax_fit.plot(_x, _est, 'k-', label='GMM (estimated)')
         _ax_fit.plot(_x, _real, 'k--', label='GMM (real)')
         _ax_fit.set_title('Data and Gaussian Distributions')
-        _ax_fit.legend(ncol=2, fontsize=6)
+        _ax_fit.set_ylim(0, 1.7 * max(np.histogram(data, bins=30, density=True)[0].max(), _real.max()))  # headroom for the legend
+        _ax_fit.legend(ncol=2, loc='upper left', handlelength=1.6, columnspacing=0.9)
         # responsibilities r_ik of the parameters after iteration t (the E-step formula, evaluated directly)
         _dens = taus[_t] * norm.pdf(data[:, None], means[_t], stds[_t])
         _r = _dens / np.maximum(_dens.sum(axis=1, keepdims=True), 1e-300)
         for _k in range(3):
             _ax_resp.scatter(data, _r[:, _k], color=_colors[_k], label=f'Responsibility of cluster {_k + 1}', alpha=0.6, marker='x', s=12)
         _ax_resp.set_title('Responsibilities')
-        _ax_resp.legend(fontsize=7)
+        _ax_resp.legend()
         # average log-likelihood after each iteration so far (the quantity EM never decreases)
         _ax_ll.plot(ll_history, color='lightgray', linewidth=1)
         _ax_ll.plot(np.arange(_t + 1), ll_history[:_t + 1], color='k', linewidth=1.5, label='Up to this iteration')
@@ -607,11 +614,11 @@ def _(
         _ax_ll.set_ylim(_lo - _pad, _hi + _pad)
         _ax_ll.set_xlim(0, len(ll_history) - 1)
         if ll_history[0] < _lo - _pad:
-            _ax_ll.text(0.02, 0.04, f'iteration 0: {ll_history[0]:.2f} (off scale)', transform=_ax_ll.transAxes, fontsize=7, va='bottom')
+            _ax_ll.text(0.07, 0.04, f'iteration 0: {ll_history[0]:.2f} (off scale)', transform=_ax_ll.transAxes, fontsize=7, va='bottom')
         _ax_ll.set_title('Average log-likelihood')
         _ax_ll.set_xlabel('EM iteration')
         _ax_ll.set_ylabel('Average log-likelihood')
-        _ax_ll.legend(fontsize=7, loc='lower right')
+        _ax_ll.legend(loc='lower right')
         for _k in range(3):
             _ax = _fig.add_subplot(_gs[1, _k])
             _cs = _ax.contourf(mean_range, std_range, surfaces[_k], levels=15, cmap='viridis')
@@ -623,14 +630,14 @@ def _(
             _ax.set_title(f'Log-Likelihood vs. Mean{_k + 1} and Std{_k + 1}')
             _ax.set_xlabel('Mean')
             _ax.set_ylabel('Standard Deviation')
-            _ax.legend(fontsize=7)
+            _ax.legend(loc='lower left')
         _fig.suptitle(f'EM iteration {_t} of {len(ll_history) - 1}: average log-likelihood {ll_history[_t]:.4f}')
         _fig.tight_layout(rect=[0, 0, 1, 0.96])
         return _fig
 
-    gif_1d, n_frames_1d, gif_1d_bytes = gif_from_frames(draw_1d_frame, pick_frames(len(ll_history) - 1))
-    print(f'1-D animation: {n_frames_1d} frames, {gif_1d_bytes / 1e6:.2f} MB')
-    gif_1d
+    anim_1d, n_frames_1d, anim_1d_bytes = anim_from_frames(draw_1d_frame, pick_frames(len(ll_history) - 1))
+    print(f'1-D animation: {n_frames_1d} frames, {anim_1d_bytes / 1e6:.2f} MB')
+    anim_1d
     return
 
 
@@ -730,21 +737,21 @@ def _(
     em_ll,
     em_means,
     em_states,
-    gif_from_frames,
+    anim_from_frames,
     pick_frames,
     plot_2d_gmm_resp,
     plt,
 ):
     def draw_2d_frame(_t):
-        _fig, _axs = plt.subplots(1, 3, figsize=(15, 4.8), squeeze=False)
+        _fig, _axs = plt.subplots(1, 3, figsize=(11, 3.9), squeeze=False)
         plot_2d_gmm_resp(em_states[_t], X, em_means, _axs, 0)
         _fig.suptitle(f'EM iteration {_t} of {max(em_states)}: average log-likelihood {em_ll[_t]:.4f}')
         _fig.tight_layout(rect=[0, 0, 1, 0.94])
         return _fig
 
-    gif_2d, n_frames_2d, gif_2d_bytes = gif_from_frames(draw_2d_frame, pick_frames(max(em_states)))
-    print(f'2-D animation: {n_frames_2d} frames, {gif_2d_bytes / 1e6:.2f} MB')
-    gif_2d
+    anim_2d, n_frames_2d, anim_2d_bytes = anim_from_frames(draw_2d_frame, pick_frames(max(em_states)))
+    print(f'2-D animation: {n_frames_2d} frames, {anim_2d_bytes / 1e6:.2f} MB')
+    anim_2d
     return
 
 
@@ -759,8 +766,8 @@ def _(mo):
 
 
 @app.cell
-def _(GaussianMixture, N_INIT, X_tensor, device, n_components, np, torch):
-    gmm = GaussianMixture(n_components=n_components, init_means='random', n_init=2 * N_INIT, verbose=True, verbose_interval=100)
+def _(GaussianMixture, X_tensor, device, n_components, np, torch):
+    gmm = GaussianMixture(n_components=n_components, init_means='kpp', verbose=True, verbose_interval=1)
     gmm.fit(X_tensor)
     y_pred = gmm.predict(X_tensor)
     log_probs = gmm.score_samples(X_tensor)
