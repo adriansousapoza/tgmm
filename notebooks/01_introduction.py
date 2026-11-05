@@ -798,21 +798,27 @@ def _(mo):
     - **`predict_proba(X)`**: the responsibilities $r_{ik}$ (soft assignments); every row sums to 1, which the cell above asserts for all samples.
     - **`score_samples(X)`**: the per-sample log-likelihood $\log p(x_i\mid\theta)$.
     - **`score(X)`**: its average, the number EM maximizes. It equals `lower_bound_` for the training data.
-    - **`bic(X)`, `aic(X)`**: information criteria $-2\,n\,\text{score}+p\log n$ and $-2\,n\,\text{score}+2p$ with $p$ the parameter count from section 3 (lower is better; see [13 -- Model Selection](13_model_selection.ipynb)).
+    - **`bic(X)`, `aic(X)`, `icl(X)`**: information criteria $-2\,n\,\text{score}+p\log n$ and $-2\,n\,\text{score}+2p$ with $p$ the parameter count from section 3 (lower is better; see [13 -- Model Selection](13_model_selection.ipynb)). `icl(X, mode='hard' or 'soft')` (integrated completed likelihood) is BIC plus the entropy of the assignments, $-2\sum_i\log r_{i\hat z_i}$ (hard) or $-2\sum_{i,k}r_{ik}\log r_{ik}$ (soft), so it also penalises overlapping components.
     - **`sample(n)`**: new points and their component labels drawn from the fitted mixture (more in [05 -- Sampling](05_sampling.ipynb)).
 
-    The cell below checks the information criteria against their definition.
+    The cell below checks the three information criteria against their definitions.
     """)
     return
 
 
 @app.cell
-def _(X_tensor, gmm, n_components, np):
+def _(X_tensor, gmm, n_components, np, probs):
     _n, _d = X_tensor.shape
     _p = (n_components - 1) + n_components * _d + n_components * _d * (_d + 1) // 2  # full covariance
+    _bic = -2 * _n * gmm.score(X_tensor) + _p * np.log(_n)
+    _r = np.clip(probs.detach().cpu().numpy().astype(np.float64), 1e-300, 1.0)  # responsibilities r_ik
+    _icl_hard = _bic - 2 * np.log(_r.max(axis=1)).sum()    # BIC - 2 sum_i log r_{i, z_hat_i}
+    _icl_soft = _bic - 2 * (_r * np.log(_r)).sum()         # BIC - 2 sum_ik r_ik log r_ik
     print(f'free parameters p = (K-1) + K*d + K*d*(d+1)/2 = {_p}')
-    print(f'bic  from the definition: {-2 * _n * gmm.score(X_tensor) + _p * np.log(_n):.3f}   gmm.bic(X) = {gmm.bic(X_tensor):.3f}')
+    print(f'bic  from the definition: {_bic:.3f}   gmm.bic(X) = {gmm.bic(X_tensor):.3f}')
     print(f'aic  from the definition: {-2 * _n * gmm.score(X_tensor) + 2 * _p:.3f}   gmm.aic(X) = {gmm.aic(X_tensor):.3f}')
+    print(f'icl (hard) from the definition: {_icl_hard:.3f}   gmm.icl(X, "hard") = {gmm.icl(X_tensor, "hard"):.3f}')
+    print(f'icl (soft) from the definition: {_icl_soft:.3f}   gmm.icl(X, "soft") = {gmm.icl(X_tensor, "soft"):.3f}')
     return
 
 
@@ -844,45 +850,31 @@ def _(centers, covs, gmm, linear_sum_assignment, n_samples, np):
     return
 
 
-@app.cell
-def _(X, gmm, legend_labels, plot_gmm, plt):
-    plot_gmm(X=X, gmm=gmm, title='GMM', legend_labels=legend_labels)
-    plt.gcf()
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## 8. Visualizing the Fit
 
-    Four views made with `plot_gmm` (introduced properly in [06 -- Visualization](06_visualise.ipynb)):
+    One figure with four views made with `plot_gmm` (introduced properly in [06 -- Visualization](06_visualise.ipynb)):
 
-    1. **Per-sample log-likelihood:** each point coloured by $\log p(x_i\mid\theta)$. Points far from every component are the unlikely ones.
-    2. **Clustering result:** points coloured by their predicted label, with the fitted means and covariance ellipses overlaid.
-    3. **Generated samples:** new points drawn from the fitted mixture, plotted with the same ellipses. If the model is good they look like the original data.
-    4. **Component responsibilities:** one panel per component showing $r_{ik}$, for the observed data and for the generated samples.
+    - **Top left, the fitted GMM:** the data with the fitted means and covariance ellipses.
+    - **Top right, per-sample log-likelihood:** each point coloured by $\log p(x_i\mid\theta)$. Points far from every component are the unlikely ones.
+    - **Bottom left, clustering result:** points coloured by their predicted label, with the ellipses overlaid.
+    - **Bottom right, generated samples:** new points drawn from the fitted mixture, plotted with the same ellipses. If the model is good they look like the original data.
+
+    The component responsibilities $r_{ik}$ (one panel per component, for the observed data and for the generated samples) follow below.
     """)
     return
 
 
 @app.cell
-def _(X, log_probs, plot_gmm, plt):
-    plot_gmm(X=X, title='Per-Sample Log-Likelihood', log_probs=log_probs, colorbar_label='Log-Likelihood')
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(X, n_components, plot_gmm, plt, y_pred):
-    plot_gmm(X=X, true_labels=y_pred, title='GMM Results', legend_labels=[f'Cluster {i}' for i in range(n_components)])
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(gmm, gmm_samples, plot_gmm, plt):
-    plot_gmm(X=gmm_samples, gmm=gmm, title='GMM Results (Generated Samples)')
+def _(X, gmm, gmm_samples, legend_labels, log_probs, n_components, plot_gmm, plt, y_pred):
+    _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
+    plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='GMM', legend_labels=legend_labels)
+    plot_gmm(X=X, ax=_axs[0, 1], title='Per-Sample Log-Likelihood', log_probs=log_probs, colorbar_label='Log-Likelihood')
+    plot_gmm(X=X, ax=_axs[1, 0], true_labels=y_pred, title='GMM Results', legend_labels=[f'Cluster {i}' for i in range(n_components)])
+    plot_gmm(X=gmm_samples, gmm=gmm, ax=_axs[1, 1], title='GMM Results (Generated Samples)')
+    _fig.tight_layout()
     plt.gcf()
     return
 
