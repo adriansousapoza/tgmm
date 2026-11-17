@@ -228,21 +228,10 @@ gmm = GaussianMixture(n_components=3, n_features=2, batch_size=256, step_size='a
 gmm = GaussianMixture(n_components=3, n_features=2).fit(X, labels=y_partial)
 ```
 
-## Other Mixture Families
+## Positive-Unlabeled Data
 
-```python
-from tgmm import StudentTMixture, VonMisesFisherMixture
-
-# Robust to outliers: heavy-tailed components
-stm = StudentTMixture(n_components=3, n_features=2).fit(X)
-
-# Directions on the unit sphere (rows of X_unit must have unit L2 norm)
-vmf = VonMisesFisherMixture(n_components=5).fit(X_unit)
-```
-
-Both share `GaussianMixture`'s `fit` / `predict` / `bic` / algorithm options; see
-the [Student-t](../notebooks/15_student_t.ipynb) and [von Mises-Fisher](../notebooks/16_von_mises_fisher.ipynb) tutorials. For positive-unlabeled data see
-`PositiveUnlabeledMixture` in [Semi-Supervised and PU Fitting](../notebooks/15_semi_supervised_pu.ipynb).
+For positive-unlabeled data use `PositiveUnlabeledMixture`; see
+[Semi-Supervised and PU Fitting](../notebooks/15_semi_supervised_pu.ipynb).
 
 ## Saving and Loading Models
 

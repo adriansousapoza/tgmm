@@ -44,7 +44,7 @@ def _(mo):
     mo.md(r"""
     # `plot_gmm`: Visualizing Gaussian Mixtures
 
-    `plot_gmm` is the plotting workhorse of `tgmm` and is used by nearly every tutorial that follows. This notebook goes through its parameters one group at a time -- point styling, cluster coloring, confidence ellipses, mean markers, weight-based scaling and continuous log-likelihood coloring -- showing how each changes the figure. It then covers the helpers around it (`confidence_ellipse_std_devs`, `match_predicted_to_true_labels`, `gmm_proxy`) and the directional counterparts `plot_vmf` and `plot_vmf_cosine`.
+    `plot_gmm` is the plotting workhorse of `tgmm` and is used by nearly every tutorial that follows. This notebook goes through its parameters one group at a time -- point styling, cluster coloring, confidence ellipses, mean markers, weight-based scaling and continuous log-likelihood coloring -- showing how each changes the figure. It then covers the helpers around it (`confidence_ellipse_std_devs`, `match_predicted_to_true_labels`, `gmm_proxy`).
 
     `plot_gmm` accepts any fitted `tgmm` mixture: it only needs `means_`, `covariances_`, `weights_`, `covariance_type` and `predict`, so it also draws every GPCM covariance code from [02 -- Covariance Types](02_covariance_types.ipynb). It draws **two-dimensional** data only (`X.shape[1] == 2`); for more features, project to 2-D first (see [10 -- PCA Plotting](10_pca_plotting.ipynb)).
 
@@ -54,9 +54,8 @@ def _(mo):
     - Color points by true labels, predicted clusters, or per-sample log-likelihood
     - Control confidence ellipses (including ellipses that enclose a chosen probability), mean markers and initial-mean markers
     - Scale markers or transparency by component weight, highlight misclassified points, and align cluster indices with the truth
-    - Visualize von Mises-Fisher mixtures on the circle, the sphere and in high dimension
 
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the data and the fit used throughout), and [05 -- Sampling](05_sampling.ipynb) for the von Mises-Fisher section.
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the data and the fit used throughout).
     """)
     return
 
@@ -81,8 +80,7 @@ def _():
     from scipy.stats import chi2
     from tutorial_data import default_blobs, make_default_data
     from tgmm import (
-        CATEGORICAL_PALETTE, GaussianMixture, SEQUENTIAL_CMAP, VonMisesFisherMixture, confidence_ellipse_std_devs, gmm_proxy, match_predicted_to_true_labels, plot_gmm, plot_vmf, plot_vmf_cosine,
-        vmf_angle_density, vmf_cap_angle,
+        CATEGORICAL_PALETTE, GaussianMixture, SEQUENTIAL_CMAP, confidence_ellipse_std_devs, gmm_proxy, match_predicted_to_true_labels, plot_gmm,
     )
 
     # --- figure style (see notebooks/README.md) ---
@@ -95,9 +93,8 @@ def _():
     torch.manual_seed(SEED)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     return (
-        CATEGORICAL_PALETTE, GaussianMixture, SEED, SEQUENTIAL_CMAP, VonMisesFisherMixture, chi2, confidence_ellipse_std_devs, default_blobs, device,
-        gmm_proxy, make_default_data, match_predicted_to_true_labels, np, plot_gmm, plot_vmf,
-        plot_vmf_cosine, plt, torch, vmf_angle_density, vmf_cap_angle,
+        CATEGORICAL_PALETTE, GaussianMixture, SEED, SEQUENTIAL_CMAP, chi2, confidence_ellipse_std_devs, default_blobs, device,
+        gmm_proxy, make_default_data, match_predicted_to_true_labels, np, plot_gmm, plt, torch,
     )
 
 
@@ -625,89 +622,6 @@ def _(X, gmm, log_probs, plot_gmm, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Von Mises-Fisher Mixtures: `plot_vmf` and `plot_vmf_cosine`
-
-    `plot_gmm` draws Euclidean ellipses, so it cannot represent a `VonMisesFisherMixture` ([16 -- von Mises-Fisher](16_von_mises_fisher.ipynb)), whose data live on the unit sphere and whose components are described by a mean *direction* $\mu_k$ and a concentration $\kappa_k$. Two functions cover that case.
-
-    **`plot_vmf(X, vmf, ax=None, ...)`** draws unit-norm data on the circle ($d=2$) or the sphere ($d=3$; pass a 3-D axes, or omit `ax` to create one). Points are colored by predicted component (or by `true_labels=`); each mean direction is an arrow from the origin; each concentration is drawn as nested **spherical caps**, the vMF analogue of confidence ellipses. A cap of angular radius $\theta_m$ around $\mu_k$ contains probability $m$ of the component, where $\theta_m$ solves $P(\theta\le\theta_m)=m$ under the angle density
-
-    $$
-    f_\kappa(\theta)\;\propto\;e^{\kappa\cos\theta}\sin^{d-2}\theta,\qquad\theta=\arccos(\mu^{\top}x)\in[0,\pi].
-    $$
-
-    The $\sin^{d-2}\theta$ factor is the surface area of the ring at angle $\theta$; the density is normalised numerically. On the circle the caps are arcs just outside the unit circle, on the sphere they are rings of constant angular distance from $\mu_k$. `show_means`, `show_caps`, `cap_masses` (default `(0.5, 0.9)`), `legend_labels`, `view_elev` and `view_azim` control the rest. `vmf_angle_density(kappa, n_features, theta)` and `vmf_cap_angle(kappa, n_features, mass)` expose the density and the cap radius directly.
-    """)
-    return
-
-
-@app.cell
-def _(SEED, VonMisesFisherMixture, np, torch):
-    _g = np.random.default_rng(SEED)
-    _dirs = np.array([[1.0, 1.0, 0.0], [0.0, -1.0, 1.0], [-1.0, 0.0, -1.0]])
-    _dirs /= np.linalg.norm(_dirs, axis=1, keepdims=True)
-    X_sphere = np.vstack([_d + 0.35 * _g.standard_normal((250, 3)) for _d in _dirs])
-    X_sphere /= np.linalg.norm(X_sphere, axis=1, keepdims=True)  # unit-norm rows
-    vmf_sphere = VonMisesFisherMixture(n_components=3, random_state=SEED).fit(torch.tensor(X_sphere, dtype=torch.float32))
-    return X_sphere, vmf_sphere
-
-
-@app.cell
-def _(X_sphere, plot_vmf, plt, vmf_sphere):
-    _fig = plt.figure(figsize=(6.5, 4.5))
-    _ax = _fig.add_subplot(projection='3d')
-    plot_vmf(X_sphere, vmf_sphere, ax=_ax, cap_masses=(0.5, 0.9), title='plot_vmf on the sphere: means, 50% and 90% caps')
-    plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **`plot_vmf_cosine(X, vmf)`** works in any dimension. For every component it histograms the angle between each assigned point and the component's mean direction and overlays the fitted $f_{\kappa_k}(\theta)$ (dashed); if the vMF assumption holds, histogram and curve agree. In high dimension the typical angle is far from $0^\circ$ even for large $\kappa$, because the mode of $f_\kappa$ solves $\kappa\sin^2\theta=(d-2)\cos\theta$. Below: two components in $d=20$.
-    """)
-    return
-
-
-@app.cell
-def _(SEED, VonMisesFisherMixture, np, torch):
-    _g = np.random.default_rng(SEED + 1)
-    _mu = _g.standard_normal((2, 20))
-    _mu /= np.linalg.norm(_mu, axis=1, keepdims=True)
-    X_hd = np.vstack([_m + 0.18 * _g.standard_normal((400, 20)) for _m in _mu])
-    X_hd /= np.linalg.norm(X_hd, axis=1, keepdims=True)
-    vmf_hd = VonMisesFisherMixture(n_components=2, random_state=SEED).fit(torch.tensor(X_hd, dtype=torch.float32))
-    return X_hd, vmf_hd
-
-
-@app.cell
-def _(X_hd, plot_vmf_cosine, plt, vmf_hd):
-    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
-    plot_vmf_cosine(X_hd, vmf_hd, ax=_ax, title='plot_vmf_cosine in d = 20: angle to the mean direction')
-    plt.gcf()
-    return
-
-
-@app.cell
-def _(X_hd, np, torch, vmf_angle_density, vmf_cap_angle, vmf_hd):
-    from scipy.optimize import brentq as _brentq
-    _d = X_hd.shape[1]
-    _Xt = torch.tensor(X_hd, dtype=vmf_hd.means_.dtype, device=vmf_hd.means_.device)
-    _lab = vmf_hd.predict(_Xt)
-    _grid = np.linspace(1e-3, np.pi - 1e-3, 20001)
-    for _k in range(vmf_hd.n_components):
-        _kappa = float(vmf_hd.kappa_[_k])
-        _ang = torch.arccos((_Xt[_lab == _k] @ vmf_hd.means_[_k]).clamp(-1, 1)).cpu().numpy()
-        _cap = vmf_cap_angle(_kappa, _d, 0.9)
-        _mode = _brentq(lambda t: _kappa * np.sin(t) ** 2 - (_d - 2) * np.cos(t), 1e-6, np.pi / 2)
-        _mode_num = _grid[np.argmax(vmf_angle_density(_kappa, _d, _grid))]
-        print(f"component {_k}: kappa = {_kappa:.1f}; 90% cap radius {np.degrees(_cap):.1f} deg holds {(_ang <= _cap).mean():.3f} of its points; "
-              f"mode of f: {np.degrees(_mode):.1f} deg from kappa sin^2 = (d-2) cos, {np.degrees(_mode_num):.1f} deg numerically")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Tips for Effective Visualization
 
     1. **Project first.** `plot_gmm` needs two features; use PCA (or another method) for more.
@@ -732,7 +646,7 @@ def _(mo):
     - Ellipse levels (`ellipse_std_devs`), fill, line style, mean markers and initial-mean markers are all configurable.
     - `scale_alpha_by_weight` / `scale_size_by_weight` make component weights visible, and every call accepts `ax=` so panels compose into grids.
     - `ellipse_std_devs` is a Mahalanobis radius: 1, 2, 3 standard deviations enclose 39.3%, 86.5% and 98.9% in 2-D; `confidence_ellipse_std_devs(q)` gives the radius for a chosen coverage.
-    - `match_predicted_to_true_labels` aligns arbitrary cluster indices with the truth, `gmm_proxy` plots parameters that were never fitted, and `plot_vmf` / `plot_vmf_cosine` cover directional data.
+    - `match_predicted_to_true_labels` aligns arbitrary cluster indices with the truth, and `gmm_proxy` plots parameters that were never fitted.
     """)
     return
 

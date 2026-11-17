@@ -5,7 +5,7 @@
 - **Python**: 3.9 or higher (the minimum supported by PyTorch 2.5)
 - **PyTorch**: 2.5 or higher (`torch>=2.5.1` in `requirements.txt`)
 - **NumPy**: for numerical operations
-- **SciPy**: special functions and distributions (the von Mises-Fisher Bessel functions, chi-squared quantiles, Hungarian label matching)
+- **SciPy**: special functions and distributions (chi-squared quantiles, Hungarian label matching)
 - **Matplotlib** and **seaborn**: `tgmm.plotting`, which `import tgmm` loads
 - **tqdm**: progress bars in `HDBSCAN`
 
@@ -75,7 +75,7 @@ pip install jupyter scikit-learn pandas tqdm
 pip install -e ".[examples]"
 ```
 
-For running the test suite (`mpmath` supplies reference Bessel values for the von Mises-Fisher tests):
+For running the test suite:
 
 ```bash
 pip install -e ".[test]"

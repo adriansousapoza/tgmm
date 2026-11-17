@@ -449,13 +449,9 @@ def _(N_BIG, SEED, chi2, np):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Other Model Families
+    ## Sampling with a Noise Component
 
-    Every mixture in tgmm shares the same two-stage `sample(n)` (components drawn from the weights, then each component's own draw), returning `(samples, indices)`. The constraint arguments above exist only on `GaussianMixture`.
-
-    - **Student-t** mixtures draw $x=\mu_k+z/\sqrt{w}$ with $z\sim\mathcal{N}(0,\Sigma_k)$ and $w\sim\mathrm{Gamma}(\nu_k/2,\nu_k/2)$ (the scale-mixture form), so the tails are heavier than a Gaussian's: see [15 -- Student-t Mixtures](15_student_t.ipynb). Note that for these, `covariances_` is the scale matrix.
-    - **von Mises-Fisher** mixtures sample directions on the unit sphere: see [16 -- von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb).
-    - With a **noise component** (`noise=True`, see [16 -- Noise, Missing Values and Conditioning](16_noise_missing_conditioning.ipynb)) plain sampling also emits noise points, labelled `-1`.
+    `sample(n)` is two-stage (a component is drawn from the weights, then a point from that component) and returns `(samples, indices)`. With a **noise component** (`noise=True`, see [16 -- Noise, Missing Values and Conditioning](16_noise_missing_conditioning.ipynb)) plain sampling also emits noise points, labelled `-1`.
     """)
     return
 

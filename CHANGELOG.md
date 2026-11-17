@@ -5,19 +5,32 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Removed (breaking)
+
+tgmm now only provides **Gaussian mixtures**. These were introduced in 0.4.0 and are last available in 0.4.3:
+
+- `StudentTMixture` (`tgmm.mixtures.student_t`) and `VonMisesFisherMixture` (`tgmm.mixtures.vmf`).
+- The von Mises-Fisher plotting helpers `plot_vmf`, `plot_vmf_cosine`, `vmf_angle_density` and `vmf_cap_angle`.
+- The `family` argument of `PositiveUnlabeledMixture` (it had `'gaussian'`, `'student_t'` and `'vmf'`; the model is Gaussian only now, so
+  `PositiveUnlabeledMixture(family='gaussian', ...)` becomes `PositiveUnlabeledMixture(...)`).
+- The two tutorials on these families and their API pages; the other tutorials are renumbered and the old URLs redirect.
+
+Code that imports or constructs the removed classes breaks, so the next release should bump the minor version (0.5.0). The shared
+`BaseMixture` machinery stays: it underlies `GaussianMixture`, `ConditionalGaussianMixture` and `GenericMixture`.
+
 ### Changed (documentation)
 
 - The documentation is now one set of tutorials (marimo notebooks) plus the API reference. The separate user guide and the
   in-browser explainers are gone; their content was merged into the tutorials, and the old URLs redirect.
-- Tutorials are reordered and renumbered (19 notebooks): 01 Introduction (with a blob designer and EM iteration sliders),
-  02 Covariance types, 03 Initialization (new), 04 Priors (MAP and NIW, merged), 05 Sampling, 06-14 the rest in order,
-  15-18 the other families, 19 Constraints, frozen components and sample weights (new). The default four-blob dataset lives in
-  `notebooks/tutorial_data.py`.
-- Two algorithm walk-throughs: 20 k-means++ seeding and 21 k-means (Lloyd), with step-by-step visualisations; every notebook's
-  interactive controls now live in a final "Try it yourself" section.
+- Tutorials are reordered and renumbered (19 notebooks): 01 Introduction (EM videos; the blob designer is at the end), 02 Covariance types,
+  03 Initialization (new), 04 Priors (MAP and NIW, merged), 05 Sampling, 06-14 the rest in order, 15 Semi-supervised and PU fitting,
+  16 Noise, missing values and conditioning, 17 Constraints, frozen components and sample weights (new), and two algorithm
+  walk-throughs, 18 k-means++ seeding and 19 k-means (Lloyd), with step-by-step videos. The default four-blob dataset lives in
+  `notebooks/tutorial_data.py`; every notebook's interactive controls live in a final "Try it yourself" section.
 - Every tutorial page links to an interactive (molab) version of the notebook.
-- Tutorial data: the four-blob covariances are scaled by 0.6 so the blobs stay recoverable now that `generate_gmm_data` honours
-  the covariance it is given (0.4.1).
+- Tutorial data: the default four-blob dataset is the one the tutorials always showed. An earlier `generate_gmm_data` sampled with
+  `Z @ cov`, so the matrices requested then (`1.0*I`, `0.5*I`, `[[2, 0], [0, 0.5]]`, `[[0.2, 0.5], [0.5, 2]]`) really produced
+  `covᵀ·cov`; the tutorials now state those matrices explicitly.
 
 ## [0.4.3] -- 2026-10-21
 

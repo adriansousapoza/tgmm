@@ -571,7 +571,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [15 -- Student-t Mixtures](15_student_t.ipynb), the first non-Gaussian family, or back to [13 -- Model Selection](13_model_selection.ipynb).
+    **Next:** [15 -- Semi-Supervised and PU Fitting](15_semi_supervised_pu.ipynb), or back to [13 -- Model Selection](13_model_selection.ipynb).
     """)
     return
 

@@ -231,7 +231,7 @@ def _(mo):
 
     ### Information criteria (BIC, AIC, ICL)
 
-    BIC and AIC only need a model's own log-likelihood and parameter count, so they are `bic`/`aic`/`icl` *methods on every fitted mixture* (`GaussianMixture`, including `n_components=None` in Gibbs mode, `StudentTMixture`, `VonMisesFisherMixture`), not `ClusteringMetrics` calls. With $\ell(\hat\theta)=\sum_i\log p(x_i\mid\hat\theta)$ the maximized *total* log-likelihood and $p$ the number of free parameters,
+    BIC and AIC only need a model's own log-likelihood and parameter count, so they are `bic`/`aic`/`icl` *methods on every fitted mixture* (`GaussianMixture`, including `n_components=None` in Gibbs mode), not `ClusteringMetrics` calls. With $\ell(\hat\theta)=\sum_i\log p(x_i\mid\hat\theta)$ the maximized *total* log-likelihood and $p$ the number of free parameters,
 
     $$
     \mathrm{BIC}=-2\,\ell(\hat\theta)+p\ln n,\qquad \mathrm{AIC}=-2\,\ell(\hat\theta)+2p,

@@ -892,10 +892,6 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Other Mixture Families
-
-    `StudentTMixture` uses the same `init_means` / `init_weights` / `init_covariances` options (the covariance starts as the scale matrix, and `dof_init` sets the initial degrees of freedom), see [15. Student-t Mixtures](15_student_t.ipynb). `VonMisesFisherMixture` initializes mean directions by spherical k-means and sets every $\kappa_k$ to `kappa_init`, see [16. Von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb).
-
     ## Summary
 
     - EM only goes uphill, so it ends in the local maximum nearest its start; initialization decides which one.

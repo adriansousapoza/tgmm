@@ -44,18 +44,18 @@ def _(mo):
     mo.md(r"""
     # Semi-Supervised and Positive-Unlabeled Fitting
 
-    Often only some rows have labels: a few confirmed examples, or a handful of annotated classes among mostly raw data. `fit(X, labels=...)` accepts partial labels (`-1` marks an unknown row) on every mixture family via the shared `BaseMixture`, running semi-supervised EM in which labeled rows keep their known component assignment while unlabeled rows are soft-assigned as usual. `PositiveUnlabeledMixture` handles the harder case where *only positives* are ever labeled (positive-unlabeled learning, Elkan & Noto, 2008).
+    Often only some rows have labels: a few confirmed examples, or a handful of annotated classes among mostly raw data. `fit(X, labels=...)` accepts partial labels (`-1` marks an unknown row) on `GaussianMixture`, running semi-supervised EM in which labeled rows keep their known component assignment while unlabeled rows are soft-assigned as usual. `PositiveUnlabeledMixture` handles the harder case where *only positives* are ever labeled (positive-unlabeled learning, Elkan & Noto, 2008).
 
     **What you'll learn**
 
     - how much a small labeled fraction (5-20%) helps cluster recovery on ambiguous, overlapping data
-    - how to run PU learning with a Student-t mixture and read the estimated class prior `class_prior_` and per-row positive probabilities
+    - how to run PU learning with `PositiveUnlabeledMixture` and read the estimated class prior `class_prior_` and per-row positive probabilities
     - how the SCAR assumption (labeled positives are a uniform random subsample of all positives) makes this identifiable, and what `anchor` does
     - the equations behind both fits (the labeled-class likelihood, the clamped E-step, the NIW anchor)
 
-    **Prerequisites:** [08 -- Supervised Fitting](08_supervised_gmm.ipynb), [15 -- Student-t Mixtures](15_student_t.ipynb), [16 -- Von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb).
+    **Prerequisites:** [08 -- Supervised Fitting](08_supervised_gmm.ipynb).
 
-    **Notation:** $n$ samples $x_i$, $K$ components with weights $\pi_k$ and densities $f_k$ (Gaussian, Student-t or von Mises-Fisher), responsibilities $r_{ik}$, effective counts $n_k=\sum_i r_{ik}$.
+    **Notation:** $n$ samples $x_i$, $K$ components with weights $\pi_k$ and Gaussian densities $f_k$, responsibilities $r_{ik}$, effective counts $n_k=\sum_i r_{ik}$.
     See also the API page for [`PositiveUnlabeledMixture`](../api/positive-unlabeled-mixture.md).
     """)
     return
@@ -77,7 +77,7 @@ def _():
     import torch
     import matplotlib.pyplot as plt
 
-    from tgmm import GaussianMixture, StudentTMixture, PositiveUnlabeledMixture
+    from tgmm import GaussianMixture, PositiveUnlabeledMixture
     from tgmm.metrics import ClusteringMetrics
     from tgmm.plotting import CATEGORICAL_PALETTE, plot_gmm
 
@@ -167,9 +167,9 @@ def _(mo):
     $$
 
     (one-hot when the block has one component). A labeled row can then never "vote" for another class but, with $m_c>1$, still splits softly across its own class's components; unlabeled rows keep the full
-    posterior. This is the exact E-step for $\ell_\text{SS}$, because the posterior over components given that $x_i$ belongs to class $c_i$ is the in-block renormalisation above. The **M-step** is the family's usual
-    one run on the clamped $r_{ik}$: for the Gaussian, $n_k$, $\bar y_k=\sum_ir_{ik}x_i/n_k$ and $W_k=\sum_ir_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top$ feed the updates of
-    [01 -- Introduction](01_introduction.ipynb) (the Student-t and vMF updates are those of [16](15_student_t.ipynb) and [17](16_von_mises_fisher.ipynb)). With `unlabeled_weight=1` and `label_confidence=1` this is plain EM on $\ell_\text{SS}$,
+    posterior. This is the exact E-step for $\ell_\text{SS}$, because the posterior over components given that $x_i$ belongs to class $c_i$ is the in-block renormalisation above. The **M-step** is the usual Gaussian
+    one run on the clamped $r_{ik}$: $n_k$, $\bar y_k=\sum_ir_{ik}x_i/n_k$ and $W_k=\sum_ir_{ik}(x_i-\bar y_k)(x_i-\bar y_k)^\top$ feed the updates of
+    [01 -- Introduction](01_introduction.ipynb). With `unlabeled_weight=1` and `label_confidence=1` this is plain EM on $\ell_\text{SS}$,
     so the log-likelihood never decreases. A few labels per class often resolve what unsupervised EM cannot: which cluster is which class, and where the boundary falls on overlapping data. The initialisation itself is still
     unsupervised (e.g. k-means) and the clamping then pulls each block onto its class, so use `n_init > 1` if a poor start matters.
 
@@ -370,8 +370,7 @@ def _(mo):
     mo.md(r"""
     ## Part 2: positive-unlabeled learning on a "cancer cells vs. everything else" simulation
 
-    A `StudentTMixture`-based PU model: a minority "cancer cell" population with heavier-tailed
-    within-class variation (some genuinely atypical cells), embedded in a larger population of
+    A simulated PU problem: a minority "cancer cell" population embedded in a larger population of
     several other, unlabeled cell types. Only a small fraction of the true positives are
     confirmed-labeled; everything else is unlabeled.
 
@@ -391,7 +390,7 @@ def _(mo):
     pu.predict_positive(X, threshold=0.5)
     ```
 
-    **How it is fit.** It is a thin wrapper over the semi-supervised fit above: it builds the chosen `family`'s mixture with `components_per_class={1: n_components_positive, 0: n_components_negative}` (so the negative
+    **How it is fit.** It is a thin wrapper over the semi-supervised fit above: it builds a `GaussianMixture` with `components_per_class={1: n_components_positive, 0: n_components_negative}` (so the negative
     block comes *first* in component order, the positive block last), labels `1` on `positive_mask` and `-1` everywhere else, and fits it. The labeled positives are clamped to the positive block, each unlabeled row keeps the full
     posterior over both blocks, and with $P$ the positive block
 
@@ -445,7 +444,7 @@ def _(
     positive_mask,
     true_positive,
 ):
-    pu = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=2, family='student_t', anchor='fixed', random_state=SEED, n_init=min(3, N_INIT), max_iter=200)
+    pu = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=2, random_state=SEED, n_init=min(3, N_INIT), max_iter=200)
     pu.fit(X_pu, positive_mask)
     pred_positive = pu.predict_positive(X_pu).cpu()
     tp = (pred_positive & true_positive).sum().item()
@@ -500,7 +499,7 @@ def _(mo):
     | `anchor` | positive block | corresponds to |
     | --- | --- | --- |
     | `'fixed'` | frozen at the labeled-only fit after every M-step (through `frozen_components`); only the negative block and the weights keep moving | classical mixture-proportion estimation / semi-supervised novelty detection |
-    | `'prior'` (default) | used as an NIW prior of strength $n_L$ (below), so unlabeled positives can refine it without drifting towards the negatives. **Gaussian only** | a softer version of the same: genuinely positive but different-looking unlabeled points can still pull the estimate, within reason |
+    | `'prior'` (default) | used as an NIW prior of strength $n_L$ (below), so unlabeled positives can refine it without drifting towards the negatives | a softer version of the same: genuinely positive but different-looking unlabeled points can still pull the estimate, within reason |
     | `'free'` | initialised from the labeled-only fit, then plain semi-supervised EM with no further anchoring | plain PU learning with no identifiability safeguard: can drift towards the negatives on strongly overlapping data |
 
     For `'prior'`, after each M-step the positive block's parameters are replaced by an NIW posterior (the conjugate update of [04 -- Priors](04_priors.ipynb)) with prior mean $\mu_P^0$, prior scale $\Psi_0=n_L\Sigma_P^0$ and
@@ -514,9 +513,8 @@ def _(mo):
     where $n_P$, $\bar y_P$, $W_P$ are that block's effective count, weighted mean and scatter. The labeled positives enter twice, once through the prior and once as data with responsibility 1, which anchors the block strongly: the prior is worth about
     $n_L$ pseudo-observations.
 
-    `family='gaussian'` (default), `'student_t'` or `'vmf'` picks the mixture family for both blocks: `'student_t'` is a reasonable choice when either class has outliers, `'vmf'` when `X` is L2-normalised directional data. `anchor='prior'` is
-    Gaussian-only (NIW conjugate priors are not a concept for the other two families), so use `'fixed'` or `'free'` with `'student_t'` / `'vmf'`. Any keyword not listed (`covariance_type`, `random_state`, `max_iter`, ...) is forwarded to the underlying
-    mixture's constructor, and anything not defined on `PositiveUnlabeledMixture` itself (`bic`, `score`, `sample`, ...) is forwarded to the fitted mixture, `pu.model_`. `n_components_negative=None` (an unbounded Gibbs sampler for the negative block) is not
+    Any keyword not listed (`covariance_type`, `random_state`, `max_iter`, ...) is forwarded to the underlying
+    `GaussianMixture`'s constructor, and anything not defined on `PositiveUnlabeledMixture` itself (`bic`, `score`, `sample`, ...) is forwarded to the fitted mixture, `pu.model_`. `n_components_negative=None` (an unbounded Gibbs sampler for the negative block) is not
     implemented and raises `NotImplementedError`. The cell below fits the variants on the data above.
     """)
     return
@@ -526,18 +524,14 @@ def _(mo):
 def _(N_INIT, PositiveUnlabeledMixture, SEED, X_pu, positive_mask, true_positive):
     _truth = float(true_positive[~positive_mask].float().mean())
     print(f'true fraction of unlabeled rows that are positive: {_truth:.3f}\n')
-    print(f"{'family':10s} {'anchor':7s} {'class_prior_':>13s} {'F1':>6s}")
-    for _family, _anchor in [('gaussian', 'fixed'), ('gaussian', 'prior'), ('gaussian', 'free'), ('student_t', 'fixed'), ('student_t', 'free')]:
-        _m = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=2, family=_family, anchor=_anchor,
+    print(f"{'anchor':7s} {'class_prior_':>13s} {'F1':>6s}")
+    for _anchor in ['fixed', 'prior', 'free']:
+        _m = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=2, anchor=_anchor,
                                       random_state=SEED, n_init=min(3, N_INIT), max_iter=200).fit(X_pu, positive_mask)
         _pred = _m.predict_positive(X_pu).cpu()
         _tp, _fp, _fn = (_pred & true_positive).sum().item(), (_pred & ~true_positive).sum().item(), (~_pred & true_positive).sum().item()
         _f1 = 2 * _tp / max(2 * _tp + _fp + _fn, 1)
-        print(f'{_family:10s} {_anchor:7s} {_m.class_prior_:13.3f} {_f1:6.3f}')
-    try:
-        PositiveUnlabeledMixture(family='student_t', anchor='prior')
-    except ValueError as _err:
-        print('\nstudent_t with anchor="prior":', _err)
+        print(f'{_anchor:7s} {_m.class_prior_:13.3f} {_f1:6.3f}')
     return
 
 
@@ -581,7 +575,7 @@ def _(mo):
 
     - **`class_prior_` quality** depends on the negative block being able to model the negative class without wandering into the positive region. More negative components make that easier *and* make identifiability harder, so use
       `anchor='fixed'` or `'prior'` and check that `class_prior_` is stable across `n_components_negative`.
-    - Labeled positives are clamped to the positive block, so with the default `label_confidence=1` a mislabeled "positive" is never corrected. To allow that, pass `label_confidence=c` with $c<1$ through `**family_kwargs`; the unlabeled rows are handled as usual.
+    - Labeled positives are clamped to the positive block, so with the default `label_confidence=1` a mislabeled "positive" is never corrected. To allow that, pass `label_confidence=c` with $c<1$ as an extra keyword argument; the unlabeled rows are handled as usual.
     - `predict_proba_positive` uses the fitted mixture weights, which include the labeled positives (see above), whereas `class_prior_` is the right estimate of the positive fraction in a fresh unlabeled sample.
     """)
     return
@@ -592,7 +586,7 @@ def _(mo):
     mo.md(r"""
     ## Summary
 
-    - Semi-supervised fitting (`fit(X, labels=...)` with `-1` for unknown) works on every tgmm mixture family, and a modest labeling budget can noticeably improve cluster recovery on ambiguous, overlapping data.
+    - Semi-supervised fitting (`fit(X, labels=...)` with `-1` for unknown) works with `GaussianMixture`, and a modest labeling budget can noticeably improve cluster recovery on ambiguous, overlapping data.
     - `PositiveUnlabeledMixture` estimates the class prior (the fraction of *unlabeled* rows that are positive) and a per-row positive probability from only a small labeled positive subset, under the SCAR assumption -- useful whenever confirming a negative is expensive or impossible, but confirming a positive is not.
     - `anchor` controls how tightly the positive block stays tied to the labeled positives, which is what keeps the problem identifiable.
     """)
