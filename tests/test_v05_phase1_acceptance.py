@@ -13,7 +13,7 @@ guarding the default code path against the pre-v0.4 numbers.
 import pytest
 import torch
 
-from tgmm import GaussianMixture, StudentTMixture, VonMisesFisherMixture
+from tgmm import GaussianMixture
 
 ALGORITHMS = ['em', 'cem', 'sem']
 
@@ -83,24 +83,6 @@ class TestEachFeatureAcrossAlgorithms:
         assert gmm.marginal([1]).n_features == 1
 
 
-class TestStudentTCombinations:
-    def test_noise(self, X):
-        stm = StudentTMixture(n_components=3, noise=True, max_iter=40, random_state=0).fit(X)
-        assert torch.isfinite(stm.means_).all() and torch.isfinite(stm.dof_).all()
-        assert stm.predict_proba(X).shape == (len(X), 4)
-
-    def test_missing(self, X_nan):
-        stm = StudentTMixture(n_components=3, missing='em', max_iter=40, random_state=0).fit(X_nan)
-        assert torch.isfinite(stm.means_).all() and torch.isfinite(stm.covariances_).all()
-        assert torch.isfinite(stm.impute(X_nan)).all()
-
-    def test_frozen_and_weights(self, X):
-        init = torch.tensor([[0.0, 0.0], [6.0, 0.0], [3.0, 5.0]])
-        stm = StudentTMixture(n_components=3, init_means=init, frozen_components=[1], max_iter=40, random_state=0)
-        stm.fit(X, sample_weight=torch.ones(len(X)))
-        assert torch.equal(stm.means_[1], init[1])
-
-
 class TestCombiningFeatures:
     def test_noise_with_frozen_components_and_weights(self, X):
         init = torch.tensor([[0.0, 0.0], [6.0, 0.0], [3.0, 5.0]])
@@ -140,22 +122,6 @@ class TestDefaultsAreBitIdentical:
         explicit = GaussianMixture(n_components=3, covariance_type='EVE', max_iter=60, random_state=0, noise=False,
                                    missing='error', frozen_components=()).fit(X, sample_weight=None)
         _same_fit(base, explicit)
-
-    def test_student_t(self, X):
-        base = StudentTMixture(n_components=3, max_iter=60, random_state=0).fit(X)
-        explicit = StudentTMixture(n_components=3, max_iter=60, random_state=0, noise=False, missing='error',
-                                   frozen_components=()).fit(X, sample_weight=None)
-        _same_fit(base, explicit)
-        assert torch.equal(base.dof_, explicit.dof_)
-
-    def test_von_mises_fisher(self, X):
-        U = torch.nn.functional.normalize(X - X.mean(0), dim=1)
-        base = VonMisesFisherMixture(n_components=3, max_iter=60, random_state=0).fit(U)
-        explicit = VonMisesFisherMixture(n_components=3, max_iter=60, random_state=0, noise=False,
-                                         frozen_components=()).fit(U, sample_weight=None)
-        assert torch.equal(base.means_, explicit.means_)
-        assert torch.equal(base.kappa_, explicit.kappa_)
-        assert base.lower_bound_ == explicit.lower_bound_
 
     def test_missing_em_without_nans_equals_error(self, X):
         base = GaussianMixture(n_components=3, max_iter=60, random_state=0, missing='error').fit(X)

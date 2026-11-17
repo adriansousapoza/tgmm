@@ -1,0 +1,6 @@
+# What the asset scripts need beyond tgmm itself (the tutorials only load the finished files).
+numpy
+matplotlib
+scipy
+pillow
+imageio-ffmpeg>=0.5.1   # a pip-bundled ffmpeg binary: H.264 video

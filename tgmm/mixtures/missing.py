@@ -1,6 +1,5 @@
 r"""
-Missing-value (``missing='em'``) numerics shared by the Gaussian-type families
-(`GaussianMixture`, `StudentTMixture`).
+Missing-value (``missing='em'``) numerics used by `GaussianMixture`.
 
 ``NaN`` entries mark missing-at-random values (Ghahramani & Jordan, 1994; Hunt &
 Jorgensen, 2003). Rows are grouped by *missingness pattern*; within a pattern the

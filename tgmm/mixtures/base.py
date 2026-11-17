@@ -1,24 +1,22 @@
 r"""
-BaseMixture: shared EM/CEM/SEM/SAEM/online-EM machinery for every tgmm
-mixture family (`GaussianMixture`, `StudentTMixture`,
-`VonMisesFisherMixture`).
+BaseMixture: the shared EM/CEM/SEM/SAEM/online-EM machinery behind
+`GaussianMixture` (and, through it, `ConditionalGaussianMixture`).
 
-See docs/superpowers/specs/2026-10-14-phase4-base-mixture-studentt-vmf-design.md
-for which methods are genuinely shared here vs. where `GaussianMixture`
-keeps its own, more specialized implementation (`fit`'s Gibbs/supervised
-dispatch, `sample`'s rich feature set, and all of `save`/`load`/
-`save_state_dict`/`load_state_dict`, none of which generalize to every
-family without either forcing Gaussian-specific features onto families
-that don't need them or redesigning `GaussianMixture`'s serialization
-format -- both judged not worth the risk for this phase).
+The class keeps a few hook points (`_compute_stats`, `_m_step`,
+`_sample_component`, `_get_param_snapshot`, `_noise_log_density`, ...) that a
+subclass overrides; `GaussianMixture` keeps its own, more specialized
+implementation of `fit`'s Gibbs/supervised dispatch, `sample`'s rich feature
+set, and all of `save`/`load`/`save_state_dict`/`load_state_dict`. (Design
+history: docs/superpowers/specs/2026-10-14-phase4-base-mixture-studentt-vmf-design.md,
+written when `BaseMixture` was extracted; the other mixture families it describes
+have since been removed: tgmm only provides Gaussian mixtures.)
 
-`BaseMixture.__init__` is convenience infrastructure for *new* subclasses
-(`StudentTMixture`, `VonMisesFisherMixture`): it validates and stores the
-arguments the shared methods below actually need, with defaults such that
-calling it with no arguments at all is a safe no-op beyond
-`nn.Module.__init__`. `GaussianMixture` does not call it with any
-arguments -- its own `__init__`, unchanged by this phase, remains the
-sole source of truth for its ~90-attribute configuration.
+`BaseMixture.__init__` is convenience infrastructure for subclasses: it validates
+and stores the arguments the shared methods below actually need, with defaults
+such that calling it with no arguments at all is a safe no-op beyond
+`nn.Module.__init__`. `GaussianMixture` does not call it with any arguments --
+its own `__init__` remains the sole source of truth for its ~90-attribute
+configuration.
 """
 import math
 import numbers
@@ -40,7 +38,7 @@ _VALID_SEM_ESTIMATES = ('best', 'mean')
 
 class BaseMixture(nn.Module, ABC):
     r"""
-    Shared scaffolding for EM-family mixture models.
+    Shared scaffolding for EM-fitted mixture models (`GaussianMixture` and the models built on it).
 
     Subclasses must implement the abstract methods below; everything else
     here is usable as-is. See the design doc for the full rationale.
@@ -234,7 +232,7 @@ class BaseMixture(nn.Module, ABC):
 
     def _init_frozen(self, frozen_components):
         r"""Validate (indices distinct integers in ``[0, K)``) and store `frozen_components`; then let the
-        family reject the configurations it cannot freeze (`_check_frozen_supported`)."""
+        subclass reject the configurations it cannot freeze (`_check_frozen_supported`)."""
         if frozen_components is None:
             frozen_components = ()
         try:
@@ -264,7 +262,7 @@ class BaseMixture(nn.Module, ABC):
             self._check_frozen_supported()
 
     def _check_frozen_supported(self):
-        r"""Family hook: raise `ValueError` if the current configuration cannot hold a component fixed
+        r"""Subclass hook: raise `ValueError` if the current configuration cannot hold a component fixed
         (a parameter shared across components). Called when `frozen_components` is set and at fit time."""
 
     def _frozen_mask(self) -> torch.Tensor:
@@ -297,7 +295,7 @@ class BaseMixture(nn.Module, ABC):
 
     # ---- sample weights -------------------------------------------------
     def _feature_weights_supported(self) -> bool:
-        r"""Family hook: whether `sample_weight` of shape `(n, d)` is supported (per-feature factorisation)."""
+        r"""Subclass hook: whether `sample_weight` of shape `(n, d)` is supported (per-feature factorisation)."""
         return False
 
     def _has_priors(self) -> bool:
@@ -331,7 +329,7 @@ class BaseMixture(nn.Module, ABC):
                 raise ValueError(
                     f"per-feature sample_weight (shape (n_samples, n_features)) is not supported by this "
                     f"{type(self).__name__} configuration: the statistics must factorise per feature "
-                    "(GaussianMixture / StudentTMixture with a diagonal covariance, GaussianMixture 'spherical'). "
+                    "(GaussianMixture with a 'diag' or 'spherical' covariance). "
                     "Use sample_weight of shape (n_samples,) instead."
                 )
             if self.noise:
@@ -366,7 +364,7 @@ class BaseMixture(nn.Module, ABC):
 
     def _fit_stats(self, X: torch.Tensor, resp_k: torch.Tensor) -> SufficientStats:
         r"""Sufficient statistics of the current fit: row weights scale the responsibilities and the effective
-        sample count; per-feature weights are passed to the family's `_compute_stats`."""
+        sample count; per-feature weights are passed to the subclass's `_compute_stats`."""
         sw = self._fit_sw
         if sw is not None:
             resp_k = resp_k * sw.unsqueeze(1)
@@ -381,7 +379,7 @@ class BaseMixture(nn.Module, ABC):
     # ===================================================================
     # Missing values (v0.5 item 1.2). See
     # docs/superpowers/specs/2026-10-15-v05-missing-values-design.md.
-    # With missing='error' (default) NaN input raises; with missing='em' (families
+    # With missing='error' (default) NaN input raises; with missing='em' (models
     # that set `_supports_missing`) NaN marks missing-at-random entries. On data
     # without NaN both settings take exactly the same code path.
     # ===================================================================
@@ -396,8 +394,7 @@ class BaseMixture(nn.Module, ABC):
             return
         if not self._supports_missing:
             raise ValueError(
-                f"missing='em' is not supported by {type(self).__name__} (it is available for GaussianMixture "
-                "and StudentTMixture)."
+                f"missing='em' is not supported by {type(self).__name__} (it is available for GaussianMixture)."
             )
         if self.noise:
             raise NotImplementedError(
@@ -422,7 +419,7 @@ class BaseMixture(nn.Module, ABC):
                 "pass missing='em' to treat NaN as missing-at-random values"
                 if self._supports_missing else
                 "this model does not support missing values (missing='em' is available for "
-                "GaussianMixture and StudentTMixture); impute or drop the NaN rows first"
+                "GaussianMixture); impute or drop the NaN rows first"
             )
             raise ValueError(f"X contains NaN; {hint}.")
 
@@ -442,7 +439,7 @@ class BaseMixture(nn.Module, ABC):
         return _missing.fill_columns_with_means(X)
 
     def _missing_cov_repr(self):
-        r"""Family hook: `(kind, cov)` with `kind in {'dense', 'diag'}` (see `missing.gaussian_blocks`)."""
+        r"""Subclass hook: `(kind, cov)` with `kind in {'dense', 'diag'}` (see `missing.gaussian_blocks`)."""
         raise NotImplementedError
 
     def _completed_rows(self, X: torch.Tensor) -> torch.Tensor:
@@ -476,15 +473,11 @@ class BaseMixture(nn.Module, ABC):
     # Inert unless `noise=True`: every hook below is a no-op / pass-through
     # when `self.noise` is False, so default fits are bit-identical.
     # ===================================================================
-    # Families whose noise density is a uniform over the data's bounding box
-    # (rather than e.g. over the sphere) need `noise_bounds_` at fit time.
-    _noise_uses_bbox = True
-
     # ===================================================================
-    # Persistence helpers shared by every family's save / load / state dict
+    # Persistence helpers shared by every subclass's save / load / state dict
     # ===================================================================
     def _semisupervised_state(self) -> dict:
-        r"""Constructor arguments and fitted state that every family's `to_dict` must keep: the semi-supervised
+        r"""Constructor arguments and fitted state that every subclass's `to_dict` must keep: the semi-supervised
         options, the init-only `noise_init`, and the class bookkeeping (`classes_`, `class_of_component_`) a labeled
         fit produces (needed by `predict_class`)."""
         return {
@@ -542,11 +535,11 @@ class BaseMixture(nn.Module, ABC):
         r"""
         Log-density of the noise component at each row of `X`, shape `(n_samples,)`.
 
-        Default (`GaussianMixture`, every GPCM code, `StudentTMixture`): the
-        constant `-log V`, with `V` the volume of the bounding box of the fit
-        data (or `noise_volume`). Families override it: `VonMisesFisherMixture`
-        uses the uniform density on the sphere; discrete/count families must
-        raise ``ValueError('noise component requires bounded continuous support')``.
+        Default (`GaussianMixture`, every GPCM code): the constant `-log V`, with
+        `V` the volume of the bounding box of the fit data (or `noise_volume`).
+        A subclass whose data have a different support overrides it (a discrete
+        model must raise
+        ``ValueError('noise component requires bounded continuous support')``).
         """
         return torch.full((X.shape[0],), -self._noise_log_volume(), dtype=X.dtype, device=X.device)
 
@@ -563,8 +556,7 @@ class BaseMixture(nn.Module, ABC):
         Fit-time setup for `noise=True`: store the bounding box and resolve
         `noise_init` into a boolean mask over the rows of `X` (or `None`).
         """
-        if self._noise_uses_bbox:
-            self.noise_bounds_ = torch.stack([X.min(dim=0).values, X.max(dim=0).values]).detach()
+        self.noise_bounds_ = torch.stack([X.min(dim=0).values, X.max(dim=0).values]).detach()
         init = self.noise_init
         if init is None:
             return None
@@ -631,10 +623,37 @@ class BaseMixture(nn.Module, ABC):
     @abstractmethod
     def _allocate_parameters(self, X: Optional[torch.Tensor] = None, set_random_state: bool = True):
         r"""Initialize `weights_`/`means_`/`covariances_` (and any other
-        family-specific parameters) before a fit. Named to match the
+        subclass-specific parameters) before a fit. Named to match the
         pre-Phase-4 `GaussianMixture` method rather than introducing a
         second, aliased name (the plan's "`_init_params`")."""
         raise NotImplementedError
+
+    def _hdbscan_init(self, X: torch.Tensor):
+        r"""
+        Starting means and per-point cluster labels of ``init_means='hdbscan'`` (see
+        :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`), shared by the classes that accept the string.
+
+        The clustering is tuned by the model's ``hdbscan_kwargs`` (``None``: the defaults of
+        :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`). HDBSCAN itself is deterministic, so its clustering is
+        computed once per data set and cached on the model (the key is the data's storage, shape and in-place version
+        counter, and the kwargs): the restarts of ``n_init > 1`` do not
+        repeat the ``O(N^2)`` clustering, and they still differ in the k-means++ completion of the missing centres.
+        Returns ``(means, labels)`` with the means on the CPU in the data's dtype (like the other string initialisers).
+        """
+        from ..gmm_init import GMMInitializer
+
+        kwargs = dict(getattr(self, 'hdbscan_kwargs', None) or {})   # min_cluster_size, min_samples, max_points, ...
+        key = (X.data_ptr(), tuple(X.shape), X._version, str(X.device), str(X.dtype), self.n_components,
+               tuple(sorted((str(name), repr(value)) for name, value in kwargs.items())))
+        data = X.detach().cpu()
+        cache = getattr(self, '_hdbscan_cache', None)
+        if cache is None or cache[0] != key:
+            labels, centres = GMMInitializer._hdbscan_partition(data, self.n_components, **kwargs)
+            self._hdbscan_cache = (key, labels, centres)
+        else:
+            _, labels, centres = cache
+        means = GMMInitializer._hdbscan_complete(data, labels, centres, self.n_components)
+        return means.to(dtype=data.dtype), labels
 
     @abstractmethod
     def _n_parameters(self) -> int:
@@ -647,10 +666,10 @@ class BaseMixture(nn.Module, ABC):
 
     # ===================================================================
     # Snapshotting fitted parameters, for the n_init loop and SEM's
-    # post-burn-in best/mean selection. Override to add family-specific
-    # parameters beyond weights_/means_/covariances_ (e.g. StudentTMixture's
-    # dof_) -- both _get_fit_snapshot and SEM automatically pick up any
-    # extra keys an override adds, no further changes needed anywhere else.
+    # post-burn-in best/mean selection. Override to add subclass-specific
+    # parameters beyond weights_/means_/covariances_: both _get_fit_snapshot
+    # and SEM automatically pick up any extra keys an override adds, no
+    # further changes needed anywhere else.
     # ===================================================================
     def _get_param_snapshot(self) -> dict:
         snapshot = {
@@ -1153,8 +1172,8 @@ class BaseMixture(nn.Module, ABC):
             Row weights of shape `(n_samples,)` (row `i` counts `w_i` times: integer weights equal
             duplicating rows, weight 0 equals dropping the row, an all-ones vector is bit-identical to
             `None`), or per-feature weights of shape `(n_samples, n_features)` for models whose statistics
-            factorise per feature (`GaussianMixture` with `'diag'`/`'spherical'` covariance and
-            `StudentTMixture` with `'diag'`; maximum likelihood only): weight 0 on entry `(i, j)` hides
+            factorise per feature (`GaussianMixture` with `'diag'`/`'spherical'` covariance;
+            maximum likelihood only): weight 0 on entry `(i, j)` hides
             feature `j` of row `i`. Not supported with `labels=...`, Gibbs mode or online EM. See
             `docs/superpowers/specs/2026-10-15-v05-frozen-sample-weight-design.md`. (default: None)
         """
@@ -1321,9 +1340,8 @@ class BaseMixture(nn.Module, ABC):
         shared ("tied") across *every* component, making it incompatible
         with fitting each class's component block as an independent
         sub-mixture (`_fit_supervised`'s `components_per_class > 1` path).
-        `False` by default (e.g. `VonMisesFisherMixture`, which has no
-        covariance at all); `GaussianMixture`/`StudentTMixture` override
-        this with their own `covariance_type` check.
+        `False` by default (a model without a covariance has nothing tied);
+        `GaussianMixture` overrides this with its own `covariance_type` check.
         """
         return False
 
@@ -1578,7 +1596,7 @@ class BaseMixture(nn.Module, ABC):
         The plan's own semi-supervised objective:
         :math:`\sum_{\text{labeled}} \log \sum_{k \in \text{block}(c_i)} \pi_k f_k(x_i)
         + \sum_{\text{unlabeled}} \log \sum_k \pi_k f_k(x_i)`, averaged over
-        samples (matching every other family's `lower_bound_` convention).
+        samples (matching the `lower_bound_` convention of the other fit paths).
         Computed directly from `_component_log_prob`, not from the clamped
         responsibilities -- clamping is a statistics-accumulation device
         for the M-step, not part of the likelihood itself.
@@ -1826,7 +1844,7 @@ class BaseMixture(nn.Module, ABC):
     # Information criteria. _score_for_information_criterion and
     # _resp_for_information_criterion are overridable hooks:
     # GaussianMixture overrides both with its Gibbs-mode-aware versions;
-    # the defaults here (plain score/E-step) are correct for every family
+    # the defaults here (plain score/E-step) are correct for every subclass
     # without pruned components.
     # ===================================================================
     def _score_for_information_criterion(self, X: torch.Tensor) -> float:
@@ -1868,8 +1886,7 @@ class BaseMixture(nn.Module, ABC):
     # ===================================================================
     # Sampling: a plain shell. GaussianMixture overrides `sample` entirely
     # with its much richer implementation (confidence regions, rejection
-    # sampling, etc.); this is what StudentTMixture/VonMisesFisherMixture
-    # use.
+    # sampling, etc.) and falls back on this one for `noise=True` models.
     # ===================================================================
     def sample(self, n_samples: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
@@ -1901,49 +1918,3 @@ class BaseMixture(nn.Module, ABC):
                 samples[noise_mask] = self._sample_noise(count).to(samples.dtype)
             component_indices = torch.where(noise_mask, torch.full_like(component_indices, -1), component_indices)
         return samples, component_indices
-
-    # ===================================================================
-    # Generic GEM step: an autograd-based update for a parameter that has
-    # no closed form, accepted only if it improves the objective. Lives
-    # here (rather than duplicated per-family) so any family -- or a
-    # future GenericMixture -- can use it without re-deriving the
-    # LBFGS-and-accept-on-improvement pattern Phase 3's GPCM orientation
-    # optimization already established.
-    # ===================================================================
-    @staticmethod
-    def _gem_step(
-        objective: Callable[[], torch.Tensor], params, n_steps: int = 20,
-    ) -> bool:
-        r"""
-        Minimize `objective()` (a closure reading the current values of
-        `params`, a list of `torch.nn.Parameter`) via up to `n_steps`
-        `torch.optim.LBFGS` steps. Accepts the update only if `objective()`
-        strictly decreased; otherwise the parameters are restored to their
-        pre-call values.
-
-        Returns
-        -------
-        bool
-            Whether the step was accepted.
-        """
-        with torch.no_grad():
-            initial = objective().item()
-            initial_values = [p.detach().clone() for p in params]
-
-        optimizer = torch.optim.LBFGS(params, max_iter=n_steps, line_search_fn='strong_wolfe')
-
-        def closure():
-            optimizer.zero_grad()
-            loss = objective()
-            loss.backward()
-            return loss
-
-        optimizer.step(closure)
-
-        with torch.no_grad():
-            final = objective().item()
-            if final < initial:
-                return True
-            for p, v in zip(params, initial_values):
-                p.copy_(v)
-            return False

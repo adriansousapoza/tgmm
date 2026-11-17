@@ -21,7 +21,7 @@ pymdown-extensions>=10.0
 # Tutorials are marimo notebooks, exported to .ipynb with outputs in CI
 marimo==0.25.1
 nbformat>=5.9
-mkdocs-marimo==0.2.1     # pre-1.0: pin exactly; used by the interactive explainer pages
+mkdocs-redirects>=1.2.1  # keeps the old user-guide / explainer / notebook URLs working
 
 # Needed to import the package for mkdocstrings
 setuptools

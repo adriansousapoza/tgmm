@@ -121,9 +121,60 @@ plugins:
       kernel_name: python3
       ignore_h1_titles: true
       include_requirejs: true
-  # Interactive explainer pages (docs/explainers/): marimo islands that run in the browser via Pyodide.
-  # They must import only what Pyodide ships (numpy, scipy, matplotlib) -- never tgmm or torch.
-  - marimo
+  # Old URLs (before the tutorials were consolidated) keep working.
+  - redirects:
+      redirect_maps:
+        notebooks/01_gmm.md: notebooks/01_introduction.ipynb
+        notebooks/02_em_algorithm.md: notebooks/01_introduction.ipynb
+        notebooks/03_visualise.md: notebooks/06_visualise.ipynb
+        notebooks/04_cem.md: notebooks/07_cem.ipynb
+        notebooks/05_supervised_gmm.md: notebooks/08_supervised_gmm.ipynb
+        notebooks/06_metrics.md: notebooks/09_metrics.ipynb
+        notebooks/07_sampling.md: notebooks/05_sampling.ipynb
+        notebooks/08_pca_plotting.md: notebooks/10_pca_plotting.ipynb
+        notebooks/09_priors.md: notebooks/04_priors.ipynb
+        notebooks/10_niw_priors_comparison.md: notebooks/04_priors.ipynb
+        notebooks/15_covariance_models.md: notebooks/02_covariance_types.ipynb
+        notebooks/04_sampling.md: notebooks/05_sampling.ipynb
+        notebooks/05_visualise.md: notebooks/06_visualise.ipynb
+        notebooks/06_cem.md: notebooks/07_cem.ipynb
+        notebooks/07_supervised_gmm.md: notebooks/08_supervised_gmm.ipynb
+        notebooks/08_metrics.md: notebooks/09_metrics.ipynb
+        notebooks/09_pca_plotting.md: notebooks/10_pca_plotting.ipynb
+        notebooks/10_priors.md: notebooks/04_priors.ipynb
+        notebooks/11_niw_priors_comparison.md: notebooks/04_priors.ipynb
+        notebooks/12_dpgmm.md: notebooks/11_dpgmm.ipynb
+        notebooks/13_hdbscan.md: notebooks/12_hdbscan.ipynb
+        notebooks/14_model_selection.md: notebooks/13_model_selection.ipynb
+        notebooks/15_stochastic_em.md: notebooks/14_stochastic_em.ipynb
+        notebooks/16_student_t.md: tutorials/index.md
+        notebooks/17_von_mises_fisher.md: tutorials/index.md
+        notebooks/18_semi_supervised_pu.md: notebooks/15_semi_supervised_pu.ipynb
+        notebooks/19_noise_missing_conditioning.md: notebooks/16_noise_missing_conditioning.ipynb
+        notebooks/20_constraints_and_weights.md: notebooks/17_constraints_and_weights.ipynb
+        user-guide/gaussian-mixture.md: notebooks/01_introduction.ipynb
+        user-guide/gpcm-covariance-models.md: notebooks/02_covariance_types.ipynb
+        user-guide/gmm-initializer.md: notebooks/03_initialization.ipynb
+        user-guide/plotting.md: notebooks/06_visualise.ipynb
+        user-guide/clustering-metrics.md: notebooks/09_metrics.ipynb
+        user-guide/other-mixture-families.md: tutorials/index.md
+        user-guide/semi-supervised-pu.md: notebooks/15_semi_supervised_pu.ipynb
+        user-guide/noise-missing-conditioning.md: notebooks/16_noise_missing_conditioning.ipynb
+        explainers/gpcm-shapes.md: notebooks/02_covariance_types.ipynb
+        explainers/em-stepper.md: notebooks/01_introduction.ipynb
+        explainers/annealing.md: notebooks/14_stochastic_em.ipynb
+        explainers/metrics-intuition.md: notebooks/09_metrics.ipynb
+        explainers/data-designer.md: notebooks/01_introduction.ipynb
+        notebooks/17_semi_supervised_pu.md: notebooks/15_semi_supervised_pu.ipynb
+        notebooks/18_noise_missing_conditioning.md: notebooks/16_noise_missing_conditioning.ipynb
+        notebooks/19_constraints_and_weights.md: notebooks/17_constraints_and_weights.ipynb
+        notebooks/20_kmeans_plus_plus.md: notebooks/18_kmeans_plus_plus.ipynb
+        notebooks/21_kmeans.md: notebooks/19_kmeans.ipynb
+        notebooks/16_von_mises_fisher.md: tutorials/index.md
+        notebooks/15_student_t.md: tutorials/index.md
+        api/student-t-mixture.md: api/gaussian-mixture.md
+        api/vmf-mixture.md: api/gaussian-mixture.md
+        api/generic-mixture.md: api/gaussian-mixture.md
 
 extra_javascript:
   - javascripts/mathjax.js
@@ -131,6 +182,7 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 extra_css:
+  - stylesheets/extra.css
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css
 
 nav:
@@ -138,50 +190,32 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
-  - User Guide:
-      - Gaussian Mixture Model: user-guide/gaussian-mixture.md
-      - GPCM Covariance Models: user-guide/gpcm-covariance-models.md
-      - Other Mixture Families: user-guide/other-mixture-families.md
-      - Semi-Supervised and Positive-Unlabeled Fitting: user-guide/semi-supervised-pu.md
-      - Noise, Missing Values and Conditioning: user-guide/noise-missing-conditioning.md
-      - GMM Initializer: user-guide/gmm-initializer.md
-      - Clustering Metrics: user-guide/clustering-metrics.md
-      - Plotting & Visualization: user-guide/plotting.md
   - Tutorials:
       - Overview: tutorials/index.md
-      - 1. Basic GMM: notebooks/01_gmm.ipynb
-      - 2. EM Algorithm Walkthrough: notebooks/02_em_algorithm.ipynb
-      - 3. Visualization: notebooks/03_visualise.ipynb
-      - 4. CEM Algorithm: notebooks/04_cem.ipynb
-      - 5. Supervised Fitting: notebooks/05_supervised_gmm.ipynb
-      - 6. Metrics & Evaluation: notebooks/06_metrics.ipynb
-      - 7. Sampling: notebooks/07_sampling.ipynb
-      - 8. PCA Plotting Demo: notebooks/08_pca_plotting.ipynb
-      - 9. Using Priors (MAP): notebooks/09_priors.ipynb
-      - 10. NIW Priors Comparison: notebooks/10_niw_priors_comparison.ipynb
-      - 11. Dirichlet Process Mixtures (Stick-Breaking & Gibbs Sampling): notebooks/11_dpgmm.ipynb
-      - 12. HDBSCAN Clustering: notebooks/12_hdbscan.ipynb
+      - "1. Introduction: Gaussian Mixtures and EM": notebooks/01_introduction.ipynb
+      - 2. Covariance Types (6 classic + 14 GPCM): notebooks/02_covariance_types.ipynb
+      - 3. Initialization: notebooks/03_initialization.ipynb
+      - 4. Priors (MAP and NIW): notebooks/04_priors.ipynb
+      - 5. Sampling: notebooks/05_sampling.ipynb
+      - 6. Visualization: notebooks/06_visualise.ipynb
+      - 7. Classification EM (CEM): notebooks/07_cem.ipynb
+      - 8. Supervised Fitting: notebooks/08_supervised_gmm.ipynb
+      - 9. Metrics and Evaluation: notebooks/09_metrics.ipynb
+      - 10. PCA Plotting: notebooks/10_pca_plotting.ipynb
+      - 11. Dirichlet Process Mixtures: notebooks/11_dpgmm.ipynb
+      - 12. HDBSCAN: notebooks/12_hdbscan.ipynb
       - 13. Model Selection (BIC, AIC, ICL): notebooks/13_model_selection.ipynb
-      - 14. Stochastic EM, Annealing & SAEM: notebooks/14_stochastic_em.ipynb
-      - 15. Covariance Structures (Classic Types and the 14 GPCM Models): notebooks/15_covariance_models.ipynb
-      - 16. Student-t Mixtures: notebooks/16_student_t.ipynb
-      - 17. Von Mises-Fisher Mixtures: notebooks/17_von_mises_fisher.ipynb
-      - 18. Semi-Supervised and Positive-Unlabeled Fitting: notebooks/18_semi_supervised_pu.ipynb
-      - 19. Noise, Missing Values and Conditioning: notebooks/19_noise_missing_conditioning.ipynb
-  - Explainers:
-      - GPCM Covariance Shapes: explainers/gpcm-shapes.md
-      - EM Step by Step: explainers/em-stepper.md
-      - Deterministic Annealing: explainers/annealing.md
-      - Clustering Metrics and Model Selection: explainers/metrics-intuition.md
-      - Design Your Own Mixture: explainers/data-designer.md
+      - 14. Stochastic EM, Annealing and SAEM: notebooks/14_stochastic_em.ipynb
+      - 15. Semi-Supervised and PU Fitting: notebooks/15_semi_supervised_pu.ipynb
+      - 16. Noise, Missing Values and Conditioning: notebooks/16_noise_missing_conditioning.ipynb
+      - 17. Constraints, Frozen Components and Sample Weights: notebooks/17_constraints_and_weights.ipynb
+      - 18. k-means++ Seeding Step by Step: notebooks/18_kmeans_plus_plus.ipynb
+      - 19. k-means (Lloyd's Algorithm) Step by Step: notebooks/19_kmeans.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - GPCM Covariance: api/covariance-gpcm.md
       - tgmm.BaseMixture: api/base-mixture.md
-      - tgmm.StudentTMixture: api/student-t-mixture.md
       - tgmm.ConditionalGaussianMixture: api/conditional-gaussian-mixture.md
-      - tgmm.GenericMixture: api/generic-mixture.md
-      - tgmm.VonMisesFisherMixture: api/vmf-mixture.md
       - tgmm.PositiveUnlabeledMixture: api/positive-unlabeled-mixture.md
       - tgmm.GMMInitializer: api/gmm-initializer.md
       - tgmm.ClusteringMetrics: api/clustering-metrics.md

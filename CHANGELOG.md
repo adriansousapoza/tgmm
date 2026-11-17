@@ -5,6 +5,74 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (HDBSCAN initialisation)
+
+- `init_means='hdbscan'` (`GaussianMixture`): start EM from the means of the clusters `tgmm.HDBSCAN` finds (noise ignored). It
+  needs no number of clusters to find them, finds non-convex and very unequal clusters and is robust to outliers, which makes it
+  the safe alternative to `'maxdist'` (farthest-first traversal puts centres on outliers). `n_components` only decides how many
+  clusters are kept (the largest) and how many extra centres are added (k-means++ seeding on the points no cluster claimed, noise
+  first); with no cluster found it is plain k-means++. The clustering is computed once per data set (cached across `n_init`),
+  and large data is clustered on a random subsample (`max_points=5000`, HDBSCAN needs the full `N x N` distance matrix).
+- `init_weights='hdbscan'` (the cluster sizes, the noise points added to the nearest mean) and `init_covariances='hdbscan'` (the
+  scatter of each cluster, noise left out; all classic covariance types and the GPCM codes). Both reuse the clustering of
+  `init_means='hdbscan'` and raise a clear error otherwise.
+- New constructor argument `hdbscan_kwargs: Optional[dict] = None` (`GaussianMixture`): settings of that HDBSCAN run
+  (`min_cluster_size`, `min_samples`, `cluster_selection_method`, ..., and `max_points`). `None` uses the default rule
+  `min_cluster_size = max(10, min(int(0.02 n), n // (5 k)))` and `min_samples = max(5, min_cluster_size // 2)`: 2% of the points,
+  but small enough for `k` clusters of about `n / k` points to survive (a flat 2% rule loses clusters at large `k`). Unknown keys
+  raise a `ValueError` listing the allowed ones; the argument is saved and loaded with the model.
+- `GMMInitializer.hdbscan(data, k, min_cluster_size=None, min_samples=None, max_points=5000, random_state=None, **hdbscan_kwargs)`
+  returns the centres; `GMMInitializer.hdbscan_clusters(...)` also returns the per-point labels (`-1` = noise).
+  `GMMInitializer.init_weights_from_labels` and the new optional `labels` argument of
+  `GMMInitializer.init_covariances_empirical` (points labelled `-1` are left out) are the building blocks.
+- **Exactly K clusters, opt-in.** `HDBSCAN(n_clusters=K)` selects exactly `K` non-nested clusters of the condensed tree, the set
+  with the largest total stability (the objective of the default `'eom'` selection with a cardinality constraint, solved exactly
+  by dynamic programming; points outside are noise; `ValueError` asking for a smaller `min_cluster_size` if the tree has fewer
+  than `K` clusters). The initialisers expose it as `hdbscan_kwargs={'exact_k': True}` (and `exact_k=True` of
+  `GMMInitializer.hdbscan` / `hdbscan_clusters`), with a finer default `min_cluster_size = max(10, min(int(0.01 n), n // (5 k)))`
+  that is halved (at most four times) if the tree has too few clusters, and the default clustering as the last fallback. The
+  default behaviour is unchanged. When to use it: on the tutorial blobs (overlapping, one of them elongated and tilted) the
+  exact-K start puts the initial centres much closer to the truth than the default rule and than `'kmeans'` (median distance
+  0.27 against 0.75 and 1.21) and EM needs fewer iterations (13 against 14 and 31), and it always finds the K clusters where the
+  default rule found 2 or 3. It does not end in a better optimum there (`'kmeans'` already reaches the best one in every
+  draw). On strongly overlapping Gaussian components, whose density peaks merge, `'kmeans'` is far better (initial centres
+  0.21 from the truth against 1.3 for exact-K and 1.7 for the default rule, four unequal blobs 3.2 standard deviations apart)
+  and the exact-K start ends in the best optimum least often (0 of 8 draws, against 2 of 8 for the default rule and 6 of 8 for
+  `'kmeans'`), so `'kmeans'` remains the right choice there. Cutting the raw single-linkage tree
+  with `scipy.cluster.hierarchy.fcluster(..., 'maxclust')` is not an alternative: it peels off tiny clusters one by one (no usable
+  start in 24 of 24 trials), and tuning `cluster_selection_epsilon` until `K` clusters appear (what `hdbscan.flat` does) works
+  only if the data has `K` separated density peaks.
+
+### Removed (breaking)
+
+tgmm now only provides **Gaussian mixtures**. These are last available in 0.4.3 (the Student-t and von Mises-Fisher classes were introduced in 0.4.0, `GenericMixture` in 0.4.1):
+
+- `StudentTMixture` (`tgmm.mixtures.student_t`) and `VonMisesFisherMixture` (`tgmm.mixtures.vmf`).
+- The von Mises-Fisher plotting helpers `plot_vmf`, `plot_vmf_cosine`, `vmf_angle_density` and `vmf_cap_angle`.
+- `GenericMixture` and the `Component` protocol (`tgmm.mixtures.generic`, `tgmm.mixtures.protocol`): the "bring your own distribution" framework, with its
+  exponential/normal example.
+- The `family` argument of `PositiveUnlabeledMixture` (it had `'gaussian'`, `'student_t'` and `'vmf'`; the model is Gaussian only now, so
+  `PositiveUnlabeledMixture(family='gaussian', ...)` becomes `PositiveUnlabeledMixture(...)`).
+- The two tutorials on the Student-t and von Mises-Fisher families, the `GenericMixture` section of the noise/missing-values/conditioning tutorial, and
+  these classes' API pages; the other tutorials are renumbered and the old URLs redirect.
+
+Code that imports or constructs the removed classes breaks, so the next release should bump the minor version (0.5.0). The shared
+`BaseMixture` machinery stays: it underlies `GaussianMixture` and `ConditionalGaussianMixture`.
+
+### Changed (documentation)
+
+- The documentation is now one set of tutorials (marimo notebooks) plus the API reference. The separate user guide and the
+  in-browser explainers are gone; their content was merged into the tutorials, and the old URLs redirect.
+- Tutorials are reordered and renumbered (19 notebooks): 01 Introduction (EM videos; the blob designer is at the end), 02 Covariance types,
+  03 Initialization (new), 04 Priors (MAP and NIW, merged), 05 Sampling, 06-14 the rest in order, 15 Semi-supervised and PU fitting,
+  16 Noise, missing values and conditioning, 17 Constraints, frozen components and sample weights (new), and two algorithm
+  walk-throughs, 18 k-means++ seeding and 19 k-means (Lloyd), with step-by-step videos. The default four-blob dataset lives in
+  `notebooks/tutorial_data.py`; every notebook's interactive controls live in a final "Try it yourself" section.
+- Every tutorial page links to an interactive (molab) version of the notebook.
+- Tutorial data: the default four-blob dataset is the one the tutorials always showed. An earlier `generate_gmm_data` sampled with
+  `Z @ cov`, so the matrices requested then (`1.0*I`, `0.5*I`, `[[2, 0], [0, 0.5]]`, `[[0.2, 0.5], [0.5, 2]]`) really produced
+  `covᵀ·cov`; the tutorials now state those matrices explicitly.
+
 ## [0.4.3] -- 2026-10-21
 
 Adds fixed values and bounds for `GaussianMixture` parameters. Purely additive: with the new arguments off, fits are bit-identical to 0.4.2.

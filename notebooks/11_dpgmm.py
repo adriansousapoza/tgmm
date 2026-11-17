@@ -12,6 +12,9 @@
 #     "seaborn",
 #     "tqdm",
 # ]
+#
+# [tool.marimo.display]
+# dataframes = "plain"
 # ///
 
 import marimo
@@ -49,14 +52,14 @@ def _(mo):
 
     **What you'll learn**
 
-    1. the underlying math -- the stick-breaking construction, its concentration parameter $\alpha$, and the Chinese Restaurant Process view that Gibbs sampling relies on -- with a runnable visualization of each piece (the NIW prior parameters that plug into this are introduced in [09 -- Priors](09_priors.ipynb); here we only cover how Gibbs sampling *uses* them),
+    1. the underlying math -- the stick-breaking construction, its concentration parameter $\alpha$, and the Chinese Restaurant Process view that Gibbs sampling relies on -- with a runnable visualization of each piece (the NIW prior parameters that plug into this are introduced in [04 -- Priors](04_priors.ipynb); here we only cover how Gibbs sampling *uses* them),
     2. how to read a Gibbs run: hard cluster assignments and the active component count evolving sweep by sweep, and why truncated and unbounded Gibbs agree when seeded from the same starting partition,
     3. how it compares at scale: synthetic 10-dimensional data at three true cluster counts (5, 10, 20), comparing a classical `GaussianMixture` (K chosen by minimum BIC over a `K=1..30` sweep) against truncated and unbounded Gibbs-mode `GaussianMixture` on well-separated data, on genuinely overlapping clusters, and on overlapping *non-Gaussian* cluster shapes -- to see what happens when the Gaussian-component assumption itself is wrong.
 
-    All plotting goes through the library's official [`plot_gmm`](03_visualise.ipynb) tooling, projecting the 10-d Gaussians to 2D via PCA for visualization only -- the sampler itself never sees that projection.
+    All plotting goes through the library's official [`plot_gmm`](06_visualise.ipynb) tooling, projecting the 10-d Gaussians to 2D via PCA for visualization only -- the sampler itself never sees that projection.
 
-    **Prerequisites:** [02 -- EM Algorithm](02_em_algorithm.ipynb), [03 -- Visualization](03_visualise.ipynb), [09 -- Priors](09_priors.ipynb).
-    See also the [Gaussian Mixture Model user guide](../user-guide/gaussian-mixture.md#gibbs-sampling-inferring-the-number-of-components).
+    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [06 -- Visualization](06_visualise.ipynb), [04 -- Priors](04_priors.ipynb).
+    See also [17 -- Constraints and Weights](17_constraints_and_weights.ipynb) for the other `GaussianMixture` options that are not available in Gibbs mode.
     """)
     return
 
@@ -82,7 +85,8 @@ def _():
     from sklearn.decomposition import PCA
     from sklearn.metrics import adjusted_rand_score
 
-    from tgmm import GaussianMixture, plot_gmm, dynamic_figsize
+    from tgmm import GaussianMixture, plot_gmm
+    from tgmm.plotting import CATEGORICAL_PALETTE
     from tgmm.synthetic_data import generate_gmm_data
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -91,16 +95,20 @@ def _():
     torch.manual_seed(SEED)
 
     torch.set_default_dtype(torch.float64)
-    # marimo embeds figures at 2 x figure.dpi, and tgmm's plot theme sets figure.dpi=300: the 12-panel
-    # comparison figures below would then exceed marimo's output size limit, so use a lower resolution.
+    # --- figure style (see notebooks/README.md) ---
+    DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+               'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
+    plt.rcParams.update(DOCS_RC)
+    # Lower resolution than the style's 100 dpi: marimo embeds figures at 2 x figure.dpi, and the three 12-panel comparison figures below
+    # would push this notebook's export past marimo's output size limit.
     plt.rcParams['figure.dpi'] = 60
     return (
+        CATEGORICAL_PALETTE,
         GaussianMixture,
         PCA,
         SEED,
         SimpleNamespace,
         adjusted_rand_score,
-        dynamic_figsize,
         generate_gmm_data,
         math,
         np,
@@ -149,21 +157,21 @@ def _(mo):
 
 
 @app.cell
-def _(SEED, dynamic_figsize, np, plt):
+def _(CATEGORICAL_PALETTE, SEED, np, plt):
     def sample_stick_breaking(alpha, n_sticks=25, seed=0):
         rng = np.random.RandomState(seed)
         v = rng.beta(1.0, alpha, size=n_sticks)
         remaining = np.cumprod(np.concatenate([[1.0], 1 - v[:-1]]))
         pi = v * remaining
         return pi
-    _fig, _axes = plt.subplots(1, 3, figsize=dynamic_figsize(1, 3), sharey=True)
+    _fig, _axes = plt.subplots(1, 3, figsize=(11, 3.8), sharey=True)
     for _ax, alpha in zip(_axes, [0.5, 2.0, 10.0]):
         pi = sample_stick_breaking(alpha, n_sticks=25, seed=SEED)
-        _ax.bar(np.arange(1, len(pi) + 1), pi, color='#4C72B0')
+        _ax.bar(np.arange(1, len(pi) + 1), pi, color=CATEGORICAL_PALETTE[0])
         _ax.set_title(f'alpha = {alpha}\n(sum of first 5 pieces = {pi[:5].sum():.2f})')
         _ax.set_xlabel('stick-breaking index k')
     _axes[0].set_ylabel('pi_k (weight of piece k)')
-    _fig.suptitle('One realization of stick-breaking for increasing alpha', fontsize=14)
+    _fig.suptitle('One realization of stick-breaking for increasing alpha')
     plt.tight_layout()
     plt.gcf()
     return
@@ -188,12 +196,13 @@ def _(mo):
     $x_i \mid z_i = k \sim \mathcal{N}(\mu_k, \Sigma_k)$. These NIW
     hyperparameters $(\mu_0, \lambda_0, \Psi_0, \nu_0)$ are a **fixed prior**
     -- either supplied, or resolved once from the data via `suggest_priors`
-    (prior mean = data mean, weak precision, `degrees_of_freedom_prior = d + 2`,
-    prior covariance = empirical covariance). Nothing about the prior is
+    (prior mean = data mean, weak precision $\lambda_0=0.1$, `degrees_of_freedom_prior` $\nu_0=d+2$,
+    prior covariance $\Psi_0$ = the *pooled within-cluster* scatter of a $k$-means partition,
+    not the marginal data covariance). Nothing about the prior is
     learned; what Gibbs sampling infers, per component, every sweep, is the NIW
     **posterior** $(\mu_n, \lambda_n, \nu_n, \Psi_n)$ given that fixed prior and
     whichever points currently belong to the component. See
-    [`09_priors.ipynb`](09_priors.ipynb) for how these same NIW priors are
+    [`04_priors.ipynb`](04_priors.ipynb) for how these same NIW priors are
     defined, visualized, and used for MAP estimation in the (finite, non-Gibbs)
     case.
 
@@ -267,6 +276,76 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### The posterior predictive, and what the fit returns
+
+    Writing $n_k$ for the number of points at table $k$ (excluding point $i$), $\bar x_k$ for their mean and
+    $S_k=\sum_{j\in k}(x_j-\bar x_k)(x_j-\bar x_k)^\top$ for their scatter, the NIW posterior is
+
+    $$\lambda_n=\lambda_0+n_k,\quad \nu_n=\nu_0+n_k,\quad
+    \mu_n=\frac{\lambda_0\mu_0+n_k\bar x_k}{\lambda_n},\quad
+    \Psi_n=\Psi_0+S_k+\frac{\lambda_0n_k}{\lambda_n}(\bar x_k-\mu_0)(\bar x_k-\mu_0)^\top
+    \;(+\,\texttt{reg\_covar}\cdot I),$$
+
+    and integrating $(\mu_k,\Sigma_k)$ out of $x_i\mid\mu_k,\Sigma_k$ leaves a multivariate Student-$t$:
+
+    $$x_i\mid X_k^{-i}\ \sim\ t_{\nu_n-d+1}\!\Big(\mu_n,\ \frac{\lambda_n+1}{\lambda_n(\nu_n-d+1)}\,\Psi_n\Big).$$
+
+    A brand-new table is the same formula with $n_k=0$, i.e. with the prior alone. The three covariance types
+    that Gibbs mode supports differ only in this predictive:
+
+    - `full`: the formula above.
+    - `diag`: a product over coordinates of univariate Student-$t$ densities with $\nu_n$ degrees of freedom
+      (there is no "$-d+1$": each coordinate marginalises a scalar variance, not a joint $d\times d$ matrix),
+      location $\mu_{n,j}$ and scale $\frac{\lambda_n+1}{\lambda_n\nu_n}\Psi_{n,j}$.
+    - `spherical`: one isotropic $d$-dimensional Student-$t$ with $\nu_0+n_kd$ degrees of freedom (all $d$
+      coordinates feed one shared variance) and scale $\frac{\lambda_n+1}{\lambda_n(\nu_0+n_kd)}\Psi_n\,I$.
+
+    `tied_*` types and the eight extra GPCM codes are not supported: tying couples the components, which breaks
+    the per-table factorisation the collapsed sampler relies on.
+
+    The cell below checks the `full` formula in one dimension by simulation (draw $\sigma^2\sim\Psi_n/\chi^2_{\nu_n}$, then
+    $\mu\mid\sigma^2\sim\mathcal N(\mu_n,\sigma^2/\lambda_n)$, then $x\sim\mathcal N(\mu,\sigma^2)$) and compares the draws with the closed-form $t$:
+    """)
+    return
+
+
+@app.cell
+def _(SEED, np):
+    from scipy import stats as _stats
+
+    _rng = np.random.default_rng(SEED)
+    _mu_n, _lam_n, _nu_n, _psi_n = 1.5, 4.0, 7.0, 3.0
+    _m = 200_000
+    _sigma2 = _psi_n / _rng.chisquare(_nu_n, size=_m)
+    _mu = _mu_n + np.sqrt(_sigma2 / _lam_n) * _rng.standard_normal(_m)
+    _x = _mu + np.sqrt(_sigma2) * _rng.standard_normal(_m)
+    _t_scale = np.sqrt((_lam_n + 1) * _psi_n / (_lam_n * _nu_n))   # d = 1, so nu_n - d + 1 = nu_n
+    _ks = _stats.kstest(_x, _stats.t(df=_nu_n, loc=_mu_n, scale=_t_scale).cdf)
+    print(f'Student-t predictive, d=1: t_{_nu_n:g}(loc={_mu_n}, scale={_t_scale:.4f}); KS distance to {_m:,} simulated draws = {_ks.statistic:.4f}')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **What `fit` returns.** The fitted parameters come from the partition of the **final sweep** only: one posterior draw, not an average
+    (averaging over sweeps is meaningless because the labels permute between sweeps). For `full` this is $\mu_k=\mu_n$, $\Sigma_k=\Psi_n/\nu_n$,
+    $\pi_k=n_k/n$ (for `diag` the division is coordinate-wise, for `spherical` $\Sigma_k=\Psi_n/(\nu_nd)\,I$). A slot is *active* (and counted in `n_components_` / `active_`)
+    when its expected count $\pi_kn$ exceeds `weight_threshold` (default `1.0`).
+
+    - `max_iter` is an **exact sweep count** (no convergence test, `converged_` is always `True`). Each sweep is an $O(n)$ Python loop,
+      so the EM default of 1000 is far too slow here: pass a small explicit `max_iter`.
+    - The unbounded variant seeds the sampler with `init_k` components (default $\max(2,\min(20,n/2))$) and records the number of
+      active tables per sweep after `burn_in` (default `max_iter // 5`) in `n_components_history_`; the truncated variant (default `max_components=20`) has no history.
+    - Gibbs mode needs an explicit NIW prior (`GaussianMixture.suggest_priors(X, n_components)` gives a sensible start from a $k$-means pass) and
+      does not support supervised fitting (`labels=`), the constraints of [17 -- Constraints and Weights](17_constraints_and_weights.ipynb), or online EM.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 2. Watching the sampler work: a step-by-step 10-d example
 
     The same generative recipe used in Round 2 below (`true_k=10`,
@@ -287,7 +366,6 @@ def _(
     GaussianMixture,
     PCA,
     SEED,
-    dynamic_figsize,
     generate_gmm_data,
     np,
     plt,
@@ -305,10 +383,10 @@ def _(
     X, true_labels = make_walkthrough_blobs(true_k, N_TOTAL // true_k, spread=4.0, d=D)
     n_samples = X.shape[0]
     print(f'n_samples={n_samples}, true_k={true_k}, d={D}')
-    pca = PCA(n_components=2, random_state=SEED).fit(X.numpy())
-    X_pca = pca.transform(X.numpy())
-    _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
-    _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=true_labels, cmap='turbo', s=12, alpha=0.7)
+    pca = PCA(n_components=2, random_state=SEED).fit(X.cpu().numpy())
+    X_pca = pca.transform(X.cpu().numpy())
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
+    _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=true_labels, cmap='turbo', s=8, alpha=0.5)  # 10 clusters: more than the 8 categorical colours
     _ax.set_title('Ground truth (color = true cluster), PCA projection')
     plt.tight_layout()
     GIBBS_PRIOR = GaussianMixture.suggest_priors(X, n_components=20, random_state=SEED)
@@ -342,7 +420,7 @@ def _(mo):
     deterministic sequential process given a fixed seed, this exactly
     reproduces the same trajectory prefix (refitting at `max_iter=10` starts
     identically to refitting at `max_iter=3`, for the first 3 sweeps) -- exactly
-    the technique [`02_em_algorithm.ipynb`](02_em_algorithm.ipynb) uses to
+    the technique [`01_introduction.ipynb`](01_introduction.ipynb) uses to
     snapshot EM at different iteration counts.
 
     Row 0 (`max_iter=0`) is the raw kmeans initialization before any Gibbs
@@ -365,20 +443,22 @@ def _(
     X,
     X_pca,
     adjusted_rand_score,
-    dynamic_figsize,
     plt,
     true_labels,
 ):
     SNAPSHOT_ITERS = [0, 1, 3, 10, N_SWEEPS]
-    _fig, _axes = plt.subplots(1, len(SNAPSHOT_ITERS), figsize=dynamic_figsize(1, len(SNAPSHOT_ITERS)), sharey=True)
-    for _ax, n_iter in zip(_axes, SNAPSHOT_ITERS):
+    _nrows = (len(SNAPSHOT_ITERS) + 1) // 2
+    _fig, _axes = plt.subplots(_nrows, 2, figsize=(11, 4.5 * _nrows), sharex=True, sharey=True, squeeze=False)
+    for _ax in _axes.ravel()[len(SNAPSHOT_ITERS):]:
+        _ax.axis('off')
+    for _ax, n_iter in zip(_axes.ravel(), SNAPSHOT_ITERS):
         _model = GaussianMixture(n_components=None, max_components=None, max_iter=n_iter, burn_in=0, random_state=SEED, device='cpu', weight_threshold=1.0, mean_prior=MEAN_PRIOR, mean_precision_prior=MEAN_PRECISION_PRIOR, covariance_prior=COVARIANCE_PRIOR, degrees_of_freedom_prior=DEGREES_OF_FREEDOM_PRIOR)
         _model.fit(X)
         predicted = _model.predict(X)
-        ari = adjusted_rand_score(true_labels.numpy(), predicted.numpy())
-        _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=predicted.numpy(), cmap='turbo', s=12, alpha=0.7)
+        ari = adjusted_rand_score(true_labels.cpu().numpy(), predicted.cpu().numpy())
+        _ax.scatter(X_pca[:, 0], X_pca[:, 1], c=predicted.cpu().numpy(), cmap='turbo', s=8, alpha=0.5)
         _ax.set_title(f'sweep {n_iter}\nn={_model.n_components_}, ARI={ari:.2f}')
-    _fig.suptitle('Unbounded Gibbs: hard assignment after increasingly many sweeps', fontsize=14)
+    _fig.suptitle('Unbounded Gibbs: hard assignment after increasingly many sweeps')
     plt.tight_layout()
     plt.gcf()
     return
@@ -415,6 +495,7 @@ def _(mo):
 
 @app.cell
 def _(
+    CATEGORICAL_PALETTE,
     COVARIANCE_PRIOR,
     DEGREES_OF_FREEDOM_PRIOR,
     GaussianMixture,
@@ -423,18 +504,17 @@ def _(
     N_SWEEPS,
     SEED,
     X,
-    dynamic_figsize,
     plt,
     true_k,
 ):
     _model = GaussianMixture(n_components=None, max_components=None, max_iter=N_SWEEPS + 10, burn_in=0, random_state=SEED, device='cpu', weight_threshold=1.0, mean_prior=MEAN_PRIOR, mean_precision_prior=MEAN_PRECISION_PRIOR, covariance_prior=COVARIANCE_PRIOR, degrees_of_freedom_prior=DEGREES_OF_FREEDOM_PRIOR)
     _model.fit(X)
     history = _model.n_components_history_
-    _fig, _ax = plt.subplots(figsize=dynamic_figsize(1, 1))
-    _ax.plot(range(len(history)), history, marker='o', markersize=3, color='#4C72B0')
-    _ax.axhline(true_k, color='red', linestyle='--', label=f'true_k = {true_k}')
+    _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
+    _ax.plot(range(len(history)), history, marker='o', markersize=3, color=CATEGORICAL_PALETTE[0])
+    _ax.axhline(true_k, color='black', linestyle='--', label=f'true_k = {true_k}')
     _ax.set_xlabel('sweep')
-    _ax.set_ylabel('number of components (all sizes, before weight_threshold)')
+    _ax.set_ylabel('number of components (before weight_threshold)')
     _ax.set_title('Unbounded Gibbs: raw component count per sweep')
     _ax.legend()
     plt.tight_layout()
@@ -490,7 +570,7 @@ def _(
 
     pred_trunc = model_trunc.predict(X)
     pred_unbounded = model_unbounded.predict(X)
-    agreement = adjusted_rand_score(pred_trunc.numpy(), pred_unbounded.numpy())
+    agreement = adjusted_rand_score(pred_trunc.cpu().numpy(), pred_unbounded.cpu().numpy())
 
     print(f"Truncated (K_max={K_SEED}):  n_components_={model_trunc.n_components_}")
     print(f"Unbounded (seed K={K_SEED}): n_components_={model_unbounded.n_components_}")
@@ -577,7 +657,7 @@ def _(mo):
     `.means_`/`.covariances_`. Rather than *re-fitting* a separate 2D model
     (which would show a different model's solution, not this one's), we use
     the exact linear-projection result already established in this repo's
-    `08_pca_plotting.ipynb`: for a PCA projection $y = A(x - \bar{x})$, a Gaussian
+    `10_pca_plotting.ipynb`: for a PCA projection $y = A(x - \bar{x})$, a Gaussian
     component transforms as
 
     $$\mathcal{N}(x; \mu_k, \Sigma_k) \;\longrightarrow\; \mathcal{N}(y; A(\mu_k - \bar{x}),\, A \Sigma_k A^T),$$
@@ -601,8 +681,8 @@ def _(mo):
 def _(SimpleNamespace, torch):
     # Exact 2D projection of Gaussian means/covariances through a fitted sklearn PCA.
     def project_gaussian_params(means, covariances, pca):
-        A = torch.tensor(pca.components_, dtype=torch.float64)
-        mean_shift = torch.tensor(pca.mean_, dtype=torch.float64)
+        A = torch.tensor(pca.components_, dtype=torch.float64, device=means.device)
+        mean_shift = torch.tensor(pca.mean_, dtype=torch.float64, device=means.device)
         means_2d = (means - mean_shift) @ A.T
         covariances_2d = torch.matmul(torch.matmul(A.unsqueeze(0), covariances), A.T.unsqueeze(0))
         return means_2d, covariances_2d
@@ -701,6 +781,7 @@ def _(mo):
 
 @app.cell
 def _(
+    CATEGORICAL_PALETTE,
     CLUSTER_COUNTS,
     D_1,
     FAST,
@@ -713,7 +794,6 @@ def _(
     PCA,
     SEED,
     adjusted_rand_score,
-    dynamic_figsize,
     make_high_dim_blobs,
     make_viz_proxy,
     math,
@@ -749,7 +829,7 @@ def _(
         model.fit(X)
         elapsed = time.time() - t0
         predicted = restricted_predict(model, X)
-        ari = adjusted_rand_score(labels.numpy(), predicted.numpy())
+        ari = adjusted_rand_score(labels.cpu().numpy(), predicted.cpu().numpy())
         ll = model.score(X)
         if truncation_level is not None:
             seed_str = f', K_max={truncation_level}'
@@ -786,7 +866,7 @@ def _(
             raise RuntimeError(f'GaussianMixture(K={n_components}) failed to fit after {max_attempts} attempts (degenerate covariance from a near-empty cluster each time): {last_error}')
         elapsed = time.time() - t0
         predicted = gmm.predict(X)
-        ari = adjusted_rand_score(labels.numpy(), predicted.numpy())
+        ari = adjusted_rand_score(labels.cpu().numpy(), predicted.cpu().numpy())
         ll = gmm.score(X)
         label = f'GMM (K={n_components})'
         title = f'{label}\nARI={ari:.2f}\nLL={ll:.2f}'
@@ -821,10 +901,10 @@ def _(
             center_dists = torch.pdist(true_means)
             print(f'  true_k={k:>2}: true-center pairwise distance min={center_dists.min():.2f}, mean={center_dists.mean():.2f}')
         # --- shared PCA: fit once on the largest (nested-superset) dataset ---
-        shared_pca = PCA(n_components=2, random_state=SEED).fit(datasets[K_MAX]['X'].numpy())
+        shared_pca = PCA(n_components=2, random_state=SEED).fit(datasets[K_MAX]['X'].cpu().numpy())
         for k in CLUSTER_COUNTS:
             datasets[k]['pca'] = shared_pca
-            datasets[k]['X_pca'] = shared_pca.transform(datasets[k]['X'].numpy())
+            datasets[k]['X_pca'] = shared_pca.transform(datasets[k]['X'].cpu().numpy())
         # --- fit the GMM row (BIC sweep) and both Gibbs rows first: the BIC/AIC curve figure and the main grid both need them ---
         results = {}
         gmm_rows = {}
@@ -836,7 +916,7 @@ def _(
         # LL is monotonic in K on training data (every extra component can only fit at least as well), so it has no
         # interior optimum and just keeps climbing: it is plotted for comparison, not as a selector. Data curves are
         # solid; the vertical "best K" markers are dashed in their curve's own colour; true_k is a neutral gray dotted line. ---
-        fig_ic, axes_ic = plt.subplots(1, len(CLUSTER_COUNTS), figsize=dynamic_figsize(1, len(CLUSTER_COUNTS)), sharey=False)
+        fig_ic, axes_ic = plt.subplots(1, len(CLUSTER_COUNTS), figsize=(11, 3.8), sharey=False)
         for col, k in enumerate(CLUSTER_COUNTS):
             sweep = gmm_rows[k]['sweep']
             ks = [t['n_components_'] for t in sweep]
@@ -844,28 +924,28 @@ def _(
             aic_best_k = min(sweep, key=lambda t: t['aic'])['n_components_']
             ll_best_k = max(sweep, key=lambda t: t['ll'])['n_components_']
             ax = axes_ic[col]
-            ax.plot(ks, [t['bic'] for t in sweep], marker='o', markersize=3, color='#4C72B0', linestyle='-', label='BIC')
-            ax.plot(ks, [t['aic'] for t in sweep], marker='o', markersize=3, color='#DD8452', linestyle='-', label='AIC')
+            ax.plot(ks, [t['bic'] for t in sweep], marker='o', markersize=3, color=CATEGORICAL_PALETTE[0], linestyle='-', label='BIC')
+            ax.plot(ks, [t['aic'] for t in sweep], marker='o', markersize=3, color=CATEGORICAL_PALETTE[1], linestyle='-', label='AIC')
             ax.axvline(k, color='gray', linestyle=':', label=f'true_k={k}')
-            ax.axvline(bic_best_k, color='#4C72B0', linestyle='--', alpha=0.6, label=f'BIC-best K={bic_best_k}')
-            ax.axvline(aic_best_k, color='#DD8452', linestyle='--', alpha=0.6, label=f'AIC-best K={aic_best_k}')
+            ax.axvline(bic_best_k, color=CATEGORICAL_PALETTE[0], linestyle='--', alpha=0.6, label=f'BIC-best K={bic_best_k}')
+            ax.axvline(aic_best_k, color=CATEGORICAL_PALETTE[1], linestyle='--', alpha=0.6, label=f'AIC-best K={aic_best_k}')
             ax.set_xlabel('K')
             if col == 0:
                 ax.set_ylabel('information criterion (lower is better)')
             ax_ll = ax.twinx()
-            ax_ll.plot(ks, [t['ll'] for t in sweep], marker='o', markersize=3, color='#55A868', linestyle='-', alpha=0.8, label='log-likelihood (training, monotonic)')
-            ax.axvline(ll_best_k, color='#55A868', linestyle='--', alpha=0.6, label=f'best-LL K={ll_best_k}')  # highest LL is "best" -- always K_SWEEP_MAX
+            ax_ll.plot(ks, [t['ll'] for t in sweep], marker='o', markersize=3, color=CATEGORICAL_PALETTE[2], linestyle='-', alpha=0.8, label='log-likelihood (training, monotonic)')
+            ax.axvline(ll_best_k, color=CATEGORICAL_PALETTE[2], linestyle='--', alpha=0.6, label=f'best-LL K={ll_best_k}')  # highest LL is "best" -- always K_SWEEP_MAX
             if col == len(CLUSTER_COUNTS) - 1:
                 ax_ll.set_ylabel('avg. log-likelihood per point')
             ax.set_title(f'true_k={k}')
             lines1, labels1 = ax.get_legend_handles_labels()
             lines2, labels2 = ax_ll.get_legend_handles_labels()
-            ax.legend(lines1 + lines2, labels1 + labels2, fontsize='x-small', loc='center right')
-        fig_ic.suptitle(f'{round_name}: classical GMM, BIC/AIC (left) vs log-likelihood (right, monotonic) over K=1..{K_SWEEP_MAX}', fontsize=13)
+            ax.legend(lines1 + lines2, labels1 + labels2, loc='center right')
+        fig_ic.suptitle(f'{round_name}: BIC / AIC and log-likelihood (right axis) over K=1..{K_SWEEP_MAX}')
         fig_ic.tight_layout()
         # --- one combined 4-row x 3-col figure: true data / GMM / Gibbs truncated / Gibbs unbounded
         # (rows 2-3 start from the same K, GIBBS_INIT_K) ---
-        fig, axes = plt.subplots(4, 3, figsize=dynamic_figsize(4, 3))
+        fig, axes = plt.subplots(4, 3, figsize=(11, 15.2))
         for col, k in enumerate(CLUSTER_COUNTS):
             d = datasets[k]
             X_pca = d['X_pca']
@@ -873,7 +953,7 @@ def _(
             # Row 0: true clusters, samples, and generating distributions
             means_2d, covs_2d = project_gaussian_params(d['true_means'], d['true_covs'], pca)
             proxy = make_viz_proxy(means_2d, covs_2d, torch.full((k,), 1.0 / k), d['labels'])
-            plot_gmm(X_pca, gmm=proxy, color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2], point_size=8, legend=False, ax=axes[0, col], title=f'true_k={k}: {k} true clusters, n={len(X_pca)}')
+            plot_gmm(X_pca, gmm=proxy, color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2.45], point_size=8, legend=False, ax=axes[0, col], title=f'true_k={k}: {k} true clusters, n={len(X_pca)}')
             dpgmm_rows = {}
             for key, label, cfg in method_configs():
                 r = fit_dpgmm_and_summarize(d['X'], d['labels'], pca, label, cfg['truncation_level'], WEIGHT_THRESHOLD, SEED, init_k=cfg['init_k'])
@@ -881,12 +961,12 @@ def _(
                 results[k, key] = r
             gmm_r = gmm_rows[k]
             for row_idx, r in enumerate([gmm_r, dpgmm_rows['gibbs_trunc'], dpgmm_rows['gibbs_unbounded']], start=1):
-                plot_gmm(X_pca, gmm=r['proxy'], color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2], point_size=8, legend=False, ax=axes[row_idx, col], title=f"true_k={k}: {r['title']}")
-        fig.suptitle(f'{round_name}: true data vs. classical GMM vs. Gibbs-mode GaussianMixture (PCA projection)', fontsize=16)
+                plot_gmm(X_pca, gmm=r['proxy'], color_by_cluster=True, cluster_colors=MASTER_COLORS, show_ellipses=True, ellipse_std_devs=[2.45], point_size=8, legend=False, ax=axes[row_idx, col], title=f"true_k={k}: {r['title']}")
+        fig.suptitle(f'{round_name}: truth vs. classical GMM vs. Gibbs mode (PCA projection)')
         # one legend for the whole figure (only when distribution info was supplied -- rounds 1/2 are pure Gaussian)
         if legend_info_fn is not None:
             handles = legend_info_fn(datasets[K_MAX]['cluster_info'])
-            fig.legend(handles=handles, loc='center left', bbox_to_anchor=(1.0, 0.5), fontsize='x-small')
+            fig.legend(handles=handles, loc='center left', bbox_to_anchor=(1.0, 0.5))
         fig.tight_layout()
         # --- summary table ---
         lines = [f"{'true_k':>6}  {'method':<24} {'n':>3}  {'ARI':>6}  {'LL':>9}  {'seconds':>8}"]
@@ -1100,7 +1180,13 @@ def _(mo):
     - A Gibbs run is a *trace*, not a convergence curve: the component count rises and falls and then stabilizes; `burn_in` only affects the recorded history, not the fitted parameters.
     - Truncated (`max_components=K`) and unbounded (`max_components=None`) samplers share the same occupancy-driven logic and agree when given the same starting partition (`init_k`); remaining differences are a mixing effect.
     - Compared with classical EM plus a BIC sweep, Gibbs mode lands at or close to the true cluster count on separated data (a short chain or a small sample can leave a few extra small components), tends to be more variable when clusters overlap, and inherits every shortcoming of the Gaussian assumption on non-Gaussian shapes.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     **Next:** [12 -- HDBSCAN](12_hdbscan.ipynb) for a nonparametric alternative that needs no component count and no Gaussian assumption, and [13 -- Model Selection](13_model_selection.ipynb) for the classical BIC/AIC/ICL route.
     """)
     return
