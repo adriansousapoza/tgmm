@@ -310,8 +310,8 @@ class TestUnsupported:
         with pytest.raises(ValueError):
             GaussianMixture(n_components=3, noise=True, **kwargs)
 
-    def test_discrete_families_hook_raises(self):
-        # families without bounded continuous support override the hook to raise (the discrete families arrive in Phase 2)
+    def test_noise_hook_can_reject_unbounded_support(self):
+        # a model whose density has no bounded continuous support overrides the hook to raise
         class Dummy(GaussianMixture):
             def _noise_log_density(self, X):
                 raise ValueError('noise component requires bounded continuous support')

@@ -4,7 +4,7 @@ from .gmm import GaussianMixture
 from .gmm_init import GMMInitializer
 from .hdbscan import HDBSCAN
 from .metrics import ClusteringMetrics
-from .mixtures import BaseMixture, Component, ConditionalGaussianMixture, GenericMixture
+from .mixtures import BaseMixture, ConditionalGaussianMixture
 from .model_selection import ModelSelectionResult, select_model
 from .semi_supervised import PositiveUnlabeledMixture
 from .stats import SufficientStats

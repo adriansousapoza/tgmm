@@ -156,7 +156,7 @@ See the [Semi-Supervised and PU Fitting](https://adriansousapoza.github.io/tgmm/
   needed, non-convex clusters, explicit noise points).
 - **`SufficientStats`** (the additive per-component statistics behind every M-step, used by
   chunked, online and streaming fitting) and **`BaseMixture`** (the EM machinery shared by
-  `GaussianMixture`, `ConditionalGaussianMixture` and `GenericMixture`) are public.
+  `GaussianMixture` and `ConditionalGaussianMixture`) are public.
 
 ## Citation
 

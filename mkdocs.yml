@@ -174,6 +174,7 @@ plugins:
         notebooks/15_student_t.md: tutorials/index.md
         api/student-t-mixture.md: api/gaussian-mixture.md
         api/vmf-mixture.md: api/gaussian-mixture.md
+        api/generic-mixture.md: api/gaussian-mixture.md
 
 extra_javascript:
   - javascripts/mathjax.js
@@ -215,7 +216,6 @@ nav:
       - GPCM Covariance: api/covariance-gpcm.md
       - tgmm.BaseMixture: api/base-mixture.md
       - tgmm.ConditionalGaussianMixture: api/conditional-gaussian-mixture.md
-      - tgmm.GenericMixture: api/generic-mixture.md
       - tgmm.PositiveUnlabeledMixture: api/positive-unlabeled-mixture.md
       - tgmm.GMMInitializer: api/gmm-initializer.md
       - tgmm.ClusteringMetrics: api/clustering-metrics.md

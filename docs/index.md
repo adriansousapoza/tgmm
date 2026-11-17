@@ -109,8 +109,7 @@ See [Semi-Supervised and PU Fitting](notebooks/15_semi_supervised_pu.ipynb).
 
 `noise=True` adds a uniform noise component that labels strays `-1`; `missing='em'` fits data with `NaN` entries and
 `impute`s them; `GaussianMixture.marginal` / `condition` give marginal and conditional distributions (Gaussian mixture
-regression); `frozen_components` and `sample_weight` control what EM may change; and `GenericMixture` fits components you write
-yourself. See [Noise, Missing Values and Conditioning](notebooks/16_noise_missing_conditioning.ipynb).
+regression); and `frozen_components` and `sample_weight` control what EM may change. See [Noise, Missing Values and Conditioning](notebooks/16_noise_missing_conditioning.ipynb).
 
 ### 4. Clustering metrics
 
@@ -127,7 +126,7 @@ non-convex clusters, explicit noise points (see the [HDBSCAN tutorial](notebooks
 ### 6. Building blocks
 
 `SufficientStats` (the additive $n_k,\sum_ir_{ik}x_i,W_k$ statistics behind every M-step, used by
-chunked, online and streaming fitting) and `BaseMixture` (the EM machinery shared by `GaussianMixture`, `ConditionalGaussianMixture` and `GenericMixture`) are public.
+chunked, online and streaming fitting) and `BaseMixture` (the EM machinery shared by `GaussianMixture` and `ConditionalGaussianMixture`) are public.
 
 ### 7. Visualization
 

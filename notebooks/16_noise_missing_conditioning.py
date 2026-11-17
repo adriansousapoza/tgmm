@@ -45,11 +45,10 @@ def _(mo):
     mo.md(r"""
     # Noise, Missing Values and Conditioning
 
-    A fitted mixture is more than a clustering. This tutorial shows five things you can do *around* the EM fit once the
+    A fitted mixture is more than a clustering. This tutorial shows four things you can do *around* the EM fit once the
     model is a proper probability density: give stray points somewhere to go (a **uniform noise component**), fit data
     with holes in it (**missing-value EM**), ask questions of the fitted density (**marginals** and **conditionals**, hence
-    Gaussian mixture regression), control what EM is allowed to change (**frozen components** and **sample weights**), and
-    bring your own component families (**the component protocol** and `GenericMixture`).
+    Gaussian mixture regression), and control what EM is allowed to change (**frozen components** and **sample weights**).
 
     **What you'll learn**
 
@@ -57,13 +56,12 @@ def _(mo):
     - how `missing='em'` fits incomplete rows by maximising the likelihood of the *observed* entries, and what `impute` returns;
     - how `marginal` and `condition` turn a fitted `GaussianMixture` into a regressor whose conditional distributions can be bimodal;
     - how `frozen_components` pins a known component and how integer `sample_weight`s equal duplicating rows;
-    - how to plug a hand-written component (here an exponential) into `GenericMixture` by implementing three methods.
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model and EM) and [02 -- Covariance Types](02_covariance_types.ipynb).
 
     **Notation:** $n$ samples, $d$ features, $K$ components, responsibilities $r_{ik}$, $n_k=\sum_i r_{ik}$.
 
-    **See also:** the API pages for [`ConditionalGaussianMixture`](../api/conditional-gaussian-mixture.md) and [`GenericMixture`](../api/generic-mixture.md).
+    **See also:** the API page for [`ConditionalGaussianMixture`](../api/conditional-gaussian-mixture.md).
     """)
     return
 
@@ -86,7 +84,7 @@ def _():
     import torch
     import matplotlib.pyplot as plt
 
-    from tgmm import GaussianMixture, GenericMixture, HDBSCAN
+    from tgmm import GaussianMixture, HDBSCAN
     from tgmm.metrics import ClusteringMetrics
     from tgmm.plotting import CATEGORICAL_PALETTE
 
@@ -104,7 +102,6 @@ def _():
         CATEGORICAL_PALETTE,
         ClusteringMetrics,
         GaussianMixture,
-        GenericMixture,
         HDBSCAN,
         SEED,
         math,
@@ -628,8 +625,6 @@ def _(mo):
     $$
 
     with $N_{kj}=\sum_ir_{ik}w_{ij}$. Other models raise `ValueError`. This is the same likelihood as `missing='em'` for a diagonal model, which the last cell of this section checks.
-
-    pomegranate's `inertia` is deliberately not added: `step_size` (online EM / SAEM) is the same control on the statistics.
     """)
     return
 
@@ -674,147 +669,6 @@ def _(GaussianMixture, SEED, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 5. Bring your own component: the protocol and `GenericMixture`
-
-    `GaussianMixture` is a `BaseMixture`, and `GenericMixture` is the one that takes its components from you. A component is any object that
-    implements three methods (the shape pomegranate popularised):
-
-    | method | job |
-    | --- | --- |
-    | `log_probability(X)` | return $\log f_k(x_i)$, shape `(n,)` |
-    | `summarize(X, sample_weight)` | **accumulate** weighted statistics of one chunk of data (`sample_weight` = responsibility $\times$ row weight) |
-    | `from_summaries()` | update the parameters from everything summarised, then reset the accumulators |
-
-    The M-step calls `summarize` once per data chunk and `from_summaries` once, so `batch_size` works for free. Optional members are `sample(n)`,
-    `n_parameters()` (needed for `bic`/`aic`/`icl`) and a `frozen` flag. A plain `torch.nn.Module` with a `log_prob(X)` method is also accepted: it is
-    updated by a few L-BFGS steps that are kept only if they improve the expected complete-data log-likelihood.
-
-    **M-step.** For every data chunk and every non-frozen component, `summarize(X_chunk, resp_chunk[:, k])` is called, then `from_summaries()` once. Because `summarize` accumulates, chunked equals
-    unchunked; mixing weights are $\pi_k=n_k/n$ as in every mixture. The protocol is `tgmm.mixtures.protocol.Component`, a runtime-checkable `typing.Protocol` whose shape is borrowed from
-    pomegranate 1.x (MIT); tgmm does not import pomegranate. Optional members: `sample(n)`, `n_parameters()` (fallback: the number of scalar entries in the object's public tensors), `frozen` and `reseed(x)`.
-
-    **Autograd components.** A `torch.nn.Module` with learnable parameters and a `log_prob(X)` method (and no `summarize`) is wrapped automatically. Its M-step maximises
-    $Q_k(\theta_k)=\sum_iw_{ik}\log f_k(x_i\mid\theta_k)\big/\sum_iw_{ik}$ with a few L-BFGS steps and **keeps the update only if $Q_k$ increases**, so the log-likelihood stays monotone (a generalised EM step).
-
-    **Decisions.** The components you pass *are* the starting point (no k-means) and `n_init` must be 1; frozen parameters still count in BIC; `em`, `cem`, `sem` (with `sem_estimate='best'`) and
-    `temperature` work, while `saem`, online EM and `partial_fit` raise `NotImplementedError` (opaque `summarize` state cannot be blended); `noise=True` needs a float `noise_volume`; per-feature
-    weights and `missing='em'` raise `ValueError`; and `save`/`load` pickle the components, so their classes must be importable.
-
-    Here is a tiny mixture of an **exponential** (waiting times) and a **normal** (a burst around 6) over positive data -- neither is a `GaussianMixture` component.
-    """)
-    return
-
-
-@app.cell
-def _(math, torch):
-    class Exponential:
-        """f(x) = rate * exp(-rate x) on x >= 0; the weighted M-step is rate = sum(w) / sum(w x)."""
-
-        def __init__(self, rate):
-            self.rate = torch.tensor(float(rate), dtype=torch.float64)
-            self._reset()
-
-        def _reset(self):
-            self._sw = torch.zeros((), dtype=torch.float64)
-            self._sx = torch.zeros((), dtype=torch.float64)
-
-        def log_probability(self, X):
-            _x = X[:, 0]
-            return torch.where(_x >= 0, torch.log(self.rate) - self.rate * _x, torch.full_like(_x, -1e30))
-
-        def summarize(self, X, sample_weight):
-            _w = sample_weight.to(torch.float64)
-            self._sw = self._sw + _w.sum()
-            self._sx = self._sx + (_w * X[:, 0]).sum()
-
-        def from_summaries(self):
-            if float(self._sw) > 1e-12:
-                self.rate = self._sw / self._sx.clamp(min=1e-12)
-            self._reset()
-
-        def sample(self, n):
-            return torch.distributions.Exponential(self.rate).sample((n, 1))
-
-        def n_parameters(self):
-            return 1
-
-
-    class Normal1D:
-        """N(mean, var) with the usual weighted-moment M-step."""
-
-        def __init__(self, mean, var):
-            self.mean = torch.tensor([float(mean)], dtype=torch.float64)
-            self.var = torch.tensor([float(var)], dtype=torch.float64)
-            self._reset()
-
-        def _reset(self):
-            self._sw = torch.zeros((), dtype=torch.float64)
-            self._s1 = torch.zeros(1, dtype=torch.float64)
-            self._s2 = torch.zeros(1, dtype=torch.float64)
-
-        def log_probability(self, X):
-            return (-0.5 * ((X - self.mean) ** 2 / self.var + torch.log(2 * math.pi * self.var))).sum(1)
-
-        def summarize(self, X, sample_weight):
-            _w = sample_weight.to(torch.float64)
-            self._sw = self._sw + _w.sum()
-            self._s1 = self._s1 + (_w[:, None] * X).sum(0)
-            self._s2 = self._s2 + (_w[:, None] * X * X).sum(0)
-
-        def from_summaries(self):
-            if float(self._sw) > 1e-12:
-                self.mean = self._s1 / self._sw
-                self.var = (self._s2 / self._sw - self.mean ** 2).clamp(min=0) + 1e-6
-            self._reset()
-
-        def sample(self, n):
-            return self.mean + self.var.sqrt() * torch.randn(n, 1, dtype=torch.float64)
-
-        def n_parameters(self):
-            return 2
-
-    return Exponential, Normal1D
-
-
-@app.cell
-def _(
-    CATEGORICAL_PALETTE,
-    Exponential,
-    GenericMixture,
-    MAX_ITER,
-    Normal1D,
-    SEED,
-    plt,
-    torch,
-):
-    _g = torch.Generator().manual_seed(SEED + 5)
-    _waits = torch.distributions.Exponential(torch.tensor(1.0, dtype=torch.float64)).sample((600, 1))
-    _burst = 6 + 0.7 * torch.randn(300, 1, generator=_g, dtype=torch.float64)
-    X_wait = torch.cat([_waits, _burst])
-
-    generic = GenericMixture(components=[Exponential(0.5), Normal1D(5.0, 1.0)], random_state=SEED, max_iter=MAX_ITER, device='cpu').fit(X_wait)  # the components hold CPU tensors
-    print(f'weights {generic.weights_.cpu().numpy().round(3).tolist()}   (true 0.667 / 0.333)')
-    print(f'exponential rate {float(generic.components_[0].rate):.2f} (true 1.0);  normal mean {float(generic.components_[1].mean):.2f}, '
-          f'variance {float(generic.components_[1].var):.2f} (true 6.0 / 0.49)')
-    print(f'converged in {generic.n_iter_} iterations; BIC = {generic.bic(X_wait):.1f}; {generic.sample(3)[0].shape[0]} samples drawn from the fitted components')
-
-    _grid = torch.linspace(0, 9, 300, dtype=torch.float64)[:, None]
-    _pdf_total = generic.score_samples(_grid).exp()
-    plt.figure(figsize=(6.5, 4.5))
-    plt.hist(X_wait[:, 0], bins=50, density=True, color='0.8', label='data')
-    for _k, _name in enumerate(['exponential', 'normal']):
-        plt.plot(_grid[:, 0], generic.weights_[_k] * generic.components_[_k].log_probability(_grid).exp(),
-                 color=CATEGORICAL_PALETTE[_k], label=f'{_name} (weighted)')
-    plt.plot(_grid[:, 0], _pdf_total, 'k', label='mixture')
-    plt.legend()
-    plt.title('GenericMixture of an exponential and a normal')
-    plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Summary
 
     - `noise=True` adds a uniform component $\pi_0/V$: `predict` returns `-1` for noise, `noise_proba(X)` gives the probability, `weights_` sums to $1-\pi_0$, and
@@ -824,8 +678,6 @@ def _(mo):
     - `marginal(dims)` and `condition(x_obs, obs_dims)` turn a fitted `GaussianMixture` into marginal and conditional distributions; `mean()` is Gaussian mixture
       regression and the conditional can be multimodal where a regression mean is misleading.
     - `frozen_components` pins components at their initial parameters, and `sample_weight` counts rows (integer weights equal duplication; per-feature weights for factorising models).
-    - `GenericMixture` fits any family that implements `log_probability`, `summarize` and `from_summaries` (or any `nn.Module` with `log_prob`), with `batch_size`,
-      `sample_weight`, frozen components and information criteria included.
     """)
     return
 

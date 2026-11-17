@@ -1,7 +1,6 @@
 r"""
 BaseMixture: the shared EM/CEM/SEM/SAEM/online-EM machinery behind
-`GaussianMixture` (and `GenericMixture`, which plugs user-defined components
-into the same machinery).
+`GaussianMixture` (and, through it, `ConditionalGaussianMixture`).
 
 The class keeps a few hook points (`_compute_stats`, `_m_step`,
 `_sample_component`, `_get_param_snapshot`, `_noise_log_density`, ...) that a
@@ -9,15 +8,15 @@ subclass overrides; `GaussianMixture` keeps its own, more specialized
 implementation of `fit`'s Gibbs/supervised dispatch, `sample`'s rich feature
 set, and all of `save`/`load`/`save_state_dict`/`load_state_dict`. (Design
 history: docs/superpowers/specs/2026-10-14-phase4-base-mixture-studentt-vmf-design.md,
-written when `BaseMixture` was extracted; the two other families it describes
-have since been removed.)
+written when `BaseMixture` was extracted; the other mixture families it describes
+have since been removed: tgmm only provides Gaussian mixtures.)
 
-`BaseMixture.__init__` is convenience infrastructure for subclasses such as
-`GenericMixture`: it validates and stores the arguments the shared methods
-below actually need, with defaults such that calling it with no arguments at
-all is a safe no-op beyond `nn.Module.__init__`. `GaussianMixture` does not
-call it with any arguments -- its own `__init__` remains the sole source of
-truth for its ~90-attribute configuration.
+`BaseMixture.__init__` is convenience infrastructure for subclasses: it validates
+and stores the arguments the shared methods below actually need, with defaults
+such that calling it with no arguments at all is a safe no-op beyond
+`nn.Module.__init__`. `GaussianMixture` does not call it with any arguments --
+its own `__init__` remains the sole source of truth for its ~90-attribute
+configuration.
 """
 import math
 import numbers
@@ -39,7 +38,7 @@ _VALID_SEM_ESTIMATES = ('best', 'mean')
 
 class BaseMixture(nn.Module, ABC):
     r"""
-    Shared scaffolding for EM-family mixture models.
+    Shared scaffolding for EM-fitted mixture models (`GaussianMixture` and the models built on it).
 
     Subclasses must implement the abstract methods below; everything else
     here is usable as-is. See the design doc for the full rationale.
@@ -380,7 +379,7 @@ class BaseMixture(nn.Module, ABC):
     # ===================================================================
     # Missing values (v0.5 item 1.2). See
     # docs/superpowers/specs/2026-10-15-v05-missing-values-design.md.
-    # With missing='error' (default) NaN input raises; with missing='em' (families
+    # With missing='error' (default) NaN input raises; with missing='em' (models
     # that set `_supports_missing`) NaN marks missing-at-random entries. On data
     # without NaN both settings take exactly the same code path.
     # ===================================================================
@@ -668,10 +667,9 @@ class BaseMixture(nn.Module, ABC):
     # ===================================================================
     # Snapshotting fitted parameters, for the n_init loop and SEM's
     # post-burn-in best/mean selection. Override to add subclass-specific
-    # parameters beyond weights_/means_/covariances_ (GenericMixture adds its
-    # components' parameters) -- both _get_fit_snapshot and SEM automatically
-    # pick up any extra keys an override adds, no further changes needed
-    # anywhere else.
+    # parameters beyond weights_/means_/covariances_: both _get_fit_snapshot
+    # and SEM automatically pick up any extra keys an override adds, no
+    # further changes needed anywhere else.
     # ===================================================================
     def _get_param_snapshot(self) -> dict:
         snapshot = {
@@ -1888,7 +1886,7 @@ class BaseMixture(nn.Module, ABC):
     # ===================================================================
     # Sampling: a plain shell. GaussianMixture overrides `sample` entirely
     # with its much richer implementation (confidence regions, rejection
-    # sampling, etc.); this is what GenericMixture uses.
+    # sampling, etc.) and falls back on this one for `noise=True` models.
     # ===================================================================
     def sample(self, n_samples: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
         r"""
@@ -1920,49 +1918,3 @@ class BaseMixture(nn.Module, ABC):
                 samples[noise_mask] = self._sample_noise(count).to(samples.dtype)
             component_indices = torch.where(noise_mask, torch.full_like(component_indices, -1), component_indices)
         return samples, component_indices
-
-    # ===================================================================
-    # Generic GEM step: an autograd-based update for a parameter that has
-    # no closed form, accepted only if it improves the objective. Lives
-    # here (rather than duplicated per subclass) so any subclass -- such as
-    # GenericMixture -- can use it without re-deriving the
-    # LBFGS-and-accept-on-improvement pattern Phase 3's GPCM orientation
-    # optimization already established.
-    # ===================================================================
-    @staticmethod
-    def _gem_step(
-        objective: Callable[[], torch.Tensor], params, n_steps: int = 20,
-    ) -> bool:
-        r"""
-        Minimize `objective()` (a closure reading the current values of
-        `params`, a list of `torch.nn.Parameter`) via up to `n_steps`
-        `torch.optim.LBFGS` steps. Accepts the update only if `objective()`
-        strictly decreased; otherwise the parameters are restored to their
-        pre-call values.
-
-        Returns
-        -------
-        bool
-            Whether the step was accepted.
-        """
-        with torch.no_grad():
-            initial = objective().item()
-            initial_values = [p.detach().clone() for p in params]
-
-        optimizer = torch.optim.LBFGS(params, max_iter=n_steps, line_search_fn='strong_wolfe')
-
-        def closure():
-            optimizer.zero_grad()
-            loss = objective()
-            loss.backward()
-            return loss
-
-        optimizer.step(closure)
-
-        with torch.no_grad():
-            final = objective().item()
-            if final < initial:
-                return True
-            for p, v in zip(params, initial_values):
-                p.copy_(v)
-            return False

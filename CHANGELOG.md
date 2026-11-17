@@ -28,16 +28,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Removed (breaking)
 
-tgmm now only provides **Gaussian mixtures**. These were introduced in 0.4.0 and are last available in 0.4.3:
+tgmm now only provides **Gaussian mixtures**. These are last available in 0.4.3 (the Student-t and von Mises-Fisher classes were introduced in 0.4.0, `GenericMixture` in 0.4.1):
 
 - `StudentTMixture` (`tgmm.mixtures.student_t`) and `VonMisesFisherMixture` (`tgmm.mixtures.vmf`).
 - The von Mises-Fisher plotting helpers `plot_vmf`, `plot_vmf_cosine`, `vmf_angle_density` and `vmf_cap_angle`.
+- `GenericMixture` and the `Component` protocol (`tgmm.mixtures.generic`, `tgmm.mixtures.protocol`): the "bring your own distribution" framework, with its
+  exponential/normal example.
 - The `family` argument of `PositiveUnlabeledMixture` (it had `'gaussian'`, `'student_t'` and `'vmf'`; the model is Gaussian only now, so
   `PositiveUnlabeledMixture(family='gaussian', ...)` becomes `PositiveUnlabeledMixture(...)`).
-- The two tutorials on these families and their API pages; the other tutorials are renumbered and the old URLs redirect.
+- The two tutorials on the Student-t and von Mises-Fisher families, the `GenericMixture` section of the noise/missing-values/conditioning tutorial, and
+  these classes' API pages; the other tutorials are renumbered and the old URLs redirect.
 
 Code that imports or constructs the removed classes breaks, so the next release should bump the minor version (0.5.0). The shared
-`BaseMixture` machinery stays: it underlies `GaussianMixture`, `ConditionalGaussianMixture` and `GenericMixture`.
+`BaseMixture` machinery stays: it underlies `GaussianMixture` and `ConditionalGaussianMixture`.
 
 ### Changed (documentation)
 
