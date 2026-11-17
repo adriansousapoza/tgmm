@@ -109,14 +109,14 @@ the [Student-t](notebooks/15_student_t.ipynb) and [von Mises-Fisher](notebooks/1
 
 Every family supports `fit(X, labels=...)` with `-1` for unknown rows (semi-supervised EM, multiple components
 per class), and `PositiveUnlabeledMixture` handles positive-unlabeled (PU) learning under the SCAR assumption.
-See [Semi-Supervised and PU Fitting](notebooks/17_semi_supervised_pu.ipynb).
+See [Semi-Supervised and PU Fitting](notebooks/15_semi_supervised_pu.ipynb).
 
 ### 4. Noise, missing values and conditioning
 
 `noise=True` adds a uniform noise component that labels strays `-1`; `missing='em'` fits data with `NaN` entries and
 `impute`s them; `GaussianMixture.marginal` / `condition` give marginal and conditional distributions (Gaussian mixture
 regression); `frozen_components` and `sample_weight` control what EM may change; and `GenericMixture` fits components you write
-yourself. See [Noise, Missing Values and Conditioning](notebooks/18_noise_missing_conditioning.ipynb).
+yourself. See [Noise, Missing Values and Conditioning](notebooks/16_noise_missing_conditioning.ipynb).
 
 ### 5. Clustering metrics
 

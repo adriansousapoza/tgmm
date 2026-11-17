@@ -604,7 +604,7 @@ def _(mo):
     know -- a calibrated background, a reference population -- and let the others adapt around it. Priors never shrink a frozen component and SEM never
     re-seeds it. The initial values come from `init_means` / `init_covariances` or `warm_start`; $\sum_k\pi_k+\pi_0=1$ is preserved. Not supported (`ValueError`): tied covariance types and GPCM codes
     without a classic name, `dof='shared'`, `concentration='shared'` and Gibbs mode. `PositiveUnlabeledMixture(anchor='fixed')`, in
-    [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb), is built on it.
+    [15 -- Semi-Supervised and Positive-Unlabeled Fitting](15_semi_supervised_pu.ipynb), is built on it.
     """)
     return
 
@@ -849,7 +849,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb) for another way of steering the fit, or back to the [tutorial overview](../tutorials/index.md).
+    **Next:** [15 -- Semi-Supervised and Positive-Unlabeled Fitting](15_semi_supervised_pu.ipynb) for another way of steering the fit, or back to the [tutorial overview](../tutorials/index.md).
 
     ## References
 

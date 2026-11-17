@@ -43,7 +43,7 @@ def _(mo):
     mo.md(r"""
     # k-means++: How the Seeding Works
 
-    `init_means='kpp'` and `init_means='kmeans'` (see [3. Initialization](03_initialization.ipynb)) both start from **k-means++ seeding**: a way of choosing $k$ starting centres from the data that spreads them out *without* being fooled by outliers. This tutorial builds the algorithm step by step, shows what its sampling probabilities look like, checks that the step-by-step version reproduces `GMMInitializer.kpp` exactly, and measures why the squared distance is the right weight. The next tutorial, [21. k-means](21_kmeans.ipynb), shows what happens after the seeding.
+    `init_means='kpp'` and `init_means='kmeans'` (see [3. Initialization](03_initialization.ipynb)) both start from **k-means++ seeding**: a way of choosing $k$ starting centres from the data that spreads them out *without* being fooled by outliers. This tutorial builds the algorithm step by step, shows what its sampling probabilities look like, checks that the step-by-step version reproduces `GMMInitializer.kpp` exactly, and measures why the squared distance is the right weight. The next tutorial, [21. k-means](19_kmeans.ipynb), shows what happens after the seeding.
 
     **What you'll learn**
 
@@ -54,7 +54,7 @@ def _(mo):
 
     **Prerequisites:** [1. Introduction](01_introduction.ipynb) and [3. Initialization](03_initialization.ipynb).
 
-    **See also:** [21. k-means](21_kmeans.ipynb), the [`GMMInitializer` API reference](../api/gmm-initializer.md).
+    **See also:** [21. k-means](19_kmeans.ipynb), the [`GMMInitializer` API reference](../api/gmm-initializer.md).
     """)
     return
 
@@ -405,7 +405,7 @@ def _(mo, results):
 
     - **Cost.** Each step computes the distances from all $N$ points to the new centre, so seeding costs $O(Nkd)$: the same as *one* iteration of Lloyd's algorithm. It is inherently sequential (the probabilities of step $i$ depend on the centre drawn in step $i-1$). For very large data a parallel variant, k-means$\parallel$ (Bahmani et al., 2012), draws several centres per round.
     - **Greedy k-means++.** The common refinement (used by scikit-learn) draws a few candidates per step and keeps the one that lowers the cost most. It is not in `GMMInitializer`; `n_init` restarts play a similar role.
-    - **Seeding is not the end.** The seeds are data points, not cluster means. `init_means='kmeans'` therefore polishes them with Lloyd's algorithm ([21. k-means](21_kmeans.ipynb)), and EM then refines everything including weights and covariances.
+    - **Seeding is not the end.** The seeds are data points, not cluster means. `init_means='kmeans'` therefore polishes them with Lloyd's algorithm ([21. k-means](19_kmeans.ipynb)), and EM then refines everything including weights and covariances.
 
     ## Summary
 
@@ -421,7 +421,7 @@ def _(mo):
     mo.md(r"""
     ## Try it yourself (interactive version)
 
-    The page you are reading shows the defaults. In the interactive version of this notebook (open it with the link at the top of the page, or run `marimo edit notebooks/20_kmeans_plus_plus.py` from a clone) the controls below change the number of centres $k$, the random seed and the sampling rule, and the probability maps update. The defaults here ($k=6$, seed 1) differ from the run above. The results are static figures: no video is made for your own settings, which would be too slow.
+    The page you are reading shows the defaults. In the interactive version of this notebook (open it with the link at the top of the page, or run `marimo edit notebooks/18_kmeans_plus_plus.py` from a clone) the controls below change the number of centres $k$, the random seed and the sampling rule, and the probability maps update. The defaults here ($k=6$, seed 1) differ from the run above. The results are static figures: no video is made for your own settings, which would be too slow.
     """)
     return
 
@@ -468,7 +468,7 @@ def _(X, X_tensor, draw_step, k_try, kpp_trace, np, plt, potential, power_try, s
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [21. k-means](21_kmeans.ipynb), what Lloyd's algorithm does with the seeds. Back to [3. Initialization](03_initialization.ipynb).
+    **Next:** [21. k-means](19_kmeans.ipynb), what Lloyd's algorithm does with the seeds. Back to [3. Initialization](03_initialization.ipynb).
 
     ## References
 

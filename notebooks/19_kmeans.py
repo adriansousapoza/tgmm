@@ -53,7 +53,7 @@ def _(mo):
     - How k-means is the hard-assignment limit of EM for a Gaussian mixture, and why its clusters are Voronoi cells
     - Why it is a good initialiser but not a good model: its sensitivity to the start and its spherical bias
 
-    **Prerequisites:** [1. Introduction](01_introduction.ipynb), [3. Initialization](03_initialization.ipynb) and [20. k-means++](20_kmeans_plus_plus.ipynb), which explains the seeding that k-means starts from.
+    **Prerequisites:** [1. Introduction](01_introduction.ipynb), [3. Initialization](03_initialization.ipynb) and [20. k-means++](18_kmeans_plus_plus.ipynb), which explains the seeding that k-means starts from.
 
     **See also:** [7. Classification EM (CEM)](07_cem.ipynb) for the same hard-assignment idea with full covariances, and the [`GMMInitializer` API reference](../api/gmm-initializer.md).
     """)
@@ -153,7 +153,7 @@ def _(mo):
 
     `GMMInitializer.kmeans(data, k, max_iter, atol, random_state)`:
 
-    - **Start.** The centres start from k-means++ seeding, `GMMInitializer.kpp(data, k, random_state)` ([20. k-means++](20_kmeans_plus_plus.ipynb)).
+    - **Start.** The centres start from k-means++ seeding, `GMMInitializer.kpp(data, k, random_state)` ([20. k-means++](18_kmeans_plus_plus.ipynb)).
     - **Empty clusters.** If a cluster loses all its points it has no mean (0/0). tgmm re-seeds it at the data point that is farthest from its own assigned centre, the usual remedy.
     - **Stopping rule.** It stops when `torch.allclose(old_centres, new_centres, atol=atol)` holds (`atol` $=10^{-4}$ by default, together with PyTorch's default relative tolerance $10^{-5}$), or after `max_iter` iterations, and it returns the **old** centres of that last iteration (they differ from the new ones by less than the tolerance).
 
@@ -441,7 +441,7 @@ def _(mo):
     mo.md(r"""
     ## Try it yourself (interactive version)
 
-    The page you are reading shows the defaults. In the interactive version of this notebook (open it with the link at the top of the page, or run `marimo edit notebooks/21_kmeans.py` from a clone) the controls below change the number of clusters $k$, the random seed and the kind of start (k-means++ seeds or uniformly chosen data points), and the pictures update. The defaults here ($k=6$, seed 1) differ from the run above. The results are static figures: no video is made for your own settings, which would be too slow.
+    The page you are reading shows the defaults. In the interactive version of this notebook (open it with the link at the top of the page, or run `marimo edit notebooks/19_kmeans.py` from a clone) the controls below change the number of clusters $k$, the random seed and the kind of start (k-means++ seeds or uniformly chosen data points), and the pictures update. The defaults here ($k=6$, seed 1) differ from the run above. The results are static figures: no video is made for your own settings, which would be too slow.
     """)
     return
 

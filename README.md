@@ -162,7 +162,7 @@ class); any `-1` present runs semi-supervised EM (`unlabeled_weight`, `label_con
 per-row positive probability under the SCAR assumption, for `family in ('gaussian',
 'student_t', 'vmf')`, with `anchor in ('fixed', 'prior', 'free')` controlling identifiability.
 
-See the [Semi-Supervised and PU Fitting](https://adriansousapoza.github.io/tgmm/notebooks/17_semi_supervised_pu/) tutorial.
+See the [Semi-Supervised and PU Fitting](https://adriansousapoza.github.io/tgmm/notebooks/15_semi_supervised_pu/) tutorial.
 
 ### 7. Density-based clustering and building blocks
 

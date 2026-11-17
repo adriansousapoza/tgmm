@@ -61,7 +61,7 @@ def _(mo):
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) and [07 -- Classification EM](07_cem.ipynb).
 
-    **See also:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb), where only some labels are known.
+    **See also:** [15 -- Semi-Supervised and Positive-Unlabeled Fitting](15_semi_supervised_pu.ipynb), where only some labels are known.
     """)
     return
 
@@ -432,7 +432,7 @@ def _(GaussianMixture, X_tensor, n_components, torch, y_tensor):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Accuracy is measured against the full labels. Adding the unlabelled rows raises the likelihood but can lower the agreement with the labels, because the data's natural structure disagrees with the labelling; a smaller $u$ trusts the labels more. For noisy labels, positive-unlabelled problems and the details of every option see [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb).
+    Accuracy is measured against the full labels. Adding the unlabelled rows raises the likelihood but can lower the agreement with the labels, because the data's natural structure disagrees with the labelling; a smaller $u$ trusts the labels more. For noisy labels, positive-unlabelled problems and the details of every option see [15 -- Semi-Supervised and Positive-Unlabeled Fitting](15_semi_supervised_pu.ipynb).
     """)
     return
 
@@ -455,7 +455,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [17 -- Semi-Supervised and Positive-Unlabeled Fitting](17_semi_supervised_pu.ipynb) for the full treatment of partially labeled data and `PositiveUnlabeledMixture`, or [09 -- Clustering Metrics](09_metrics.ipynb) to quantify agreement with labels.
+    **Next:** [15 -- Semi-Supervised and Positive-Unlabeled Fitting](15_semi_supervised_pu.ipynb) for the full treatment of partially labeled data and `PositiveUnlabeledMixture`, or [09 -- Clustering Metrics](09_metrics.ipynb) to quantify agreement with labels.
     """)
     return
 

@@ -520,7 +520,7 @@ def _(mo):
     mo.md(r"""
     ## How separation and noise move the choice
 
-    Three Gaussian blobs of unit variance whose centres are spread by `separation` (the corners of a triangle with side `separation`). The table below sweeps it, with and without 30 uniform background points, and reports the $K=1,\dots,6$ that BIC and ICL choose with full covariances (a curve plot for any separation is in the interactive section at the end). When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot. Background noise is not Gaussian, so the mixture tends to spend an extra component on it unless you model it explicitly (see [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb), and [12 -- HDBSCAN](12_hdbscan.ipynb) for removing it first).
+    Three Gaussian blobs of unit variance whose centres are spread by `separation` (the corners of a triangle with side `separation`). The table below sweeps it, with and without 30 uniform background points, and reports the $K=1,\dots,6$ that BIC and ICL choose with full covariances (a curve plot for any separation is in the interactive section at the end). When the blobs overlap, ICL's entropy penalty is large and it prefers fewer components than BIC; as they separate the two curves merge, because the responsibilities become one-hot. Background noise is not Gaussian, so the mixture tends to spend an extra component on it unless you model it explicitly (see [16 -- Noise, Missing Values and Conditioning](16_noise_missing_conditioning.ipynb), and [12 -- HDBSCAN](12_hdbscan.ipynb) for removing it first).
     """)
     return
 

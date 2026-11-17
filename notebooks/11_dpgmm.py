@@ -59,7 +59,7 @@ def _(mo):
     All plotting goes through the library's official [`plot_gmm`](06_visualise.ipynb) tooling, projecting the 10-d Gaussians to 2D via PCA for visualization only -- the sampler itself never sees that projection.
 
     **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [06 -- Visualization](06_visualise.ipynb), [04 -- Priors](04_priors.ipynb).
-    See also [19 -- Constraints and Weights](19_constraints_and_weights.ipynb) for the other `GaussianMixture` options that are not available in Gibbs mode.
+    See also [17 -- Constraints and Weights](17_constraints_and_weights.ipynb) for the other `GaussianMixture` options that are not available in Gibbs mode.
     """)
     return
 
@@ -338,7 +338,7 @@ def _(mo):
     - The unbounded variant seeds the sampler with `init_k` components (default $\max(2,\min(20,n/2))$) and records the number of
       active tables per sweep after `burn_in` (default `max_iter // 5`) in `n_components_history_`; the truncated variant (default `max_components=20`) has no history.
     - Gibbs mode needs an explicit NIW prior (`GaussianMixture.suggest_priors(X, n_components)` gives a sensible start from a $k$-means pass) and
-      does not support supervised fitting (`labels=`), the constraints of [19 -- Constraints and Weights](19_constraints_and_weights.ipynb), or online EM.
+      does not support supervised fitting (`labels=`), the constraints of [17 -- Constraints and Weights](17_constraints_and_weights.ipynb), or online EM.
     """)
     return
 

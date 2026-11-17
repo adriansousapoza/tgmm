@@ -57,7 +57,7 @@ def _(mo):
 
     **Prerequisites:** [1. Introduction](01_introduction.ipynb).
 
-    **See also:** [2. Covariance Structures](02_covariance_types.ipynb) for the shape constraints placed on $\Sigma_k$, [20 -- k-means++ Seeding](20_kmeans_plus_plus.ipynb) and [21 -- k-means (Lloyd's Algorithm)](21_kmeans.ipynb) for step-by-step visualisations of `kpp` and `kmeans`, and the [`GMMInitializer` API reference](../api/gmm-initializer.md).
+    **See also:** [2. Covariance Structures](02_covariance_types.ipynb) for the shape constraints placed on $\Sigma_k$, [18 -- k-means++ Seeding](18_kmeans_plus_plus.ipynb) and [19 -- k-means (Lloyd's Algorithm)](19_kmeans.ipynb) for step-by-step visualisations of `kpp` and `kmeans`, and the [`GMMInitializer` API reference](../api/gmm-initializer.md).
     """)
     return
 
@@ -188,13 +188,13 @@ def _(mo):
     $$
     P(x_j) = \frac{D(x_j)}{\sum_{j'=1}^{N} D(x_{j'})}, \qquad D(x_j) = \min_{l < i} \lVert x_j - \mu_l \rVert^2 .
     $$
-    Far-away points are likely to be chosen, so the centres spread out. Arthur & Vassilvitskii (2007) show the resulting k-means objective is within $O(\log K)$ of the optimum in expectation. (Step by step in [20 -- k-means++ Seeding](20_kmeans_plus_plus.ipynb).)
+    Far-away points are likely to be chosen, so the centres spread out. Arthur & Vassilvitskii (2007) show the resulting k-means objective is within $O(\log K)$ of the optimum in expectation. (Step by step in [18 -- k-means++ Seeding](18_kmeans_plus_plus.ipynb).)
 
     **`'kmeans'` (the default).** Start from k-means++ and run Lloyd's algorithm: alternate
     $$
     c_j = \arg\min_i \lVert x_j - \mu_i \rVert^2 \quad\text{(assign)}, \qquad \mu_i = \frac{1}{|C_i|}\sum_{x_j \in C_i} x_j \quad\text{(update)}
     $$
-    until the centres stop moving. Each step does not increase $\sum_j \lVert x_j - \mu_{c_j}\rVert^2$, so this converges to a local minimum of the k-means objective, which is usually a good place for EM to start. (Step by step in [21 -- k-means (Lloyd's Algorithm)](21_kmeans.ipynb).)
+    until the centres stop moving. Each step does not increase $\sum_j \lVert x_j - \mu_{c_j}\rVert^2$, so this converges to a local minimum of the k-means objective, which is usually a good place for EM to start. (Step by step in [19 -- k-means (Lloyd's Algorithm)](19_kmeans.ipynb).)
 
     **`'maxdist'`.** Farthest-first traversal. After a random first pick, repeatedly choose
     $$
@@ -350,7 +350,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Which one to use.** `kmeans` (the default) is the robust choice: it is cheap compared with EM and puts the centres where the clusters are ([21 -- k-means (Lloyd's Algorithm)](21_kmeans.ipynb) shows it step by step). `kpp` is the randomized, outlier-tolerant version of farthest-first and a good lighter-weight alternative ([20 -- k-means++ Seeding](20_kmeans_plus_plus.ipynb)). Use `maxdist` only for clean, well separated data. The HDBSCAN start is worth a look when the data have outliers or non-convex clusters, and it needs no $K$ to find them; it costs an $O(n^2)$ clustering and a `min_cluster_size` choice, and it is a poor match for heavily overlapping Gaussian clusters. The random methods (`random`, `points`, `kpp`) should be combined with `n_init` (below). Variants such as *greedy* k-means++ (several candidates per step, keep the best) and robust farthest-first traversals (trim outliers first, or start from the densest point) reduce these weaknesses further; tgmm does not implement them, but you can build such centres yourself and pass them as a tensor.
+    **Which one to use.** `kmeans` (the default) is the robust choice: it is cheap compared with EM and puts the centres where the clusters are ([19 -- k-means (Lloyd's Algorithm)](19_kmeans.ipynb) shows it step by step). `kpp` is the randomized, outlier-tolerant version of farthest-first and a good lighter-weight alternative ([18 -- k-means++ Seeding](18_kmeans_plus_plus.ipynb)). Use `maxdist` only for clean, well separated data. The HDBSCAN start is worth a look when the data have outliers or non-convex clusters, and it needs no $K$ to find them; it costs an $O(n^2)$ clustering and a `min_cluster_size` choice, and it is a poor match for heavily overlapping Gaussian clusters. The random methods (`random`, `points`, `kpp`) should be combined with `n_init` (below). Variants such as *greedy* k-means++ (several candidates per step, keep the best) and robust farthest-first traversals (trim outliers first, or start from the densest point) reduce these weaknesses further; tgmm does not implement them, but you can build such centres yourself and pass them as a tensor.
     """)
     return
 

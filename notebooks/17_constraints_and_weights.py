@@ -435,7 +435,7 @@ def _(mo):
 
     Instead of bounding a block you can **hold it at its initial value**. `frozen_means=[k, ...]` keeps those means at `init_means` (a tensor), `frozen_covariances=[k, ...]` keeps those covariances at `init_covariances`, and the older
     `frozen_components=[k, ...]` freezes both (the mixing weights of frozen components still update; priors never shrink them). This anchors a known "reference" population while the rest of the mixture is learned; it is what
-    `PositiveUnlabeledMixture(anchor='fixed')` uses ([17 -- Semi-Supervised and PU Fitting](17_semi_supervised_pu.ipynb)).
+    `PositiveUnlabeledMixture(anchor='fixed')` uses ([15 -- Semi-Supervised and PU Fitting](15_semi_supervised_pu.ipynb)).
 
     A frozen mean is restored *before* the covariance update, so that covariance is estimated from the scatter about the fixed mean, by the parallel-axis identity
 
@@ -692,7 +692,7 @@ def _(X_np, box_hi, fit_gmm, plot_gmm, plt, torch, var_hi, w_hi, w_lo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [17 -- Semi-Supervised and PU Fitting](17_semi_supervised_pu.ipynb) uses `frozen_components` as an anchor, and [13 -- Model Selection](13_model_selection.ipynb) shows how to choose among constrained and unconstrained models.
+    **Next:** [15 -- Semi-Supervised and PU Fitting](15_semi_supervised_pu.ipynb) uses `frozen_components` as an anchor, and [13 -- Model Selection](13_model_selection.ipynb) shows how to choose among constrained and unconstrained models.
     """)
     return
 

@@ -242,7 +242,7 @@ vmf = VonMisesFisherMixture(n_components=5).fit(X_unit)
 
 Both share `GaussianMixture`'s `fit` / `predict` / `bic` / algorithm options; see
 the [Student-t](../notebooks/15_student_t.ipynb) and [von Mises-Fisher](../notebooks/16_von_mises_fisher.ipynb) tutorials. For positive-unlabeled data see
-`PositiveUnlabeledMixture` in [Semi-Supervised and PU Fitting](../notebooks/17_semi_supervised_pu.ipynb).
+`PositiveUnlabeledMixture` in [Semi-Supervised and PU Fitting](../notebooks/15_semi_supervised_pu.ipynb).
 
 ## Saving and Loading Models
 

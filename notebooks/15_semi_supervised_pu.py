@@ -602,7 +602,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb), or back to the [tutorial overview](../tutorials/index.md).
+    **Next:** [16 -- Noise, Missing Values and Conditioning](16_noise_missing_conditioning.ipynb), or back to the [tutorial overview](../tutorials/index.md).
 
     ## References
 

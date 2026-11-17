@@ -29,15 +29,13 @@ and the settings (the first tutorial lets you move, reshape, add and remove the 
 13. [**Model Selection (BIC, AIC, ICL)**](../notebooks/13_model_selection.ipynb)
 14. [**Stochastic EM, Annealing and SAEM**](../notebooks/14_stochastic_em.ipynb)
 
-## Other mixture families and features
+## Further features
 
-15. [**Student-t Mixtures**](../notebooks/15_student_t.ipynb)
-16. [**Von Mises-Fisher Mixtures**](../notebooks/16_von_mises_fisher.ipynb)
-17. [**Semi-Supervised and PU Fitting**](../notebooks/17_semi_supervised_pu.ipynb)
-18. [**Noise, Missing Values and Conditioning**](../notebooks/18_noise_missing_conditioning.ipynb)
-19. [**Constraints, Frozen Components and Sample Weights**](../notebooks/19_constraints_and_weights.ipynb)
+15. [**Semi-Supervised and PU Fitting**](../notebooks/15_semi_supervised_pu.ipynb)
+16. [**Noise, Missing Values and Conditioning**](../notebooks/16_noise_missing_conditioning.ipynb)
+17. [**Constraints, Frozen Components and Sample Weights**](../notebooks/17_constraints_and_weights.ipynb)
 
 ## Algorithm walk-throughs
 
-20. [**k-means++ Seeding Step by Step**](../notebooks/20_kmeans_plus_plus.ipynb): how `init_means='kpp'` picks its centres, with the sampling probabilities drawn at every step
-21. [**k-means (Lloyd's Algorithm) Step by Step**](../notebooks/21_kmeans.ipynb): how `init_means='kmeans'` iterates, with the Voronoi regions, the centroid paths and the inertia
+18. [**k-means++ Seeding Step by Step**](../notebooks/18_kmeans_plus_plus.ipynb): how `init_means='kpp'` picks its centres, with the sampling probabilities drawn at every step
+19. [**k-means (Lloyd's Algorithm) Step by Step**](../notebooks/19_kmeans.ipynb): how `init_means='kmeans'` iterates, with the Voronoi regions, the centroid paths and the inertia

@@ -455,7 +455,7 @@ def _(mo):
 
     - **Student-t** mixtures draw $x=\mu_k+z/\sqrt{w}$ with $z\sim\mathcal{N}(0,\Sigma_k)$ and $w\sim\mathrm{Gamma}(\nu_k/2,\nu_k/2)$ (the scale-mixture form), so the tails are heavier than a Gaussian's: see [15 -- Student-t Mixtures](15_student_t.ipynb). Note that for these, `covariances_` is the scale matrix.
     - **von Mises-Fisher** mixtures sample directions on the unit sphere: see [16 -- von Mises-Fisher Mixtures](16_von_mises_fisher.ipynb).
-    - With a **noise component** (`noise=True`, see [18 -- Noise, Missing Values and Conditioning](18_noise_missing_conditioning.ipynb)) plain sampling also emits noise points, labelled `-1`.
+    - With a **noise component** (`noise=True`, see [16 -- Noise, Missing Values and Conditioning](16_noise_missing_conditioning.ipynb)) plain sampling also emits noise points, labelled `-1`.
     """)
     return
 

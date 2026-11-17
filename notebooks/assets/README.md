@@ -15,8 +15,8 @@ For every asset `<name>` there are up to three files:
 | --- | --- | --- |
 | `em_1d` | `01_introduction`: EM on a 1-D mixture from a bad start | `scripts/make_assets/make_em_videos.py` |
 | `em_2d` | `01_introduction`: EM on the four default blobs, started with all components around (0, 0) | `scripts/make_assets/make_em_videos.py` |
-| `kmeans_pp` | `20_kmeans_plus_plus`: k-means++ seeding step by step | `scripts/make_assets/make_seeding_videos.py` |
-| `kmeans` | `21_kmeans`: Lloyd's algorithm iteration by iteration | `scripts/make_assets/make_seeding_videos.py` |
+| `kmeans_pp` | `18_kmeans_plus_plus`: k-means++ seeding step by step | `scripts/make_assets/make_seeding_videos.py` |
+| `kmeans` | `19_kmeans`: Lloyd's algorithm iteration by iteration | `scripts/make_assets/make_seeding_videos.py` |
 
 ## How a notebook loads them
 

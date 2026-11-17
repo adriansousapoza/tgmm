@@ -147,24 +147,33 @@ plugins:
         notebooks/13_hdbscan.md: notebooks/12_hdbscan.ipynb
         notebooks/14_model_selection.md: notebooks/13_model_selection.ipynb
         notebooks/15_stochastic_em.md: notebooks/14_stochastic_em.ipynb
-        notebooks/16_student_t.md: notebooks/15_student_t.ipynb
-        notebooks/17_von_mises_fisher.md: notebooks/16_von_mises_fisher.ipynb
-        notebooks/18_semi_supervised_pu.md: notebooks/17_semi_supervised_pu.ipynb
-        notebooks/19_noise_missing_conditioning.md: notebooks/18_noise_missing_conditioning.ipynb
-        notebooks/20_constraints_and_weights.md: notebooks/19_constraints_and_weights.ipynb
+        notebooks/16_student_t.md: tutorials/index.md
+        notebooks/17_von_mises_fisher.md: tutorials/index.md
+        notebooks/18_semi_supervised_pu.md: notebooks/15_semi_supervised_pu.ipynb
+        notebooks/19_noise_missing_conditioning.md: notebooks/16_noise_missing_conditioning.ipynb
+        notebooks/20_constraints_and_weights.md: notebooks/17_constraints_and_weights.ipynb
         user-guide/gaussian-mixture.md: notebooks/01_introduction.ipynb
         user-guide/gpcm-covariance-models.md: notebooks/02_covariance_types.ipynb
         user-guide/gmm-initializer.md: notebooks/03_initialization.ipynb
         user-guide/plotting.md: notebooks/06_visualise.ipynb
         user-guide/clustering-metrics.md: notebooks/09_metrics.ipynb
-        user-guide/other-mixture-families.md: notebooks/15_student_t.ipynb
-        user-guide/semi-supervised-pu.md: notebooks/17_semi_supervised_pu.ipynb
-        user-guide/noise-missing-conditioning.md: notebooks/18_noise_missing_conditioning.ipynb
+        user-guide/other-mixture-families.md: tutorials/index.md
+        user-guide/semi-supervised-pu.md: notebooks/15_semi_supervised_pu.ipynb
+        user-guide/noise-missing-conditioning.md: notebooks/16_noise_missing_conditioning.ipynb
         explainers/gpcm-shapes.md: notebooks/02_covariance_types.ipynb
         explainers/em-stepper.md: notebooks/01_introduction.ipynb
         explainers/annealing.md: notebooks/14_stochastic_em.ipynb
         explainers/metrics-intuition.md: notebooks/09_metrics.ipynb
         explainers/data-designer.md: notebooks/01_introduction.ipynb
+        notebooks/17_semi_supervised_pu.md: notebooks/15_semi_supervised_pu.ipynb
+        notebooks/18_noise_missing_conditioning.md: notebooks/16_noise_missing_conditioning.ipynb
+        notebooks/19_constraints_and_weights.md: notebooks/17_constraints_and_weights.ipynb
+        notebooks/20_kmeans_plus_plus.md: notebooks/18_kmeans_plus_plus.ipynb
+        notebooks/21_kmeans.md: notebooks/19_kmeans.ipynb
+        notebooks/16_von_mises_fisher.md: tutorials/index.md
+        notebooks/15_student_t.md: tutorials/index.md
+        api/student-t-mixture.md: api/gaussian-mixture.md
+        api/vmf-mixture.md: api/gaussian-mixture.md
 
 extra_javascript:
   - javascripts/mathjax.js
@@ -196,21 +205,17 @@ nav:
       - 12. HDBSCAN: notebooks/12_hdbscan.ipynb
       - 13. Model Selection (BIC, AIC, ICL): notebooks/13_model_selection.ipynb
       - 14. Stochastic EM, Annealing and SAEM: notebooks/14_stochastic_em.ipynb
-      - 15. Student-t Mixtures: notebooks/15_student_t.ipynb
-      - 16. Von Mises-Fisher Mixtures: notebooks/16_von_mises_fisher.ipynb
-      - 17. Semi-Supervised and PU Fitting: notebooks/17_semi_supervised_pu.ipynb
-      - 18. Noise, Missing Values and Conditioning: notebooks/18_noise_missing_conditioning.ipynb
-      - 19. Constraints, Frozen Components and Sample Weights: notebooks/19_constraints_and_weights.ipynb
-      - 20. k-means++ Seeding Step by Step: notebooks/20_kmeans_plus_plus.ipynb
-      - 21. k-means (Lloyd's Algorithm) Step by Step: notebooks/21_kmeans.ipynb
+      - 15. Semi-Supervised and PU Fitting: notebooks/15_semi_supervised_pu.ipynb
+      - 16. Noise, Missing Values and Conditioning: notebooks/16_noise_missing_conditioning.ipynb
+      - 17. Constraints, Frozen Components and Sample Weights: notebooks/17_constraints_and_weights.ipynb
+      - 18. k-means++ Seeding Step by Step: notebooks/18_kmeans_plus_plus.ipynb
+      - 19. k-means (Lloyd's Algorithm) Step by Step: notebooks/19_kmeans.ipynb
   - API Reference:
       - tgmm.GaussianMixture: api/gaussian-mixture.md
       - GPCM Covariance: api/covariance-gpcm.md
       - tgmm.BaseMixture: api/base-mixture.md
-      - tgmm.StudentTMixture: api/student-t-mixture.md
       - tgmm.ConditionalGaussianMixture: api/conditional-gaussian-mixture.md
       - tgmm.GenericMixture: api/generic-mixture.md
-      - tgmm.VonMisesFisherMixture: api/vmf-mixture.md
       - tgmm.PositiveUnlabeledMixture: api/positive-unlabeled-mixture.md
       - tgmm.GMMInitializer: api/gmm-initializer.md
       - tgmm.ClusteringMetrics: api/clustering-metrics.md
