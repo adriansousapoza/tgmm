@@ -293,6 +293,47 @@ class GMMInitializer:
     # ====================================================================
     
     @staticmethod
+    def _validate_hdbscan_kwargs(hdbscan_kwargs):
+        r"""
+        Check the ``hdbscan_kwargs`` argument of :class:`~tgmm.gmm.GaussianMixture` and return a plain ``dict`` copy
+        (``None`` stays ``None``). Allowed keys: ``min_cluster_size``, ``min_samples``, ``max_points`` and every other
+        argument of :class:`~tgmm.hdbscan.HDBSCAN` except ``device`` (the clustering runs where the data is).
+        """
+        if hdbscan_kwargs is None:
+            return None
+        if not isinstance(hdbscan_kwargs, dict):
+            raise TypeError(f"hdbscan_kwargs must be a dict or None, got {type(hdbscan_kwargs).__name__}.")
+        import inspect
+
+        from .hdbscan import HDBSCAN
+
+        allowed = [p for p in inspect.signature(HDBSCAN.__init__).parameters if p not in ('self', 'device')]
+        allowed.append('max_points')
+        unknown = sorted(set(hdbscan_kwargs) - set(allowed), key=str)
+        if unknown:
+            raise ValueError(f"unknown hdbscan_kwargs key(s) {unknown}; allowed keys: {sorted(allowed)}.")
+        kw = dict(hdbscan_kwargs)
+        mcs, ms, mp = kw.get('min_cluster_size'), kw.get('min_samples'), kw.get('max_points')
+        if mcs is not None and (isinstance(mcs, bool) or int(mcs) != mcs or int(mcs) < 2):
+            raise ValueError(f"hdbscan_kwargs['min_cluster_size'] must be an integer >= 2, got {mcs!r}.")
+        if ms is not None and (isinstance(ms, bool) or int(ms) != ms or int(ms) < 1):
+            raise ValueError(f"hdbscan_kwargs['min_samples'] must be an integer >= 1, got {ms!r}.")
+        if mp is not None and (isinstance(mp, bool) or int(mp) != mp or int(mp) < 2):
+            raise ValueError(f"hdbscan_kwargs['max_points'] must be None or an integer >= 2, got {mp!r}.")
+        return kw
+
+    @staticmethod
+    def _hdbscan_default_min_cluster_size(n: int, k: int) -> int:
+        r"""
+        Default ``min_cluster_size`` of the HDBSCAN initialisers: $\max\{10,\ \min\{\lfloor 0.02\,n\rfloor,\ \lfloor n/(5k)\rfloor\}\}$.
+
+        2% of the points keeps HDBSCAN from calling small clumps clusters (and finds the four blobs of a typical
+        2-D example), while $n/(5k)$ keeps it well below the size of a typical cluster ($\approx n/k$ points) when
+        ``k`` is large, so that no cluster is lost to the "noise" label.
+        """
+        return max(10, min(int(0.02 * n), n // (5 * k)))
+
+    @staticmethod
     def _hdbscan_partition(data: torch.Tensor, k: int, min_cluster_size=None, min_samples=None,
                            max_points: int = 5000, random_state: int = None, **hdbscan_kwargs):
         r"""
@@ -319,10 +360,12 @@ class GMMInitializer:
         n_sub = sub.shape[0]
 
         if min_cluster_size is None:
-            mcs = max(5, n_sub // (10 * k))
+            mcs = GMMInitializer._hdbscan_default_min_cluster_size(n_sub, k)
         else:
             mcs = max(2, int(round(int(min_cluster_size) * n_sub / n_samples)))
-        if min_samples is not None:
+        if min_samples is None:
+            min_samples = max(2, min(mcs, max(5, mcs // 2)))
+        else:
             min_samples = int(min_samples)
             if idx is not None:
                 min_samples = max(1, int(round(min_samples * n_sub / n_samples)))
@@ -419,10 +462,13 @@ class GMMInitializer:
         k : int
             Number of centres to return.
         min_cluster_size : int, optional
-            Smallest group HDBSCAN accepts as a cluster. Default ``max(5, N // (10 * k))``. If ``data`` is subsampled it
-            refers to the full data set and is scaled by the subsampling fraction.
+            Smallest group HDBSCAN accepts as a cluster. Default
+            ``max(10, min(int(0.02 * N), N // (5 * k)))``: 2% of the points, but small enough for ``k`` clusters of
+            about ``N / k`` points to survive. If ``data`` is subsampled it refers to the full data set and is scaled by
+            the subsampling fraction.
         min_samples : int, optional
-            HDBSCAN's core-point neighbourhood size (defaults to ``min_cluster_size``; scaled like ``min_cluster_size``).
+            HDBSCAN's core-point neighbourhood size. Default ``max(5, min_cluster_size // 2)`` (never above
+            ``min_cluster_size``); a value you pass is scaled like ``min_cluster_size`` when the data is subsampled.
         max_points : int or None, default=5000
             If ``N > max_points`` the clustering runs on a random subsample of ``max_points`` points and every other point
             takes the label of its nearest subsampled point. ``None`` clusters all the data.

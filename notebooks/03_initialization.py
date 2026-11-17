@@ -83,7 +83,7 @@ def _():
 
     from scipy.stats import chi2
 
-    from tgmm import CATEGORICAL_PALETTE, GaussianMixture, GMMInitializer, HDBSCAN, generate_gmm_data
+    from tgmm import CATEGORICAL_PALETTE, GaussianMixture, GMMInitializer, generate_gmm_data
     from tutorial_data import make_default_data
 
     warnings.filterwarnings('ignore')  # short max_iter budgets below intentionally stop before convergence
@@ -101,7 +101,6 @@ def _():
         Ellipse,
         GMMInitializer,
         GaussianMixture,
-        HDBSCAN,
         N_STD95,
         SEED,
         device,
@@ -202,9 +201,9 @@ def _(mo):
     $$
     then re-select the first centre as $\mu_1 = \arg\max_x \min_{l \ge 2} \lVert x - \mu_l \rVert$ so the arbitrary first pick does not bias the result. This is Gonzalez's (1985) farthest-first traversal, the classical 2-approximation for the *k-center* objective (minimise the largest distance to a centre), not for the k-means objective or the likelihood. It spreads centres maximally, but outliers are by definition the farthest points, so it is sensitive to them; its only randomness is the first pick (torch's global RNG).
 
-    **`hdbscan` (from init tensors).** Not a built-in `init_means` name, but HDBSCAN's cluster assignments give all three starting parameters at once, so it is used here through the three init tensors. It needs no $K$ and ignores noise; the math, the helper and a figure are in the section *HDBSCAN: Initialise Everything from the Assignments* below.
+    **`'hdbscan'`.** HDBSCAN's cluster assignments give all three starting parameters at once: `init_means='hdbscan'` takes the cluster means as centres, and `init_weights='hdbscan'` / `init_covariances='hdbscan'` take the sizes and the scatter of the *same* clusters. It needs no $K$ and ignores noise; the math, its settings (`hdbscan_kwargs`) and a figure are in the section *HDBSCAN: Initialise Everything from the Assignments* below. *New after tgmm 0.4.3.*
 
-    The next figure shows where each method puts its four initial centres (red crosses) for one seed (the static docs page shows seed 0; the interactive version at the end of the notebook has a **seed** slider). `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument; the `hdbscan` start is deterministic here (the seed would only place padding centres). `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` varies much less (it ends on one of only a few different solutions).
+    The next figure shows where each method puts its four initial centres (red crosses) for one seed (the static docs page shows seed 0; the interactive version at the end of the notebook has a **seed** slider). `random`, `points` and `maxdist` use the global torch seed; `kpp` and `kmeans` take a `random_state` argument; `init_means='hdbscan'` is deterministic here (the seed would only place padding centres). `random`, `points` and `maxdist` move around a lot from seed to seed, while `kmeans` varies much less (it ends on one of only a few different solutions).
     """)
     return
 
@@ -215,8 +214,6 @@ def _(
     MEAN_METHODS,
     X,
     X_tensor,
-    hd_labels,
-    hdbscan_init,
     plt,
     torch,
 ):
@@ -228,8 +225,8 @@ def _(
         for _ax, _method in zip(_axs.ravel(), GALLERY_METHODS):
             torch.manual_seed(seed)
             if _method == 'hdbscan':
-                _means = hdbscan_init(X_tensor, 4, seed=seed, labels=hd_labels)[0]
-                _title = 'HDBSCAN init tensors'
+                _means = GMMInitializer.hdbscan(X_tensor, 4, random_state=seed)
+                _title = "init_means='hdbscan'"
             elif _method in ('kpp', 'kmeans'):
                 _means = getattr(GMMInitializer, _method)(X_tensor, 4, random_state=seed)
                 _title = f"init_means='{_method}'"
@@ -238,7 +235,7 @@ def _(
                 _title = f"init_means='{_method}'"
             _m = _means.cpu().numpy()
             _h_data = _ax.scatter(X[:, 0], X[:, 1], s=4, alpha=0.5, color='gray', label='data')
-            _h_ctr = _ax.scatter(_m[:, 0], _m[:, 1], marker='H', s=30, linewidths=1.2, color='red', zorder=3, label='initial centre')
+            _h_ctr = _ax.scatter(_m[:, 0], _m[:, 1], marker='x', s=30, linewidths=1.2, color='red', zorder=3, label='initial centre')
             _ax.set_title(_title)
             _ax.set_aspect('equal')
         _fig.legend(handles=[_h_data, _h_ctr], loc='lower center', ncol=2, frameon=False)
@@ -282,7 +279,7 @@ def _(
     | `kpp` | first point uniform, then each next point drawn with probability $\\propto D^2$ to the nearest centre | spreads centres yet is randomized, so a lone outlier is rarely picked; $O(\\log K)$-competitive for the k-means objective | still seed dependent; no refinement step | **good:** a general-purpose start, mild outliers, many clusters. **bad:** nothing in particular; use `n_init` for unlucky draws | {_hit['kpp']} |
     | `kmeans` (default) | k-means++ followed by Lloyd iterations until the centres stop moving | centres are already cluster means; reaches the best optimum most often here | costs a k-means run; favours round, similar-sized clusters and can cut an elongated cluster in two (EM usually repairs this) | **good:** compact, roughly round clusters, the safe default. **bad:** very elongated or very unequal clusters | {_hit['kmeans']} |
     | `maxdist` | farthest-first traversal: random first point, then always the point farthest from all centres so far | no iterations; deterministic apart from the first point; finds one point per cluster when clusters are further apart than their diameter | picks extreme points: outliers, heavy tails or elongated clusters steal centres; ignores density; can leave a true cluster without a centre | **good:** compact, well separated clusters *without* outliers. **bad:** noisy data, outliers, overlapping or elongated clusters | {_hit['maxdist']} |
-    | `hdbscan` (init tensors) | HDBSCAN clustering, noise dropped; cluster means, size fractions and covariances become `init_means`, `init_weights`, `init_covariances` | needs no $K$ to find the dense clusters; noise and outliers are ignored, so they cannot take a centre; copes with non-convex or very unequal clusters; supplies weights and covariances too | needs `min_cluster_size` (different values find a different number of clusters); may find fewer or more than $K$ (on the default blobs: {hd_found} clusters and {hd_noise} of {len(X_tensor)} points called noise{', so a centre is padded' if hd_found < 4 else ''}); can call a real cluster noise; $O(n^2)$ memory and time in this implementation; deterministic, so `n_init` does not diversify it | **good:** noisy data with outliers, non-convex or very unequal clusters. **bad:** heavily overlapping Gaussian clusters (the overlap between the peaks becomes noise), very large $n$ | {_hit['hdbscan']} |
+    | `hdbscan` | HDBSCAN clustering, noise dropped; the cluster means are the centres, and `init_weights='hdbscan'` / `init_covariances='hdbscan'` take the sizes and scatter of the same clusters | needs no $K$ to find the dense clusters; noise and outliers are ignored, so they cannot take a centre; copes with non-convex or very unequal clusters; supplies weights and covariances too | needs `min_cluster_size` (a rule-of-thumb default; different values find a different number of clusters, tune it with `hdbscan_kwargs`); may find fewer or more than $K$ (on the default blobs: {hd_found} clusters and {hd_noise} of {len(X_tensor)} points called noise{', so a centre is padded' if hd_found < 4 else ''}); can call a real cluster noise; $O(n^2)$ memory and time in this implementation; deterministic, so `n_init` does not diversify it | **good:** noisy data with outliers, non-convex or very unequal clusters. **bad:** heavily overlapping Gaussian clusters (the overlap between the peaks becomes noise), very large $n$ | {_hit['hdbscan']} |
     | tensor `(K, d)` | your own centres | uses prior knowledge or a previous fit; the same start every run | a wrong guess is a bad start, and `n_init` only repeats it | **good:** known cluster positions (see *Starting from Given Parameters*) | n/a |
     """)
     return
@@ -290,13 +287,12 @@ def _(
 
 @app.cell
 def _(
+    GMMInitializer,
     GaussianMixture,
-    HDBSCAN,
     MAX_ITER,
     N_SEEDS,
     device,
     generate_gmm_data,
-    hdbscan_init,
     mo,
     np,
     torch,
@@ -307,21 +303,11 @@ def _(
     _out = torch.tensor(np.random.default_rng(0).uniform(-12, 20, (12, 2)), dtype=_X_clean.dtype, device=_X_clean.device)
     _X_noisy = torch.cat([_X_clean, _out])
 
-    def _hd_labels(_X):
-        _n = len(_X)
-        return HDBSCAN(min_cluster_size=max(10, int(0.02 * _n)), min_samples=max(5, int(0.02 * _n) // 2), device=device).fit(_X).labels_
-
-    _labels = {id(_X_clean): _hd_labels(_X_clean), id(_X_noisy): _hd_labels(_X_noisy)}
-
     def _recovers(_X, _method, _seed):
         """True when every true centre has a fitted mean within 1.5 (a crashed fit counts as a failure)."""
-        torch.manual_seed(_seed)
+        kw = dict(init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan') if _method == 'hdbscan' else dict(init_means=_method)
         try:
-            if _method == 'hdbscan':
-                _m, _w, _c = hdbscan_init(_X, 4, seed=_seed, labels=_labels[id(_X)])
-                _g = GaussianMixture(n_components=4, init_means=_m, init_weights=_w, init_covariances=_c, random_state=_seed, max_iter=MAX_ITER, device=device).fit(_X)
-            else:
-                _g = GaussianMixture(n_components=4, init_means=_method, random_state=_seed, max_iter=MAX_ITER, device=device).fit(_X)
+            _g = GaussianMixture(n_components=4, random_state=_seed, max_iter=MAX_ITER, device=device, **kw).fit(_X)
         except ValueError:
             return False
         _d = np.linalg.norm(_centres[:, None] - _g.means_.detach().cpu().numpy()[None], axis=2)
@@ -334,14 +320,14 @@ def _(
         _noisy = sum(_recovers(_X_noisy, _method, _s) for _s in range(N_SEEDS))
         _res[_method] = (_clean, _noisy)
         _rows.append(f"| `{_method}` | {_clean}/{N_SEEDS} | {_noisy}/{N_SEEDS} |")
-    _lab_n = _labels[id(_X_noisy)]
+    _lab_n = GMMInitializer.hdbscan_clusters(_X_noisy, 4, random_state=0)[1]
     mo.md(
         "On four well separated, compact clusters, the number of single runs (of "
         f"{N_SEEDS}) in which every true cluster ends up with a fitted component:\n\n"
         "| `init_means` | clean data | plus 12 uniform outliers (1%) |\n|---|---|---|\n" + "\n".join(_rows)
         + "\n\n`maxdist` is excellent on the clean data and collapses as soon as a few outliers appear, because the outliers are the farthest points and take the centres. "
         "`kpp` samples with probability $\\propto D^2$ instead of taking the maximum, so a lone outlier is rarely chosen. "
-        f"The HDBSCAN start recovers the clusters in {_res['hdbscan'][0]}/{N_SEEDS} and {_res['hdbscan'][1]}/{N_SEEDS} runs: on the noisy data it found {int(_lab_n.max()) + 1} clusters and called {int((_lab_n == -1).sum())} points noise, "
+        f"The HDBSCAN start (means, weights and covariances) recovers the clusters in {_res['hdbscan'][0]}/{N_SEEDS} and {_res['hdbscan'][1]}/{N_SEEDS} runs: on the noisy data it found {int(_lab_n.max()) + 1} clusters and called {int((_lab_n == -1).sum())} points noise, "
         "so the outliers are dropped before any centre is chosen (it is deterministic, so every run is the same start)."
     )
     return
@@ -367,7 +353,7 @@ def _(mo):
     | `'uniform'` / `'equal'` (default) | $1/K$ for every component | never favours a component; always valid; nothing to tune | far from the truth when cluster sizes differ a lot (small clusters start over-weighted) | **good:** roughly balanced clusters. **bad:** very unequal sizes |
     | `'random'` | one draw from $\mathrm{Dirichlet}(1,\dots,1)$, i.e. uniform over the simplex | different seeds start differently, which diversifies restarts | can start with a near-zero weight for a real cluster and adds noise | **good:** restarts with `n_init` when you want diversity. **bad:** a single run |
     | `'kmeans'` | $n_k / n$, where $n_k$ counts the points whose nearest initial mean is $\mu_k$ | starts at the sizes the data suggest | only as good as the means; a component with no nearest points starts at weight $\approx 10^{-10}$ | **good:** unequal cluster sizes with sensible means. **bad:** poor or random means |
-    | tensor from HDBSCAN (`hdbscan_init`, see below) | $\|C_k\|/n$ of each HDBSCAN cluster, noise left out, renormalized; padded components get a share of the noise fraction | consistent with the assignments that give the means and covariances; follows the density structure instead of the nearest mean | depends on `min_cluster_size`; clusters that HDBSCAN merges or splits give wrong sizes | **good:** unequal sizes together with noise or outliers. **bad:** overlapping blobs (much of the data becomes noise) |
+    | `hdbscan` (needs `init_means='hdbscan'`) | $(\lvert C_k\rvert + n_k^{\text{noise}})/n$: the size of each HDBSCAN cluster plus the noise points nearest to its mean, so the weights describe all the data | consistent with the assignments that give the means and covariances; follows the density structure instead of the nearest mean | depends on `min_cluster_size`; clusters that HDBSCAN merges or splits give wrong sizes; a padded component only owns the noise nearest to it | **good:** unequal sizes together with noise or outliers. **bad:** overlapping blobs (much of the data becomes noise) |
     | tensor | the given values, renormalized to sum to 1 | uses known proportions | a wrong guess is a bad start | **good:** known class proportions |
 
     The weights only enter the first E-step as the prior factor in $r_{ik} \propto \pi_k\,\mathcal{N}(x_i \mid \mu_k,\Sigma_k)$. Once the means are sensible, they are the least influential of the three initializations: the M-step recomputes $\pi_k = \frac{1}{n}\sum_i r_{ik}$ immediately. The cell below fixes the initial means (k-means, seed 0) and varies only the weights; `initial_weights_` records what each run started from.
@@ -413,7 +399,7 @@ def _(mo):
     | `'global'` | the sample covariance of the whole dataset $+\ \texttt{reg\_covar}\,I$, the same for every component | always well conditioned; works with few points per cluster | too wide for tight clusters, so the first responsibilities are very soft; ignores shapes | **good:** high dimension or small clusters. **bad:** clusters much tighter than the whole data |
     | `'eye'` | $(1+\texttt{reg\_covar})\,I$ | no data needed; trivially valid | wrong scale unless the data are standardized; ignores shape | **good:** standardized data, a neutral start. **bad:** features on very different scales |
     | `'random'` | $A A^\top + \texttt{reg\_covar}\, I$ with $A_{ab} \sim \mathcal{N}(0,1)$ | different seeds start differently, which diversifies restarts | unrelated to the data's scale and shape, so it can start far from any good solution | **good:** restarts with many `n_init`. **bad:** a single run |
-    | tensor from HDBSCAN (`hdbscan_init`, see below) | $\widehat{\mathrm{Cov}}(C_k) + \texttt{reg\_covar}\, I$ of each HDBSCAN cluster, noise left out; padded components get the global covariance | shapes come from a density-based assignment, so outliers do not inflate them | needs $n_k > d$ points per cluster; merged or split clusters give a wrong shape; overlapping blobs give too-tight clusters | **good:** noisy or non-convex clusters. **bad:** heavily overlapping Gaussian clusters |
+    | `hdbscan` (needs `init_means='hdbscan'`) | $\widehat{\mathrm{Cov}}(C_k) + \texttt{reg\_covar}\, I$ of each HDBSCAN cluster, noise left out; a padded component (no cluster of its own) gets $(1+\texttt{reg\_covar})\,I$ | shapes come from a density-based assignment, so outliers do not inflate them | needs $n_k > d$ points per cluster; merged or split clusters give a wrong shape; overlapping blobs give too-tight clusters | **good:** noisy or non-convex clusters. **bad:** heavily overlapping Gaussian clusters |
     | tensor | the given values (shape per `covariance_type`) | uses prior knowledge or a previous fit | a wrong guess is a bad start | **good:** known cluster shapes |
 
     For the diagonal, spherical and tied covariance types the corresponding diagonal, mean-of-diagonal or pooled form is used (see [2. Covariance Structures](02_covariance_types.ipynb)). For the `tied_*` types `'empirical'` pools the within-cluster scatter, $\Sigma = \frac1n \sum_k \sum_{x\in C_k}(x - \bar x_{C_k})(x - \bar x_{C_k})^\top + \texttt{reg\_covar}\, I$.
@@ -505,91 +491,37 @@ def _(mo):
     mo.md(r"""
     ## HDBSCAN: Initialise Everything from the Assignments
 
-    The other initializers choose centres first and derive weights and covariances from "nearest centre" assignments. tgmm's `HDBSCAN` class ([12 -- HDBSCAN](12_hdbscan.ipynb)) works the other way round: it returns *cluster assignments* $z_i \in \{1,\dots,m\}$ (and $-1$ for noise) without being told $K$, so everything the first E-step needs can be estimated from them. For each cluster $C_k = \{i : z_i = k\}$
+    The other initializers choose centres first and derive weights and covariances from "nearest centre" assignments. tgmm's `HDBSCAN` class ([12 -- HDBSCAN](12_hdbscan.ipynb)) works the other way round: it returns *cluster assignments* $z_i \in \{1,\dots,m\}$ (and $-1$ for noise) without being told $K$, so everything the first E-step needs can be estimated from them. With `init_means='hdbscan'`, `init_weights='hdbscan'` and `init_covariances='hdbscan'`, for each cluster $C_k = \{i : z_i = k\}$
 
     $$
-    \mu_k = \frac{1}{|C_k|}\sum_{i\in C_k} x_i, \qquad \pi_k = \frac{|C_k|}{n}, \qquad \Sigma_k = \widehat{\mathrm{Cov}}(C_k) + \texttt{reg\_covar}\, I,
+    \mu_k = \frac{1}{|C_k|}\sum_{i\in C_k} x_i, \qquad \pi_k = \frac{|C_k| + n_k^{\text{noise}}}{n}, \qquad \Sigma_k = \widehat{\mathrm{Cov}}(C_k) + \texttt{reg\_covar}\, I,
     $$
 
-    with the weights renormalized to sum to 1. The noise points are left out of all three, so outliers cannot distort any of them. HDBSCAN may find $m \neq K$ clusters: the helper below keeps the $K$ largest when $m > K$ and, when $m < K$, adds the missing centres by $D^2$-sampling from the noise points, giving them the global covariance and a share of the noise fraction as weight. It uses `min_cluster_size` equal to 2% of the points and `min_samples` half of that, a rule of thumb that is not tuned (the sensitivity is measured at the end of this section).
+    where $n_k^{\text{noise}}$ is the number of noise points whose nearest mean is $\mu_k$, so the weights describe all the data and sum to 1, while the means and covariances use the cluster's own points only: outliers cannot distort them. HDBSCAN may find $m \neq K$ clusters. With $m > K$ the $K$ largest are kept. With $m < K$ the missing centres are added by k-means++ sampling among the points no cluster claimed (noise first); such a *padded* component owns no points, so it gets the noise nearest to it as weight and $(1+\texttt{reg\_covar})\,I$ as covariance. With no cluster found the start is plain k-means++. The clustering runs once per data set (it is cached across `n_init`), and large data is clustered on a random subsample (`max_points=5000`) because HDBSCAN needs the full $n \times n$ distance matrix. `init_weights='hdbscan'` and `init_covariances='hdbscan'` reuse the clustering of `init_means='hdbscan'`, so they need it.
 
-    This works today through the init tensors `init_means`, `init_weights` and `init_covariances`; a built-in `init_means='hdbscan'` option exists on a library branch awaiting release.
+    By default `min_cluster_size` is $\max\{10,\ \min\{\lfloor 0.02\,n\rfloor,\ \lfloor n/(5K)\rfloor\}\}$ (2% of the points, but small enough for $K$ clusters of about $n/K$ points to survive) and `min_samples` is $\max\{5,\ \texttt{min\_cluster\_size}/2\}$. Tune them, or any other `HDBSCAN` argument, with `hdbscan_kwargs`:
+
+    ```python
+    GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan',
+                    hdbscan_kwargs={'min_cluster_size': 40})
+    ```
+
+    > **New after tgmm 0.4.3.** `init_means='hdbscan'`, `init_weights='hdbscan'`, `init_covariances='hdbscan'` and `hdbscan_kwargs` are not in the 0.4.3 release on PyPI: the interactive copy hosted from PyPI needs the next release.
     """)
     return
 
 
 @app.cell
-def _(HDBSCAN, torch):
-    def hdbscan_init(X, K, min_cluster_size=None, min_samples=None, reg_covar=1e-6, seed=0, labels=None):
-        """Init tensors ``(means, weights, covariances)`` from an HDBSCAN clustering of ``X`` (``(n, d)``), for ``covariance_type='full'``.
-
-        Noise points (label -1) are ignored. Each of the K largest clusters gives a mean, a size fraction and a regularised covariance.
-        Fewer than K clusters: the missing centres are D^2-sampled from the noise points (or from all points if there are too few),
-        with the global covariance and a share of the noise fraction as weight. ``labels`` lets you reuse an HDBSCAN fit.
-        """
-        _n, _d = X.shape
-        _mcs = min_cluster_size or max(10, int(0.02 * _n))
-        _ms = min_samples or max(5, _mcs // 2)
-        if labels is None:
-            labels = HDBSCAN(min_cluster_size=_mcs, min_samples=_ms, device=X.device.type).fit(X).labels_
-        labels = labels.to(X.device)
-        _m = int(labels.max()) + 1 if labels.numel() else 0
-        _ids = sorted([_k for _k in range(_m) if int((labels == _k).sum()) > 0], key=lambda _k: -int((labels == _k).sum()))[:K]
-        _eye = torch.eye(_d, device=X.device, dtype=X.dtype)
-        _means, _covs, _weights = [], [], []
-        for _k in _ids:
-            _P = X[labels == _k]
-            _means.append(_P.mean(0))
-            _covs.append(torch.cov(_P.T) + reg_covar * _eye)
-            _weights.append(len(_P) / _n)
-        _n_noise = int((labels == -1).sum())
-        _n_extra = K - len(_ids)
-        if _n_extra > 0:
-            _gen = torch.Generator(device=X.device)
-            _gen.manual_seed(int(seed))
-            _pool = X[labels == -1] if _n_noise >= _n_extra else X  # the points no cluster claims first
-            _centres = torch.stack(_means) if _means else None
-            _extra = []
-            for _ in range(_n_extra):
-                if _centres is None:
-                    _idx = torch.randint(0, len(_pool), (1,), device=X.device, generator=_gen)
-                else:
-                    _d2 = torch.cdist(_pool, _centres).pow(2).min(dim=1).values
-                    _p = _d2 / _d2.sum() if float(_d2.sum()) > 0 else torch.full_like(_d2, 1.0 / len(_d2))
-                    _idx = torch.multinomial(_p, 1, generator=_gen)
-                _extra.append(_pool[_idx[0]])
-                _centres = torch.stack(_extra) if _centres is None else torch.cat([_centres, _extra[-1][None]])
-            _glob = torch.cov(X.T) + reg_covar * _eye
-            _means += _extra
-            _covs += [_glob] * _n_extra
-            _weights += [max(_n_noise / _n, 1e-3) / _n_extra] * _n_extra
-        _w = torch.tensor(_weights, device=X.device, dtype=X.dtype)
-        return torch.stack(_means), _w / _w.sum(), torch.stack(_covs)
-
-    return (hdbscan_init,)
-
-
-@app.cell
-def _(
-    GaussianMixture,
-    HDBSCAN,
-    MAX_ITER,
-    N_SEEDS,
-    X_tensor,
-    device,
-    hdbscan_init,
-    np,
-):
-    # one HDBSCAN fit (it is deterministic), then the same single-run sweep as for the other methods
-    _n = len(X_tensor)
-    hd_labels = HDBSCAN(min_cluster_size=max(10, int(0.02 * _n)), min_samples=max(5, int(0.02 * _n) // 2), device=device).fit(X_tensor).labels_
-    hdbscan_ll = np.array([
-        float(GaussianMixture(n_components=4, init_means=_m, init_weights=_w, init_covariances=_c, random_state=_s, max_iter=MAX_ITER, device=device).fit(X_tensor).lower_bound_)
-        for _s in range(N_SEEDS)
-        for _m, _w, _c in [hdbscan_init(X_tensor, 4, seed=_s, labels=hd_labels)]
-    ])
+def _(GMMInitializer, GaussianMixture, MAX_ITER, N_SEEDS, X_tensor, device, np):
+    # one HDBSCAN clustering of the default blobs (it is deterministic), then the same single-run sweep as for the other methods
+    hd_labels = GMMInitializer.hdbscan_clusters(X_tensor, 4, random_state=0)[1]
     hd_found = int(hd_labels.max()) + 1
     hd_noise = int((hd_labels == -1).sum())
+    hdbscan_ll = np.array([
+        float(GaussianMixture(n_components=4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan',
+                              random_state=_s, max_iter=MAX_ITER, device=device).fit(X_tensor).lower_bound_)
+        for _s in range(N_SEEDS)
+    ])
     return hd_found, hd_labels, hd_noise, hdbscan_ll
 
 
@@ -606,24 +538,23 @@ def _(
     hd_found,
     hd_labels,
     hd_noise,
-    hdbscan_init,
     plt,
 ):
     _K = 4
-    _m, _w, _c = hdbscan_init(X_tensor, _K, seed=0, labels=hd_labels)
-    _fit = GaussianMixture(n_components=_K, init_means=_m, init_weights=_w, init_covariances=_c, random_state=0, max_iter=MAX_ITER, device=device).fit(X_tensor)
-    _mu, _S, _pi = _m.cpu().numpy(), _c.cpu().numpy(), _w.cpu().numpy()
-    _lab = hd_labels.cpu().numpy()
-    _order = sorted(range(hd_found), key=lambda _k: -int((_lab == _k).sum()))[:_K]  # cluster ids by decreasing size = the order of the init components
+    _fit = GaussianMixture(n_components=_K, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan',
+                           random_state=0, max_iter=MAX_ITER, device=device).fit(X_tensor)
+    # the model keeps the start it was initialised with
+    _mu, _S, _pi = (_t.detach().cpu().numpy() for _t in (_fit.initial_means_, _fit.initial_covariances_, _fit.initial_weights_))
+    _lab = hd_labels.cpu().numpy()   # clusters are numbered by decreasing size: cluster j is component j; -1 is noise
     _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.5), sharex=True, sharey=True)
     _axs[0].scatter(X[_lab == -1, 0], X[_lab == -1, 1], s=4, alpha=0.5, color='lightgray', label='noise')
-    for _j, _k in enumerate(_order):
-        _axs[0].scatter(X[_lab == _k, 0], X[_lab == _k, 1], s=4, alpha=0.5, color=CATEGORICAL_PALETTE[_j], label=f'cluster {_j + 1}')
+    for _j in range(hd_found):
+        _axs[0].scatter(X[_lab == _j, 0], X[_lab == _j, 1], s=4, alpha=0.5, color=CATEGORICAL_PALETTE[_j], label=f'cluster {_j + 1}')
     _axs[0].set_title(f'HDBSCAN assignments: {hd_found} clusters, {hd_noise} noise points')
     _axs[0].legend(markerscale=3, loc='upper left')
     _axs[1].scatter(X[:, 0], X[:, 1], s=4, alpha=0.5, color='lightgray')
     for _j in range(_K):
-        _padded = _j >= len(_order)  # a centre added by D^2-sampling from the noise, with the global covariance
+        _padded = _j >= hd_found  # a centre added by k-means++ among the unclaimed points: identity covariance
         cov_ellipse(_axs[1], _mu[_j], _S[_j], n_std=N_STD95, color=CATEGORICAL_PALETTE[_j], ls=':' if _padded else '-')
         _axs[1].annotate(f'$\\pi$={_pi[_j]:.2f}' + (' (padded)' if _padded else ''), _mu[_j], textcoords='offset points', xytext=(6, 6), color=CATEGORICAL_PALETTE[_j])
         cov_ellipse(_axs[1], _fit.means_[_j].detach().cpu().numpy(), _fit.covariances_[_j].detach().cpu().numpy(), n_std=N_STD95, color='black', ls='--', lw=0.8)
@@ -642,23 +573,12 @@ def _(
 
 
 @app.cell
-def _(
-    GaussianMixture,
-    MAX_ITER,
-    X_tensor,
-    device,
-    hd_found,
-    hd_labels,
-    hd_noise,
-    hdbscan_init,
-    mo,
-):
+def _(GaussianMixture, MAX_ITER, X_tensor, device, hd_found, hd_noise, mo):
     _found, _noise = hd_found, hd_noise
-    _m, _w, _c = hdbscan_init(X_tensor, 4, seed=0, labels=hd_labels)
     _starts = {
         'default: `kmeans` means, uniform weights, empirical covariances': dict(),
-        'HDBSCAN means only': dict(init_means=_m),
-        'HDBSCAN means, weights and covariances (all from the assignments)': dict(init_means=_m, init_weights=_w, init_covariances=_c),
+        "HDBSCAN means only (`init_means='hdbscan'`)": dict(init_means='hdbscan'),
+        'HDBSCAN means, weights and covariances (all from the assignments)': dict(init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan'),
     }
     _rows, _res = [], {}
     for _name, _kw in _starts.items():
@@ -673,7 +593,7 @@ def _(
         f"({_its[0]} for the default start, {_its[1]} and {_its[2]} for the HDBSCAN starts: they begin at the dense cores of the clusters, so EM has little left to do). "
         + (f"HDBSCAN finds {_found} clusters here (so no centre is padded), but {_noise} of the {len(X_tensor)} points are called noise: the overlap between the blobs is low-density, so the clusters it does find are the dense cores, and their covariances are smaller than the blobs' own."
            if _found >= 4 else
-           f"HDBSCAN finds only {_found} clusters here, so {4 - _found} starting component(s) are padded ones with the global covariance, which EM has to move into place.")
+           f"HDBSCAN finds only {_found} clusters here, so {4 - _found} starting component(s) are padded ones with an identity covariance, which EM has to move into place.")
     )
     return
 
@@ -682,33 +602,32 @@ def _(
 def _(
     BEST_LL,
     FAST,
+    GMMInitializer,
     GaussianMixture,
-    HDBSCAN,
     MAX_ITER,
     TOL_HIT,
     X_tensor,
     device,
-    hdbscan_init,
     mo,
     np,
 ):
-    # how sensitive is the HDBSCAN start to min_cluster_size? (min_samples = half of it)
+    # how sensitive is the HDBSCAN start to min_cluster_size? (set through hdbscan_kwargs; min_samples = half of it)
     _seeds = 5 if FAST else 20
     _rows = []
     for _mcs in ([30, 60, 100, 150] if FAST else [15, 30, 60, 100, 150]):
-        _ms = max(5, _mcs // 2)
-        _lab = HDBSCAN(min_cluster_size=_mcs, min_samples=_ms, device=device).fit(X_tensor).labels_
+        _kw = {'min_cluster_size': _mcs, 'min_samples': max(5, _mcs // 2)}
+        _lab = GMMInitializer.hdbscan_clusters(X_tensor, 4, random_state=0, **_kw)[1]
         _ll = np.array([
-            float(GaussianMixture(n_components=4, init_means=_m, init_weights=_w, init_covariances=_c, random_state=_s, max_iter=MAX_ITER, device=device).fit(X_tensor).lower_bound_)
+            float(GaussianMixture(n_components=4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan', hdbscan_kwargs=_kw,
+                                  random_state=_s, max_iter=MAX_ITER, device=device).fit(X_tensor).lower_bound_)
             for _s in range(_seeds)
-            for _m, _w, _c in [hdbscan_init(X_tensor, 4, min_cluster_size=_mcs, min_samples=_ms, seed=_s, labels=_lab)]
         ])
-        _rows.append(f"| {_mcs} | {_ms} | {int(_lab.max()) + 1} | {int((_lab == -1).sum())} of {len(X_tensor)} | {(_ll > BEST_LL - TOL_HIT).mean():.0%} |")
+        _rows.append(f"| {_mcs} | {_kw['min_samples']} | {int(_lab.max()) + 1} | {int((_lab == -1).sum())} of {len(X_tensor)} | {(_ll > BEST_LL - TOL_HIT).mean():.0%} |")
     mo.md(
-        "**Sensitivity of the HDBSCAN start to `min_cluster_size`** (default blobs, $K=4$):\n\n"
-        f"| `min_cluster_size` | `min_samples` | clusters found | noise points | runs reaching the best optimum ({_seeds} seeds) |\n|---|---|---|---|---|\n" + "\n".join(_rows)
+        "**Sensitivity of the HDBSCAN start to `min_cluster_size`** (default blobs, $K=4$; set with `hdbscan_kwargs`):\n\n"
+        f"| `min_cluster_size` | `min_samples` | clusters kept | noise points | runs reaching the best optimum ({_seeds} seeds) |\n|---|---|---|---|---|\n" + "\n".join(_rows)
         + "\n\nThe number of clusters HDBSCAN finds changes a lot with `min_cluster_size` (and on these overlapping blobs a large share of the points is called noise, since the overlap between the peaks is low-density), "
-        "but the padding and truncation in the helper keep the start usable: EM repairs a start with too few clusters as long as the padded centres land somewhere sensible."
+        "but the padding and truncation keep the start usable: EM repairs a start with too few clusters as long as the padded centres land somewhere sensible."
     )
     return
 
@@ -895,7 +814,7 @@ def _(mo):
     ## Summary
 
     - EM only goes uphill, so it ends in the local maximum nearest its start; initialization decides which one.
-    - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often. `maxdist` is only for clean, well separated data: a few outliers take its centres. An HDBSCAN start (built from init tensors) estimates the means, weights and covariances from its cluster assignments, so noise and outliers never enter them.
+    - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often. `maxdist` is only for clean, well separated data: a few outliers take its centres. An HDBSCAN start (`init_means='hdbscan'`, with `init_weights='hdbscan'` and `init_covariances='hdbscan'`) estimates the means, weights and covariances from its cluster assignments, so noise and outliers never enter the means and covariances.
     - `init_weights` and `init_covariances` mostly affect speed once the means are good; a `random` covariance start is the exception and can cost many extra iterations or end in a worse optimum.
     - `n_init=n` keeps the best of $n$ runs (seeds `random_state + i`), failing with probability about $(1-p)^n$, also when means, weights and covariances are all random; the winner's seed is in `best_random_state_`.
     - To start from parameters you choose, pass `init_*` tensors (any start, `GMMInitializer` builds them) or use `warm_start=True` to continue a fitted model; continuing is exactly a fresh fit started from that model's parameters. Per-call `fit(...)` overrides (`max_iter`, `tol`, `random_state`, `warm_start`) leave the model's defaults untouched.

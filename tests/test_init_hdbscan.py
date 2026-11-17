@@ -260,3 +260,142 @@ class TestInvalidArguments:
     def test_three_dimensional_data_is_rejected(self):
         with pytest.raises(ValueError, match="2D"):
             GMMInitializer.hdbscan(torch.randn(10, 2, 2), 2)
+
+
+class TestDefaultRule:
+    """min_cluster_size = max(10, min(int(0.02 n), n // (5 k))), min_samples = max(5, min_cluster_size // 2)."""
+
+    @pytest.mark.parametrize("n, k, expected", [
+        (3000, 4, 60),      # 2% of the points
+        (3000, 50, 12),     # n // (5 k) takes over when k is large, so 50 clusters of ~60 points survive
+        (200, 4, 10),       # never below 10
+        (1200, 8, 24),
+    ])
+    def test_default_min_cluster_size(self, n, k, expected):
+        assert GMMInitializer._hdbscan_default_min_cluster_size(n, k) == expected
+
+    def test_many_small_clusters_are_not_lost_to_noise(self):
+        # 50 blobs of 60 points: a flat 2% rule (60) would call most of them noise
+        K, cols = 50, 8
+        centres = [np.array([8.0 * (i % cols), 8.0 * (i // cols)]) for i in range(K)]
+        X, _ = generate_gmm_data(centres, [np.eye(2) * 0.64] * K, [60] * K, random_state=3)
+        means, labels = GMMInitializer.hdbscan_clusters(X, K, random_state=0)
+        d = np.linalg.norm(np.stack(centres)[:, None] - means.numpy()[None], axis=2)
+        assert int((d.min(axis=1) < 2.0).sum()) == K
+
+    def test_tutorial_like_overlapping_blobs_give_four_clusters(self):
+        covs = [np.eye(2), 0.25 * np.eye(2), np.array([[4.0, 0.0], [0.0, 0.25]]), np.array([[0.29, 1.1], [1.1, 4.25]])]
+        cen = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
+        X, _ = generate_gmm_data(cen, covs, [800, 200, 1000, 1000], random_state=0)
+        _, labels = GMMInitializer.hdbscan_clusters(X, 4, random_state=0)
+        assert int(labels.max()) + 1 == 4
+
+
+class TestHdbscanKwargs:
+    def test_default_is_none_and_stored(self):
+        assert GaussianMixture(4).hdbscan_kwargs is None
+        g = GaussianMixture(4, hdbscan_kwargs={'min_cluster_size': 40})
+        assert g.hdbscan_kwargs == {'min_cluster_size': 40}
+
+    def test_kwargs_tune_the_clustering(self):
+        X, _ = blobs()
+        small = GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan',
+                                hdbscan_kwargs={'min_cluster_size': 20}, random_state=0).fit(X)
+        huge = GaussianMixture(4, init_means='hdbscan', hdbscan_kwargs={'min_cluster_size': 700}, random_state=0).fit(X)
+        assert small.converged_ and recovered(small.means_.cpu().numpy(), tol=0.3)
+        # a minimum cluster size above the blob size leaves no cluster: the start is plain k-means++ (still converges)
+        assert huge.converged_
+
+    def test_kwargs_change_the_number_of_clusters_found(self):
+        X, _ = blobs()
+        _, a = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, min_cluster_size=20)
+        _, b = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, min_cluster_size=700)
+        assert int(a.max()) + 1 == 4 and int(b.max()) + 1 == 0
+
+    def test_weights_and_covariances_reuse_the_tuned_clustering(self):
+        X, _ = blobs()
+        g = GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan',
+                            hdbscan_kwargs={'min_cluster_size': 20, 'min_samples': 10}, max_iter=1, random_state=0)
+        g.fit(X)
+        _, labels, _ = g._hdbscan_cache
+        assert int(labels.max()) + 1 == 4
+        assert torch.allclose(g.initial_weights_.sum().cpu(), torch.tensor(1.0), atol=1e-5)
+
+    def test_cache_key_includes_the_kwargs(self):
+        X, _ = blobs()
+        g = GaussianMixture(4, init_means='hdbscan', max_iter=1, random_state=0, hdbscan_kwargs={'min_cluster_size': 20})
+        g.fit(X)
+        first = g._hdbscan_cache
+        g.hdbscan_kwargs = {'min_cluster_size': 700}      # same data, other settings: it must re-cluster
+        g.fit(X)
+        assert g._hdbscan_cache is not first
+        assert int(g._hdbscan_cache[1].max()) + 1 == 0
+
+    def test_n_init_still_clusters_once(self, monkeypatch):
+        X, _ = blobs()
+        calls = []
+        real = HDBSCAN.fit
+        monkeypatch.setattr(HDBSCAN, 'fit', lambda self, data, *a, **k: (calls.append(1), real(self, data, *a, **k))[1])
+        GaussianMixture(4, init_means='hdbscan', n_init=3, max_iter=2, random_state=0,
+                        hdbscan_kwargs={'min_cluster_size': 20}).fit(X)
+        assert len(calls) == 1
+
+    def test_max_points_key(self):
+        X, _ = blobs(n_per=(900, 900, 900, 900))
+        g = GaussianMixture(4, init_means='hdbscan', hdbscan_kwargs={'max_points': 800}, max_iter=1, random_state=0).fit(X)
+        assert int(g._hdbscan_cache[1].max()) + 1 == 4
+
+    def test_other_hdbscan_arguments_are_passed_on(self):
+        X, _ = blobs()
+        GaussianMixture(4, init_means='hdbscan', hdbscan_kwargs={'cluster_selection_method': 'leaf'},
+                        max_iter=1, random_state=0).fit(X)
+        with pytest.raises(ValueError, match="cluster_selection_method"):
+            GaussianMixture(4, init_means='hdbscan', hdbscan_kwargs={'cluster_selection_method': 'nope'}, max_iter=1).fit(X)
+
+    @pytest.mark.parametrize("bad, exc, match", [
+        ([('min_cluster_size', 5)], TypeError, "dict or None"),
+        ('min_cluster_size', TypeError, "dict or None"),
+        ({'min_cluster_siz': 5}, ValueError, "unknown hdbscan_kwargs key"),
+        ({'device': 'cpu'}, ValueError, "unknown hdbscan_kwargs key"),
+        ({'min_cluster_size': 1}, ValueError, "min_cluster_size"),
+        ({'min_cluster_size': 2.5}, ValueError, "min_cluster_size"),
+        ({'min_samples': 0}, ValueError, "min_samples"),
+        ({'max_points': 1}, ValueError, "max_points"),
+    ])
+    def test_invalid_input(self, bad, exc, match):
+        with pytest.raises(exc, match=match):
+            GaussianMixture(4, init_means='hdbscan', hdbscan_kwargs=bad)
+
+    def test_unknown_key_message_lists_the_allowed_ones(self):
+        with pytest.raises(ValueError) as e:
+            GaussianMixture(4, hdbscan_kwargs={'nope': 1})
+        assert 'min_cluster_size' in str(e.value) and 'max_points' in str(e.value)
+
+    def test_the_dict_is_copied(self):
+        kw = {'min_cluster_size': 20}
+        g = GaussianMixture(4, hdbscan_kwargs=kw)
+        kw['min_cluster_size'] = 999
+        assert g.hdbscan_kwargs == {'min_cluster_size': 20}
+
+    def test_save_and_load_roundtrip(self, tmp_path):
+        X, _ = blobs()
+        g = GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan', random_state=0,
+                            hdbscan_kwargs={'min_cluster_size': 20, 'min_samples': 10}).fit(X)
+        path = str(tmp_path / 'gmm.pt')
+        g.save(path)
+        h = GaussianMixture.load(path)
+        assert h.hdbscan_kwargs == {'min_cluster_size': 20, 'min_samples': 10}
+        sd = g.save_state_dict()
+        assert sd['hdbscan_kwargs'] == {'min_cluster_size': 20, 'min_samples': 10}
+        k = GaussianMixture(4)
+        k.load_state_dict(sd)
+        assert k.hdbscan_kwargs == {'min_cluster_size': 20, 'min_samples': 10}
+
+    def test_old_saved_models_without_the_key_load(self, tmp_path):
+        X, _ = blobs()
+        g = GaussianMixture(4, random_state=0, max_iter=5).fit(X)
+        sd = g.save_state_dict()
+        sd.pop('hdbscan_kwargs')
+        k = GaussianMixture(4)
+        k.load_state_dict(sd)
+        assert k.hdbscan_kwargs is None

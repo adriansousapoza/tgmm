@@ -7,19 +7,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added (HDBSCAN initialisation)
 
-- `init_means='hdbscan'` (`GaussianMixture`): start EM from the means of the clusters
-  `tgmm.HDBSCAN` finds (noise ignored). It needs no number of clusters to find them, finds non-convex and very unequal
-  clusters and is robust to outliers, which makes it the safe alternative to `'maxdist'` (farthest-first traversal puts
-  centres on outliers). `k` only decides how many clusters are kept (the `n_components` largest) and how many extra centres
-  are added (k-means++ seeding on the points no cluster claimed, noise first); with no cluster found it is plain
-  k-means++. The clustering is computed once per data set (cached across `n_init`), and large data is clustered on a random
-  subsample (`max_points=5000`, HDBSCAN needs the full `N x N` distance matrix).
-- `init_weights='hdbscan'` (cluster sizes, noise given to the nearest mean) and `init_covariances='hdbscan'` (the scatter
-  of each cluster, noise left out; all classic covariance types and the GPCM codes). Both reuse the clustering of
+- `init_means='hdbscan'` (`GaussianMixture`): start EM from the means of the clusters `tgmm.HDBSCAN` finds (noise ignored). It
+  needs no number of clusters to find them, finds non-convex and very unequal clusters and is robust to outliers, which makes it
+  the safe alternative to `'maxdist'` (farthest-first traversal puts centres on outliers). `n_components` only decides how many
+  clusters are kept (the largest) and how many extra centres are added (k-means++ seeding on the points no cluster claimed, noise
+  first); with no cluster found it is plain k-means++. The clustering is computed once per data set (cached across `n_init`),
+  and large data is clustered on a random subsample (`max_points=5000`, HDBSCAN needs the full `N x N` distance matrix).
+- `init_weights='hdbscan'` (the cluster sizes, the noise points added to the nearest mean) and `init_covariances='hdbscan'` (the
+  scatter of each cluster, noise left out; all classic covariance types and the GPCM codes). Both reuse the clustering of
   `init_means='hdbscan'` and raise a clear error otherwise.
+- New constructor argument `hdbscan_kwargs: Optional[dict] = None` (`GaussianMixture`): settings of that HDBSCAN run
+  (`min_cluster_size`, `min_samples`, `cluster_selection_method`, ..., and `max_points`). `None` uses the default rule
+  `min_cluster_size = max(10, min(int(0.02 n), n // (5 k)))` and `min_samples = max(5, min_cluster_size // 2)`: 2% of the points,
+  but small enough for `k` clusters of about `n / k` points to survive (a flat 2% rule loses clusters at large `k`). Unknown keys
+  raise a `ValueError` listing the allowed ones; the argument is saved and loaded with the model.
 - `GMMInitializer.hdbscan(data, k, min_cluster_size=None, min_samples=None, max_points=5000, random_state=None, **hdbscan_kwargs)`
-  returns the centres; `GMMInitializer.hdbscan_clusters(...)` also returns the per-point labels (`-1` = noise). Pass the
-  centres as a tensor to tune the clustering (`min_cluster_size`, `cluster_selection_method`, ...).
+  returns the centres; `GMMInitializer.hdbscan_clusters(...)` also returns the per-point labels (`-1` = noise).
   `GMMInitializer.init_weights_from_labels` and the new optional `labels` argument of
   `GMMInitializer.init_covariances_empirical` (points labelled `-1` are left out) are the building blocks.
 

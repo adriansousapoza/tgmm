@@ -80,7 +80,8 @@ parameter counts, and the [Covariance Structures tutorial](../notebooks/02_covar
 
 ## Initialization Methods
 
-Good initialization is crucial for EM convergence:
+Good initialization is crucial for EM convergence (the [Initialization tutorial](../notebooks/03_initialization.ipynb) compares
+all of them; `'hdbscan'` and `hdbscan_kwargs` are new after 0.4.3):
 
 ```python
 # K-means initialization (recommended, default)
@@ -91,6 +92,12 @@ gmm = GaussianMixture(n_components=3, n_features=2, init_means='kpp')
 
 # Random initialization
 gmm = GaussianMixture(n_components=3, n_features=2, init_means='random')
+
+# HDBSCAN initialization: the means, weights and covariances all come from the clusters
+# HDBSCAN finds (noise ignored), so outliers cannot take a centre
+gmm = GaussianMixture(n_components=3, n_features=2, init_means='hdbscan',
+                      init_weights='hdbscan', init_covariances='hdbscan',
+                      hdbscan_kwargs={'min_cluster_size': 40})  # optional: tune the clustering
 
 # Custom initialization with provided means
 initial_means = torch.tensor([[0, 0], [5, 5], [0, 5]], dtype=torch.float32)

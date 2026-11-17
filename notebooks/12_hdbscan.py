@@ -66,6 +66,8 @@ def _(mo):
     - how to use HDBSCAN's noise label to clean data before fitting a `GaussianMixture`
 
     **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [06 -- Visualization](06_visualise.ipynb) (for `plot_gmm`).
+
+    **See also:** HDBSCAN as an initialiser of a `GaussianMixture` (`init_means='hdbscan'`, with the weights and covariances estimated from its cluster assignments) in [03 -- Initialization](03_initialization.ipynb).
     """)
     return
 

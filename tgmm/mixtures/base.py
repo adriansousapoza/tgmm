@@ -634,18 +634,22 @@ class BaseMixture(nn.Module, ABC):
         Starting means and per-point cluster labels of ``init_means='hdbscan'`` (see
         :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`), shared by the classes that accept the string.
 
-        HDBSCAN itself is deterministic, so its clustering is computed once per data set and cached on the model
-        (the key is the data's storage, shape and in-place version counter): the restarts of ``n_init > 1`` do not
+        The clustering is tuned by the model's ``hdbscan_kwargs`` (``None``: the defaults of
+        :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`). HDBSCAN itself is deterministic, so its clustering is
+        computed once per data set and cached on the model (the key is the data's storage, shape and in-place version
+        counter, and the kwargs): the restarts of ``n_init > 1`` do not
         repeat the ``O(N^2)`` clustering, and they still differ in the k-means++ completion of the missing centres.
         Returns ``(means, labels)`` with the means on the CPU in the data's dtype (like the other string initialisers).
         """
         from ..gmm_init import GMMInitializer
 
-        key = (X.data_ptr(), tuple(X.shape), X._version, str(X.device), str(X.dtype), self.n_components)
+        kwargs = dict(getattr(self, 'hdbscan_kwargs', None) or {})   # min_cluster_size, min_samples, max_points, ...
+        key = (X.data_ptr(), tuple(X.shape), X._version, str(X.device), str(X.dtype), self.n_components,
+               tuple(sorted((str(name), repr(value)) for name, value in kwargs.items())))
         data = X.detach().cpu()
         cache = getattr(self, '_hdbscan_cache', None)
         if cache is None or cache[0] != key:
-            labels, centres = GMMInitializer._hdbscan_partition(data, self.n_components)
+            labels, centres = GMMInitializer._hdbscan_partition(data, self.n_components, **kwargs)
             self._hdbscan_cache = (key, labels, centres)
         else:
             _, labels, centres = cache

@@ -10,7 +10,7 @@
 It supports EM, MAP and Gibbs-sampling (Dirichlet-process) estimation, 14 covariance structures,
 several EM variants, fixed values and bounds on the parameters, semi-supervised and
 positive-unlabeled learning, a uniform noise component, missing-value EM, marginal/conditional
-distributions, several initialisation strategies (k-means, k-means++, ...), model selection,
+distributions, several initialisation strategies (k-means, k-means++, HDBSCAN, ...), model selection,
 and a comprehensive suite of clustering metrics and visualization tools.
 
 A mixture model writes the density of the data as a weighted sum of components,
@@ -95,7 +95,7 @@ The core `GaussianMixture` class supports:
   adds an accelerated stopping rule
 - **Dirichlet-process mixtures**: `GaussianMixture(n_components=None, ...)` runs a collapsed Gibbs
   sampler that infers the number of components
-- **Initialization**: multiple strategies via `GMMInitializer`
+- **Initialization**: multiple strategies via `GMMInitializer`, including HDBSCAN (`init_means='hdbscan'`: means, weights and covariances from the cluster assignments)
 - **Model selection**: `bic` / `aic` / `icl` methods, and `select_model` to sweep `n_components` and all 14
   covariance codes at once ([Model Selection tutorial](notebooks/13_model_selection.ipynb))
 

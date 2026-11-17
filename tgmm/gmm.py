@@ -128,8 +128,7 @@ class GaussianMixture(BaseMixture):
           :class:`~tgmm.hdbscan.HDBSCAN` and starts from the means of the clusters it finds (noise ignored;
           the ``n_components`` largest are kept, missing centres are added by k-means++); it is the
           outlier-robust choice for clusters that are not simple blobs. See
-          :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters` (use it to tune ``min_cluster_size`` and pass
-          the result as a tensor).
+          :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`; tune the clustering with ``hdbscan_kwargs``.
         - If tensor: shape (n_components, n_features) exactly (no broadcasting)
         (default: 'kmeans')
     init_weights : str or torch.Tensor, optional
@@ -316,6 +315,16 @@ class GaussianMixture(BaseMixture):
     frozen_covariances : sequence of int, optional
         Components whose *covariance* is held at its initial value (`init_covariances` must be a tensor); not
         available for the tied types and the 8 GPCM-only codes. (default: ())
+    hdbscan_kwargs : dict or None, optional
+        Settings of the :class:`~tgmm.hdbscan.HDBSCAN` run behind ``init_means='hdbscan'`` (and the matching
+        ``init_weights='hdbscan'`` / ``init_covariances='hdbscan'``, which reuse that clustering): ``min_cluster_size``,
+        ``min_samples``, ``cluster_selection_method``, ``cluster_selection_epsilon``, ``metric``, ... and
+        ``max_points`` (HDBSCAN needs the full ``N x N`` distance matrix, so larger data is clustered on a random
+        subsample of this many points; default 5000, ``None`` clusters everything). ``device`` is not accepted: the
+        clustering runs where the data is. ``None`` uses the defaults of
+        :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`: ``min_cluster_size = max(10, min(0.02 N, N // (5 k)))``
+        and ``min_samples = max(5, min_cluster_size // 2)``. Unknown keys raise a ``ValueError`` listing the allowed
+        ones. Ignored unless an initialiser is ``'hdbscan'``. (default: None)
     missing : {'error', 'em'}, optional
         How `NaN` entries of `X` are handled. `'error'` (default): `NaN` raises `ValueError`.
         `'em'`: `NaN` marks missing-at-random values and the likelihood of the *observed* entries
@@ -503,6 +512,9 @@ class GaussianMixture(BaseMixture):
         frozen_means: Sequence[int] = (),
         frozen_covariances: Sequence[int] = (),
 
+        # Settings of the HDBSCAN used by init_means/init_weights/init_covariances='hdbscan'
+        hdbscan_kwargs: Optional[dict] = None,
+
         **kwargs  # Catch deprecated parameters
     ):
         super().__init__()
@@ -594,6 +606,7 @@ class GaussianMixture(BaseMixture):
         self.init_means = init_means
         self.init_weights = init_weights
         self.init_covariances = init_covariances
+        self.hdbscan_kwargs = GMMInitializer._validate_hdbscan_kwargs(hdbscan_kwargs)
 
         # ===================================================================
         # 5. Store random state and restart options
@@ -4690,6 +4703,7 @@ class GaussianMixture(BaseMixture):
             'covariance_bounds': self.covariance_bounds,
             'frozen_means': list(self.frozen_means),
             'frozen_covariances': list(self.frozen_covariances),
+            'hdbscan_kwargs': self.hdbscan_kwargs,
             **self._semisupervised_state(),
 
             # ===============================================================
@@ -4822,6 +4836,7 @@ class GaussianMixture(BaseMixture):
             covariance_bounds=state_dict.get('covariance_bounds'),
             frozen_means=state_dict.get('frozen_means', ()),
             frozen_covariances=state_dict.get('frozen_covariances', ()),
+            hdbscan_kwargs=state_dict.get('hdbscan_kwargs'),
             **cls._semisupervised_kwargs(state_dict),
         )
         model.noise_weight_ = state_dict.get('noise_weight_')
@@ -4942,6 +4957,7 @@ class GaussianMixture(BaseMixture):
             'covariance_bounds': self.covariance_bounds,
             'frozen_means': list(self.frozen_means),
             'frozen_covariances': list(self.frozen_covariances),
+            'hdbscan_kwargs': self.hdbscan_kwargs,
             **self._semisupervised_state(),
 
             # ===============================================================
@@ -5061,6 +5077,7 @@ class GaussianMixture(BaseMixture):
         self.covariance_bounds = state_dict.get('covariance_bounds')
         self.frozen_means = tuple(state_dict.get('frozen_means', ()))
         self.frozen_covariances = tuple(state_dict.get('frozen_covariances', ()))
+        self.hdbscan_kwargs = GMMInitializer._validate_hdbscan_kwargs(state_dict.get('hdbscan_kwargs'))
         self._load_semisupervised_state(state_dict)
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')

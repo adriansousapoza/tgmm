@@ -224,7 +224,7 @@ FAMILIES = {
     'gaussian': (GaussianMixture, [
         dict(n_components=3, n_features=2, covariance_type='diag', gpcm_tol=1e-4, gpcm_max_iter=7, init_means='kpp',
              init_covariances='global', algorithm='sem', cem=False, temperature=(0.5, 5), noise=True, missing='error',
-             frozen_components=(1,)),
+             frozen_components=(1,), hdbscan_kwargs={'min_cluster_size': 12, 'max_points': 500}),
         dict(n_components=3, n_features=2, covariance_type='diag', weight_bounds=(0.1, 0.6),
              mean_bounds=(torch.tensor([0.0, -1.0]), torch.tensor([1.0, 2.0])), covariance_bounds=(0.01, 0.5),
              frozen_means=(0,), frozen_covariances=(2,),
