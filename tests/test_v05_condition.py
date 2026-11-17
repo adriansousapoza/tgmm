@@ -1,11 +1,11 @@
-"""v0.5 item 1.3: GaussianMixture.marginal / condition, ConditionalGaussianMixture, StudentTMixture.marginal."""
+"""v0.5 item 1.3: GaussianMixture.marginal / condition, ConditionalGaussianMixture."""
 import numpy as np
 import pytest
 import torch
 from scipy.special import logsumexp
-from scipy.stats import multivariate_normal, multivariate_t
+from scipy.stats import multivariate_normal
 
-from tgmm import ConditionalGaussianMixture, GaussianMixture, StudentTMixture
+from tgmm import ConditionalGaussianMixture, GaussianMixture
 
 CLASSIC = ['full', 'diag', 'spherical', 'tied_full', 'tied_diag', 'tied_spherical']
 GPCM_NEW = ['VEI', 'EVI', 'VEE', 'EVE', 'EEV', 'VVE', 'VEV', 'EVV']
@@ -309,43 +309,3 @@ def test_condition_after_missing_em_fit():
     cond = g.condition(X[:5, :2], [0, 1])
     assert cond.mean().shape == (5, 2)
     assert g.marginal([0, 1]).missing == 'em'
-
-
-# ---------------------------------------------------------------------------
-# Student-t
-# ---------------------------------------------------------------------------
-@pytest.mark.parametrize('cov_type', ['full', 'diag', 'spherical', 'tied_full'])
-def test_student_t_marginal_is_exact(cov_type):
-    X = _data(d=3)
-    t = StudentTMixture(n_components=3, covariance_type=cov_type, random_state=0, max_iter=40, device='cpu').fit(X)
-    dims = [2, 0]
-    m = t.marginal(dims)
-    assert isinstance(m, StudentTMixture) and m.n_features == 2
-    torch.testing.assert_close(m.dof_, t.dof_)
-    d = X.shape[1]
-    c = t.covariances_
-    if cov_type == 'full':
-        S = c
-    elif cov_type == 'diag':
-        S = torch.diag_embed(c)
-    elif cov_type == 'spherical':
-        S = c.view(-1, 1, 1) * torch.eye(d, dtype=c.dtype)
-    else:
-        S = c.unsqueeze(0).expand(3, d, d)
-    Xm = X[:, dims]
-    cols = [np.log(t.weights_[k].item())
-            + multivariate_t(t.means_[k][dims].numpy(), S[k][np.ix_(dims, dims)].numpy(), df=t.dof_[k].item()).logpdf(Xm.numpy())
-            for k in range(3)]
-    ref = logsumexp(np.stack(cols), axis=0)
-    np.testing.assert_allclose(m.score_samples(Xm).detach().numpy(), ref, atol=1e-8)
-
-
-def test_student_t_condition_not_implemented_and_marginal_validation():
-    X = _data(d=3)
-    t = StudentTMixture(n_components=2, random_state=0, max_iter=20, device='cpu').fit(X)
-    with pytest.raises(NotImplementedError, match='degrees of freedom'):
-        t.condition(X[:3, :1], [0])
-    with pytest.raises(ValueError):
-        t.marginal([0, 0])
-    with pytest.raises(NotImplementedError, match='noise'):
-        StudentTMixture(n_components=2, n_features=3, noise=True).marginal([0])

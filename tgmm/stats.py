@@ -37,12 +37,12 @@ class SufficientStats:
     n_samples : int
         Number of rows this instance summarizes.
     aux : dict[str, torch.Tensor], optional
-        Family-specific accumulators that don't fit the Gaussian-shaped
-        ``nk``/``s1``/``s2`` fields above -- e.g. `StudentTMixture`'s
-        :math:`u`-weighted sums. ``None`` (default) for every family that
-        doesn't need it, in particular `GaussianMixture`, whose behavior is
-        completely unaffected by this field's existence. ``__add__``/
-        ``scale`` merge/scale it key-by-key when present on either side.
+        Extra accumulators that don't fit the ``nk``/``s1``/``s2`` fields
+        above -- `GaussianMixture` stores the per-feature weight totals
+        (``'nk_feat'``) and the pooled sum for tied spherical covariances
+        (``'s2_total'``) here. ``None`` (default) when a model needs nothing
+        extra. ``__add__``/``scale`` merge/scale it key-by-key when present
+        on either side.
     """
 
     nk: torch.Tensor

@@ -274,7 +274,7 @@ class GaussianMixture(BaseMixture):
         `sample`. (default: False)
     noise_volume : 'bbox' or float, optional
         Volume `V` of the noise region: the bounding box of the fit data, or a user-supplied
-        hypervolume. Ignored by `VonMisesFisherMixture` (uniform on the sphere). (default: 'bbox')
+        hypervolume. (default: 'bbox')
     noise_prior : float, optional
         Initial noise weight `pi_0`, in `(0, 1)`. (default: 0.05)
     noise_init : array-like, optional

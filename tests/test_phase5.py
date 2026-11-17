@@ -2,12 +2,11 @@
 Phase 5 (v0.4 roadmap): semi-supervised and positive-unlabeled fitting. See
 docs/superpowers/specs/2026-10-14-phase5-semi-supervised-pu-design.md.
 """
-import math
 
 import pytest
 import torch
 
-from tgmm import GaussianMixture, PositiveUnlabeledMixture, StudentTMixture, VonMisesFisherMixture
+from tgmm import GaussianMixture, PositiveUnlabeledMixture
 from tgmm.metrics import ClusteringMetrics
 
 
@@ -118,17 +117,6 @@ class TestSupervisedFit:
         with pytest.warns(UserWarning, match="too few samples"):
             gmm.fit(X_sparse, labels=labels_sparse)
 
-    def test_other_families_support_supervised_fit(self):
-        X, labels = _two_blobs(9, sep=12.0)
-        stm = StudentTMixture(n_components=2, random_state=0)
-        stm.fit(X, labels=labels)
-        assert torch.equal(stm.predict_class(X), labels)
-
-        Xn = X / X.norm(dim=1, keepdim=True)
-        vmf = VonMisesFisherMixture(n_components=2, random_state=0)
-        vmf.fit(Xn, labels=labels)
-        assert vmf.classes_ is not None
-
 
 # ===========================================================================
 # 5.1: semi-supervised EM (some -1)
@@ -216,19 +204,6 @@ class TestSemiSupervisedFit:
         with pytest.raises(NotImplementedError):
             GaussianMixture(n_components=2, random_state=0, **kwargs).fit(X, labels=labels)
 
-    def test_other_families_support_semisupervised_fit(self):
-        X, true_labels = _two_blobs(22, n_per=150, sep=8.0, scale=1.2)
-        labels, _ = _partial_labels(true_labels, 0.2, seed=23)
-
-        stm = StudentTMixture(n_components=2, random_state=0, max_iter=50)
-        stm.fit(X, labels=labels)
-        assert ClusteringMetrics.adjusted_rand_score(true_labels, stm.predict(X)) > 0.8
-
-        Xn = X / X.norm(dim=1, keepdim=True)
-        vmf = VonMisesFisherMixture(n_components=2, random_state=0, max_iter=50)
-        vmf.fit(Xn, labels=labels)
-        assert ClusteringMetrics.adjusted_rand_score(true_labels, vmf.predict(Xn)) > 0.7
-
 
 # ===========================================================================
 # 5.2: PositiveUnlabeledMixture
@@ -262,10 +237,8 @@ class TestPositiveUnlabeledMixture:
     def test_constructor_validation(self):
         with pytest.raises(NotImplementedError):
             PositiveUnlabeledMixture(n_components_negative=None)
-        with pytest.raises(ValueError, match="anchor='prior'"):
-            PositiveUnlabeledMixture(family='student_t', anchor='prior')
-        with pytest.raises(ValueError, match="family"):
-            PositiveUnlabeledMixture(family='bogus')
+        with pytest.raises(TypeError, match="no longer takes `family`"):
+            PositiveUnlabeledMixture(family='gaussian')
         with pytest.raises(ValueError, match="anchor"):
             PositiveUnlabeledMixture(anchor='bogus')
         with pytest.raises(ValueError, match="set internally"):
@@ -277,7 +250,7 @@ class TestPositiveUnlabeledMixture:
     def test_class_prior_and_f1_gaussian(self, anchor):
         X, true_positive, positive_mask, pi_true = _pu_data(0)
         pu = PositiveUnlabeledMixture(
-            n_components_positive=1, n_components_negative=1, family='gaussian',
+            n_components_positive=1, n_components_negative=1,
             anchor=anchor, random_state=0, max_iter=100,
         )
         pu.fit(X, positive_mask)
@@ -288,26 +261,13 @@ class TestPositiveUnlabeledMixture:
     def test_free_anchor_runs_and_documents_no_guarantee(self):
         X, true_positive, positive_mask, pi_true = _pu_data(1)
         pu = PositiveUnlabeledMixture(
-            n_components_positive=1, n_components_negative=1, family='gaussian',
+            n_components_positive=1, n_components_negative=1,
             anchor='free', random_state=0, max_iter=100,
         )
         pu.fit(X, positive_mask)
         # Only check it runs and produces a probability in [0, 1] -- 'free'
         # has no identifiability guarantee on overlapping data (see design doc).
         assert 0.0 <= pu.class_prior_ <= 1.0
-
-    @pytest.mark.parametrize("family,anchor", [('student_t', 'fixed'), ('student_t', 'free'), ('vmf', 'fixed'), ('vmf', 'free')])
-    def test_other_families(self, family, anchor):
-        X, true_positive, positive_mask, pi_true = _pu_data(2, d=8)
-        if family == 'vmf':
-            X = X / X.norm(dim=1, keepdim=True)
-        pu = PositiveUnlabeledMixture(
-            n_components_positive=1, n_components_negative=1, family=family,
-            anchor=anchor, random_state=0, max_iter=100,
-        )
-        pu.fit(X, positive_mask)
-        f1 = _f1_positive(pu.predict_positive(X), true_positive)
-        assert f1 > 0.85
 
     def test_predict_proba_positive_in_unit_interval(self):
         X, true_positive, positive_mask, _ = _pu_data(3)

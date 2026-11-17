@@ -5,7 +5,7 @@ import warnings
 import pytest
 import torch
 
-from tgmm import GaussianMixture, StudentTMixture, VonMisesFisherMixture, HDBSCAN
+from tgmm import GaussianMixture, HDBSCAN
 from tgmm.metrics import ClusteringMetrics
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -88,7 +88,6 @@ class TestAccuracy:
 class TestDefaultUnchanged:
     @pytest.mark.parametrize("cls,kw", [
         (GaussianMixture, dict(n_components=3)),
-        (StudentTMixture, dict(n_components=3)),
     ])
     def test_noise_false_matches_no_argument(self, cls, kw):
         X, _ = make_blobs_with_background()
@@ -149,32 +148,6 @@ class TestAlgorithms:
         gmm = fit_noise_gmm(X, covariance_type=code, n_init=2)
         assert match_to_true(gmm.predict(X), y) > 0.9
         assert (gmm.predict(X) == -1).sum() > 0
-
-    def test_student_t(self):
-        X, y = make_blobs_with_background()
-        stm = StudentTMixture(n_components=3, noise=True, random_state=0, n_init=3, max_iter=300).fit(X)
-        pred = stm.predict(X)
-        assert (pred[y == -1] == -1).double().mean() > 0.6
-        assert match_to_true(pred, y) > 0.9
-        assert stm.noise_weight_.item() < 0.3
-
-    def test_von_mises_fisher_noise_on_the_sphere(self):
-        g = torch.Generator().manual_seed(0)
-        mus = torch.tensor([[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]], dtype=torch.float64)
-        parts = [torch.nn.functional.normalize(mu + 0.12 * torch.randn(250, 3, generator=g, dtype=torch.float64), dim=1) for mu in mus]
-        bg = torch.nn.functional.normalize(torch.randn(80, 3, generator=g, dtype=torch.float64), dim=1)
-        X = torch.cat(parts + [bg])
-        y = torch.cat([torch.full((250,), k) for k in range(3)] + [torch.full((80,), -1)])
-        vmf = VonMisesFisherMixture(n_components=3, noise=True, random_state=0, n_init=3).fit(X)
-        pred = vmf.predict(X)
-        assert match_to_true(pred, y) > 0.95
-        assert (pred[y == -1] == -1).double().mean() > 0.3
-        # uniform noise density on S^2 is 1 / (4 pi)
-        lp = vmf._noise_log_density(X)
-        assert torch.allclose(lp, torch.full_like(lp, -math.log(4 * math.pi)), atol=1e-9)
-        samples, idx = vmf.sample(500)
-        assert torch.allclose(samples.norm(dim=1), torch.ones(500, dtype=samples.dtype), atol=1e-5)
-        assert (idx == -1).any()
 
 
 # ---------------------------------------------------------------------------
@@ -284,22 +257,6 @@ class TestPersistence:
         new.load_state_dict(gmm.save_state_dict())
         assert new.noise is True
         assert torch.equal(new.predict(X), gmm.predict(X))
-
-    @pytest.mark.parametrize("cls,kw", [(StudentTMixture, dict(n_components=3)), (VonMisesFisherMixture, dict(n_components=3))])
-    def test_other_families_roundtrip(self, cls, kw, tmp_path):
-        X, _ = make_blobs_with_background(n_per=100)
-        if cls is VonMisesFisherMixture:
-            X = torch.nn.functional.normalize(X, dim=1)
-        model = cls(noise=True, random_state=0, max_iter=60, **kw).fit(X)
-        path = str(tmp_path / "m.pth")
-        model.save(path)
-        loaded = cls.load(path)
-        assert loaded.noise is True
-        assert torch.equal(loaded.noise_weight_, model.noise_weight_)
-        assert torch.equal(loaded.predict(X), model.predict(X))
-        new = cls(**kw)
-        new.load_state_dict(model.save_state_dict())
-        assert new.noise is True and torch.equal(new.noise_weight_, model.noise_weight_)
 
     def test_warm_start_reuses_noise_weight(self):
         X, _ = make_blobs_with_background(n_per=100)
