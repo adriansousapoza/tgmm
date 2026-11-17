@@ -320,8 +320,13 @@ class GaussianMixture(BaseMixture):
         ``init_weights='hdbscan'`` / ``init_covariances='hdbscan'``, which reuse that clustering): ``min_cluster_size``,
         ``min_samples``, ``cluster_selection_method``, ``cluster_selection_epsilon``, ``metric``, ... and
         ``max_points`` (HDBSCAN needs the full ``N x N`` distance matrix, so larger data is clustered on a random
-        subsample of this many points; default 5000, ``None`` clusters everything). ``device`` is not accepted: the
-        clustering runs where the data is. ``None`` uses the defaults of
+        subsample of this many points; default 5000, ``None`` clusters everything) and ``exact_k`` (a bool, default
+        ``False``; opt-in: select exactly ``n_components`` clusters from the condensed tree, the ``n_components``
+        non-nested clusters of largest total stability, with a finer default ``min_cluster_size``; it puts the
+        initial centres much closer to the truth on elongated, unequal or noisy clusters, but on strongly overlapping
+        Gaussian components ``'kmeans'`` is the better start). ``device`` and
+        ``n_clusters`` are not accepted: the clustering runs where the data is, and ``n_components`` decides the number
+        of clusters. ``None`` uses the defaults of
         :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`: ``min_cluster_size = max(10, min(0.02 N, N // (5 k)))``
         and ``min_samples = max(5, min_cluster_size // 2)``. Unknown keys raise a ``ValueError`` listing the allowed
         ones. Ignored unless an initialiser is ``'hdbscan'``. (default: None)

@@ -17,7 +17,7 @@
 
 import marimo
 
-__generated_with = "0.25.1"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -63,11 +63,12 @@ def _(mo):
     - how HDBSCAN recovers non-convex clusters (two moons) that a Gaussian mixture cannot
     - how `min_samples` and `min_cluster_size` control noise detection and the number of clusters
     - how the choice of `metric` (Euclidean, Manhattan, cosine) changes what counts as a cluster
+    - how to ask for *exactly* $K$ clusters (`n_clusters=K`), and why that is not the same as cutting the single-linkage tree at $K$ clusters
     - how to use HDBSCAN's noise label to clean data before fitting a `GaussianMixture`
 
     **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [06 -- Visualization](06_visualise.ipynb) (for `plot_gmm`).
 
-    **See also:** HDBSCAN as an initialiser of a `GaussianMixture` (`init_means='hdbscan'`, with the weights and covariances estimated from its cluster assignments) in [03 -- Initialization](03_initialization.ipynb).
+    **See also:** HDBSCAN as an initialiser of a `GaussianMixture` (`init_means='hdbscan'`, with the weights and covariances estimated from its cluster assignments, and an opt-in exactly-$K$ variant) in [03 -- Initialization](03_initialization.ipynb).
     """)
     return
 
@@ -88,10 +89,12 @@ def _():
     import torch
     import matplotlib.pyplot as plt
     from sklearn.datasets import make_moons
+    from scipy.cluster.hierarchy import fcluster
     from sklearn.metrics import adjusted_rand_score
 
     from tgmm import GaussianMixture, HDBSCAN, generate_gmm_data, plot_gmm, gmm_proxy
     from tgmm.plotting import CATEGORICAL_PALETTE
+    from tutorial_data import make_default_data
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # --- figure style (see notebooks/README.md) ---
@@ -109,8 +112,10 @@ def _():
         SEED,
         adjusted_rand_score,
         device,
+        fcluster,
         generate_gmm_data,
         gmm_proxy,
+        make_default_data,
         make_moons,
         np,
         plot_gmm,
@@ -373,7 +378,79 @@ def _(HDBSCAN, adjusted_rand_score, device, np, plot_gmm, plt, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Example 5: Using HDBSCAN to Clean Data Before Fitting a GMM
+    ## Example 5: Exactly K Clusters
+
+    HDBSCAN decides the number of clusters itself, but sometimes you need a fixed $K$, for instance to start a $K$-component `GaussianMixture`. There are three ways to get there.
+
+    - **Tune `min_cluster_size`** (and `min_samples`) until $K$ clusters come out. Nothing guarantees such a value exists, and it depends on the data.
+    - **Cut the single-linkage tree at $K$ clusters**, as in `fcluster(Z, K, criterion='maxclust')`. HDBSCAN's mutual-reachability tree is a chain: the cheapest cut peels off one outlying point at a time, so the "clusters" are one huge group and $K-1$ singletons. The `min_cluster_size` rule that makes HDBSCAN robust has been skipped.
+    - **`HDBSCAN(n_clusters=K)`** (opt-in; the default `n_clusters=None` is unchanged) keeps the condensed tree and the stabilities $\sigma(C)$ of the algorithm above and picks, among all sets of $K$ non-nested clusters, the one with the largest total stability:
+
+    $$\max_{C_1,\dots,C_K\ \text{non-nested}}\ \sum_{k=1}^{K}\sigma(C_k).$$
+
+    This is the excess-of-mass objective with a cardinality constraint. It is solved exactly by dynamic programming over the tree: let $f(v, j)$ be the best total stability of $j$ non-nested clusters inside the subtree of $v$. Then $f(v, 1) = \max\{\sigma(v),\ \max_{c}\, f(c, 1)\}$ (take $v$ itself, or one cluster below it) and, for $j \ge 2$, $f(v, j) = \max_{j_1 + j_2 = j} f(c_1, j_1) + f(c_2, j_2)$ over the two children. Points outside the $K$ chosen clusters stay noise. Extracting a flat clustering from a hierarchy by optimising such an objective is the framework of Campello, Moulavi, Zimek & Sander (2013), and the `hdbscan` package's `hdbscan.flat` reaches a target count by tuning `cluster_selection_epsilon`, which only finds exactly $K$ when the data has $K$ separated density peaks. If the tree has fewer than $K$ non-nested clusters, `n_clusters=K` raises an error that asks for a smaller `min_cluster_size`.
+
+    Below, the three routes on the four tutorial blobs (the same overlapping blobs as in [01 -- Gaussian Mixture Models](01_introduction.ipynb)) with $K=4$.
+    """)
+    return
+
+
+@app.cell
+def _(HDBSCAN, SEED, device, fcluster, make_default_data, mo, np):
+    X_blobs, _ = make_default_data(SEED, device=device)
+    K_TARGET = 4
+    hdb_free = HDBSCAN(min_cluster_size=30, min_samples=15, device=device).fit(X_blobs)
+    hdb_exact = HDBSCAN(min_cluster_size=30, min_samples=15, n_clusters=K_TARGET, device=device).fit(X_blobs)
+    # The raw cut: `_single_linkage_tree` is the hierarchy in scipy's linkage format (private; the hdbscan package calls it
+    # single_linkage_tree_.to_numpy()), so the recipe `fcluster(Z, K, criterion='maxclust')` applies to it directly.
+    cut_labels = fcluster(np.asarray(hdb_free._single_linkage_tree), K_TARGET, criterion='maxclust') - 1
+
+    def _describe(labels):
+        _lab = np.asarray(labels)
+        _sizes = sorted(np.bincount(_lab[_lab >= 0]).tolist(), reverse=True)
+        return f"{len(_sizes)} | {_sizes} | {int((_lab < 0).sum())}"
+    _rows = [
+        ("`HDBSCAN(min_cluster_size=30, min_samples=15)` (default flat clustering)", _describe(hdb_free.labels_.cpu().numpy())),
+        (f"`fcluster(single-linkage tree, {K_TARGET}, 'maxclust')`", _describe(cut_labels)),
+        (f"`HDBSCAN(min_cluster_size=30, min_samples=15, n_clusters={K_TARGET})`", _describe(hdb_exact.labels_.cpu().numpy())),
+    ]
+    mo.md(
+        f"**Asking for {K_TARGET} clusters on the four tutorial blobs** ({len(X_blobs)} points)\n\n"
+        "| how the clusters are chosen | clusters | sizes | noise points |\n|---|---|---|---|\n"
+        + "\n".join(f"| {_name} | {_vals} |" for _name, _vals in _rows)
+        + f"\n\nThe default clustering finds {hdb_free.n_clusters_} clusters (not what was asked for), the raw cut gives one cluster with almost every point, and `n_clusters={K_TARGET}` gives exactly {hdb_exact.n_clusters_}, "
+        "the set of four non-nested clusters with the largest total stability; the points outside them are noise."
+    )
+    return K_TARGET, X_blobs, hdb_exact, hdb_free
+
+
+@app.cell
+def _(K_TARGET, X_blobs, hdb_exact, hdb_free, plot_gmm, plt):
+    _X_np = X_blobs.cpu().numpy()
+    _fig, _axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    for _ax, _model, _title in zip(_axes, (hdb_free, hdb_exact), ('Default flat clustering', f'n_clusters={K_TARGET}')):
+        _labels = _model.labels_.cpu().numpy()
+        _kept = _labels != -1
+        plot_gmm(X=_X_np[_kept], gmm=None, ax=_ax, true_labels=_labels[_kept], color_by_cluster=True, show_ellipses=False, show_means=False, point_size=8, point_alpha=0.5, legend=False, title=f'{_title} ({_model.n_clusters_} clusters)')
+        _ax.scatter(_X_np[~_kept, 0], _X_np[~_kept, 1], c='0.4', marker='x', s=14, linewidths=1, label='Noise')
+        _ax.legend()
+    plt.tight_layout()
+    plt.gcf()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    `n_clusters=K` does not change which clusters the tree contains, only which of them are kept, so it always returns a valid, density-based clustering with the requested count. It is not a better clustering in general: on strongly overlapping Gaussians the dense cores are what is found, and a plain $k$-means start can be closer to the truth. How the exactly-$K$ clustering compares as a starting point for a `GaussianMixture` is measured in [03 -- Initialization](03_initialization.ipynb), where it is available as `hdbscan_kwargs={'exact_k': True}`.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Example 6: Using HDBSCAN to Clean Data Before Fitting a GMM
 
     HDBSCAN's noise label is useful as a preprocessing step for models like GMM
     that assume every point belongs to some component -- outliers can otherwise
@@ -468,6 +545,7 @@ def _(mo):
     - HDBSCAN finds non-convex, variable-density clusters and flags noise without being told how many clusters to look for.
     - `min_samples` sets how conservative the density estimate (and hence the noise call) is; `min_cluster_size` sets the smallest group that can count as a cluster.
     - The distance metric defines what "dense" means: collinear blobs, axis-aligned chains and angular wedges each need a different metric to be recovered.
+    - `n_clusters=K` (opt-in) selects exactly $K$ non-nested clusters of the condensed tree with the largest total stability; cutting the raw single-linkage tree at $K$ clusters instead peels off singletons.
     - Used as a preprocessing step, HDBSCAN's noise label removes outliers that would otherwise inflate a `GaussianMixture`'s covariances and shift its means.
     """)
     return
@@ -477,6 +555,8 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     **Next:** [13 -- Model Selection](13_model_selection.ipynb) for choosing the number of mixture components by BIC, AIC and ICL.
+
+    **References:** Campello, Moulavi & Sander (2013), *Density-based clustering based on hierarchical density estimates*, PAKDD. Campello, Moulavi, Zimek & Sander (2013), *A framework for semi-supervised and unsupervised optimal extraction of clusters from hierarchies*, Data Mining and Knowledge Discovery 27(3), 344-371 (doi:10.1007/s10618-013-0311-4). McInnes, Healy & Astels (2017), *hdbscan: Hierarchical density based clustering*, Journal of Open Source Software 2(11).
     """)
     return
 

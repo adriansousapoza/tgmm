@@ -297,7 +297,9 @@ class GMMInitializer:
         r"""
         Check the ``hdbscan_kwargs`` argument of :class:`~tgmm.gmm.GaussianMixture` and return a plain ``dict`` copy
         (``None`` stays ``None``). Allowed keys: ``min_cluster_size``, ``min_samples``, ``max_points`` and every other
-        argument of :class:`~tgmm.hdbscan.HDBSCAN` except ``device`` (the clustering runs where the data is).
+        argument of :class:`~tgmm.hdbscan.HDBSCAN` except ``device`` (the clustering runs where the data is) and
+        ``n_clusters`` (the number of components decides it; use ``exact_k=True`` to select exactly that many
+        clusters), plus the initialiser's own ``exact_k`` (a bool, default ``False``).
         """
         if hdbscan_kwargs is None:
             return None
@@ -307,12 +309,18 @@ class GMMInitializer:
 
         from .hdbscan import HDBSCAN
 
-        allowed = [p for p in inspect.signature(HDBSCAN.__init__).parameters if p not in ('self', 'device')]
-        allowed.append('max_points')
+        if 'n_clusters' in hdbscan_kwargs:
+            raise ValueError(
+                "hdbscan_kwargs cannot contain 'n_clusters': the number of clusters is n_components. "
+                "Use hdbscan_kwargs={'exact_k': True} to select exactly n_components clusters.")
+        allowed = [p for p in inspect.signature(HDBSCAN.__init__).parameters if p not in ('self', 'device', 'n_clusters')]
+        allowed.extend(['max_points', 'exact_k'])
         unknown = sorted(set(hdbscan_kwargs) - set(allowed), key=str)
         if unknown:
             raise ValueError(f"unknown hdbscan_kwargs key(s) {unknown}; allowed keys: {sorted(allowed)}.")
         kw = dict(hdbscan_kwargs)
+        if 'exact_k' in kw and not isinstance(kw['exact_k'], bool):
+            raise ValueError(f"hdbscan_kwargs['exact_k'] must be a bool, got {kw['exact_k']!r}.")
         mcs, ms, mp = kw.get('min_cluster_size'), kw.get('min_samples'), kw.get('max_points')
         if mcs is not None and (isinstance(mcs, bool) or int(mcs) != mcs or int(mcs) < 2):
             raise ValueError(f"hdbscan_kwargs['min_cluster_size'] must be an integer >= 2, got {mcs!r}.")
@@ -323,26 +331,31 @@ class GMMInitializer:
         return kw
 
     @staticmethod
-    def _hdbscan_default_min_cluster_size(n: int, k: int) -> int:
+    def _hdbscan_default_min_cluster_size(n: int, k: int, exact_k: bool = False) -> int:
         r"""
         Default ``min_cluster_size`` of the HDBSCAN initialisers: $\max\{10,\ \min\{\lfloor 0.02\,n\rfloor,\ \lfloor n/(5k)\rfloor\}\}$.
 
         2% of the points keeps HDBSCAN from calling small clumps clusters (and finds the four blobs of a typical
         2-D example), while $n/(5k)$ keeps it well below the size of a typical cluster ($\approx n/k$ points) when
-        ``k`` is large, so that no cluster is lost to the "noise" label.
+        ``k`` is large, so that no cluster is lost to the "noise" label. With ``exact_k`` the condensed tree must offer
+        at least ``k`` clusters to choose from, so a finer tree is used: $\max\{10,\ \min\{\lfloor 0.01\,n\rfloor,\ \lfloor n/(5k)\rfloor\}\}$.
         """
-        return max(10, min(int(0.02 * n), n // (5 * k)))
+        return max(10, min(int((0.01 if exact_k else 0.02) * n), n // (5 * k)))
 
     @staticmethod
     def _hdbscan_partition(data: torch.Tensor, k: int, min_cluster_size=None, min_samples=None,
-                           max_points: int = 5000, random_state: int = None, **hdbscan_kwargs):
+                           max_points: int = 5000, random_state: int = None, exact_k: bool = False, **hdbscan_kwargs):
         r"""
         The deterministic part of :func:`hdbscan_clusters`: cluster, keep the ``k`` largest clusters and return
         ``(labels, centres)`` with ``labels`` of shape (N,) in ``{-1, 0, ..., m-1}`` (``m <= k`` kept clusters, ordered by
         decreasing size; ``-1`` = noise or a dropped cluster) and ``centres`` of shape (m, D). ``m = 0`` when HDBSCAN
         finds no cluster. Contains no randomness once the (optional) subsample is fixed, so callers may cache it.
+
+        With ``exact_k`` the clustering selects exactly ``k`` clusters (``HDBSCAN(n_clusters=k)``) with a finer default
+        ``min_cluster_size``; if the tree cannot offer ``k`` clusters even after halving ``min_cluster_size`` (at most
+        four times, down to 3) it falls back to the default clustering, i.e. to ``m < k`` clusters completed later.
         """
-        from .hdbscan import HDBSCAN
+        from .hdbscan import HDBSCAN, InsufficientClustersError
 
         n_samples, n_features = data.shape
 
@@ -360,18 +373,37 @@ class GMMInitializer:
         n_sub = sub.shape[0]
 
         if min_cluster_size is None:
-            mcs = GMMInitializer._hdbscan_default_min_cluster_size(n_sub, k)
+            mcs = GMMInitializer._hdbscan_default_min_cluster_size(n_sub, k, exact_k)
         else:
             mcs = max(2, int(round(int(min_cluster_size) * n_sub / n_samples)))
-        if min_samples is None:
-            min_samples = max(2, min(mcs, max(5, mcs // 2)))
-        else:
-            min_samples = int(min_samples)
+        user_min_samples = None
+        if min_samples is not None:
+            user_min_samples = int(min_samples)
             if idx is not None:
-                min_samples = max(1, int(round(min_samples * n_sub / n_samples)))
+                user_min_samples = max(1, int(round(user_min_samples * n_sub / n_samples)))
 
-        model = HDBSCAN(min_cluster_size=mcs, min_samples=min_samples, device=str(data.device), **hdbscan_kwargs)
-        sub_labels = model.fit(sub).labels_.to(data.device)
+        def min_samples_for(size):      # the default follows min_cluster_size; a value you pass is kept
+            return max(2, min(size, max(5, size // 2))) if user_min_samples is None else user_min_samples
+
+        if exact_k:
+            sub_labels = None
+            for _ in range(5):          # the rule's min_cluster_size, then up to four halvings (floor 3)
+                try:
+                    model = HDBSCAN(min_cluster_size=mcs, min_samples=min_samples_for(mcs), device=str(data.device),
+                                    n_clusters=k, **hdbscan_kwargs)
+                    sub_labels = model.fit(sub).labels_.to(data.device)
+                    break
+                except InsufficientClustersError:
+                    smaller = max(3, mcs // 2)
+                    if smaller >= mcs:
+                        break
+                    mcs = smaller
+            if sub_labels is None:      # no tree with k clusters: what the default clustering would do
+                return GMMInitializer._hdbscan_partition(
+                    data, k, min_cluster_size, min_samples, max_points, random_state, False, **hdbscan_kwargs)
+        else:
+            model = HDBSCAN(min_cluster_size=mcs, min_samples=min_samples_for(mcs), device=str(data.device), **hdbscan_kwargs)
+            sub_labels = model.fit(sub).labels_.to(data.device)
 
         valid = sub_labels[sub_labels >= 0]
         if valid.numel() == 0:
@@ -429,7 +461,7 @@ class GMMInitializer:
 
     @staticmethod
     def hdbscan_clusters(data: torch.Tensor, k: int, min_cluster_size: int = None, min_samples: int = None,
-                         max_points: int = 5000, random_state: int = None, **hdbscan_kwargs):
+                         max_points: int = 5000, random_state: int = None, exact_k: bool = False, **hdbscan_kwargs):
         r"""
         Initial centres from an HDBSCAN clustering, together with the clustering itself.
 
@@ -474,9 +506,19 @@ class GMMInitializer:
             takes the label of its nearest subsampled point. ``None`` clusters all the data.
         random_state : int, optional
             Seed for the subsample and the k-means++ completion (the global torch RNG is used when ``None``).
+        exact_k : bool, default=False
+            Opt-in: select *exactly* ``k`` clusters from the condensed tree (``HDBSCAN(n_clusters=k)``: the ``k``
+            non-nested clusters of largest total stability, solved exactly) instead of keeping the ``k`` largest clusters
+            of the default flat clustering and completing with k-means++. The default ``min_cluster_size`` is then
+            ``max(10, min(int(0.01 * N), N // (5 * k)))`` (a finer tree), halved up to four times if the tree has fewer
+            than ``k`` clusters; if it still does not, the default clustering above is used. On elongated, unequal or
+            noisy clusters it places the initial centres much closer to the truth than the default rule and than k-means
+            (and EM needs fewer iterations); on strongly overlapping Gaussian components, whose density peaks merge,
+            k-means places them far better and EM started from the exact-``k`` clustering ends in the best optimum less
+            often (use ``'kmeans'`` there), which is why it is not the default.
         **hdbscan_kwargs
             Further keyword arguments of :class:`~tgmm.hdbscan.HDBSCAN` (``cluster_selection_method``,
-            ``cluster_selection_epsilon``, ``metric``, ...).
+            ``cluster_selection_epsilon``, ``metric``, ...). ``n_clusters`` is not accepted (``k`` decides it).
 
         Returns
         -------
@@ -501,14 +543,18 @@ class GMMInitializer:
             raise ValueError(f"min_samples must be an integer >= 1, got {min_samples!r}.")
         if max_points is not None and int(max_points) < 2:
             raise ValueError(f"max_points must be None or an integer >= 2, got {max_points!r}.")
+        if not isinstance(exact_k, bool):
+            raise ValueError(f"exact_k must be a bool, got {exact_k!r}.")
+        if 'n_clusters' in hdbscan_kwargs:
+            raise ValueError("n_clusters is not accepted: k is the number of clusters (use exact_k=True to select exactly k).")
         labels, centres = GMMInitializer._hdbscan_partition(
-            data, k, min_cluster_size, min_samples, max_points, random_state, **hdbscan_kwargs)
+            data, k, min_cluster_size, min_samples, max_points, random_state, exact_k, **hdbscan_kwargs)
         means = GMMInitializer._hdbscan_complete(data, labels, centres, k, random_state)
         return means.to(dtype=data.dtype), labels
 
     @staticmethod
     def hdbscan(data: torch.Tensor, k: int, min_cluster_size: int = None, min_samples: int = None,
-                max_points: int = 5000, random_state: int = None, **hdbscan_kwargs) -> torch.Tensor:
+                max_points: int = 5000, random_state: int = None, exact_k: bool = False, **hdbscan_kwargs) -> torch.Tensor:
         r"""
         Initial centres from an HDBSCAN clustering (the means of the clusters it finds).
 
@@ -523,7 +569,7 @@ class GMMInitializer:
         """
         return GMMInitializer.hdbscan_clusters(
             data, k, min_cluster_size=min_cluster_size, min_samples=min_samples,
-            max_points=max_points, random_state=random_state, **hdbscan_kwargs)[0]
+            max_points=max_points, random_state=random_state, exact_k=exact_k, **hdbscan_kwargs)[0]
 
     @staticmethod
     def init_weights_uniform(n_components: int, device: torch.device,

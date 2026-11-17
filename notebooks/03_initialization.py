@@ -81,10 +81,11 @@ def _():
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
 
+    from scipy.optimize import linear_sum_assignment
     from scipy.stats import chi2
 
     from tgmm import CATEGORICAL_PALETTE, GaussianMixture, GMMInitializer, generate_gmm_data
-    from tutorial_data import make_default_data
+    from tutorial_data import default_blobs, make_default_data
 
     warnings.filterwarnings('ignore')  # short max_iter budgets below intentionally stop before convergence
     # --- figure style (see notebooks/README.md) ---
@@ -103,8 +104,10 @@ def _():
         GaussianMixture,
         N_STD95,
         SEED,
+        default_blobs,
         device,
         generate_gmm_data,
+        linear_sum_assignment,
         make_default_data,
         np,
         plt,
@@ -209,14 +212,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    GMMInitializer,
-    MEAN_METHODS,
-    X,
-    X_tensor,
-    plt,
-    torch,
-):
+def _(GMMInitializer, MEAN_METHODS, X, X_tensor, plt, torch):
     GALLERY_METHODS = MEAN_METHODS + ['hdbscan']
 
     def draw_means_gallery(seed):
@@ -512,9 +508,17 @@ def _(mo):
 
 
 @app.cell
-def _(GMMInitializer, GaussianMixture, MAX_ITER, N_SEEDS, X_tensor, device, np):
+def _(
+    GMMInitializer,
+    GaussianMixture,
+    MAX_ITER,
+    N_SEEDS,
+    X_tensor,
+    device,
+    np,
+):
     # one HDBSCAN clustering of the default blobs (it is deterministic), then the same single-run sweep as for the other methods
-    hd_labels = GMMInitializer.hdbscan_clusters(X_tensor, 4, random_state=0)[1]
+    hd_labels = GMMInitializer.hdbscan_clusters(X_tensor, 4, random_state=1)[1]
     hd_found = int(hd_labels.max()) + 1
     hd_noise = int((hd_labels == -1).sum())
     hdbscan_ll = np.array([
@@ -636,6 +640,86 @@ def _(
 def _(mo):
     mo.md(r"""
     The strength of the HDBSCAN start is not these overlapping blobs but data with outliers or noise and with clusters that are not round (see the clean-versus-outliers experiment in *Initial Means*): the assignments it gives are exactly what the weights and the covariances should be estimated from, because the outliers never enter any of them.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Exactly $K$ clusters (opt-in)
+
+    The rule above keeps the $K$ largest clusters of HDBSCAN's default flat clustering and fills up with k-means++ when there are fewer. `hdbscan_kwargs={'exact_k': True}` replaces it by a selection of *exactly* $K$ clusters from HDBSCAN's condensed tree: among all sets of $K$ non-nested clusters, the one with the largest total stability $\sum_k \sigma(C_k)$ (`HDBSCAN(n_clusters=K)`; the objective and the dynamic programme that solves it are in [12 -- HDBSCAN](12_hdbscan.ipynb), Example 5). Its default `min_cluster_size` is $\max\{10,\ \min\{\lfloor 0.01\,n\rfloor,\ \lfloor n/(5K)\rfloor\}\}$, half the usual 2%, because the tree must contain at least $K$ clusters. If it still does not, `min_cluster_size` is halved (at most four times, down to 3) and, as a last resort, the default rule is used. Everything after the selection (means, weights, covariances, noise to the nearest mean) is as above.
+
+    ```python
+    GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan',
+                    hdbscan_kwargs={'exact_k': True})
+    ```
+
+    It is **off by default** and does not change anything unless you ask for it. The next cell measures it on two kinds of data over several fresh draws (the same dataset, a new sample each time): the four tutorial blobs, and four overlapping blobs of unequal size (identity covariances, centres 3.2 apart on a square, 1000, 500, 300 and 200 points). For each start it reports the median error of the *initial* centres (mean distance to the true centres under the best one-to-one matching), the median $\ell_1$ error of the initial weights, the median number of EM iterations, and the share of draws in which EM ends within `TOL_HIT` of the best likelihood any of the three starts reached on that draw.
+    """)
+    return
+
+
+@app.cell
+def _(
+    FAST,
+    GaussianMixture,
+    MAX_ITER,
+    TOL_HIT,
+    default_blobs,
+    device,
+    generate_gmm_data,
+    linear_sum_assignment,
+    make_default_data,
+    mo,
+    np,
+):
+    _hd = dict(init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan')
+    _starts = {
+        'k-means (default)': dict(),
+        'HDBSCAN, default rule': dict(_hd),
+        "HDBSCAN, `exact_k`": dict(_hd, hdbscan_kwargs={'exact_k': True}),
+    }
+    _tut_centres, _, _tut_n = default_blobs()
+    _ovl_centres = [np.array(_c, dtype=float) for _c in [(0, 0), (3.2, 0), (0, 3.2), (3.2, 3.2)]]
+    _ovl_n = [1000, 500, 300, 200]
+    _datasets = {
+        'tutorial blobs': (lambda _s: make_default_data(_s, device=device)[0], np.stack(_tut_centres).astype(float), np.array(_tut_n) / sum(_tut_n)),
+        'overlapping unequal blobs': (lambda _s: generate_gmm_data(_ovl_centres, [np.eye(2)] * 4, _ovl_n, device=device, random_state=_s)[0],
+                                      np.stack(_ovl_centres), np.array(_ovl_n) / sum(_ovl_n)),
+    }
+    _draws = 4 if FAST else 8
+    _rows = []
+    for _dname, (_make, _true_mu, _true_w) in _datasets.items():
+        _res = {_n: dict(err=[], werr=[], iters=[], ll=[]) for _n in _starts}
+        for _seed in range(_draws):
+            _X = _make(_seed)
+            for _n, _kw in _starts.items():
+                _g = GaussianMixture(n_components=4, random_state=0, max_iter=MAX_ITER, device=device, **_kw).fit(_X)
+                _mu0 = _g.initial_means_.detach().cpu().numpy()
+                _w0 = _g.initial_weights_.detach().cpu().numpy()
+                _r, _c = linear_sum_assignment(np.linalg.norm(_mu0[:, None] - _true_mu[None], axis=2))   # best one-to-one matching
+                _res[_n]['err'].append(np.linalg.norm(_mu0[_r] - _true_mu[_c], axis=1).mean())
+                _res[_n]['werr'].append(np.abs(_w0[_r] - _true_w[_c]).sum())
+                _res[_n]['iters'].append(_g.n_iter_)
+                _res[_n]['ll'].append(float(_g.lower_bound_))
+        _best = np.max([_res[_n]['ll'] for _n in _starts], axis=0)    # best likelihood any start reached, per draw
+        for _n in _starts:
+            _hit = (np.array(_res[_n]['ll']) > _best - TOL_HIT).mean()
+            _rows.append(f"| {_dname} | {_n} | {np.median(_res[_n]['err']):.2f} | {np.median(_res[_n]['werr']):.2f} | {np.median(_res[_n]['iters']):.0f} | {_hit:.0%} |")
+    mo.md(
+        f"**Three starts compared** ({_draws} draws of each dataset, $K=4$, `random_state=0`, medians over the draws)\n\n"
+        "| data | start | initial-centre error | initial-weight error ($\\ell_1$) | EM iterations | reaches the best optimum |\n|---|---|---|---|---|---|\n"
+        + "\n".join(_rows)
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    **Reading the table.** On the tutorial blobs the `exact_k` start has the smallest initial-centre error and EM needs the fewest iterations from it, but it does not end in a better optimum: the default `kmeans` start already reaches the best one in (almost) every draw, so a closer start saves iterations, not likelihood. On the overlapping unequal blobs the order reverses. `kmeans` puts the centres near the truth, while both HDBSCAN starts only find the dense cores of the blobs, and the `exact_k` start ends in the best optimum least often. So `exact_k` is worth trying when you want HDBSCAN's start to deliver exactly $K$ density-based clusters (elongated, unequal or noisy clusters, where the default rule often finds fewer than $K$), and `kmeans` stays the default for overlapping Gaussian clusters. The table is the whole evidence, on two datasets: try both on your own data.
     """)
     return
 
@@ -814,7 +898,7 @@ def _(mo):
     ## Summary
 
     - EM only goes uphill, so it ends in the local maximum nearest its start; initialization decides which one.
-    - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often. `maxdist` is only for clean, well separated data: a few outliers take its centres. An HDBSCAN start (`init_means='hdbscan'`, with `init_weights='hdbscan'` and `init_covariances='hdbscan'`) estimates the means, weights and covariances from its cluster assignments, so noise and outliers never enter the means and covariances.
+    - `init_means` matters most. `kmeans` (the default) is the most reliable; `random`, `points`, `kpp` and `maxdist` land in worse optima more often. `maxdist` is only for clean, well separated data: a few outliers take its centres. An HDBSCAN start (`init_means='hdbscan'`, with `init_weights='hdbscan'` and `init_covariances='hdbscan'`) estimates the means, weights and covariances from its cluster assignments, so noise and outliers never enter the means and covariances. `hdbscan_kwargs={'exact_k': True}` (opt-in) makes it select exactly $K$ clusters: closer starting centres and fewer EM iterations on the tutorial blobs, but no better final optimum there and a worse one on strongly overlapping blobs, where `kmeans` stays the better start.
     - `init_weights` and `init_covariances` mostly affect speed once the means are good; a `random` covariance start is the exception and can cost many extra iterations or end in a worse optimum.
     - `n_init=n` keeps the best of $n$ runs (seeds `random_state + i`), failing with probability about $(1-p)^n$, also when means, weights and covariances are all random; the winner's seed is in `best_random_state_`.
     - To start from parameters you choose, pass `init_*` tensors (any start, `GMMInitializer` builds them) or use `warm_start=True` to continue a fitted model; continuing is exactly a fresh fit started from that model's parameters. Per-call `fit(...)` overrides (`max_iter`, `tol`, `random_state`, `warm_start`) leave the model's defaults untouched.

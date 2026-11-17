@@ -25,6 +25,23 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   returns the centres; `GMMInitializer.hdbscan_clusters(...)` also returns the per-point labels (`-1` = noise).
   `GMMInitializer.init_weights_from_labels` and the new optional `labels` argument of
   `GMMInitializer.init_covariances_empirical` (points labelled `-1` are left out) are the building blocks.
+- **Exactly K clusters, opt-in.** `HDBSCAN(n_clusters=K)` selects exactly `K` non-nested clusters of the condensed tree, the set
+  with the largest total stability (the objective of the default `'eom'` selection with a cardinality constraint, solved exactly
+  by dynamic programming; points outside are noise; `ValueError` asking for a smaller `min_cluster_size` if the tree has fewer
+  than `K` clusters). The initialisers expose it as `hdbscan_kwargs={'exact_k': True}` (and `exact_k=True` of
+  `GMMInitializer.hdbscan` / `hdbscan_clusters`), with a finer default `min_cluster_size = max(10, min(int(0.01 n), n // (5 k)))`
+  that is halved (at most four times) if the tree has too few clusters, and the default clustering as the last fallback. The
+  default behaviour is unchanged. When to use it: on the tutorial blobs (overlapping, one of them elongated and tilted) the
+  exact-K start puts the initial centres much closer to the truth than the default rule and than `'kmeans'` (median distance
+  0.27 against 0.75 and 1.21) and EM needs fewer iterations (13 against 14 and 31), and it always finds the K clusters where the
+  default rule found 2 or 3. It does not end in a better optimum there (`'kmeans'` already reaches the best one in every
+  draw). On strongly overlapping Gaussian components, whose density peaks merge, `'kmeans'` is far better (initial centres
+  0.21 from the truth against 1.3 for exact-K and 1.7 for the default rule, four unequal blobs 3.2 standard deviations apart)
+  and the exact-K start ends in the best optimum least often (0 of 8 draws, against 2 of 8 for the default rule and 6 of 8 for
+  `'kmeans'`), so `'kmeans'` remains the right choice there. Cutting the raw single-linkage tree
+  with `scipy.cluster.hierarchy.fcluster(..., 'maxclust')` is not an alternative: it peels off tiny clusters one by one (no usable
+  start in 24 of 24 trials), and tuning `cluster_selection_epsilon` until `K` clusters appear (what `hdbscan.flat` does) works
+  only if the data has `K` separated density peaks.
 
 ### Removed (breaking)
 

@@ -399,3 +399,180 @@ class TestHdbscanKwargs:
         k = GaussianMixture(4)
         k.load_state_dict(sd)
         assert k.hdbscan_kwargs is None
+
+
+# ---------------------------------------------------------------------------
+# exact_k: select exactly k clusters from the condensed tree (opt-in)
+# ---------------------------------------------------------------------------
+from scipy.optimize import linear_sum_assignment
+
+from tgmm.hdbscan import HDBSCAN as _HDBSCAN, InsufficientClustersError
+
+TUTORIAL_COVS = [np.eye(2), 0.25 * np.eye(2), np.array([[4.0, 0.0], [0.0, 0.25]]), np.array([[0.29, 1.1], [1.1, 4.25]])]
+TUTORIAL_CENTRES = [np.array([0, 2]), np.array([2, -2]), np.array([0, 0]), np.array([2, 2])]
+
+
+def tutorial_blobs(seed):
+    X, _ = generate_gmm_data(TUTORIAL_CENTRES, TUTORIAL_COVS, [800, 200, 1000, 1000], random_state=seed)
+    return X
+
+
+def matched_error(means):
+    truth = np.array(TUTORIAL_CENTRES, float)
+    d = np.linalg.norm(np.asarray(means)[:, None] - truth[None], axis=2)
+    r, c = linear_sum_assignment(d)
+    return float(d[r, c].mean())
+
+
+class TestExactKInit:
+    @pytest.mark.parametrize("n, k, expected", [
+        (3000, 4, 30),      # 1% of the points: a finer tree than the default 2%
+        (3000, 50, 12),     # n // (5 k) takes over when k is large
+        (200, 4, 10),       # never below 10
+    ])
+    def test_default_min_cluster_size_of_exact_k(self, n, k, expected):
+        assert GMMInitializer._hdbscan_default_min_cluster_size(n, k, exact_k=True) == expected
+        # the default rule is untouched
+        assert GMMInitializer._hdbscan_default_min_cluster_size(3000, 4) == 60
+
+    @pytest.mark.parametrize("seed", [1, 2, 3])
+    def test_gives_four_clusters_and_closer_centres_where_the_default_rule_finds_fewer(self, seed):
+        X = tutorial_blobs(seed)
+        m_default, l_default = GMMInitializer.hdbscan_clusters(X, 4, random_state=0)
+        m_exact, l_exact = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, exact_k=True)
+        assert int(l_default.max()) + 1 < 4                       # the default rule has to pad with k-means++
+        assert int(l_exact.max()) + 1 == 4 and torch.unique(l_exact[l_exact >= 0]).numel() == 4
+        assert matched_error(m_exact.numpy()) < matched_error(m_default.numpy())
+
+    def test_exact_k_is_deterministic_for_small_data(self):
+        X = tutorial_blobs(2)
+        a = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, exact_k=True)
+        b = GMMInitializer.hdbscan_clusters(X, 4, random_state=5, exact_k=True)     # no subsampling, no completion
+        assert torch.equal(a[0], b[0]) and torch.equal(a[1], b[1])
+
+    def test_clusters_are_ordered_by_decreasing_size(self):
+        X = tutorial_blobs(2)
+        _, labels = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, exact_k=True)
+        sizes = torch.bincount(labels[labels >= 0]).tolist()
+        assert sizes == sorted(sizes, reverse=True)
+
+    def test_structureless_data_still_returns_k_centres(self):
+        torch.manual_seed(0)
+        X = torch.rand(300, 2) * 10
+        means, labels = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, exact_k=True)
+        assert means.shape == (4, 2) and labels.shape == (300,)
+
+    def test_halves_min_cluster_size_when_the_tree_has_too_few_clusters(self, monkeypatch):
+        X, _ = blobs()
+        sizes, real = [], _HDBSCAN.fit
+
+        def fit(self, data, *a, **kw):
+            sizes.append((self.min_cluster_size, self.n_clusters))
+            if len(sizes) < 3:                                   # the first two attempts fail
+                raise InsufficientClustersError("not enough clusters")
+            return real(self, data, *a, **kw)
+
+        monkeypatch.setattr(_HDBSCAN, 'fit', fit)
+        _, labels = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, exact_k=True)
+        first = GMMInitializer._hdbscan_default_min_cluster_size(X.shape[0], 4, exact_k=True)
+        assert [s[0] for s in sizes] == [first, max(3, first // 2), max(3, first // 4)]
+        assert all(s[1] == 4 for s in sizes) and int(labels.max()) + 1 == 4
+
+    def test_falls_back_to_the_default_clustering_when_no_tree_has_k_clusters(self, monkeypatch):
+        X, _ = blobs()
+        calls, real = [], _HDBSCAN.fit
+
+        def fit(self, data, *a, **kw):
+            calls.append(self.n_clusters)
+            if self.n_clusters is not None:
+                raise InsufficientClustersError("never enough")
+            return real(self, data, *a, **kw)
+
+        monkeypatch.setattr(_HDBSCAN, 'fit', fit)
+        means, labels = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, exact_k=True)
+        monkeypatch.undo()
+        default_means, default_labels = GMMInitializer.hdbscan_clusters(X, 4, random_state=0)
+        assert calls[-1] is None and any(c == 4 for c in calls[:-1])
+        assert torch.equal(means, default_means) and torch.equal(labels, default_labels)
+
+    def test_gaussian_mixture_fit_with_exact_k(self):
+        X = with_outliers(blobs()[0], frac=0.01)
+        g = GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan',
+                            hdbscan_kwargs={'exact_k': True}, random_state=0).fit(X)
+        assert g.converged_ and recovered(g.initial_means_.cpu().numpy(), tol=0.5)
+        assert recovered(g.means_.cpu().numpy(), tol=0.5)
+
+    def test_exact_k_combines_with_other_kwargs(self):
+        X = tutorial_blobs(2)
+        g = GaussianMixture(4, init_means='hdbscan', max_iter=1, random_state=0,
+                            hdbscan_kwargs={'exact_k': True, 'min_cluster_size': 25, 'min_samples': 10}).fit(X)
+        assert g._hdbscan_cache[1].max() >= 3
+
+    def test_default_is_unchanged(self):
+        X = tutorial_blobs(1)
+        a = GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan', random_state=0, max_iter=50).fit(X)
+        b = GaussianMixture(4, init_means='hdbscan', init_weights='hdbscan', init_covariances='hdbscan', random_state=0, max_iter=50,
+                            hdbscan_kwargs={'exact_k': False}).fit(X)
+        for name in ('initial_means_', 'initial_weights_', 'initial_covariances_', 'means_', 'weights_', 'covariances_'):
+            assert torch.equal(getattr(a, name), getattr(b, name)), name
+        m1, l1 = GMMInitializer.hdbscan_clusters(X, 4, random_state=0)
+        m2, l2 = GMMInitializer.hdbscan_clusters(X, 4, random_state=0, exact_k=False)
+        assert torch.equal(m1, m2) and torch.equal(l1, l2)
+        assert int(l1.max()) + 1 == 3        # the documented behaviour of the default rule on these blobs (k-means++ pads)
+
+    def test_cache_distinguishes_exact_k(self):
+        X = tutorial_blobs(2)
+        g = GaussianMixture(4, init_means='hdbscan', max_iter=1, random_state=0, hdbscan_kwargs={'exact_k': False}).fit(X)
+        first = g._hdbscan_cache
+        g.hdbscan_kwargs = {'exact_k': True}
+        g.fit(X)
+        assert g._hdbscan_cache is not first and g._hdbscan_cache[0] != first[0]
+        assert int(g._hdbscan_cache[1].max()) + 1 == 4 and int(first[1].max()) + 1 < 4
+
+    def test_n_init_clusters_only_once(self, monkeypatch):
+        X = tutorial_blobs(2)
+        calls, real = [], _HDBSCAN.fit
+        monkeypatch.setattr(_HDBSCAN, 'fit', lambda self, data, *a, **k: (calls.append(1), real(self, data, *a, **k))[1])
+        GaussianMixture(4, init_means='hdbscan', n_init=3, max_iter=2, random_state=0, hdbscan_kwargs={'exact_k': True}).fit(X)
+        assert len(calls) == 1
+
+    def test_save_and_load_roundtrip(self, tmp_path):
+        X = tutorial_blobs(2)
+        g = GaussianMixture(4, init_means='hdbscan', random_state=0, max_iter=5, hdbscan_kwargs={'exact_k': True, 'min_cluster_size': 30}).fit(X)
+        path = str(tmp_path / 'gmm.pt')
+        g.save(path)
+        assert GaussianMixture.load(path).hdbscan_kwargs == {'exact_k': True, 'min_cluster_size': 30}
+        k = GaussianMixture(4)
+        k.load_state_dict(g.save_state_dict())
+        assert k.hdbscan_kwargs == {'exact_k': True, 'min_cluster_size': 30}
+
+    @pytest.mark.parametrize("bad, match", [
+        ({'exact_k': 1}, "exact_k"),
+        ({'exact_k': 'yes'}, "exact_k"),
+        ({'exact_k': None}, "exact_k"),
+        ({'n_clusters': 4}, "n_clusters"),
+    ])
+    def test_invalid_hdbscan_kwargs(self, bad, match):
+        with pytest.raises(ValueError, match=match):
+            GaussianMixture(4, init_means='hdbscan', hdbscan_kwargs=bad)
+
+    def test_n_clusters_message_points_to_exact_k(self):
+        with pytest.raises(ValueError, match="exact_k"):
+            GaussianMixture(4, hdbscan_kwargs={'n_clusters': 4})
+
+    def test_direct_calls_validate_too(self):
+        X = tutorial_blobs(2)
+        with pytest.raises(ValueError, match="exact_k"):
+            GMMInitializer.hdbscan_clusters(X, 4, exact_k=1)
+        with pytest.raises(ValueError, match="n_clusters"):
+            GMMInitializer.hdbscan_clusters(X, 4, n_clusters=4)
+
+    def test_epsilon_is_incompatible_with_exact_k(self):
+        X = tutorial_blobs(2)
+        with pytest.raises(ValueError, match="cluster_selection_epsilon"):
+            GMMInitializer.hdbscan_clusters(X, 4, exact_k=True, cluster_selection_epsilon=0.5)
+
+    def test_allowed_keys_list_exact_k_but_not_n_clusters(self):
+        with pytest.raises(ValueError) as e:
+            GaussianMixture(4, hdbscan_kwargs={'nope': 1})
+        assert 'exact_k' in str(e.value) and 'n_clusters' not in str(e.value)

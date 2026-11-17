@@ -484,7 +484,7 @@ def _(GaussianMixture, X_tensor, device, n_components, np, torch):
         assert np.isclose(torch.sum(probs[_i]).item(), 1.0), f'Probabilities for sample {_i} do not sum to 1'
     print('Number of iterations:                                  ', gmm.n_iter_)
     print('Converged:                                             ', gmm.converged_)
-    return gmm, gmm_labels, gmm_samples, log_probs, probs, y_pred
+    return gmm, gmm_samples, log_probs, probs, y_pred
 
 
 @app.cell(hide_code=True)
@@ -548,7 +548,7 @@ def _(
     _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
     _means = dict(mean_marker='h', mean_size=25, mean_color='black')  # the component means are small black hexagons, the points are coloured or grey
     plot_gmm(X=X, gmm=gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=legend_labels, point_color='#6b6b6b', **_means)
-    plot_gmm(X=X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {gmm.score(X_tensor):.3f}', log_probs=log_probs, colorbar_label='Log-Likelihood')
+    plot_gmm(X=X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {gmm.score(X_tensor):.3f}', log_probs=log_probs, colorbar_label='Log-Likelihood', colormap='viridis')
     plot_gmm(X=X, gmm=gmm, show_ellipses=False, ax=_axs[1, 0], true_labels=y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {i}' for i in range(n_components)])
     plot_gmm(X=gmm_samples, gmm=gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, point_color='#6b6b6b', **_means)  # one solid grey like the data in the first panel (a colormap name such as 'gray' would shade the points)
     _ic = f'gmm.bic(X) = {gmm.bic(X_tensor):.1f}\ngmm.aic(X) = {gmm.aic(X_tensor):.1f}\ngmm.icl(X) = {gmm.icl(X_tensor):.1f}'  # lower is better
@@ -764,7 +764,7 @@ def _(
         _means = dict(mean_marker='h', mean_size=25, mean_color='black')
         _fig, _axs = plt.subplots(2, 2, figsize=(11, 9))
         plot_gmm(X=custom_X, gmm=custom_gmm, ax=_axs[0, 0], title='gmm.fit(X)\nmeans_ and covariances_', legend_labels=_names, point_color='#6b6b6b', **_means)
-        plot_gmm(X=custom_X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {custom_gmm.score(custom_X_tensor):.3f}', log_probs=_log_probs, colorbar_label='Log-Likelihood')
+        plot_gmm(X=custom_X, ax=_axs[0, 1], title=f'gmm.score_samples(X)\nmean = gmm.score(X) = {custom_gmm.score(custom_X_tensor):.3f}', log_probs=_log_probs, colorbar_label='Log-Likelihood', colormap='viridis')
         plot_gmm(X=custom_X, gmm=custom_gmm, show_ellipses=False, ax=_axs[1, 0], true_labels=_y_pred, title='gmm.predict(X)', legend_labels=[f'Cluster {_i}' for _i in range(_K)], **_means)
         plot_gmm(X=_samples, gmm=custom_gmm, ax=_axs[1, 1], title='gmm.sample(n)', show_ellipses=False, point_color='#6b6b6b', **_means)
         _fig.tight_layout()
