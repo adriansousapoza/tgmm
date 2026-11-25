@@ -38,7 +38,7 @@ def _():
     FAST = _os.environ.get("TGMM_DOCS_FAST") == "1"
     MAX_ITER = 100 if FAST else 1000
     N_INIT = 1 if FAST else 5
-    return
+    return FAST, MAX_ITER
 
 
 @app.cell(hide_code=True)
@@ -47,28 +47,6 @@ def _(mo):
     # HDBSCAN Clustering
 
     `tgmm.HDBSCAN` is a PyTorch implementation of **HDBSCAN** (Hierarchical Density-Based Spatial Clustering of Applications with Noise; Campello, Moulavi & Sander, 2013), following the `scikit-learn-contrib/hdbscan` reference implementation. Unlike a Gaussian mixture it needs no component count and makes no assumption about cluster shape: it finds clusters as dense regions, can recover non-convex shapes, and labels sparse points as **noise** (`-1`).
-
-    The algorithm, as implemented here:
-
-    1. **Core distance.** $\mathrm{core}_k(a)$ is the distance from $a$ to its `min_samples`-th nearest neighbour (counting $a$ itself).
-    2. **Mutual reachability distance.** $d_{\mathrm{mreach}}(a,b) = \max\{\mathrm{core}_k(a),\ \mathrm{core}_k(b),\ d(a,b)\}$ (divided by `alpha` if `alpha != 1`). This pushes sparse points away from everything, so noise does not bridge dense regions.
-    3. **Minimum spanning tree and hierarchy.** A minimum spanning tree of the complete mutual-reachability graph (Prim's algorithm on the dense $n\times n$ matrix) is converted to a single-linkage hierarchy.
-    4. **Condensed tree.** Walking the hierarchy from the root down, a split only counts as a real cluster split if both children have at least `min_cluster_size` points; otherwise the smaller side is treated as points "falling out" of the parent cluster. Cluster density is tracked as $\lambda = 1/d_{\mathrm{mreach}}$.
-    5. **Stability-based extraction.** Each cluster $C$ gets a stability $\sigma(C) = \sum_{p\in C}\left(\lambda_p - \lambda_{\mathrm{birth}}(C)\right)$, where $\lambda_p$ is the density level at which point $p$ leaves $C$. Clusters are selected bottom-up by the *excess of mass* rule: keep a cluster if its stability is at least the summed stability of its descendants that would replace it. Unselected points are noise, and `probabilities_` gives each point's membership strength $\lambda_p/\lambda_{\max}$.
-
-    Because step 3 uses the dense pairwise distance matrix, memory grows as $O(n^2)$.
-
-    **What you'll learn**
-
-    - how HDBSCAN recovers non-convex clusters (two moons) that a Gaussian mixture cannot
-    - how `min_samples` and `min_cluster_size` control noise detection and the number of clusters
-    - how the choice of `metric` (Euclidean, Manhattan, cosine) changes what counts as a cluster
-    - how to ask for *exactly* $K$ clusters (`n_clusters=K`), and why that is not the same as cutting the single-linkage tree at $K$ clusters
-    - how to use HDBSCAN's noise label to clean data before fitting a `GaussianMixture`
-
-    **Prerequisites:** [01 -- Gaussian Mixture Models](01_introduction.ipynb), [06 -- Visualization](06_visualise.ipynb) (for `plot_gmm`).
-
-    **See also:** HDBSCAN as an initialiser of a `GaussianMixture` (`init_means='hdbscan'`, with the weights and covariances estimated from its cluster assignments, and an opt-in exactly-$K$ variant) in [03 -- Initialization](03_initialization.ipynb).
     """)
     return
 
@@ -88,8 +66,10 @@ def _():
     import numpy as np
     import torch
     import matplotlib.pyplot as plt
+    from matplotlib.patches import Ellipse
     from sklearn.datasets import make_moons
     from scipy.cluster.hierarchy import fcluster
+    from scipy.stats import chi2
     from sklearn.metrics import adjusted_rand_score
 
     from tgmm import GaussianMixture, HDBSCAN, generate_gmm_data, plot_gmm, gmm_proxy
@@ -101,14 +81,17 @@ def _():
     DOCS_RC = {'figure.dpi': 100, 'figure.titlesize': 12, 'axes.titlesize': 10.5, 'axes.labelsize': 9, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
                'legend.fontsize': 8, 'lines.linewidth': 1.4, 'lines.markersize': 5}
     plt.rcParams.update(DOCS_RC)
+    N_STD95 = float(np.sqrt(chi2.ppf(0.95, 2)))  # a 2-D Gaussian's 95% region is this many standard deviations out (about 2.45, not 2)
     SEED = 2
     np.random.seed(SEED)
     torch.manual_seed(SEED)
     print(f'Using device: {device}')
     return (
         CATEGORICAL_PALETTE,
+        Ellipse,
         GaussianMixture,
         HDBSCAN,
+        N_STD95,
         SEED,
         adjusted_rand_score,
         device,
@@ -122,6 +105,24 @@ def _():
         plt,
         torch,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## How HDBSCAN Works
+
+    The algorithm, as implemented here:
+
+    1. **Core distance.** $\mathrm{core}_k(a)$ is the distance from $a$ to its `min_samples`-th nearest neighbour (counting $a$ itself).
+    2. **Mutual reachability distance.** $d_{\mathrm{mreach}}(a,b) = \max\{\mathrm{core}_k(a),\ \mathrm{core}_k(b),\ d(a,b)\}$ (divided by `alpha` if `alpha != 1`). This pushes sparse points away from everything, so noise does not bridge dense regions.
+    3. **Minimum spanning tree and hierarchy.** A minimum spanning tree of the complete mutual-reachability graph (Prim's algorithm on the dense $n\times n$ matrix) is converted to a single-linkage hierarchy.
+    4. **Condensed tree.** Walking the hierarchy from the root down, a split only counts as a real cluster split if both children have at least `min_cluster_size` points; otherwise the smaller side is treated as points "falling out" of the parent cluster. Cluster density is tracked as $\lambda = 1/d_{\mathrm{mreach}}$.
+    5. **Stability-based extraction.** Each cluster $C$ gets a stability $\sigma(C) = \sum_{p\in C}\left(\lambda_p - \lambda_{\mathrm{birth}}(C)\right)$, where $\lambda_p$ is the density level at which point $p$ leaves $C$. Clusters are selected bottom-up by the *excess of mass* rule: keep a cluster if its stability is at least the summed stability of its descendants that would replace it. Unselected points are noise, and `probabilities_` gives each point's membership strength $\lambda_p/\lambda_{\max}$.
+
+    Because step 3 uses the dense pairwise distance matrix, memory grows as $O(n^2)$.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -442,7 +443,7 @@ def _(K_TARGET, X_blobs, hdb_exact, hdb_free, plot_gmm, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `n_clusters=K` does not change which clusters the tree contains, only which of them are kept, so it always returns a valid, density-based clustering with the requested count. It is not a better clustering in general: on strongly overlapping Gaussians the dense cores are what is found, and a plain $k$-means start can be closer to the truth. How the exactly-$K$ clustering compares as a starting point for a `GaussianMixture` is measured in [03 -- Initialization](03_initialization.ipynb), where it is available as `hdbscan_kwargs={'exact_k': True}`.
+    `n_clusters=K` does not change which clusters the tree contains, only which of them are kept, so it always returns a valid, density-based clustering with the requested count. It is not a better clustering in general: on strongly overlapping Gaussians the dense cores are what is found, and a plain $k$-means start can be closer to the truth. Using a clustering, with $K$ found or asked for, to start a `GaussianMixture` is the subject of Example 7 below.
     """)
     return
 
@@ -540,23 +541,198 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Summary
+    ## Example 7: Initialising a Gaussian Mixture with HDBSCAN
 
-    - HDBSCAN finds non-convex, variable-density clusters and flags noise without being told how many clusters to look for.
-    - `min_samples` sets how conservative the density estimate (and hence the noise call) is; `min_cluster_size` sets the smallest group that can count as a cluster.
-    - The distance metric defines what "dense" means: collinear blobs, axis-aligned chains and angular wedges each need a different metric to be recovered.
-    - `n_clusters=K` (opt-in) selects exactly $K$ non-nested clusters of the condensed tree with the largest total stability; cutting the raw single-linkage tree at $K$ clusters instead peels off singletons.
-    - Used as a preprocessing step, HDBSCAN's noise label removes outliers that would otherwise inflate a `GaussianMixture`'s covariances and shift its means.
+    A `GaussianMixture` needs a number of components $K$ and a starting point $(\pi_k, \mu_k, \Sigma_k)$ ([03 -- Initialization](03_initialization.ipynb)). HDBSCAN can supply both: run it, take the number of clusters it found as $K$, and estimate the starting parameters from its assignments $z_i \in \{1,\dots,K\}$ ($z_i = -1$ for noise). For each cluster $C_k = \{i : z_i = k\}$
+
+    $$
+    \mu_k = \frac{1}{|C_k|}\sum_{i\in C_k} x_i, \qquad \Sigma_k = \widehat{\mathrm{Cov}}(C_k) + \texttt{reg\_covar}\, I, \qquad \pi_k = \frac{|C_k| + n_k^{\text{noise}}}{n},
+    $$
+
+    where $n_k^{\text{noise}}$ is the number of noise points whose nearest mean is $\mu_k$. The means and covariances use the cluster's own points only, so outliers cannot distort them; the weights count every noise point for its nearest mean, so they describe all the data and sum to 1. The result goes to the mixture as plain init tensors:
+
+    ```python
+    K, means, weights, covariances = hdbscan_gmm_init(X)
+    gmm = GaussianMixture(n_components=K, init_means=means, init_weights=weights, init_covariances=covariances).fit(X)
+    ```
+
+    `hdbscan_gmm_init` is a notebook helper, not part of the tgmm API. It runs `HDBSCAN` with `min_cluster_size` $= \max\{10,\ \lfloor 0.02\,n\rfloor\}$ (2% of the points) and `min_samples` $= \max\{5,\ \texttt{min\_cluster\_size}/2\}$, a rule of thumb that is not tuned, and raises an error if no cluster is found.
     """)
+    return
+
+
+@app.cell
+def _(HDBSCAN, torch):
+    def hdbscan_gmm_init(X, min_cluster_size=None, min_samples=None, reg_covar=1e-6, return_labels=False, **kwargs):
+        """K and init tensors (means, weights, covariances) for ``covariance_type='full'`` from an HDBSCAN clustering of ``X`` of shape (n, d).
+
+        Extra keyword arguments go to ``HDBSCAN``; with ``return_labels=True`` the HDBSCAN labels (-1 = noise) are returned as a fifth value.
+        """
+        n, d = X.shape
+        mcs = min_cluster_size or max(10, int(0.02 * n))
+        ms = min_samples or max(5, mcs // 2)
+        labels = HDBSCAN(min_cluster_size=mcs, min_samples=ms, device=X.device.type, **kwargs).fit(X).labels_.to(X.device)
+        ids = [k for k in range(int(labels.max()) + 1) if int((labels == k).sum()) >= 2]  # a covariance needs at least 2 points
+        if not ids:
+            raise ValueError('HDBSCAN found no cluster: lower min_cluster_size')
+        means = torch.stack([X[labels == k].mean(0) for k in ids])
+        covariances = torch.stack([torch.cov(X[labels == k].T) + reg_covar * torch.eye(d, device=X.device, dtype=X.dtype) for k in ids])
+        z = torch.full((n,), -1, device=X.device, dtype=torch.long)
+        for j, k in enumerate(ids):
+            z[labels == k] = j
+        z = torch.where(z >= 0, z, torch.cdist(X, means).argmin(1))  # every noise point counts for its nearest mean
+        weights = torch.bincount(z, minlength=len(ids)).to(X.dtype) / n
+        return (len(ids), means, weights, covariances) + ((labels,) if return_labels else ())
+
+    return (hdbscan_gmm_init,)
+
+
+@app.cell
+def _(
+    FAST,
+    GaussianMixture,
+    MAX_ITER,
+    device,
+    generate_gmm_data,
+    hdbscan_gmm_init,
+    make_default_data,
+    np,
+    torch,
+):
+    # (a) the tutorial blobs (draw 0, the one the other tutorials show); (b) four separated N(0, I) blobs plus 1% uniform outliers
+    _X_a, _ = make_default_data(0, device=device)
+    _corners = [np.array(_c, dtype=float) for _c in [(0, 0), (8, 0), (0, 8), (8, 8)]]
+    _X_blobs, _ = generate_gmm_data(_corners, [np.eye(2)] * 4, [300] * 4, device=device, random_state=1)
+    _outliers = torch.tensor(np.random.default_rng(0).uniform(-12, 20, (12, 2)), dtype=_X_blobs.dtype, device=device)
+    _X_b = torch.cat([_X_blobs, _outliers])
+    KMEANS_SEEDS = 5 if FAST else 10
+    init_runs = {}
+    for _name, _X in {'tutorial blobs': _X_a, 'four separated blobs + 1% outliers': _X_b}.items():
+        _K, _means, _weights, _covs, _labels = hdbscan_gmm_init(_X, return_labels=True)
+        _from_hdbscan = GaussianMixture(n_components=_K, init_means=_means, init_weights=_weights, init_covariances=_covs, max_iter=MAX_ITER, device=device).fit(_X)
+        # the k-means start knows the true K = 4: seed 0, and a few more seeds to see whether seed 0 is typical
+        _from_kmeans = [GaussianMixture(n_components=4, init_means='kmeans', random_state=_s, max_iter=MAX_ITER, device=device).fit(_X) for _s in range(KMEANS_SEEDS)]
+        init_runs[_name] = dict(X=_X, K=_K, means=_means, weights=_weights, covs=_covs, labels=_labels, hdbscan=_from_hdbscan, kmeans=_from_kmeans)
+    return KMEANS_SEEDS, init_runs
+
+
+@app.cell
+def _(KMEANS_SEEDS, init_runs, mo):
+    _rows = []
+    _notes = []
+    for _name, _r in init_runs.items():
+        _n, _n_noise = len(_r['X']), int((_r['labels'] == -1).sum())
+        _h, _k = _r['hdbscan'], _r['kmeans'][0]
+        _rows.append(f"| {_name} | HDBSCAN | {_r['K']} | {_n_noise} of {_n} | {_h.n_iter_} | {float(_h.lower_bound_):.4f} |")
+        _rows.append(f"| {_name} | k-means, true $K$ = 4 (seed 0) | 4 | - | {_k.n_iter_} | {float(_k.lower_bound_):.4f} |")
+        _hits = sum(float(_g.lower_bound_) > float(_h.lower_bound_) - 1e-3 for _g in _r['kmeans'])
+        _notes.append((_name, _hits))
+    _a, _b = list(init_runs.values())
+    _ll = lambda _g: float(_g.lower_bound_)
+    mo.md(
+        "| data | start | components $K$ | noise points | EM iterations | final log-likelihood |\n|---|---|---|---|---|---|\n" + "\n".join(_rows)
+        + f"\n\nOn the tutorial blobs HDBSCAN finds {_a['K']} clusters but calls {int((_a['labels'] == -1).sum())} of the {len(_a['X'])} points noise: the blobs overlap, so only their dense cores are clusters, "
+        f"and the starting covariances are smaller than the blobs' own. EM still ends within {abs(_ll(_a['hdbscan']) - _ll(_a['kmeans'][0])):.1e} of the log-likelihood it reaches from the k-means start, "
+        f"in {_a['hdbscan'].n_iter_} iterations instead of {_a['kmeans'][0].n_iter_}. "
+        + (f"On the separated blobs the k-means start with seed 0 ends at {_ll(_b['kmeans'][0]):.4f}, below the {_ll(_b['hdbscan']):.4f} from the HDBSCAN start: k-means++ can seed a centre on one of the outliers. "
+           if _ll(_b['kmeans'][0]) < _ll(_b['hdbscan']) - 1e-3 else
+           f"On the separated blobs both starts end at the same log-likelihood ({_ll(_b['hdbscan']):.4f}). ")
+        + f"Over {KMEANS_SEEDS} seeds, {_notes[1][1]} of the k-means starts reach the log-likelihood of the HDBSCAN start on the separated blobs (and {_notes[0][1]} on the tutorial blobs); "
+        f"HDBSCAN is deterministic, and it called only {int((_b['labels'] == -1).sum())} points noise there."
+    )
+    return
+
+
+@app.cell
+def _(CATEGORICAL_PALETTE, Ellipse, N_STD95, init_runs, np, plt):
+    _r = init_runs['tutorial blobs']
+    _X, _lab = _r['X'].cpu().numpy(), _r['labels'].cpu().numpy()
+    _mu, _S, _pi = (_r[_k].cpu().numpy() for _k in ('means', 'covs', 'weights'))
+    _fit = _r['hdbscan']
+    _fmu, _fS = _fit.means_.detach().cpu().numpy(), _fit.covariances_.detach().cpu().numpy()
+
+    def _ellipse(_ax, _mean, _cov, **_kw):
+        _w, _V = np.linalg.eigh(_cov)
+        _ax.add_patch(Ellipse(_mean, 2 * N_STD95 * np.sqrt(_w[1]), 2 * N_STD95 * np.sqrt(_w[0]), angle=np.degrees(np.arctan2(_V[1, 1], _V[0, 1])), fill=False, **_kw))
+
+    _fig, _axs = plt.subplots(1, 2, figsize=(11, 4.5), sharex=True, sharey=True)
+    _axs[0].scatter(_X[_lab == -1, 0], _X[_lab == -1, 1], s=4, alpha=0.5, color='lightgray', label='noise')
+    for _k in range(_r['K']):  # cluster k is component k
+        _axs[0].scatter(_X[_lab == _k, 0], _X[_lab == _k, 1], s=4, alpha=0.5, color=CATEGORICAL_PALETTE[_k], label=f'cluster {_k + 1}')
+    _axs[0].set_title(f"HDBSCAN: {_r['K']} clusters, {int((_lab == -1).sum())} noise points")
+    _axs[0].legend(markerscale=3, loc='upper left')
+    _axs[1].scatter(_X[:, 0], _X[:, 1], s=4, alpha=0.5, color='lightgray')
+    for _k in range(_r['K']):
+        _ellipse(_axs[1], _mu[_k], _S[_k], color=CATEGORICAL_PALETTE[_k])
+        _ellipse(_axs[1], _fmu[_k], _fS[_k], color='black', ls='--', lw=0.8)
+        _axs[1].annotate(f'$\\pi$={_pi[_k]:.2f}', _mu[_k], textcoords='offset points', xytext=(6, 6), fontsize=8, color=CATEGORICAL_PALETTE[_k])
+    _axs[1].scatter(_mu[:, 0], _mu[:, 1], marker='x', s=30, linewidths=1.2, color='red', zorder=3, label='initial mean')
+    _axs[1].scatter(_fmu[:, 0], _fmu[:, 1], marker='h', s=25, color='black', zorder=3, label='fitted mean')
+    _axs[1].plot([], [], color='gray', label='initial Gaussians (95%)')
+    _axs[1].plot([], [], color='black', ls='--', lw=0.8, label='fitted GMM (95%)')
+    _axs[1].set_title('Initial Gaussians from the assignments')
+    _axs[1].legend(loc='upper left')
+    for _ax in _axs:
+        _ax.set_aspect('equal')
+    plt.tight_layout()
+    plt.gcf()
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [13 -- Model Selection](13_model_selection.ipynb) for choosing the number of mixture components by BIC, AIC and ICL.
+    **When it works.** HDBSCAN counts density peaks, not Gaussians, so the number of clusters it finds is a good $K$ only when the components are separated enough to show as peaks. The next table runs the same rule on several draws of three datasets: the two above and four strongly overlapping Gaussians.
+    """)
+    return
 
-    **References:** Campello, Moulavi & Sander (2013), *Density-based clustering based on hierarchical density estimates*, PAKDD. Campello, Moulavi, Zimek & Sander (2013), *A framework for semi-supervised and unsupervised optimal extraction of clusters from hierarchies*, Data Mining and Knowledge Discovery 27(3), 344-371 (doi:10.1007/s10618-013-0311-4). McInnes, Healy & Astels (2017), *hdbscan: Hierarchical density based clustering*, Journal of Open Source Software 2(11).
+
+@app.cell
+def _(FAST, device, generate_gmm_data, hdbscan_gmm_init, make_default_data, mo, np, torch):
+    _draws = range(4 if FAST else 8)
+    _corners = [np.array(_c, dtype=float) for _c in [(0, 0), (8, 0), (0, 8), (8, 8)]]
+    _overlap = [np.array(_c, dtype=float) for _c in [(0, 0), (3.2, 0), (0, 3.2), (3.2, 3.2)]]
+
+    def _separated(_s):
+        _X, _ = generate_gmm_data(_corners, [np.eye(2)] * 4, [300] * 4, device=device, random_state=_s)
+        return torch.cat([_X, torch.tensor(np.random.default_rng(_s).uniform(-12, 20, (12, 2)), dtype=_X.dtype, device=device)])
+
+    _sets = {
+        'tutorial blobs': lambda _s: make_default_data(_s, device=device)[0],
+        'four separated blobs + 1% outliers': _separated,
+        'four strongly overlapping blobs (centres 3.2 apart, 1000 / 500 / 300 / 200 points)': lambda _s: generate_gmm_data(_overlap, [np.eye(2)] * 4, [1000, 500, 300, 200], device=device, random_state=_s)[0],
+    }
+
+    def _found(_X):
+        try:
+            return hdbscan_gmm_init(_X)[0]
+        except ValueError:  # no cluster at all
+            return 0
+
+    _rows = []
+    _found_all = {}
+    for _name, _make in _sets.items():
+        _ks = [_found(_make(_s)) for _s in _draws]
+        _found_all[_name] = _ks
+        _rows.append(f"| {_name} | {sum(_k == 4 for _k in _ks)} of {len(_ks)} | {', '.join(str(_k) for _k in _ks)} |")
+    _ov = _found_all[list(_sets)[2]]
+    mo.md(
+        "| data (true $K$ = 4) | draws with $K$ found = 4 | $K$ found, draw by draw (0 = no cluster found) |\n|---|---|---|\n" + "\n".join(_rows)
+        + f"\n\nOn the overlapping blobs the Gaussians merge into fewer density peaks: HDBSCAN finds at most {max(_ov)} components there, so $K$ is underestimated" + (f" (in {_ov.count(0)} of the draws no cluster at all)" if 0 in _ov else "") + ". "
+        "The tutorial blobs sit in between and their $K$ changes from draw to draw (the draw used above, draw 0, is one where it finds 4). So treat the $K$ found as a candidate: choose $K$ with BIC or ICL ([13 -- Model Selection](13_model_selection.ipynb)) when the clusters overlap, "
+        "and if you know $K$, ask HDBSCAN for it with `hdbscan_gmm_init(X, n_clusters=4, min_cluster_size=20)` (the exactly-$K$ selection of Example 5, which needs a `min_cluster_size` small enough for the condensed tree to hold $K$ clusters; they are still dense cores, so check the fit)."
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## References
+
+    - Campello, R. J. G. B., Moulavi, D. & Sander, J. (2013), *Density-based clustering based on hierarchical density estimates*, PAKDD.
+    - Campello, R. J. G. B., Moulavi, D., Zimek, A. & Sander, J. (2013), *A framework for semi-supervised and unsupervised optimal extraction of clusters from hierarchies*, Data Mining and Knowledge Discovery 27(3), 344-371 (doi:10.1007/s10618-013-0311-4).
+    - McInnes, L., Healy, J. & Astels, S. (2017), *hdbscan: Hierarchical density based clustering*, Journal of Open Source Software 2(11).
     """)
     return
 

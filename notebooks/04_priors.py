@@ -47,16 +47,6 @@ def _(mo):
     # Priors: MAP Estimation and the Normal-Inverse-Wishart Prior
 
     Priors turn the maximum-likelihood M-step of EM into a **maximum a posteriori (MAP)** update: each parameter estimate is pulled toward a prior guess by an amount that depends on how much data supports the component. This regularizes the model, prevents degenerate (collapsed) components, and lets you encode domain knowledge. This notebook builds up the three priors `tgmm` supports, deriving the distributions involved and showing how each one changes a fit, and then studies the conjugate **Normal-Inverse-Wishart (NIW)** prior that tgmm uses when a mean prior and a covariance prior are given together.
-
-    **What you'll learn**
-
-    - how a Dirichlet prior on the weights (`weight_concentration_prior`) shapes the mixing proportions, and the MAP weight update it produces
-    - how a Gaussian prior on the means (`mean_prior`, `mean_precision_prior`) acts as pseudo-observations
-    - why an inverse-Wishart (or inverse-Gamma) prior is the natural choice for covariances, and how `covariance_prior` and `degrees_of_freedom_prior` change a fit
-    - how the NIW prior couples means and covariances, the exact posterior update tgmm uses (for every covariance type), and how a fit depends on each NIW hyperparameter and on the amount of data per component
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model and the EM updates this notebook modifies) and [03 -- Initialization](03_initialization.ipynb) (how EM is started).
-    See also [06 -- Visualization](06_visualise.ipynb) (for `plot_gmm`) and the [`GaussianMixture` API reference](../api/gaussian-mixture.md).
     """)
     return
 
@@ -1393,30 +1383,6 @@ def _(gap, ll_map, ll_mle, mo, np, train_sizes):
     - The prior's weight is $\\kappa_0/(\\kappa_0+n_k)$ and $\\nu_0/(\\nu_0+n_k)$: it regularises a fit with few points per component and disappears with many. The same hyperparameters therefore behave very differently on a small and a large training set.
     - A prior is a guess, and a wrong guess costs something while the data are still few enough to feel it. Here the prior covariance and the shared prior mean are only roughly right for these blobs, and the gap in the middle rows shows the price. Keep $\\kappa_0$ and $\\nu_0$ small compared with the component sizes you expect (a few observations, not hundreds) unless you know the structure.
     - Judge the choice on held-out data, not on the training log-likelihood: the MAP fit always has the lower training log-likelihood (it optimises likelihood times prior), but that is not the number that matters for new data.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Summary
-
-    - A prior converts each EM update into a MAP update: weights $\pi_k = (n_k + \alpha_k - 1)/(n + \sum_j \alpha_j - K)$, means $\mu_k = (n_k \bar y_k + \kappa_0 \mu_0)/(n_k + \kappa_0)$, and covariances $\Sigma_k = (\Psi_0 + \text{scatter} + \dots)/(\nu_0 + n_k)$.
-    - Small Dirichlet concentrations favor a few dominant components; large ones favor balanced weights; unbalanced concentrations push the fit toward the favored component.
-    - The mean precision $\kappa_0$ (and the covariance prior's degrees of freedom $\nu_0$) behave like pseudo-observation counts: the larger they are relative to $n_k$, the stronger the pull toward the prior, and the weaker it is for large components.
-    - The inverse-Wishart / inverse-Gamma family is used for covariances because its density vanishes at singular covariances and keeps a heavy right tail. The covariance prior's denominator is $\nu_0+n_k$, not a textbook posterior mode or mean.
-    - A mean prior alone or a covariance prior alone changes just that update; given both, tgmm uses the coupled NIW update with $\mu_k=\mu_n$, $\Sigma_k = \Psi_n/\nu_n$, where $\Psi_n$ gains a term that grows when the data mean disagrees with $\mu_0$. An independent mean prior is not available.
-    - How much any prior matters depends on the component sizes: its weight is $\kappa_0/(\kappa_0+n_k)$ for the mean and $\nu_0/(\nu_0+n_k)$ for the covariance. With few points per component it can rescue a fit on new data; with many it washes out; a wrong prior costs something in between.
-    - `mean_prior` / `covariance_prior` support the six classic covariance types; `weight_concentration_prior` works with all 14 GPCM models too.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [05 -- Sampling](05_sampling.ipynb) draws from a fitted mixture. See also [11 -- Dirichlet Process Mixtures](11_dpgmm.ipynb), where the same NIW prior is the base measure of a nonparametric sampler.
     """)
     return
 

@@ -52,9 +52,9 @@ notebook's own header (PEP 723 metadata) and installs `tgmm` from PyPI.
   code and the figures in the notebook, and link to the API reference (`../api/*.md`) for signatures.
 - **Plumbing cells.** The first two code cells (`import marimo as mo`, and the `FAST` / `MAX_ITER` / `N_INIT`
   config cell) start with the comment `# docs: hide-cell`; the docs build strips them from the rendered page.
-- **Page layout.** Title and introduction (`# Title`, "What you'll learn", "Prerequisites", "See also"),
-  `## Setup`, the single imports-and-seeds cell, the body, then `## Summary` and `**Next:**` links. The seed
-  is `SEED`, keeping the value the notebook has always used.
+- **Page layout.** Keep it simple: a `# Title`, one or two sentences of introduction, `## Setup`, the single
+  imports-and-seeds cell, then the body (see "Page structure" below). The seed is `SEED`, keeping the value the
+  notebook has always used.
 - **`TGMM_DOCS_FAST`.** CI sets `TGMM_DOCS_FAST=1`. The config cell turns it into `FAST`, `MAX_ITER` and
   `N_INIT` (`100` / `1` when set, `1000` / `5` otherwise). Every slow call -- `max_iter`, `n_init`, sample
   counts, number of sweeps -- takes its budget from these names (or from a notebook-specific
@@ -98,8 +98,9 @@ plt.rcParams.update(DOCS_RC)
 
 ## Page structure (the same in every tutorial)
 
-Title and short introduction (`What you'll learn`, `Prerequisites`, `See also`); `## Setup`; the numbered body sections; `## Summary`;
-`## Try it yourself (interactive version)` if the notebook has controls; then one final cell with the `Next` links and the references.
+A `# Title` and one or two sentences of introduction; `## Setup`; the numbered body sections; `## Try it yourself (interactive version)` if the
+notebook has controls; `## References` if the text cites papers. Nothing else: no "What you'll learn", "Prerequisites", "See also", "Summary" or
+"Next" / "Where to go" sections (links to other tutorials belong inline, in the sentence that needs them).
 
 ## Tests
 

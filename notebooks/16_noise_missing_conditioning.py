@@ -50,18 +50,7 @@ def _(mo):
     with holes in it (**missing-value EM**), ask questions of the fitted density (**marginals** and **conditionals**, hence
     Gaussian mixture regression), and control what EM is allowed to change (**frozen components** and **sample weights**).
 
-    **What you'll learn**
-
-    - how `noise=True` adds a parameter-free uniform component, what it does to the fitted means, and how `predict` and `noise_proba` report it;
-    - how `missing='em'` fits incomplete rows by maximising the likelihood of the *observed* entries, and what `impute` returns;
-    - how `marginal` and `condition` turn a fitted `GaussianMixture` into a regressor whose conditional distributions can be bimodal;
-    - how `frozen_components` pins a known component and how integer `sample_weight`s equal duplicating rows;
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model and EM) and [02 -- Covariance Types](02_covariance_types.ipynb).
-
     **Notation:** $n$ samples, $d$ features, $K$ components, responsibilities $r_{ik}$, $n_k=\sum_i r_{ik}$.
-
-    **See also:** the API page for [`ConditionalGaussianMixture`](../api/conditional-gaussian-mixture.md).
     """)
     return
 
@@ -669,24 +658,6 @@ def _(GaussianMixture, SEED, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Summary
-
-    - `noise=True` adds a uniform component $\pi_0/V$: `predict` returns `-1` for noise, `noise_proba(X)` gives the probability, `weights_` sums to $1-\pi_0$, and
-      the component covariances are no longer inflated by background points. `noise_init` accepts a boolean mask or `HDBSCAN` labels.
-    - `missing='em'` maximises the likelihood of the observed entries: marginal densities in the E-step, conditional means and covariances in the M-step, `impute`
-      for the filled-in data, and every consumer (`predict`, `score`, `bic`, ...) accepts rows with `NaN`.
-    - `marginal(dims)` and `condition(x_obs, obs_dims)` turn a fitted `GaussianMixture` into marginal and conditional distributions; `mean()` is Gaussian mixture
-      regression and the conditional can be multimodal where a regression mean is misleading.
-    - `frozen_components` pins components at their initial parameters, and `sample_weight` counts rows (integer weights equal duplication; per-feature weights for factorising models).
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [15 -- Semi-Supervised and Positive-Unlabeled Fitting](15_semi_supervised_pu.ipynb) for another way of steering the fit, or back to the [tutorial overview](../tutorials/index.md).
-
     ## References
 
     - Banfield, J. D. & Raftery, A. E. (1993). Model-based Gaussian and non-Gaussian clustering. *Biometrics*, 49(3).

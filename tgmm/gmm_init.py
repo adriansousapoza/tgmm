@@ -13,7 +13,6 @@ class GMMInitializer:
     - :func:`kpp`
     - :func:`kmeans`
     - :func:`maxdist`
-    - :func:`hdbscan` (and :func:`hdbscan_clusters`, which also returns the cluster labels)
 
     **Mathematical Descriptions:**
 
@@ -54,15 +53,6 @@ class GMMInitializer:
       $$
       \mu_1 = \arg\max_{x} \min_{l=2}^{k} \|x - \mu_l\|.
       $$
-
-    - **hdbscan:**
-      Runs :class:`~tgmm.hdbscan.HDBSCAN` on the data and uses the mean of each cluster it finds as a
-      centre, $\mu_j = \frac{1}{|C_j|}\sum_{x\in C_j}x$ (noise points are ignored). It needs no ``k`` to find the
-      clusters, so it is the one method that can discover non-convex or very unequal clusters; ``k`` only decides how
-      many of them are kept (the ``k`` largest) and how many extra centres have to be added (k-means++ seeding on the
-      points no cluster claimed). The same clustering also gives the starting weights (cluster sizes) and covariances
-      (cluster scatter) via :func:`init_weights_from_labels` and the ``labels`` argument of
-      :func:`init_covariances_empirical`.
 
     Example usage::
 
@@ -293,285 +283,6 @@ class GMMInitializer:
     # ====================================================================
     
     @staticmethod
-    def _validate_hdbscan_kwargs(hdbscan_kwargs):
-        r"""
-        Check the ``hdbscan_kwargs`` argument of :class:`~tgmm.gmm.GaussianMixture` and return a plain ``dict`` copy
-        (``None`` stays ``None``). Allowed keys: ``min_cluster_size``, ``min_samples``, ``max_points`` and every other
-        argument of :class:`~tgmm.hdbscan.HDBSCAN` except ``device`` (the clustering runs where the data is) and
-        ``n_clusters`` (the number of components decides it; use ``exact_k=True`` to select exactly that many
-        clusters), plus the initialiser's own ``exact_k`` (a bool, default ``False``).
-        """
-        if hdbscan_kwargs is None:
-            return None
-        if not isinstance(hdbscan_kwargs, dict):
-            raise TypeError(f"hdbscan_kwargs must be a dict or None, got {type(hdbscan_kwargs).__name__}.")
-        import inspect
-
-        from .hdbscan import HDBSCAN
-
-        if 'n_clusters' in hdbscan_kwargs:
-            raise ValueError(
-                "hdbscan_kwargs cannot contain 'n_clusters': the number of clusters is n_components. "
-                "Use hdbscan_kwargs={'exact_k': True} to select exactly n_components clusters.")
-        allowed = [p for p in inspect.signature(HDBSCAN.__init__).parameters if p not in ('self', 'device', 'n_clusters')]
-        allowed.extend(['max_points', 'exact_k'])
-        unknown = sorted(set(hdbscan_kwargs) - set(allowed), key=str)
-        if unknown:
-            raise ValueError(f"unknown hdbscan_kwargs key(s) {unknown}; allowed keys: {sorted(allowed)}.")
-        kw = dict(hdbscan_kwargs)
-        if 'exact_k' in kw and not isinstance(kw['exact_k'], bool):
-            raise ValueError(f"hdbscan_kwargs['exact_k'] must be a bool, got {kw['exact_k']!r}.")
-        mcs, ms, mp = kw.get('min_cluster_size'), kw.get('min_samples'), kw.get('max_points')
-        if mcs is not None and (isinstance(mcs, bool) or int(mcs) != mcs or int(mcs) < 2):
-            raise ValueError(f"hdbscan_kwargs['min_cluster_size'] must be an integer >= 2, got {mcs!r}.")
-        if ms is not None and (isinstance(ms, bool) or int(ms) != ms or int(ms) < 1):
-            raise ValueError(f"hdbscan_kwargs['min_samples'] must be an integer >= 1, got {ms!r}.")
-        if mp is not None and (isinstance(mp, bool) or int(mp) != mp or int(mp) < 2):
-            raise ValueError(f"hdbscan_kwargs['max_points'] must be None or an integer >= 2, got {mp!r}.")
-        return kw
-
-    @staticmethod
-    def _hdbscan_default_min_cluster_size(n: int, k: int, exact_k: bool = False) -> int:
-        r"""
-        Default ``min_cluster_size`` of the HDBSCAN initialisers: $\max\{10,\ \min\{\lfloor 0.02\,n\rfloor,\ \lfloor n/(5k)\rfloor\}\}$.
-
-        2% of the points keeps HDBSCAN from calling small clumps clusters (and finds the four blobs of a typical
-        2-D example), while $n/(5k)$ keeps it well below the size of a typical cluster ($\approx n/k$ points) when
-        ``k`` is large, so that no cluster is lost to the "noise" label. With ``exact_k`` the condensed tree must offer
-        at least ``k`` clusters to choose from, so a finer tree is used: $\max\{10,\ \min\{\lfloor 0.01\,n\rfloor,\ \lfloor n/(5k)\rfloor\}\}$.
-        """
-        return max(10, min(int((0.01 if exact_k else 0.02) * n), n // (5 * k)))
-
-    @staticmethod
-    def _hdbscan_partition(data: torch.Tensor, k: int, min_cluster_size=None, min_samples=None,
-                           max_points: int = 5000, random_state: int = None, exact_k: bool = False, **hdbscan_kwargs):
-        r"""
-        The deterministic part of :func:`hdbscan_clusters`: cluster, keep the ``k`` largest clusters and return
-        ``(labels, centres)`` with ``labels`` of shape (N,) in ``{-1, 0, ..., m-1}`` (``m <= k`` kept clusters, ordered by
-        decreasing size; ``-1`` = noise or a dropped cluster) and ``centres`` of shape (m, D). ``m = 0`` when HDBSCAN
-        finds no cluster. Contains no randomness once the (optional) subsample is fixed, so callers may cache it.
-
-        With ``exact_k`` the clustering selects exactly ``k`` clusters (``HDBSCAN(n_clusters=k)``) with a finer default
-        ``min_cluster_size``; if the tree cannot offer ``k`` clusters even after halving ``min_cluster_size`` (at most
-        four times, down to 3) it falls back to the default clustering, i.e. to ``m < k`` clusters completed later.
-        """
-        from .hdbscan import HDBSCAN, InsufficientClustersError
-
-        n_samples, n_features = data.shape
-
-        # HDBSCAN builds the full N x N distance matrix: for large N cluster a random subsample and give every other
-        # point the label of its nearest subsampled point.
-        if max_points is not None and n_samples > max_points:
-            seed = random_state if random_state is not None else int(torch.randint(0, 2 ** 31 - 1, (1,)).item())
-            gen = torch.Generator(device='cpu')
-            gen.manual_seed(int(seed))
-            idx = torch.randperm(n_samples, generator=gen)[:int(max_points)].to(data.device)
-            sub = data[idx]
-        else:
-            idx = None
-            sub = data
-        n_sub = sub.shape[0]
-
-        if min_cluster_size is None:
-            mcs = GMMInitializer._hdbscan_default_min_cluster_size(n_sub, k, exact_k)
-        else:
-            mcs = max(2, int(round(int(min_cluster_size) * n_sub / n_samples)))
-        user_min_samples = None
-        if min_samples is not None:
-            user_min_samples = int(min_samples)
-            if idx is not None:
-                user_min_samples = max(1, int(round(user_min_samples * n_sub / n_samples)))
-
-        def min_samples_for(size):      # the default follows min_cluster_size; a value you pass is kept
-            return max(2, min(size, max(5, size // 2))) if user_min_samples is None else user_min_samples
-
-        if exact_k:
-            sub_labels = None
-            for _ in range(5):          # the rule's min_cluster_size, then up to four halvings (floor 3)
-                try:
-                    model = HDBSCAN(min_cluster_size=mcs, min_samples=min_samples_for(mcs), device=str(data.device),
-                                    n_clusters=k, **hdbscan_kwargs)
-                    sub_labels = model.fit(sub).labels_.to(data.device)
-                    break
-                except InsufficientClustersError:
-                    smaller = max(3, mcs // 2)
-                    if smaller >= mcs:
-                        break
-                    mcs = smaller
-            if sub_labels is None:      # no tree with k clusters: what the default clustering would do
-                return GMMInitializer._hdbscan_partition(
-                    data, k, min_cluster_size, min_samples, max_points, random_state, False, **hdbscan_kwargs)
-        else:
-            model = HDBSCAN(min_cluster_size=mcs, min_samples=min_samples_for(mcs), device=str(data.device), **hdbscan_kwargs)
-            sub_labels = model.fit(sub).labels_.to(data.device)
-
-        valid = sub_labels[sub_labels >= 0]
-        if valid.numel() == 0:
-            return torch.full((n_samples,), -1, dtype=torch.long, device=data.device), data.new_zeros((0, n_features))
-
-        sizes = torch.bincount(valid)
-        order = torch.argsort(sizes, descending=True, stable=True)[:k]          # the k largest clusters
-        remap = torch.full((int(sizes.numel()),), -1, dtype=torch.long, device=data.device)
-        remap[order] = torch.arange(order.numel(), device=data.device)
-        sub_labels = torch.where(sub_labels >= 0, remap[sub_labels.clamp(min=0)], sub_labels)
-
-        if idx is None:
-            labels = sub_labels
-        else:                                                                   # nearest subsampled point's label
-            labels = torch.empty(n_samples, dtype=torch.long, device=data.device)
-            for start in range(0, n_samples, 4096):
-                chunk = data[start:start + 4096]
-                labels[start:start + 4096] = sub_labels[torch.cdist(chunk, sub).argmin(dim=1)]
-            labels[idx] = sub_labels
-
-        m = int(order.numel())
-        centres = torch.stack([data[labels == j].mean(dim=0) for j in range(m)])
-        return labels, centres
-
-    @staticmethod
-    def _hdbscan_complete(data: torch.Tensor, labels: torch.Tensor, centres: torch.Tensor, k: int,
-                          random_state: int = None) -> torch.Tensor:
-        r"""
-        Complete ``centres`` (m <= k rows) to ``k`` rows: the missing centres are drawn by k-means++ (probability
-        proportional to the squared distance to the nearest existing centre) among the points no kept cluster claimed
-        (noise first; all points if there is none). With ``m = 0`` (no cluster found) this is plain k-means++ on the data.
-        """
-        m = centres.shape[0]
-        if m >= k:
-            return centres[:k]
-        if m == 0:
-            return GMMInitializer.kpp(data, k, random_state=random_state)
-        seed = random_state if random_state is not None else int(torch.randint(0, 2 ** 31 - 1, (1,)).item())
-        gen = torch.Generator(device='cpu')
-        gen.manual_seed(int(seed))
-        pool = data[labels < 0] if bool((labels < 0).any()) else data
-        out = centres
-        for _ in range(k - m):
-            d2 = torch.cdist(pool, out).pow(2).min(dim=1)[0]
-            if not bool(d2.sum() > 0):                      # the pool is already covered: draw from all the data
-                pool = data
-                d2 = torch.cdist(pool, out).pow(2).min(dim=1)[0]
-            if bool(d2.sum() > 0):
-                probs = (d2 / d2.sum()).cpu()
-            else:                                           # every point coincides with a centre
-                probs = torch.full((pool.shape[0],), 1.0 / pool.shape[0])
-            j = int(torch.multinomial(probs.double(), 1, generator=gen).item())
-            out = torch.cat([out, pool[j:j + 1]], dim=0)
-        return out
-
-    @staticmethod
-    def hdbscan_clusters(data: torch.Tensor, k: int, min_cluster_size: int = None, min_samples: int = None,
-                         max_points: int = 5000, random_state: int = None, exact_k: bool = False, **hdbscan_kwargs):
-        r"""
-        Initial centres from an HDBSCAN clustering, together with the clustering itself.
-
-        :class:`~tgmm.hdbscan.HDBSCAN` is run on ``data`` (it needs no number of clusters) and every cluster it finds
-        contributes its mean as a centre; noise points (label ``-1``) are ignored:
-        $$
-        \mu_j = \frac{1}{|C_j|}\sum_{x\in C_j} x .
-        $$
-        Handling of ``k``, with ``m`` the number of clusters found:
-
-        - ``m > k``: the ``k`` largest clusters are kept (the points of the others become noise).
-        - ``m < k``: the missing ``k - m`` centres are drawn by k-means++ seeding (probability proportional to the squared
-          distance to the nearest existing centre) among the points no kept cluster claimed, noise points first.
-        - ``m = 0`` (no cluster found, e.g. uniform data): the result is plain k-means++, see :func:`kpp`.
-
-        Clusters are ordered by decreasing size, so row ``j`` of the centres is cluster ``j``; the extra centres come last
-        and own no points. With ``m >= k`` the result is deterministic (and ``n_init > 1`` repeats the same start); the
-        randomness enters only through the subsampling (see ``max_points``) and the k-means++ completion.
-
-        Strengths and weaknesses: it finds non-convex and very unequal clusters and shrugs off outliers (they are noise),
-        so it is the robust alternative to :func:`maxdist`; but it is a density method, so on heavily overlapping
-        clusters (a Gaussian blob mixture with no density gaps) it may return a single cluster or none, and the
-        centres are then only as good as the k-means++ completion. HDBSCAN needs the full ``N x N`` distance matrix
-        (``O(N^2)`` memory), hence ``max_points``.
-
-        Parameters
-        ----------
-        data : torch.Tensor
-            Data of shape (N, D) (or (N,), treated as one feature).
-        k : int
-            Number of centres to return.
-        min_cluster_size : int, optional
-            Smallest group HDBSCAN accepts as a cluster. Default
-            ``max(10, min(int(0.02 * N), N // (5 * k)))``: 2% of the points, but small enough for ``k`` clusters of
-            about ``N / k`` points to survive. If ``data`` is subsampled it refers to the full data set and is scaled by
-            the subsampling fraction.
-        min_samples : int, optional
-            HDBSCAN's core-point neighbourhood size. Default ``max(5, min_cluster_size // 2)`` (never above
-            ``min_cluster_size``); a value you pass is scaled like ``min_cluster_size`` when the data is subsampled.
-        max_points : int or None, default=5000
-            If ``N > max_points`` the clustering runs on a random subsample of ``max_points`` points and every other point
-            takes the label of its nearest subsampled point. ``None`` clusters all the data.
-        random_state : int, optional
-            Seed for the subsample and the k-means++ completion (the global torch RNG is used when ``None``).
-        exact_k : bool, default=False
-            Opt-in: select *exactly* ``k`` clusters from the condensed tree (``HDBSCAN(n_clusters=k)``: the ``k``
-            non-nested clusters of largest total stability, solved exactly) instead of keeping the ``k`` largest clusters
-            of the default flat clustering and completing with k-means++. The default ``min_cluster_size`` is then
-            ``max(10, min(int(0.01 * N), N // (5 * k)))`` (a finer tree), halved up to four times if the tree has fewer
-            than ``k`` clusters; if it still does not, the default clustering above is used. On elongated, unequal or
-            noisy clusters it places the initial centres much closer to the truth than the default rule and than k-means
-            (and EM needs fewer iterations); on strongly overlapping Gaussian components, whose density peaks merge,
-            k-means places them far better and EM started from the exact-``k`` clustering ends in the best optimum less
-            often (use ``'kmeans'`` there), which is why it is not the default.
-        **hdbscan_kwargs
-            Further keyword arguments of :class:`~tgmm.hdbscan.HDBSCAN` (``cluster_selection_method``,
-            ``cluster_selection_epsilon``, ``metric``, ...). ``n_clusters`` is not accepted (``k`` decides it).
-
-        Returns
-        -------
-        means : torch.Tensor
-            (k, D) centres, same device and dtype as ``data``.
-        labels : torch.Tensor
-            (N,) integer labels in ``{-1, 0, ..., k-1}``: the cluster of each point (``-1`` = noise, or a cluster
-            that was dropped because more than ``k`` were found). Rows of ``means`` without members have no label.
-        """
-        if data.dim() == 1:
-            data = data.unsqueeze(1)
-        if data.dim() != 2:
-            raise ValueError(f"data must be a 2D tensor of shape (N, D), got {tuple(data.shape)}.")
-        if isinstance(k, bool) or int(k) != k or int(k) < 1:
-            raise ValueError(f"k must be a positive integer, got {k!r}.")
-        k = int(k)
-        if data.shape[0] < k:
-            raise ValueError(f"cannot initialise k={k} centres from {data.shape[0]} points.")
-        if min_cluster_size is not None and int(min_cluster_size) < 2:
-            raise ValueError(f"min_cluster_size must be an integer >= 2, got {min_cluster_size!r}.")
-        if min_samples is not None and int(min_samples) < 1:
-            raise ValueError(f"min_samples must be an integer >= 1, got {min_samples!r}.")
-        if max_points is not None and int(max_points) < 2:
-            raise ValueError(f"max_points must be None or an integer >= 2, got {max_points!r}.")
-        if not isinstance(exact_k, bool):
-            raise ValueError(f"exact_k must be a bool, got {exact_k!r}.")
-        if 'n_clusters' in hdbscan_kwargs:
-            raise ValueError("n_clusters is not accepted: k is the number of clusters (use exact_k=True to select exactly k).")
-        labels, centres = GMMInitializer._hdbscan_partition(
-            data, k, min_cluster_size, min_samples, max_points, random_state, exact_k, **hdbscan_kwargs)
-        means = GMMInitializer._hdbscan_complete(data, labels, centres, k, random_state)
-        return means.to(dtype=data.dtype), labels
-
-    @staticmethod
-    def hdbscan(data: torch.Tensor, k: int, min_cluster_size: int = None, min_samples: int = None,
-                max_points: int = 5000, random_state: int = None, exact_k: bool = False, **hdbscan_kwargs) -> torch.Tensor:
-        r"""
-        Initial centres from an HDBSCAN clustering (the means of the clusters it finds).
-
-        A thin wrapper of :func:`hdbscan_clusters` that returns only the ``(k, D)`` centres; see there for the handling of
-        ``k``, the default ``min_cluster_size``, the subsampling and the other keyword arguments. Used by
-        ``GaussianMixture(init_means='hdbscan')``.
-
-        Returns
-        -------
-        torch.Tensor
-            A (k, D) tensor of initial centres.
-        """
-        return GMMInitializer.hdbscan_clusters(
-            data, k, min_cluster_size=min_cluster_size, min_samples=min_samples,
-            max_points=max_points, random_state=random_state, exact_k=exact_k, **hdbscan_kwargs)[0]
-
-    @staticmethod
     def init_weights_uniform(n_components: int, device: torch.device,
                               dtype: torch.dtype = torch.float32) -> torch.Tensor:
         r"""
@@ -655,43 +366,6 @@ class GMMInitializer:
         counts = torch.clamp(counts, min=1e-10)
         
         # Normalize to get weights
-        return counts / counts.sum()
-
-    @staticmethod
-    def init_weights_from_labels(data: torch.Tensor, means: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        r"""
-        Initialize weights proportionally to the sizes of the given hard clusters.
-
-        ``labels`` assigns points to components ``0..K-1`` (``-1`` = unassigned, as returned by
-        :func:`hdbscan_clusters`); unassigned points are given to their nearest mean, so the weights describe all the data:
-        $$
-        w_j = \frac{|C_j| + |\{x \text{ unassigned}: j = \arg\min_l \|x-\mu_l\|\}|}{N}.
-        $$
-
-        Parameters
-        ----------
-        data : torch.Tensor
-            Input data of shape (n_samples, n_features).
-        means : torch.Tensor
-            Component means of shape (n_components, n_features).
-        labels : torch.Tensor
-            Integer labels of shape (n_samples,) in ``{-1, 0, ..., n_components-1}``.
-
-        Returns
-        -------
-        torch.Tensor
-            Weights of shape (n_components,) that sum to 1.
-        """
-        if data.dim() == 1:
-            data = data.unsqueeze(1)
-        n_components = means.size(0)
-        labels = labels.to(data.device)
-        counts = torch.bincount(labels[labels >= 0], minlength=n_components).to(data.dtype)
-        free = labels < 0
-        if bool(free.any()):
-            nearest = torch.cdist(data[free], means.to(data.device)).argmin(dim=1)
-            counts = counts + torch.bincount(nearest, minlength=n_components).to(data.dtype)
-        counts = torch.clamp(counts, min=1e-10)
         return counts / counts.sum()
 
     # ====================================================================
@@ -842,12 +516,11 @@ class GMMInitializer:
     
     @staticmethod
     def init_covariances_empirical(data: torch.Tensor, means: torch.Tensor,
-                                  covariance_type: str, reg_covar: float,
-                                  labels: torch.Tensor = None) -> torch.Tensor:
+                                  covariance_type: str, reg_covar: float) -> torch.Tensor:
         r"""
         Initialize covariances empirically from cluster assignments.
         
-        Assigns each data point to its nearest mean (or uses the given ``labels``) and computes cluster-wise
+        Assigns each data point to its nearest mean and computes cluster-wise
         empirical covariance matrices.
         
         Parameters
@@ -860,9 +533,6 @@ class GMMInitializer:
             Type of covariance.
         reg_covar : float
             Regularization added to diagonal.
-        labels : torch.Tensor, optional
-            Integer assignment of every point in ``{-1, 0, ..., n_components-1}``. Points labelled ``-1`` are left out of
-            every covariance (HDBSCAN's noise, see :func:`hdbscan_clusters`). Default: nearest mean.
             
         Returns
         -------
@@ -876,17 +546,13 @@ class GMMInitializer:
         n_components = means.size(0)
         device = data.device
         
-        # Assign points to nearest mean (unless the assignment is given)
-        if labels is None:
-            distances = torch.cdist(data, means)
-            labels = torch.argmin(distances, dim=1)
-        else:
-            labels = labels.to(device)
-        n_assigned = max(int((labels >= 0).sum().item()), 1)   # all the points, except those the caller left out (-1)
+        # Assign points to nearest mean
+        distances = torch.cdist(data, means)
+        labels = torch.argmin(distances, dim=1)
 
         # A singleton cluster has no sample covariance (torch.cov divides by n - 1 = 0 -> NaN); such clusters
         # fall back to the covariance of the whole data set (clusters with >= 2 points are unchanged).
-        counts = torch.bincount(labels[labels >= 0], minlength=n_components)
+        counts = torch.bincount(labels, minlength=n_components)
         if bool(((counts == 1)).any()) and n_samples > 1:
             global_cov = torch.cov(data.T)
             if global_cov.ndim == 0:
@@ -958,7 +624,7 @@ class GMMInitializer:
                 if cluster_data.size(0) > 0:
                     diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
                     sum_cov += diff.T @ diff
-            sum_cov /= n_assigned
+            sum_cov /= n_samples
             sum_cov += reg_covar * torch.eye(n_features, device=device, dtype=data.dtype)
             return sum_cov
 
@@ -970,7 +636,7 @@ class GMMInitializer:
                 if cluster_data.size(0) > 0:
                     diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
                     sum_diag += (diff * diff).sum(dim=0)
-            sum_diag /= n_assigned
+            sum_diag /= n_samples
             sum_diag += reg_covar
             return sum_diag
             
@@ -982,7 +648,7 @@ class GMMInitializer:
                 if cluster_data.size(0) > 0:
                     diff = cluster_data - cluster_data.mean(dim=0, keepdim=True)
                     total_sum += diff.pow(2).sum().item()
-            var = max(total_sum / (n_assigned * n_features), reg_covar)
+            var = max(total_sum / (n_samples * n_features), reg_covar)
             return torch.tensor(var, device=device, dtype=data.dtype)
             
         else:

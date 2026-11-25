@@ -124,23 +124,17 @@ class GaussianMixture(BaseMixture):
         to ensure both reproducibility and diversity. (default: 1)
     init_means : str or torch.Tensor, optional
         Method for initializing means, or a tensor of initial means.
-        - If str: 'kmeans', 'kpp', 'random', 'points', 'maxdist', 'hdbscan'. ``'hdbscan'`` runs
-          :class:`~tgmm.hdbscan.HDBSCAN` and starts from the means of the clusters it finds (noise ignored;
-          the ``n_components`` largest are kept, missing centres are added by k-means++); it is the
-          outlier-robust choice for clusters that are not simple blobs. See
-          :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`; tune the clustering with ``hdbscan_kwargs``.
+        - If str: 'kmeans', 'kpp', 'random', 'points', 'maxdist'
         - If tensor: shape (n_components, n_features) exactly (no broadcasting)
         (default: 'kmeans')
     init_weights : str or torch.Tensor, optional
         Method for initializing weights, or a tensor of initial weights.
-        - If str: 'uniform', 'random', 'kmeans', 'hdbscan' (the sizes of the HDBSCAN clusters, noise given to
-          the nearest mean; requires ``init_means='hdbscan'``)
+        - If str: 'uniform', 'random', 'kmeans'
         - If tensor: shape (n_components,)
         (default: 'uniform')
     init_covariances : str or torch.Tensor, optional
         Method for initializing covariances, or a tensor of initial covariances.
-        - If str: 'empirical', 'eye', 'random', 'global', 'hdbscan' (the scatter of each HDBSCAN cluster,
-          noise left out; requires ``init_means='hdbscan'``)
+        - If str: 'empirical', 'eye', 'random', 'global'
         - If tensor: shape depends on covariance_type (supports broadcasting)
           * full: (n_features, n_features) or (n_components, n_features, n_features)
           * diag: (n_features,) or (n_components, n_features)
@@ -315,21 +309,6 @@ class GaussianMixture(BaseMixture):
     frozen_covariances : sequence of int, optional
         Components whose *covariance* is held at its initial value (`init_covariances` must be a tensor); not
         available for the tied types and the 8 GPCM-only codes. (default: ())
-    hdbscan_kwargs : dict or None, optional
-        Settings of the :class:`~tgmm.hdbscan.HDBSCAN` run behind ``init_means='hdbscan'`` (and the matching
-        ``init_weights='hdbscan'`` / ``init_covariances='hdbscan'``, which reuse that clustering): ``min_cluster_size``,
-        ``min_samples``, ``cluster_selection_method``, ``cluster_selection_epsilon``, ``metric``, ... and
-        ``max_points`` (HDBSCAN needs the full ``N x N`` distance matrix, so larger data is clustered on a random
-        subsample of this many points; default 5000, ``None`` clusters everything) and ``exact_k`` (a bool, default
-        ``False``; opt-in: select exactly ``n_components`` clusters from the condensed tree, the ``n_components``
-        non-nested clusters of largest total stability, with a finer default ``min_cluster_size``; it puts the
-        initial centres much closer to the truth on elongated, unequal or noisy clusters, but on strongly overlapping
-        Gaussian components ``'kmeans'`` is the better start). ``device`` and
-        ``n_clusters`` are not accepted: the clustering runs where the data is, and ``n_components`` decides the number
-        of clusters. ``None`` uses the defaults of
-        :meth:`~tgmm.gmm_init.GMMInitializer.hdbscan_clusters`: ``min_cluster_size = max(10, min(0.02 N, N // (5 k)))``
-        and ``min_samples = max(5, min_cluster_size // 2)``. Unknown keys raise a ``ValueError`` listing the allowed
-        ones. Ignored unless an initialiser is ``'hdbscan'``. (default: None)
     missing : {'error', 'em'}, optional
         How `NaN` entries of `X` are handled. `'error'` (default): `NaN` raises `ValueError`.
         `'em'`: `NaN` marks missing-at-random values and the likelihood of the *observed* entries
@@ -517,9 +496,6 @@ class GaussianMixture(BaseMixture):
         frozen_means: Sequence[int] = (),
         frozen_covariances: Sequence[int] = (),
 
-        # Settings of the HDBSCAN used by init_means/init_weights/init_covariances='hdbscan'
-        hdbscan_kwargs: Optional[dict] = None,
-
         **kwargs  # Catch deprecated parameters
     ):
         super().__init__()
@@ -611,7 +587,6 @@ class GaussianMixture(BaseMixture):
         self.init_means = init_means
         self.init_weights = init_weights
         self.init_covariances = init_covariances
-        self.hdbscan_kwargs = GMMInitializer._validate_hdbscan_kwargs(hdbscan_kwargs)
 
         # ===================================================================
         # 5. Store random state and restart options
@@ -1170,7 +1145,6 @@ class GaussianMixture(BaseMixture):
         # ===============================================================
         # 1. Initialize means
         # ===============================================================
-        hdb_labels = None   # per-point HDBSCAN cluster labels, set when init_means='hdbscan' (weights/covariances reuse them)
         if isinstance(self.init_means, torch.Tensor):
             # User-provided tensor
             if self.init_means.shape != (self.n_components, self.n_features):
@@ -1205,13 +1179,10 @@ class GaussianMixture(BaseMixture):
                     self.means_ = GMMInitializer.maxdist(X_cpu, self.n_components).to(self.device)
                 elif init_method == 'random':
                     self.means_ = GMMInitializer.random(X_cpu, self.n_components).to(self.device)
-                elif init_method == 'hdbscan':
-                    means_hdb, hdb_labels = self._hdbscan_init(X)
-                    self.means_ = means_hdb.to(self.device)
                 else:
                     raise ValueError(
                         f"Unsupported init_means method: '{init_method}'. "
-                        f"Supported: 'kmeans', 'kpp', 'points', 'maxdist', 'random', 'hdbscan'."
+                        f"Supported: 'kmeans', 'kpp', 'points', 'maxdist', 'random'."
                     )
         else:
             raise TypeError(
@@ -1263,31 +1234,10 @@ class GaussianMixture(BaseMixture):
                         X_for_weights, self.means_
                     )
                     self.weights_ = weights.to(self.device)
-            elif init_method == 'hdbscan':
-                if X is None:
-                    warnings.warn(
-                        "'hdbscan' weight initialization requires data. "
-                        "Falling back to uniform weights.",
-                        UserWarning
-                    )
-                    self.weights_ = GMMInitializer.init_weights_uniform(
-                        self.n_components, self.device, dtype=self.dtype
-                    )
-                else:
-                    if hdb_labels is None:
-                        raise ValueError(
-                            "init_weights='hdbscan' needs the HDBSCAN clustering of init_means='hdbscan' "
-                            "(the cluster labels belong to those means); set init_means='hdbscan' or use "
-                            "init_weights='kmeans'."
-                        )
-                    weights = GMMInitializer.init_weights_from_labels(
-                        X.to(self.means_.device), self.means_, hdb_labels
-                    )
-                    self.weights_ = weights.to(device=self.device, dtype=self.dtype)
             else:
                 raise ValueError(
                     f"Unsupported init_weights method: '{init_method}'. "
-                    f"Supported methods: 'uniform', 'random', 'kmeans', 'hdbscan'."
+                    f"Supported methods: 'uniform', 'random', 'kmeans'."
                 )
         else:
             raise TypeError(
@@ -1370,36 +1320,7 @@ class GaussianMixture(BaseMixture):
             # Use initialization method from GMMInitializer
             init_method = self.init_covariances.lower()
 
-            if init_method == 'hdbscan':
-                # The scatter of each HDBSCAN cluster (noise left out), from the clustering of init_means='hdbscan'.
-                if X is None:
-                    warnings.warn(
-                        "'hdbscan' covariance initialization requires data. "
-                        "Falling back to identity initialization.",
-                        UserWarning
-                    )
-                    self.covariances_ = GMMInitializer.init_covariances_eye(
-                        self.n_components, self.n_features,
-                        'full' if self.covariance_type_ in _NEW_GPCM_CODES else self.covariance_type,
-                        self.reg_covar, self.device, dtype=self.dtype
-                    )
-                else:
-                    if hdb_labels is None:
-                        raise ValueError(
-                            "init_covariances='hdbscan' needs the HDBSCAN clustering of init_means='hdbscan' "
-                            "(the cluster labels belong to those means); set init_means='hdbscan' or use "
-                            "init_covariances='empirical'."
-                        )
-                    if self.covariance_type_ in _NEW_GPCM_CODES:
-                        self.covariances_ = self._init_covariances_gpcm_empirical(
-                            X.to(self.means_.device), labels=hdb_labels.to(self.means_.device))
-                    else:
-                        covs = GMMInitializer.init_covariances_empirical(
-                            X.to(self.means_.device), self.means_,
-                            self.covariance_type, self.reg_covar, labels=hdb_labels
-                        )
-                        self.covariances_ = covs.to(self.device)
-            elif self.covariance_type_ in _NEW_GPCM_CODES:
+            if self.covariance_type_ in _NEW_GPCM_CODES:
                 # 'eye'/'random' don't need a GPCM projection (there's
                 # nothing fit yet to project) -- just build plain full
                 # matrices directly, same as the 'full' type; volume_/
@@ -1448,7 +1369,7 @@ class GaussianMixture(BaseMixture):
                 else:
                     raise ValueError(
                         f"Unsupported init_covariances method: '{init_method}'. "
-                        f"Supported methods: 'eye', 'random', 'global', 'empirical', 'hdbscan'."
+                        f"Supported methods: 'eye', 'random', 'global', 'empirical'."
                     )
             elif init_method == 'eye':
                 self.covariances_ = GMMInitializer.init_covariances_eye(
@@ -1501,7 +1422,7 @@ class GaussianMixture(BaseMixture):
             else:
                 raise ValueError(
                     f"Unsupported init_covariances method: '{init_method}'. "
-                    f"Supported methods: 'eye', 'random', 'global', 'empirical', 'hdbscan'."
+                    f"Supported methods: 'eye', 'random', 'global', 'empirical'."
                 )
         else:
             raise TypeError(
@@ -1525,7 +1446,7 @@ class GaussianMixture(BaseMixture):
         self.n_iter_ = 0
         self.lower_bound_ = -float("inf")
 
-    def _init_covariances_gpcm_empirical(self, X: torch.Tensor, labels: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def _init_covariances_gpcm_empirical(self, X: torch.Tensor) -> torch.Tensor:
         r"""
         `init_covariances='empirical'` for the 8 new GPCM codes: assign
         each point to its nearest current mean (hard, k-means-style),
@@ -1534,13 +1455,9 @@ class GaussianMixture(BaseMixture):
         call -- the plan's own instruction (projecting the *constrained*
         MLE of that starting point, not the raw unconstrained empirical
         covariance, which wouldn't satisfy the code's constraints).
-
-        ``labels`` (used by `init_covariances='hdbscan'`) replaces the nearest-mean assignment: an integer tensor in
-        ``{-1, 0, ..., n_components-1}`` where ``-1`` leaves a point out of every scatter.
         """
-        if labels is None:
-            distances = torch.cdist(X, self.means_)
-            labels = torch.argmin(distances, dim=1)
+        distances = torch.cdist(X, self.means_)
+        labels = torch.argmin(distances, dim=1)
         nk = torch.zeros(self.n_components, dtype=self.dtype, device=self.device)
         W = torch.zeros(self.n_components, self.n_features, self.n_features, dtype=self.dtype, device=self.device)
         for k in range(self.n_components):
@@ -4708,7 +4625,6 @@ class GaussianMixture(BaseMixture):
             'covariance_bounds': self.covariance_bounds,
             'frozen_means': list(self.frozen_means),
             'frozen_covariances': list(self.frozen_covariances),
-            'hdbscan_kwargs': self.hdbscan_kwargs,
             **self._semisupervised_state(),
 
             # ===============================================================
@@ -4841,7 +4757,6 @@ class GaussianMixture(BaseMixture):
             covariance_bounds=state_dict.get('covariance_bounds'),
             frozen_means=state_dict.get('frozen_means', ()),
             frozen_covariances=state_dict.get('frozen_covariances', ()),
-            hdbscan_kwargs=state_dict.get('hdbscan_kwargs'),
             **cls._semisupervised_kwargs(state_dict),
         )
         model.noise_weight_ = state_dict.get('noise_weight_')
@@ -4962,7 +4877,6 @@ class GaussianMixture(BaseMixture):
             'covariance_bounds': self.covariance_bounds,
             'frozen_means': list(self.frozen_means),
             'frozen_covariances': list(self.frozen_covariances),
-            'hdbscan_kwargs': self.hdbscan_kwargs,
             **self._semisupervised_state(),
 
             # ===============================================================
@@ -5082,7 +4996,6 @@ class GaussianMixture(BaseMixture):
         self.covariance_bounds = state_dict.get('covariance_bounds')
         self.frozen_means = tuple(state_dict.get('frozen_means', ()))
         self.frozen_covariances = tuple(state_dict.get('frozen_covariances', ()))
-        self.hdbscan_kwargs = GMMInitializer._validate_hdbscan_kwargs(state_dict.get('hdbscan_kwargs'))
         self._load_semisupervised_state(state_dict)
         self.noise_weight_ = state_dict.get('noise_weight_')
         self.noise_bounds_ = state_dict.get('noise_bounds_')

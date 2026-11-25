@@ -62,23 +62,6 @@ def _(mo):
     This notebook shows what each choice looks like, derives **how EM estimates every one of them**
     (the M-step), checks the derivations numerically against the library, and compares all 14 models
     on the four-cluster data.
-
-    **What you'll learn**
-
-    - how the covariance enters EM's M-step, and why every covariance type is the same optimisation
-      problem over a different feasible set;
-    - the closed-form estimates for the six classic types, and their number of free parameters;
-    - the volume / shape / orientation decomposition behind the 14 GPCM models and its mclust naming;
-    - how each of the 14 models is estimated: closed forms, alternating updates, and the one step
-      that needs a numerical (Stiefel-manifold) optimisation;
-    - how to read `volume_`, `shape_`, `orientation_` on a fitted model, and how many free covariance
-      parameters each model has for small and machine-learning-sized $K$ and $d$.
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb), which builds the four-cluster data and
-    explains the mixture model and EM (the E-step / M-step vocabulary used throughout).
-
-    **See also:** [03 -- Initialisation](03_initialization.ipynb) for how the starting covariances are
-    chosen, and [`tgmm.covariance.gpcm`](../api/covariance-gpcm.md) for the API of the M-step functions.
     """)
     return
 
@@ -910,35 +893,6 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Summary
-
-    - Every covariance type is the same M-step objective $J=\sum_k[n_k\log|\Sigma_k|+\mathrm{tr}(\Sigma_k^{-1}W_k)]$
-      minimised over a different feasible set; the M-step only needs the sufficient statistics $n_k$ and $W_k$.
-    - The six classic types have simple closed forms (pooled for the `tied_` versions), verified here against
-      `GaussianMixture`'s converged fits.
-    - The GPCM family writes $\Sigma_k=\lambda_kD_kA_kD_k^{\top}$ and lets volume, shape and orientation each be equal,
-      varying or (for shape/orientation) the identity -- 14 models whose parameter counts add up factor by factor.
-    - Three of the new models have closed-form M-steps, three alternate closed-form sub-steps, and the two with a
-      shared orientation and varying shape (`EVE`, `VVE`) need a numerical orthogonal-manifold step -- all matching an
-      independent brute-force minimiser.
-    - The number of free covariance parameters is a sum over the three factors: only a per-component orientation
-      grows like $K\,d^2$, a shared orientation adds a $K$-independent $d^2$ term, and the identity orientation
-      grows at most like $K\,d$ -- the formula is checked against fitted models and tabulated for
-      $K\in\{5,50\}$ and $d\in\{4,64\}$.
-    - The count grows quadratically with $d$ for full covariances (the curse of dimensionality), which is why high-dimensional data needs constrained structures.
-    - `volume_` / `shape_` / `orientation_` expose the fitted decomposition of the eight non-classic models.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [03 -- Initialization](03_initialization.ipynb) for how the starting means, covariances and
-    weights are chosen, [04 -- Priors](04_priors.ipynb) for regularising covariance estimates (classic types), and
-    [13 -- Model Selection](13_model_selection.ipynb) for choosing the covariance structure and the number of
-    components for your data.
-
     ## References
 
     - Bouveyron, C., Celeux, G., Murphy, T. B. & Raftery, A. E. (2019). *Model-Based Clustering and Classification for Data Science: With Applications in R*. Cambridge University Press, doi:10.1017/9781108644181. Section 2.2 (pp. 18-23): Table 2.1, the 14 covariance parameterisations, and Figure 2.3, their contours (p. 21); Table 2.2, the numbers of covariance parameters (p. 22).

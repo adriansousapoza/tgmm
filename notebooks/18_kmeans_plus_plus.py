@@ -43,18 +43,7 @@ def _(mo):
     mo.md(r"""
     # k-means++: How the Seeding Works
 
-    `init_means='kpp'` and `init_means='kmeans'` (see [3. Initialization](03_initialization.ipynb)) both start from **k-means++ seeding**: a way of choosing $k$ starting centres from the data that spreads them out *without* being fooled by outliers. This tutorial builds the algorithm step by step, shows what its sampling probabilities look like, checks that the step-by-step version reproduces `GMMInitializer.kpp` exactly, and measures why the squared distance is the right weight. The next tutorial, [21. k-means](19_kmeans.ipynb), shows what happens after the seeding.
-
-    **What you'll learn**
-
-    - The k-means++ algorithm and its sampling probability $P(x)\propto D(x)^2$
-    - Why the *squared* distance: uniform sampling ignores distance, farthest-first (`maxdist`) over-reacts to outliers, $D^2$ sits in between and carries a guarantee
-    - How to read the probability map at each step, as a figure and as a video you can pause and scrub
-    - How seeding quality is measured (the k-means cost of the seeds) and how the methods compare
-
-    **Prerequisites:** [1. Introduction](01_introduction.ipynb) and [3. Initialization](03_initialization.ipynb).
-
-    **See also:** [21. k-means](19_kmeans.ipynb), the [`GMMInitializer` API reference](../api/gmm-initializer.md).
+    `init_means='kpp'` and `init_means='kmeans'` (see [3. Initialization](03_initialization.ipynb)) both start from **k-means++ seeding**: a way of choosing $k$ starting centres from the data that spreads them out *without* being fooled by outliers. This tutorial builds the algorithm step by step, shows what its sampling probabilities look like, checks that the step-by-step version reproduces `GMMInitializer.kpp` exactly, and measures why the squared distance is the right weight. The next tutorial, [19. k-means](19_kmeans.ipynb), shows what happens after the seeding.
     """)
     return
 
@@ -405,13 +394,7 @@ def _(mo, results):
 
     - **Cost.** Each step computes the distances from all $N$ points to the new centre, so seeding costs $O(Nkd)$: the same as *one* iteration of Lloyd's algorithm. It is inherently sequential (the probabilities of step $i$ depend on the centre drawn in step $i-1$). For very large data a parallel variant, k-means$\parallel$ (Bahmani et al., 2012), draws several centres per round.
     - **Greedy k-means++.** The common refinement (used by scikit-learn) draws a few candidates per step and keeps the one that lowers the cost most. It is not in `GMMInitializer`; `n_init` restarts play a similar role.
-    - **Seeding is not the end.** The seeds are data points, not cluster means. `init_means='kmeans'` therefore polishes them with Lloyd's algorithm ([21. k-means](19_kmeans.ipynb)), and EM then refines everything including weights and covariances.
-
-    ## Summary
-
-    - k-means++ draws the first centre uniformly and every later centre with probability $\propto D(x)^2$, the squared distance to the nearest centre so far.
-    - `kpp_trace` above reproduces `GMMInitializer.kpp` exactly; the probability maps show how the draw moves from region to region.
-    - $D^2$ sits between uniform sampling (ignores the centres) and farthest-first (all weight on one point): it spreads the seeds out, has a guarantee $\mathbb{{E}}[\phi]\le 8(\ln k+2)\phi_{{\mathrm{{opt}}}}$, and is robust to outliers.
+    - **Seeding is not the end.** The seeds are data points, not cluster means. `init_means='kmeans'` therefore polishes them with Lloyd's algorithm ([19. k-means](19_kmeans.ipynb)), and EM then refines everything including weights and covariances.
     """)
     return
 
@@ -468,8 +451,6 @@ def _(X, X_tensor, draw_step, k_try, kpp_trace, np, plt, potential, power_try, s
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** [21. k-means](19_kmeans.ipynb), what Lloyd's algorithm does with the seeds. Back to [3. Initialization](03_initialization.ipynb).
-
     ## References
 
     - Arthur, D. and Vassilvitskii, S. (2007). k-means++: the advantages of careful seeding. *Proceedings of the 18th ACM-SIAM Symposium on Discrete Algorithms*, 1027-1035.

@@ -5,43 +5,16 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Added (HDBSCAN initialisation)
+### Added
 
-- `init_means='hdbscan'` (`GaussianMixture`): start EM from the means of the clusters `tgmm.HDBSCAN` finds (noise ignored). It
-  needs no number of clusters to find them, finds non-convex and very unequal clusters and is robust to outliers, which makes it
-  the safe alternative to `'maxdist'` (farthest-first traversal puts centres on outliers). `n_components` only decides how many
-  clusters are kept (the largest) and how many extra centres are added (k-means++ seeding on the points no cluster claimed, noise
-  first); with no cluster found it is plain k-means++. The clustering is computed once per data set (cached across `n_init`),
-  and large data is clustered on a random subsample (`max_points=5000`, HDBSCAN needs the full `N x N` distance matrix).
-- `init_weights='hdbscan'` (the cluster sizes, the noise points added to the nearest mean) and `init_covariances='hdbscan'` (the
-  scatter of each cluster, noise left out; all classic covariance types and the GPCM codes). Both reuse the clustering of
-  `init_means='hdbscan'` and raise a clear error otherwise.
-- New constructor argument `hdbscan_kwargs: Optional[dict] = None` (`GaussianMixture`): settings of that HDBSCAN run
-  (`min_cluster_size`, `min_samples`, `cluster_selection_method`, ..., and `max_points`). `None` uses the default rule
-  `min_cluster_size = max(10, min(int(0.02 n), n // (5 k)))` and `min_samples = max(5, min_cluster_size // 2)`: 2% of the points,
-  but small enough for `k` clusters of about `n / k` points to survive (a flat 2% rule loses clusters at large `k`). Unknown keys
-  raise a `ValueError` listing the allowed ones; the argument is saved and loaded with the model.
-- `GMMInitializer.hdbscan(data, k, min_cluster_size=None, min_samples=None, max_points=5000, random_state=None, **hdbscan_kwargs)`
-  returns the centres; `GMMInitializer.hdbscan_clusters(...)` also returns the per-point labels (`-1` = noise).
-  `GMMInitializer.init_weights_from_labels` and the new optional `labels` argument of
-  `GMMInitializer.init_covariances_empirical` (points labelled `-1` are left out) are the building blocks.
-- **Exactly K clusters, opt-in.** `HDBSCAN(n_clusters=K)` selects exactly `K` non-nested clusters of the condensed tree, the set
-  with the largest total stability (the objective of the default `'eom'` selection with a cardinality constraint, solved exactly
-  by dynamic programming; points outside are noise; `ValueError` asking for a smaller `min_cluster_size` if the tree has fewer
-  than `K` clusters). The initialisers expose it as `hdbscan_kwargs={'exact_k': True}` (and `exact_k=True` of
-  `GMMInitializer.hdbscan` / `hdbscan_clusters`), with a finer default `min_cluster_size = max(10, min(int(0.01 n), n // (5 k)))`
-  that is halved (at most four times) if the tree has too few clusters, and the default clustering as the last fallback. The
-  default behaviour is unchanged. When to use it: on the tutorial blobs (overlapping, one of them elongated and tilted) the
-  exact-K start puts the initial centres much closer to the truth than the default rule and than `'kmeans'` (median distance
-  0.27 against 0.75 and 1.21) and EM needs fewer iterations (13 against 14 and 31), and it always finds the K clusters where the
-  default rule found 2 or 3. It does not end in a better optimum there (`'kmeans'` already reaches the best one in every
-  draw). On strongly overlapping Gaussian components, whose density peaks merge, `'kmeans'` is far better (initial centres
-  0.21 from the truth against 1.3 for exact-K and 1.7 for the default rule, four unequal blobs 3.2 standard deviations apart)
-  and the exact-K start ends in the best optimum least often (0 of 8 draws, against 2 of 8 for the default rule and 6 of 8 for
-  `'kmeans'`), so `'kmeans'` remains the right choice there. Cutting the raw single-linkage tree
-  with `scipy.cluster.hierarchy.fcluster(..., 'maxclust')` is not an alternative: it peels off tiny clusters one by one (no usable
-  start in 24 of 24 trials), and tuning `cluster_selection_epsilon` until `K` clusters appear (what `hdbscan.flat` does) works
-  only if the data has `K` separated density peaks.
+- `HDBSCAN(n_clusters=K)` selects exactly `K` non-nested clusters of the condensed tree: the set with the largest total stability (the
+  objective of the default `'eom'` selection with a cardinality constraint, solved exactly by dynamic programming in the spirit of
+  FOSC, Campello et al. 2013); points outside them are noise. It raises `InsufficientClustersError` (a `ValueError`) asking for a smaller
+  `min_cluster_size` if the tree has fewer than `K` clusters. Cutting the raw single-linkage tree with
+  `scipy.cluster.hierarchy.fcluster(..., 'maxclust')` is not an alternative (it peels off tiny clusters one by one), and tuning
+  `cluster_selection_epsilon` until `K` clusters appear works only if the data has `K` separated density peaks.
+- Tutorial 12 (HDBSCAN) shows how to initialise a Gaussian mixture from an HDBSCAN run: the number of clusters, the means, the weights and the
+  covariances come from the cluster assignments and are passed to `GaussianMixture` as initialisation tensors.
 
 ### Removed (breaking)
 

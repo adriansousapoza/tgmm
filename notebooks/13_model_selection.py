@@ -49,16 +49,6 @@ def _(mo):
     How many components should a mixture have, and which covariance structure? `tgmm.select_model` fits a `GaussianMixture` for every requested `n_components` (and, optionally, every `covariance_type`), records `bic`, `aic` and `icl` for each fit, and returns the best one. This notebook compares the three criteria on a dataset built to make them disagree, including the Integrated Completed Likelihood, `GaussianMixture.icl` (Biernacki, Celeux & Govaert, 2000).
 
     BIC and AIC score a fitted mixture purely on log-likelihood plus a complexity penalty -- they don't care whether the mixture's components are cleanly separated or heavily overlapping, as long as the extra components earn their keep in likelihood. ICL adds an entropy penalty for *ambiguous* assignments (`-2 * sum_i log(responsibility of the point's most likely component)`), so on data with overlapping clusters it tends to prefer **fewer, better-separated** components than BIC does on the same data, even though both coincide when clusters are perfectly separated (one-hot responsibilities).
-
-    **What you'll learn**
-
-    - how to sweep `n_components` with `select_model` and read its results table
-    - how BIC, AIC and ICL differ, and why ICL prefers well-separated partitions
-    - how to compute `icl` (hard and soft) on a single fitted model
-    - the formulas behind AIC, BIC and ICL, checked numerically against the library
-    - how to sweep the covariance structure together with `n_components`, and how cluster separation and background noise move the choice
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (fitting a mixture, the log-likelihood), [02 -- Covariance Types](02_covariance_types.ipynb) (the parameter counts), [09 -- Clustering Metrics](09_metrics.ipynb) (label-free validity indices, the other way to compare clusterings).
     """)
     return
 
@@ -562,21 +552,6 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Summary
-
-    - `select_model` sweeps `n_components` (and optionally covariance types) and returns the best fit by the chosen criterion, together with the full table of `bic`, `aic`, `icl`, log-likelihood and convergence for every candidate.
-    - BIC and AIC measure fit versus complexity; ICL adds an entropy penalty, so on overlapping clusters it favors fewer, better-separated components.
-    - Neither criterion is wrong -- they answer different questions: the best density estimate versus the best-separated partition.
-    - `icl(X, mode='hard' | 'soft')` can be computed on any fitted model; it equals BIC when responsibilities are one-hot.
-    - The formulas $\mathrm{AIC}=-2\hat\ell+2p$, $\mathrm{BIC}=-2\hat\ell+p\ln n$ and $\mathrm{ICL}=\mathrm{BIC}+2\,\mathrm{EN}$ match the library to numerical precision, with $p=(K-1)+Kd+p_\Sigma$.
-    - `select_model` sweeps $K$ and the covariance structure together (all 14 GPCM codes by default); on the iris petals BIC picks `VVE` with $K=3$ (per-component volume and shape, one shared orientation) and on the 10-D dataset `VVI` with $K=4$ (per-component volume and shape, axis-aligned) -- neither is the default `full` model -- and `volume_` / `shape_` / `orientation_` say which kind of parsimony a non-classic winner uses. Overlap widens the BIC-ICL gap and background noise adds a spurious component.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Try it yourself (interactive version)
 
     The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
@@ -613,14 +588,6 @@ def _(FAST, noise_switch, np, plt, sep_slider, select_model, three_blobs):
     plt.title(f'separation {sep_slider.value}: BIC picks K = {_ks[int(_bic.argmin())]}, ICL picks K = {_ks[int(_icl.argmin())]}')
     plt.legend()
     plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [14 -- Stochastic EM, Annealing and SAEM](14_stochastic_em.ipynb) for fitting algorithms that escape poor local optima, and [02 -- Covariance Types](02_covariance_types.ipynb) for what each of the 14 covariance models assumes.
-    """)
     return
 
 

@@ -49,16 +49,6 @@ def _(mo):
     Sometimes part of the model is *known*: the class proportions come from a census, a reference population has a known mean, the means
     must stay inside the measurement range, the variances must stay below a noise ceiling. This tutorial shows how to tell
     `GaussianMixture` what you know, why EM still works when you do (the log-likelihood stays monotone), and how to fit a *weighted* sample.
-
-    **What you'll learn**
-
-    1. the six constructor arguments `fixed_weights`, `weight_bounds`, `mean_bounds`, `covariance_bounds`, `frozen_means`, `frozen_covariances` (and the older `frozen_components`),
-    2. why the constrained M-step is an **ECM** step with *exact* block updates: water-filling for the weights, clipping or coordinate ascent for the means, variance / eigenvalue clipping for the covariances,
-    3. how to read `active_constraints_`, and how `bic` / `aic` count fixed parameters,
-    4. `fit(X, sample_weight=w)`: integer weights are row duplication, weight $0$ is dropping a row, and an $(n, d)$ weight matrix marginalises a feature out of a row.
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM, the E- and M-step), [02 -- Covariance Types](02_covariance_types.ipynb).
-    Constraints are not available in Gibbs mode ([11 -- Dirichlet Process Mixtures](11_dpgmm.ipynb)), nor together with a mean or covariance prior ([04 -- Priors](04_priors.ipynb)).
     """)
     return
 
@@ -639,13 +629,6 @@ def _(mo):
     - `covariance_bounds` for the 8 GPCM codes without a classic name, and `frozen_covariances` / `frozen_components` for the tied types and those 8 codes (one factor is shared across components);
     - weight constraints together with `noise=True` or `labels=`;
     - any of these with per-feature $(n,d)$ `sample_weight`.
-
-    ## Summary
-
-    - Known values and bounds are ordinary constructor arguments, off by default, and a fit without them is unchanged.
-    - EM remains valid: the constrained M-step is an ECM step whose block updates are each exact -- water-filling for the weights, clipping (diagonal / spherical) or coordinate ascent (full) for the means, variance or eigenvalue clipping for the covariances -- so the log-likelihood never decreases.
-    - Where a bound binds the estimate sits on the boundary (see `active_constraints_`); `bic` / `aic` discount fixed parameters but not bounds.
-    - `sample_weight` generalises row duplication (integer weights) and deletion (zero), and $(n,d)$ weights marginalise single features out of diagonal and spherical models.
     """)
     return
 
@@ -686,14 +669,6 @@ def _(X_np, box_hi, fit_gmm, plot_gmm, plt, torch, var_hi, w_hi, w_lo):
              title=f'weights {gmm_user.weights_.cpu().numpy().round(2).tolist()}')
     plt.tight_layout()
     plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [15 -- Semi-Supervised and PU Fitting](15_semi_supervised_pu.ipynb) uses `frozen_components` as an anchor, and [13 -- Model Selection](13_model_selection.ipynb) shows how to choose among constrained and unconstrained models.
-    """)
     return
 
 

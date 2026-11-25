@@ -46,19 +46,6 @@ def _(mo):
     # Stochastic EM, Deterministic Annealing, SAEM and Online EM
 
     Plain EM only climbs: from a bad starting point it converges to the nearest local optimum, and the hard assignments of CEM make this worse. This notebook collects the variants of the EM loop that `GaussianMixture` offers beyond EM and CEM ([07 -- CEM](07_cem.ipynb)): `algorithm='sem'` (Stochastic EM, Celeux & Diebolt 1985), `temperature` (Deterministic Annealing EM, Ueda & Nakano 1998), `algorithm='saem'` (Stochastic Approximation EM, Delyon, Lavielle & Moulines 1999), mini-batch and online EM (Cappé & Moulines 2009), and the convergence rules (`convergence`, `tol`).
-
-    **What you'll learn**
-
-    - how a saddle initialization traps EM and CEM at a poor local optimum
-    - how SEM (sampling a hard assignment from the responsibilities each sweep) and DAEM (tempering the E-step) escape it, and how to try annealing yourself
-    - why SEM's log-likelihood trace never settles to a point but to a "stationary band"
-    - how SAEM adds a decaying step size so it converges like ordinary EM
-    - how `batch_size` bounds memory exactly, and how `step_size` turns it into online EM
-    - how the `'relative'` and `'aitken'` stopping rules differ
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [07 -- CEM](07_cem.ipynb).
-
-    **See also:** the [`GaussianMixture` API reference](../api/gaussian-mixture.md) for every argument used here.
     """)
     return
 
@@ -474,24 +461,6 @@ def _(GaussianMixture, mo, torch, warnings):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    At the same `tol`, the Aitken rule runs a few iterations longer here and stops closer to the optimum: its tolerance is a statement about the *remaining* distance to the limit, while the relative rule only looks at the last step, which is small whenever progress is slow, even if the limit is still far away.
-
-    ## Summary
-
-    - **EM** (default) and **CEM** (hard assignments) both converge to the nearest local optimum, so from the saddle initialization they stay stuck.
-    - **SEM** escapes by sampling hard assignments instead of taking the `argmax`, at the cost of never settling to a single point -- use `sem_estimate='best'` (or `'mean'`) over the post-burn-in sweeps to get a final answer out of a noisy trace, and read `n_empty_components_` as a hint that $K$ is too large.
-    - **DAEM** escapes by tempering the E-step early on, smoothing the likelihood surface while the fit is still deciding where to settle; the starting temperature matters (too hot collapses the fit).
-    - **SAEM** gets SEM's exploration with a decaying step size, so it converges like ordinary EM and matches EM closely from a reasonable initialization.
-    - `batch_size` alone is an exact memory bound; with `step_size` it becomes online EM, which approaches the full-data optimum in a few epochs.
-    - `convergence='aitken'` makes `tol` a bound on the remaining gap to the limit.
-    - None of the escape methods *guarantees* escaping every bad initialization; they change the odds.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Try it yourself (interactive version)
 
     The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
@@ -564,14 +533,6 @@ def _(gmm_annealed, gmm_plain, mo):
 def _(mo):
     mo.md(r"""
     **What to look for.** With `algorithm='em'` and `n_anneal=30`, $\beta_0=0.9$ reached the three-blob optimum from every jitter seed in 2-7 that we tried; $\beta_0=0.7$ did so for some seeds and not others; and a *hot* start, $\beta_0=0.3$, collapsed the fit for all of them (the means are pulled together until all three components describe the same blob, log-likelihood about -5.3, far below either alternative). So annealing is a heuristic: too little smoothing changes nothing, too much destroys the structure it was meant to find. Two more things to try with the default start. With `'cem'`, the C-step takes the `argmax` of the tempered posterior, which is the same as the plain `argmax` for every $\beta>0$, so annealing cannot change the hard partitions along the way; the only difference is that the convergence test is suspended while $\beta<1$, so the annealed run keeps iterating a little longer (here it ends at -4.4455 instead of -4.4475, still the poor optimum). With `'sem'`, the sampling already escapes the saddle without annealing (-3.981 either way).
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [15 -- Semi-Supervised and PU Fitting](15_semi_supervised_pu.ipynb), or back to [13 -- Model Selection](13_model_selection.ipynb).
     """)
     return
 

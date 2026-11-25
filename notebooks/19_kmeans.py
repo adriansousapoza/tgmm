@@ -44,18 +44,6 @@ def _(mo):
     # k-means: How Lloyd's Algorithm Works
 
     `init_means='kmeans'` (see [3. Initialization](03_initialization.ipynb)) starts EM from the centres found by **k-means**, computed with Lloyd's algorithm. This tutorial builds the algorithm step by step on the four-blob data, shows every iteration as a picture and as a video you can pause and scrub, checks that the step-by-step version reproduces `GMMInitializer.kmeans` exactly, and explains how k-means relates to a Gaussian mixture and where it falls short.
-
-    **What you'll learn**
-
-    - The two steps of Lloyd's algorithm (assign every point to its nearest centre, move every centre to the mean of its points) and the objective they minimise
-    - Why the objective can only go down, and why the algorithm therefore stops
-    - What the tgmm implementation does at the edges: the starting centres, empty clusters, the stopping rule
-    - How k-means is the hard-assignment limit of EM for a Gaussian mixture, and why its clusters are Voronoi cells
-    - Why it is a good initialiser but not a good model: its sensitivity to the start and its spherical bias
-
-    **Prerequisites:** [1. Introduction](01_introduction.ipynb), [3. Initialization](03_initialization.ipynb) and [20. k-means++](18_kmeans_plus_plus.ipynb), which explains the seeding that k-means starts from.
-
-    **See also:** [7. Classification EM (CEM)](07_cem.ipynb) for the same hard-assignment idea with full covariances, and the [`GMMInitializer` API reference](../api/gmm-initializer.md).
     """)
     return
 
@@ -153,7 +141,7 @@ def _(mo):
 
     `GMMInitializer.kmeans(data, k, max_iter, atol, random_state)`:
 
-    - **Start.** The centres start from k-means++ seeding, `GMMInitializer.kpp(data, k, random_state)` ([20. k-means++](18_kmeans_plus_plus.ipynb)).
+    - **Start.** The centres start from k-means++ seeding, `GMMInitializer.kpp(data, k, random_state)` ([18. k-means++](18_kmeans_plus_plus.ipynb)).
     - **Empty clusters.** If a cluster loses all its points it has no mean (0/0). tgmm re-seeds it at the data point that is farthest from its own assigned centre, the usual remedy.
     - **Stopping rule.** It stops when `torch.allclose(old_centres, new_centres, atol=atol)` holds (`atol` $=10^{-4}$ by default, together with PyTorch's default relative tolerance $10^{-5}$), or after `max_iter` iterations, and it returns the **old** centres of that last iteration (they differ from the new ones by less than the tolerance).
 
@@ -425,13 +413,6 @@ def _(mo, sens):
     - Run k-means several times and keep the lowest inertia (this is what `n_init` does for the whole mixture, see [3. Initialization](03_initialization.ipynb)).
     - The number of clusters $k$ is an input, not something k-means can choose: the inertia always falls as $k$ grows, so it cannot tell the right $k$ (model selection is the subject of [13. Model Selection](13_model_selection.ipynb)).
     - Euclidean distance is scale dependent: standardise features that are measured in different units before clustering.
-
-    ## Summary
-
-    - Lloyd's algorithm alternates two steps, assign every point to its nearest centre and move every centre to the mean of its points. The inertia $J=\sum_j\lVert x_j-\mu_{{c_j}}\rVert^2$ never increases, and the algorithm stops at a local minimum after finitely many iterations.
-    - `lloyd_trace` above reproduces `GMMInitializer.kmeans` exactly: the same k-means++ start, the same empty-cluster remedy and the same stopping rule.
-    - Lloyd's algorithm only finds a local minimum, and there are more of them the larger $k$ is, so restart it (`n_init`) rather than trust one run.
-    - The clusters are Voronoi cells. k-means is the hard-assignment, equal-spherical-covariance limit of EM, so it is a good way to start a mixture but a poor model for elongated or unequal clusters.
     """)
     return
 
@@ -489,8 +470,6 @@ def _(GMMInitializer, X_tensor, draw_inertia, draw_lloyd, k_try, lloyd_trace, np
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    **Next:** back to [3. Initialization](03_initialization.ipynb), or on to [7. Classification EM (CEM)](07_cem.ipynb) for hard assignments with full covariances.
-
     ## References
 
     - Lloyd, S. P. (1982). Least squares quantization in PCM. *IEEE Transactions on Information Theory* 28(2), 129-137.

@@ -46,16 +46,6 @@ def _(mo):
     # High-Dimensional GMM Visualization with PCA
 
     `plot_gmm` draws two-dimensional data, but real mixtures often live in many more dimensions. This notebook shows a workflow for visualizing them: fit the `GaussianMixture` on the original high-dimensional data, reduce the data (and any samples) to 2-D with PCA for display, and read the plot together with the PCA explained-variance ratios.
-
-    **What you'll learn**
-
-    - Fit a GMM in 10 dimensions and visualize it in a 2-D PCA projection
-    - Project samples from the high-dimensional model (core and tail regions) into the same plane
-    - Why "projecting a fitted model" and "fitting a model to projected data" are different things
-
-    **Prerequisites:** [06 -- Visualization](06_visualise.ipynb).
-
-    **See also:** [06 -- Visualization](06_visualise.ipynb) for the `plot_gmm` options used here.
     """)
     return
 
@@ -293,27 +283,6 @@ def _(
     plot_gmm(X_pca, gmm=gmm_2d, color_by_cluster=True, ax=_axes[1], point_size=8, legend=False, title='(b) GMM fitted to the projected data')
     plt.tight_layout()
     plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Summary
-
-    - Fit the mixture on the original features -- that is where the structure is -- and use PCA only to draw it.
-    - Check `explained_variance_ratio_`: a projection that keeps little variance can hide cluster separation or make clusters appear to overlap.
-    - Samples from the high-dimensional model (e.g. via `confidence_range`) can be pushed through the same PCA to compare core and tail regions in the plane.
-    - A linear projection of a GMM is again a GMM with parameters $(\pi_k, A\mu_k, A\Sigma_k A^\top)$; this differs from refitting a GMM to the projected points, which is only equivalent for invertible maps.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [04 -- Priors](04_priors.ipynb) for regularizing mixture fits, or [05 -- Sampling](05_sampling.ipynb) for the sampling options used here.
-    """)
     return
 
 

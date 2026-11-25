@@ -47,15 +47,6 @@ def _(mo):
     `plot_gmm` is the plotting workhorse of `tgmm` and is used by nearly every tutorial that follows. This notebook goes through its parameters one group at a time -- point styling, cluster coloring, confidence ellipses, mean markers, weight-based scaling and continuous log-likelihood coloring -- showing how each changes the figure. It then covers the helpers around it (`confidence_ellipse_std_devs`, `match_predicted_to_true_labels`, `gmm_proxy`).
 
     `plot_gmm` accepts any fitted `tgmm` mixture: it only needs `means_`, `covariances_`, `weights_`, `covariance_type` and `predict`, so it also draws every GPCM covariance code from [02 -- Covariance Types](02_covariance_types.ipynb). It draws **two-dimensional** data only (`X.shape[1] == 2`); for more features, project to 2-D first (see [10 -- PCA Plotting](10_pca_plotting.ipynb)).
-
-    **What you'll learn**
-
-    - Plot raw data, fitted models, and true generating components with `plot_gmm`
-    - Color points by true labels, predicted clusters, or per-sample log-likelihood
-    - Control confidence ellipses (including ellipses that enclose a chosen probability), mean markers and initial-mean markers
-    - Scale markers or transparency by component weight, highlight misclassified points, and align cluster indices with the truth
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the data and the fit used throughout).
     """)
     return
 
@@ -639,21 +630,6 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Summary
-
-    - `plot_gmm(X, gmm=...)` draws the data, the fitted component means and nested covariance ellipses in one call; `gmm=None` plots data only.
-    - Points can be colored by true labels, predicted clusters, correctness (`show_incorrect_predictions`) or a continuous value such as `log_probs`.
-    - Ellipse levels (`ellipse_std_devs`), fill, line style, mean markers and initial-mean markers are all configurable.
-    - `scale_alpha_by_weight` / `scale_size_by_weight` make component weights visible, and every call accepts `ax=` so panels compose into grids.
-    - `ellipse_std_devs` is a Mahalanobis radius: 1, 2, 3 standard deviations enclose 39.3%, 86.5% and 98.9% in 2-D; `confidence_ellipse_std_devs(q)` gives the radius for a chosen coverage.
-    - `match_predicted_to_true_labels` aligns arbitrary cluster indices with the truth, and `gmm_proxy` plots parameters that were never fitted.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Try it yourself (interactive version)
 
     The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
@@ -679,14 +655,6 @@ def _(coverage, coverage_figure, plt):
     _fig, _inside = coverage_figure(coverage.value)
     _fig.axes[0].set_title(_fig.axes[0].get_title() + f"\nshare of assigned points inside: {[round(_v, 2) for _v in _inside]}")
     plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [07 -- Classification EM](07_cem.ipynb), or [10 -- PCA Plotting](10_pca_plotting.ipynb) for plotting high-dimensional models.
-    """)
     return
 
 

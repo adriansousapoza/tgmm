@@ -46,17 +46,7 @@ def _(mo):
 
     Often only some rows have labels: a few confirmed examples, or a handful of annotated classes among mostly raw data. `fit(X, labels=...)` accepts partial labels (`-1` marks an unknown row) on `GaussianMixture`, running semi-supervised EM in which labeled rows keep their known component assignment while unlabeled rows are soft-assigned as usual. `PositiveUnlabeledMixture` handles the harder case where *only positives* are ever labeled (positive-unlabeled learning, Elkan & Noto, 2008).
 
-    **What you'll learn**
-
-    - how much a small labeled fraction (5-20%) helps cluster recovery on ambiguous, overlapping data
-    - how to run PU learning with `PositiveUnlabeledMixture` and read the estimated class prior `class_prior_` and per-row positive probabilities
-    - how the SCAR assumption (labeled positives are a uniform random subsample of all positives) makes this identifiable, and what `anchor` does
-    - the equations behind both fits (the labeled-class likelihood, the clamped E-step, the NIW anchor)
-
-    **Prerequisites:** [08 -- Supervised Fitting](08_supervised_gmm.ipynb).
-
     **Notation:** $n$ samples $x_i$, $K$ components with weights $\pi_k$ and Gaussian densities $f_k$, responsibilities $r_{ik}$, effective counts $n_k=\sum_i r_{ik}$.
-    See also the API page for [`PositiveUnlabeledMixture`](../api/positive-unlabeled-mixture.md).
     """)
     return
 
@@ -584,20 +574,6 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Summary
-
-    - Semi-supervised fitting (`fit(X, labels=...)` with `-1` for unknown) works with `GaussianMixture`, and a modest labeling budget can noticeably improve cluster recovery on ambiguous, overlapping data.
-    - `PositiveUnlabeledMixture` estimates the class prior (the fraction of *unlabeled* rows that are positive) and a per-row positive probability from only a small labeled positive subset, under the SCAR assumption -- useful whenever confirming a negative is expensive or impossible, but confirming a positive is not.
-    - `anchor` controls how tightly the positive block stays tied to the labeled positives, which is what keeps the problem identifiable.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [16 -- Noise, Missing Values and Conditioning](16_noise_missing_conditioning.ipynb), or back to the [tutorial overview](../tutorials/index.md).
-
     ## References
 
     - Elkan, C. & Noto, K. (2008). Learning classifiers from only positive and unlabeled data. *KDD*.

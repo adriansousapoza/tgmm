@@ -50,16 +50,7 @@ def _(mo):
 
     `tgmm.GaussianMixture`'s Gibbs-sampling mode (`n_components=None`) infers the effective number of mixture components from the data, rather than requiring it fixed in advance, via collapsed Gibbs sampling (Neal's Algorithm 3) -- either truncated at `max_components`, or fully unbounded. This notebook first explains the mathematics (stick-breaking, the concentration parameter, the Chinese Restaurant Process), then watches the sampler work step by step, and finally validates it against classical EM at scale.
 
-    **What you'll learn**
-
-    1. the underlying math -- the stick-breaking construction, its concentration parameter $\alpha$, and the Chinese Restaurant Process view that Gibbs sampling relies on -- with a runnable visualization of each piece (the NIW prior parameters that plug into this are introduced in [04 -- Priors](04_priors.ipynb); here we only cover how Gibbs sampling *uses* them),
-    2. how to read a Gibbs run: hard cluster assignments and the active component count evolving sweep by sweep, and why truncated and unbounded Gibbs agree when seeded from the same starting partition,
-    3. how it compares at scale: synthetic 10-dimensional data at three true cluster counts (5, 10, 20), comparing a classical `GaussianMixture` (K chosen by minimum BIC over a `K=1..30` sweep) against truncated and unbounded Gibbs-mode `GaussianMixture` on well-separated data, on genuinely overlapping clusters, and on overlapping *non-Gaussian* cluster shapes -- to see what happens when the Gaussian-component assumption itself is wrong.
-
     All plotting goes through the library's official [`plot_gmm`](06_visualise.ipynb) tooling, projecting the 10-d Gaussians to 2D via PCA for visualization only -- the sampler itself never sees that projection.
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (EM), [06 -- Visualization](06_visualise.ipynb), [04 -- Priors](04_priors.ipynb).
-    See also [17 -- Constraints and Weights](17_constraints_and_weights.ipynb) for the other `GaussianMixture` options that are not available in Gibbs mode.
     """)
     return
 
@@ -1167,28 +1158,6 @@ def _(round_non_gaussian):
 @app.cell
 def _(round_non_gaussian):
     round_non_gaussian['fig_grid']
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Summary
-
-    - A Dirichlet process mixture lets the data decide how many components it supports: the stick-breaking weights $\pi_k = v_k\prod_{j<k}(1-v_j)$ with $v_k\sim\mathrm{Beta}(1,\alpha)$ place more mass on fewer components for small $\alpha$ and spread it over many for large $\alpha$.
-    - Marginalizing out the weights gives the Chinese Restaurant Process, and with a conjugate NIW base measure Neal's Algorithm 3 resamples each point's assignment using Student-$t$ posterior predictives.
-    - A Gibbs run is a *trace*, not a convergence curve: the component count rises and falls and then stabilizes; `burn_in` only affects the recorded history, not the fitted parameters.
-    - Truncated (`max_components=K`) and unbounded (`max_components=None`) samplers share the same occupancy-driven logic and agree when given the same starting partition (`init_k`); remaining differences are a mixing effect.
-    - Compared with classical EM plus a BIC sweep, Gibbs mode lands at or close to the true cluster count on separated data (a short chain or a small sample can leave a few extra small components), tends to be more variable when clusters overlap, and inherits every shortcoming of the Gaussian assumption on non-Gaussian shapes.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [12 -- HDBSCAN](12_hdbscan.ipynb) for a nonparametric alternative that needs no component count and no Gaussian assumption, and [13 -- Model Selection](13_model_selection.ipynb) for the classical BIC/AIC/ICL route.
-    """)
     return
 
 

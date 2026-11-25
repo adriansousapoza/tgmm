@@ -47,3 +47,18 @@ def test_no_stars_and_no_oversized_markers(path):
 def test_figures_are_at_most_11_inches_wide(path):
     for width in re.findall(r"figsize\s*=\s*\(\s*([0-9.]+)\s*,", path.read_text()):
         assert float(width) <= MAX_WIDTH, f"{path.name}: figsize width {width} in > {MAX_WIDTH} in"
+
+
+# ---- page structure (notebooks/README.md, 'Page structure'): a title, a short introduction, the body, 'Try it yourself', 'References'
+BOILERPLATE = [
+    (re.compile(r"^\s*#{1,6}\s*(Summary|Next steps?|Where to [Gg]o\b.*|What you'll learn|Prerequisites|See also)\s*$", re.M), "boilerplate heading"),
+    (re.compile(r"\*\*(What you'll learn|Prerequisites|See also|Next|Where to [Gg]o[^*]*):?\*\*", re.I), "boilerplate label"),
+]
+
+
+@pytest.mark.parametrize("nb", NOTEBOOKS, ids=lambda p: p.name)
+def test_notebook_has_no_boilerplate_sections(nb):
+    text = nb.read_text()
+    for pattern, what in BOILERPLATE:
+        match = pattern.search(text)
+        assert not match, f"{nb.name}: {what} {match.group(0).strip()!r}: keep the page simple (see notebooks/README.md, 'Page structure')"

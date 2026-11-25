@@ -49,18 +49,6 @@ def _(mo):
     # Classification EM (CEM)
 
     This notebook compares the **Classification EM (CEM)** algorithm with standard **Expectation-Maximization (EM)** for Gaussian Mixture Models. CEM inserts a hard classification step between the E-step and the M-step, so each point updates only the component it is most likely to belong to. In `tgmm` it is selected with `GaussianMixture(algorithm='cem')`.
-
-    **What you'll learn**
-
-    - How the C-step changes the EM iteration, and which objective CEM maximizes (the *classification* likelihood, not the mixture likelihood)
-    - How to read the two likelihoods side by side while EM and CEM iterate
-    - How EM and CEM behave on heavily overlapping clusters (accuracy, speed, and the bias of CEM's covariance estimates)
-    - How they behave on well-separated clusters, where CEM's hard assignments lose little
-    - When CEM is a sensible choice
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model, the E-step and the M-step).
-
-    **See also:** [14 -- Stochastic EM, Annealing and SAEM](14_stochastic_em.ipynb) for the other EM variants (`'sem'`, `'saem'`, `temperature`), and the [`GaussianMixture` API reference](../api/gaussian-mixture.md).
     """)
     return
 
@@ -478,27 +466,6 @@ def _(
     plot_gmm(X=X_sep, gmm=gmm_cem_sep, ax=_axes[2], legend=False, title=f'Classification EM Clustering\n(Iterations: {gmm_cem_sep.n_iter_})', color_by_cluster=True, match_labels_to_true=True, ellipse_std_devs=CONF_95, ellipse_fill=True, ellipse_alpha=0.1)
     plt.tight_layout()
     plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Summary
-
-    - CEM replaces the soft E-step posterior with a hard assignment (the C-step) and maximizes the classification likelihood $\ell_C(\theta,z)$ rather than the mixture likelihood $\ell(\theta)$; $\ell_C$ is nondecreasing, $\ell$ is not.
-    - With overlapping clusters, EM's soft assignments reach a higher mixture log-likelihood and for most blobs larger (less truncated) covariances, while CEM stops earlier on a cruder partition.
-    - With well-separated clusters the two reach the same best solution and CEM needs fewer iterations.
-    - Use `algorithm='cem'` when speed or a crisp partition matters more than the exact maximum-likelihood fit; `lower_bound_` stays the mixture log-likelihood, so fits remain comparable.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [08 -- Supervised Fitting](08_supervised_gmm.ipynb), which adds label information, or [14 -- Stochastic EM](14_stochastic_em.ipynb) for the stochastic variants.
-    """)
     return
 
 

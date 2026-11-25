@@ -49,18 +49,6 @@ def _(mo):
     # Clustering Metrics: Evaluating Gaussian Mixture Models
 
     This notebook evaluates clustering performance with both **unsupervised** indices (which need only the data and the assignments) and **supervised** scores (which compare against ground-truth labels), using `ClusteringMetrics` and the information criteria built into `GaussianMixture`. It covers the mathematical definitions, how each index behaves (separation, the choice of $K$, noise points), and how to use it. `ClusteringMetrics` is a collection of static methods: call them on the class, there is no instance to construct.
-
-    **What you'll learn**
-
-    - Choose the number of components with Silhouette, Davies-Bouldin, Calinski-Harabasz, WB, Wemmert-Gancarski, DBCV, Dunn, BIC, AIC and ICL, and see which of them are fooled by overlap
-    - Use the shared options of the unsupervised indices: `metric`, `noise_label` and `chunk_size`
-    - Compare supervised scores (Rand/ARI, MI/NMI/AMI, FMI, homogeneity/completeness/V-measure, NID, purity) against scikit-learn
-    - Build a confusion matrix and classification report after matching cluster labels to true classes
-    - Measure the divergence between two fitted mixtures with a Monte Carlo KL estimate
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the data and the fitted model) and [02 -- Covariance Types](02_covariance_types.ipynb) (the covariance parameter counts that BIC and AIC use).
-
-    **See also:** [13 -- Model Selection](13_model_selection.ipynb) for `select_model` and the BIC-vs-ICL comparison, and the [`ClusteringMetrics` API reference](../api/clustering-metrics.md).
     """)
     return
 
@@ -886,27 +874,6 @@ def _(ClusteringMetrics, gmm_test, gmm_true, torch):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Other helpers
-
-    - `ClusteringMetrics.rand_score` and `ClusteringMetrics.mutual_info_score` are the unadjusted building blocks of ARI and NMI.
-    - `ClusteringMetrics.expected_mutual_information(contingency)` is the exact chance correction used by AMI (checked above).
-    - `ClusteringMetrics.roc_auc_score` is the rank-based AUC (see the note above).
-
-    ## Summary
-
-    - Unsupervised indices (Silhouette, Davies-Bouldin, Calinski-Harabasz, WB, Wemmert-Gancarski, DBCV, Dunn) and information criteria (BIC, AIC, ICL) can be swept over `n_components`, but they need not agree on the best $K$. Prefer WB, Wemmert-Gancarski and DBCV over Dunn.
-    - The unsupervised indices share `metric`, `noise_label` and `chunk_size`. Noise points are dropped and the result is scaled by $f=(n-n_{\text{noise}})/n$, multiplied for higher-is-better and divided for lower-is-better indices.
-    - BIC, AIC and ICL are methods of the fitted mixture, not of `ClusteringMetrics`. ICL $\ge$ BIC, with the gap growing as components overlap.
-    - Supervised scores compare a clustering with ground truth. They are invariant to relabeling, expect non-negative 0-indexed labels, and `tgmm`'s versions can be checked directly against scikit-learn (AMI uses the exact chance correction). Purity only goes up with $K$.
-    - Cluster indices are arbitrary, so predictions are matched to true classes before building a confusion matrix or classification report. The report's `roc_auc` is the balanced accuracy of the hard predictions.
-    - `kl_divergence_gmm` estimates $D_{KL}(P\parallel Q)$ between two fitted mixtures by Monte Carlo sampling; it is asymmetric and noisy.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Try it yourself (interactive version)
 
     The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
@@ -1002,14 +969,6 @@ def _(ix_X, ix_crit, ix_k, ix_lab_noise, ix_noise, plt):
 def _(ix_crit, ix_dropped, ix_plain, mo):
     _arrow = {'Silhouette': 'higher', 'Calinski-Harabasz': 'higher', 'Dunn': 'higher', 'Wemmert-Gancarski': 'higher', 'Davies-Bouldin': 'lower', 'WB-Index': 'lower'}
     mo.md('| index | better | noise swallowed by clusters | noise labelled -1 (dropped, scaled) |\n|---|---|---|---|\n' + '\n'.join(f'| {_n} | {_arrow[_n]} | {ix_plain[_n]:.3f} | {ix_dropped[_n]:.3f} |' for _n in ix_plain) + f'\n\nICL - BIC at K = 3: {ix_crit[2, 1] - ix_crit[2, 0]:.1f} (twice the assignment entropy; it grows with overlap).')
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [13 -- Model Selection](13_model_selection.ipynb) for BIC, AIC and ICL sweeps with `select_model`, [12 -- HDBSCAN](12_hdbscan.ipynb) for density-based clusters scored with DBCV, or [10 -- PCA Plotting](10_pca_plotting.ipynb).
-    """)
     return
 
 

@@ -47,18 +47,6 @@ def _(mo):
     # Sampling from Gaussian Mixture Models
 
     A fitted mixture is also a **generative model**: it says how data like yours could have been produced, so you can ask it for more. `GaussianMixture.sample` draws new points by first picking a component according to the mixture weights and then sampling from that Gaussian. It can also restrict the draw to one component, to a shell of standard deviations, to a confidence region, or to a ball around a point you choose, using rejection sampling.
-
-    **What you'll learn**
-
-    - The two-stage (ancestral) sampling scheme, and a check that `sample` really implements it
-    - How `sample` handles every covariance type, including the eight GPCM-only models
-    - What `sample` returns, and how to draw from one component only
-    - Constraints by standard-deviation radius or range, by confidence level and by distance from a point, and how their rejection sampling behaves
-    - Why "1 standard deviation" captures far less mass in high dimensions, and how to choose a radius for a target probability
-
-    **Prerequisites:** [01 -- Introduction](01_introduction.ipynb) (the model and EM), [02 -- Covariance Types](02_covariance_types.ipynb) and [03 -- Initialization](03_initialization.ipynb).
-
-    **See also:** [`GaussianMixture.sample`](../api/gaussian-mixture.md) in the API reference; [06 -- Visualization](06_visualise.ipynb) for the plotting tools used below.
     """)
     return
 
@@ -459,20 +447,6 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Summary
-
-    - `sample(n)` runs the generative process forwards: $z\sim\mathrm{Categorical}(\pi)$, then $x=\mu_z+L_z g$ with $L_zL_z^\top=\Sigma_z$; it returns the points and the **true** component indices. For every covariance type, including the eight GPCM-only ones, the draw follows the model's stored covariance structure.
-    - `component=k` restricts the draw to one component.
-    - `std_radius`, `std_range` and `confidence` / `confidence_range` constrain the Mahalanobis distance to the drawing component; `center_point` / `center_radius` constrain the Euclidean distance to a location. Only one constraint can be used at a time.
-    - Constraints are enforced by rejection per point. Labels still follow $\pi_k$, and very restrictive regions need a larger `max_attempts_per_sample` (or raise `RuntimeError`).
-    - In $d$ dimensions the squared Mahalanobis distance is $\chi^2_d$-distributed, so use a confidence level (or the $\chi^2$-quantile radius) rather than a fixed number of standard deviations; the acceptance probability of one attempt is $F_{\chi^2(d)}(r^2)$.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     ## Try it yourself (interactive version)
 
     The page you are reading shows the default setting of each control below. Open the interactive version (the link at the top of the page: molab, or `marimo edit` on your machine) to change them.
@@ -509,14 +483,6 @@ def _(X, component_widget, confidence_widget, gmm, legend_labels, mode_widget, n
     _fig, _ax = plt.subplots(figsize=(6.5, 4.5))
     plot_gmm(X=_s.detach().cpu().numpy(), gmm=gmm, ax=_ax, title=f'{n_widget.value} samples, ' + (', '.join(f'{_a}={_b}' for _a, _b in _kw.items()) or 'unconstrained'), true_labels=_i.cpu().numpy(), legend_labels=legend_labels, ellipse_fill=False)
     plt.gcf()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    **Next:** [06 -- Visualization](06_visualise.ipynb) for the plotting tools, or [10 -- PCA Plotting](10_pca_plotting.ipynb) for visualizing high-dimensional samples.
-    """)
     return
 
 
