@@ -8,12 +8,8 @@ from typing import Optional
 import torch
 
 from .gmm import GaussianMixture
-from .mixtures.student_t import StudentTMixture
-from .mixtures.vmf import VonMisesFisherMixture
 
-_VALID_FAMILIES = ('gaussian', 'student_t', 'vmf')
 _VALID_ANCHORS = ('fixed', 'prior', 'free')
-_FAMILY_CLASSES = {'gaussian': GaussianMixture, 'student_t': StudentTMixture, 'vmf': VonMisesFisherMixture}
 
 
 def _assign_slice(model, snapshot: dict, idx):
@@ -76,7 +72,7 @@ class PositiveUnlabeledMixture:
     random subsample of *all* true positives, not a biased one.
 
     A thin wrapper over Phase 5.1's semi-supervised `fit(X, labels=...)`:
-    builds the chosen `family`'s mixture with
+    builds a `GaussianMixture` with
     `components_per_class={1: n_components_positive, 0:
     n_components_negative}`, labels `1` on `positive_mask` and `-1`
     (unlabeled) elsewhere, and fits it through that path.
@@ -89,8 +85,6 @@ class PositiveUnlabeledMixture:
         Number of components in the negative block. `None` (an unbounded
         Gibbs sampler for the negative block with the positive block held
         fixed) is out of scope for this release.
-    family : {'gaussian', 'student_t', 'vmf'}, default='gaussian'
-        Which mixture family to use for both blocks.
     anchor : {'fixed', 'prior', 'free'}, default='prior'
         How strongly the positive block stays tied to the labeled
         positives -- needed because :math:`\pi` is identifiable only if
@@ -99,21 +93,20 @@ class PositiveUnlabeledMixture:
         - `'fixed'`: fit the positive block once on the labeled positives
           and freeze it completely; semi-supervised EM then estimates only
           :math:`\pi` and the negative block (classical mixture-
-          proportion estimation). Works for every `family`.
+          proportion estimation).
         - `'prior'` (default): fit the positive block once on the labeled
           positives, then use that fit as an NIW prior
           (`mean_precision_prior = degrees_of_freedom_prior = n_labeled`)
           so unlabeled positives can still refine it each M-step without
-          drifting toward the negatives. **Gaussian-only** (`covariance_type`
-          in `'full'`/`'diag'`/`'spherical'`) -- NIW conjugate priors
-          aren't a concept for `'student_t'`/`'vmf'`.
+          drifting toward the negatives. Needs a `covariance_type` in
+          `'full'`/`'diag'`/`'spherical'` (NIW conjugate priors).
         - `'free'`: the positive block is initialized from the labeled-
           only fit, then plain semi-supervised EM, no further special
-          treatment. Works for every `family`. Can let the positive block
+          treatment. Can let the positive block
           drift toward the negatives on strongly overlapping data --
           documented, not guarded against.
-    **family_kwargs
-        Forwarded to the underlying mixture's constructor (e.g.
+    **gmm_kwargs
+        Forwarded to the underlying `GaussianMixture` constructor (e.g.
         `covariance_type='diag'`, `random_state=0`, `max_iter=200`).
         Must not include `n_components` or `components_per_class` (set
         internally).
@@ -124,7 +117,7 @@ class PositiveUnlabeledMixture:
         Estimated fraction of *unlabeled* rows that are positive: the
         mean, over unlabeled rows only, of their total responsibility on
         the positive block. `None` before `fit`.
-    model_ : BaseMixture or None
+    model_ : GaussianMixture or None
         The underlying fitted mixture. `None` before `fit`. Any attribute
         or method not defined on `PositiveUnlabeledMixture` itself (e.g.
         `bic`, `score`, `sample`) is forwarded to this.
@@ -134,9 +127,8 @@ class PositiveUnlabeledMixture:
         self,
         n_components_positive: int = 1,
         n_components_negative: Optional[int] = 5,
-        family: str = 'gaussian',
         anchor: str = 'prior',
-        **family_kwargs,
+        **gmm_kwargs,
     ):
         if n_components_negative is None:
             raise NotImplementedError(
@@ -147,23 +139,20 @@ class PositiveUnlabeledMixture:
             )
         if n_components_positive <= 0 or n_components_negative <= 0:
             raise ValueError("n_components_positive and n_components_negative must both be > 0.")
-        if family not in _VALID_FAMILIES:
-            raise ValueError(f"family must be one of {_VALID_FAMILIES}, got {family!r}")
         if anchor not in _VALID_ANCHORS:
             raise ValueError(f"anchor must be one of {_VALID_ANCHORS}, got {anchor!r}")
-        if anchor == 'prior' and family != 'gaussian':
-            raise ValueError(
-                "anchor='prior' requires family='gaussian' -- NIW conjugate priors "
-                "are a GaussianMixture-specific mechanism, not available for "
-                "'student_t'/'vmf'. Use anchor='fixed' or anchor='free' instead."
+        if 'family' in gmm_kwargs:
+            raise TypeError(
+                "PositiveUnlabeledMixture no longer takes `family`: tgmm only provides Gaussian mixtures "
+                "(the Student-t and von Mises-Fisher mixtures were removed). Drop the argument."
             )
         for forbidden in ('n_components', 'components_per_class'):
-            if forbidden in family_kwargs:
+            if forbidden in gmm_kwargs:
                 raise ValueError(
                     f"{forbidden} is set internally by PositiveUnlabeledMixture "
                     f"(from n_components_positive/n_components_negative); do not pass it."
                 )
-        if 'frozen_components' in family_kwargs:
+        if 'frozen_components' in gmm_kwargs:
             raise ValueError(
                 "frozen_components is set internally by PositiveUnlabeledMixture (anchor='fixed' freezes the "
                 "positive block); do not pass it."
@@ -171,9 +160,8 @@ class PositiveUnlabeledMixture:
 
         self.n_components_positive = n_components_positive
         self.n_components_negative = n_components_negative
-        self.family = family
         self.anchor = anchor
-        self.family_kwargs = family_kwargs
+        self.gmm_kwargs = gmm_kwargs
 
         self.class_prior_ = None
         self.model_ = None
@@ -207,10 +195,10 @@ class PositiveUnlabeledMixture:
             raise ValueError("positive_mask has no True entries -- at least one labeled positive is required.")
 
         n_total = self.n_components_positive + self.n_components_negative
-        model = _FAMILY_CLASSES[self.family](
+        model = GaussianMixture(
             n_components=n_total,
             components_per_class={1: self.n_components_positive, 0: self.n_components_negative},
-            **self.family_kwargs,
+            **self.gmm_kwargs,
         )
 
         # classes_ will resolve to [0, 1] (sorted): the negative block

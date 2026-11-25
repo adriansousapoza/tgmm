@@ -18,6 +18,10 @@ from typing import Optional, Tuple
 from tqdm import tqdm
 
 
+class InsufficientClustersError(ValueError):
+    """``HDBSCAN(n_clusters=K)`` was asked for more non-nested clusters than the condensed tree contains."""
+
+
 def prim_mst(distance_matrix: torch.Tensor) -> np.ndarray:
     r"""
     Minimum spanning tree over a dense `(n, n)` distance matrix, via Prim's
@@ -148,6 +152,20 @@ class HDBSCAN:
         
     p : float, default=2.0
         Parameter for Minkowski metric.
+
+    n_clusters : int or None, default=None
+        Select *exactly* this many clusters (opt-in; ``None`` keeps the usual flat clustering). Among all sets of
+        ``n_clusters`` non-nested clusters of the condensed tree, the one with the largest total stability is chosen
+        (the objective of ``'eom'`` with a cardinality constraint, solved exactly by dynamic programming over the
+        tree; Campello, Moulavi, Zimek & Sander, 2013, DMKD 27(3):344-371, doi:10.1007/s10618-013-0311-4, extract flat
+        clusters from a hierarchy by optimising such an objective). Points outside the selected clusters are noise.
+        ``cluster_selection_method`` and ``max_cluster_size`` are ignored in this mode and ``cluster_selection_epsilon``
+        must be 0. The root of the tree is selected only with ``allow_single_cluster=True`` (and ``n_clusters=1``). If
+        the tree has fewer than ``n_clusters`` non-nested clusters a ``ValueError`` asks for a smaller
+        ``min_cluster_size``. Cutting the raw single-linkage tree (``scipy.cluster.hierarchy.fcluster(...,
+        'maxclust')``) instead peels off tiny clusters one by one; the ``hdbscan`` package's ``hdbscan.flat`` reaches a
+        target count by tuning ``cluster_selection_epsilon``, which finds exactly ``n_clusters`` only if the data has
+        that many separated density peaks.
         
     Attributes
     ----------
@@ -174,6 +192,7 @@ class HDBSCAN:
         device: str = 'cpu',
         p: float = 2.0,
         cluster_selection_method: str = 'eom',
+        n_clusters: Optional[int] = None,
     ):
         if cluster_selection_method not in ('eom', 'leaf'):
             raise ValueError(
@@ -183,6 +202,16 @@ class HDBSCAN:
             raise ValueError(
                 f"cluster_selection_epsilon must be >= 0, got {cluster_selection_epsilon}"
             )
+        if n_clusters is not None:
+            if isinstance(n_clusters, bool) or not isinstance(n_clusters, (int, np.integer)) or int(n_clusters) < 1:
+                raise ValueError(f"n_clusters must be None or a positive integer, got {n_clusters!r}")
+            if cluster_selection_epsilon > 0:
+                raise ValueError(
+                    "n_clusters cannot be combined with cluster_selection_epsilon > 0 (the epsilon post-processing "
+                    "changes the number of clusters); use one or the other."
+                )
+            n_clusters = int(n_clusters)
+        self.n_clusters = n_clusters
         self.cluster_selection_method = cluster_selection_method
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples if min_samples is not None else min_cluster_size
@@ -211,6 +240,9 @@ class HDBSCAN:
 
         # Fewer than two points: nothing to link (and a core distance needs a neighbour)
         if n_samples < 2:
+            if self.n_clusters is not None:
+                raise InsufficientClustersError(
+                    f"n_clusters={self.n_clusters} clusters cannot be selected from {n_samples} point(s).")
             self.labels_ = torch.full((n_samples,), -1, dtype=torch.long, device=self.device)
             self.probabilities_ = torch.zeros(n_samples, dtype=torch.float32, device=self.device)
             self.n_clusters_ = 0
@@ -237,14 +269,17 @@ class HDBSCAN:
         stability = self._compute_stability(self._condensed_tree)
         
         # Get clusters
-        self.labels_, self.probabilities_ = self._get_clusters(
-            self._condensed_tree,
-            stability,
-            self.allow_single_cluster,
-            self.cluster_selection_epsilon,
-            self.max_cluster_size,
-            self.cluster_selection_method
-        )
+        if self.n_clusters is not None:
+            self.labels_, self.probabilities_ = self._get_k_clusters(self._condensed_tree, stability)
+        else:
+            self.labels_, self.probabilities_ = self._get_clusters(
+                self._condensed_tree,
+                stability,
+                self.allow_single_cluster,
+                self.cluster_selection_epsilon,
+                self.max_cluster_size,
+                self.cluster_selection_method
+            )
         
         # Count clusters
         unique_labels = torch.unique(self.labels_)
@@ -578,6 +613,115 @@ class HDBSCAN:
         labels = self._do_labelling(tree, clusters, cluster_map, allow_single_cluster, epsilon)
         probs = self._get_probabilities(tree, cluster_map, labels)
 
+        return labels, probs
+
+    def _select_k_clusters(
+        self,
+        tree: np.ndarray,
+        stability: dict,
+        n_clusters: int,
+        allow_single_cluster: bool = False
+    ) -> set:
+        r"""
+        The ``n_clusters`` non-nested clusters of the condensed tree with the largest total stability.
+
+        Dynamic programme over the cluster tree (rows of ``tree`` whose child is a cluster, i.e. ``child >= root``).
+        With $S(v)$ the stability of cluster $v$ and $f(v, j)$ the best total stability of $j$ non-nested clusters inside
+        the subtree of $v$ (clusters left out simply make their points noise):
+        $$
+        f(v, 0) = 0,\qquad
+        f(v, j) = \max\Big\{\ [\,j = 1\,]\,S(v),\ \max_{j_1 + j_2 = j} f(c_1, j_1) + f(c_2, j_2)\Big\},
+        $$
+        with $c_1, c_2$ the child clusters of $v$ (none for a leaf, where only $j \le 1$ is possible). The root can
+        be chosen only when ``allow_single_cluster`` is true. A cluster is preferred to its descendants on a tie, as in
+        the ``'eom'`` selection. Ids of children are larger than those of their parent, so one pass in decreasing id order
+        suffices (no recursion: condensed trees of large data sets are deep).
+
+        Raises :class:`InsufficientClustersError` if fewer than ``n_clusters`` non-nested clusters exist. Returns the set
+        of selected cluster ids.
+        """
+        K = int(n_clusters)
+        root = int(tree['parent'].min())
+        cluster_rows = tree['child'] >= root
+        children = {}
+        for p, c in zip(tree['parent'][cluster_rows].tolist(), tree['child'][cluster_rows].tolist()):
+            children.setdefault(int(p), []).append(int(c))
+        nodes = set(children) | {root} | set(stability)
+        for kids in children.values():
+            nodes.update(kids)
+
+        leaves = [v for v in nodes if v != root and v not in children]
+        max_selectable = len(leaves) if root in children else (1 if allow_single_cluster else 0)
+        if max_selectable < K:
+            raise InsufficientClustersError(
+                f"n_clusters={K} clusters cannot be selected: the condensed tree has only {max_selectable} "
+                f"non-nested cluster(s). Decrease min_cluster_size (or min_samples) to get a finer tree."
+            )
+
+        value = {}      # node -> array of best total stability for j = 0..J (J capped at K)
+        folds = {}      # node -> one 'left share' array per merged child (to backtrack the split of j)
+        own = {}        # node -> set of j for which choosing the node itself is best (always {1} or empty)
+        for node in sorted(nodes, reverse=True):
+            kids = children.get(node, [])
+            if kids:
+                cur = value[kids[0]]
+                splits = []
+                for kid in kids[1:]:
+                    nxt = value[kid]
+                    size = min(len(cur) + len(nxt) - 1, K + 1)
+                    new = np.full(size, -np.inf)
+                    left = np.zeros(size, dtype=np.intp)
+                    for a in range(len(cur)):
+                        for b in range(len(nxt)):
+                            if a + b < size and cur[a] + nxt[b] > new[a + b]:
+                                new[a + b] = cur[a] + nxt[b]
+                                left[a + b] = a
+                    splits.append(left)
+                    cur = new
+                folds[node] = splits
+                cur = cur.copy()
+            else:
+                cur = np.zeros(1)
+            if node != root or allow_single_cluster:
+                s_node = float(stability.get(node, 0.0))
+                if len(cur) > 1:
+                    if s_node >= cur[1]:
+                        cur[1] = s_node
+                        own[node] = True
+                else:
+                    cur = np.array([0.0, s_node])
+                    own[node] = True
+            value[node] = cur
+
+        selected = set()
+        stack = [(root, K)]
+        while stack:
+            node, j = stack.pop()
+            if j == 0:
+                continue
+            if own.get(node) and j == 1:
+                selected.add(node)
+                continue
+            kids = children[node]
+            share = [0] * len(kids)
+            rest = j
+            for i in range(len(kids) - 1, 0, -1):
+                a = int(folds[node][i - 1][rest])
+                share[i] = rest - a
+                rest = a
+            share[0] = rest
+            for kid, jj in zip(kids, share):
+                stack.append((kid, jj))
+        return selected
+
+    def _get_k_clusters(self, tree: np.ndarray, stability: dict) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Labels and membership probabilities of the exact-``n_clusters`` selection (see :meth:`_select_k_clusters`)."""
+        if len(tree) == 0:
+            raise InsufficientClustersError(f"n_clusters={self.n_clusters} clusters cannot be selected: the condensed tree is empty.")
+        clusters = self._select_k_clusters(tree, stability, self.n_clusters, self.allow_single_cluster)
+        cluster_map = {c: n for n, c in enumerate(sorted(clusters))}
+        labels = self._do_labelling(tree, clusters, cluster_map, self.allow_single_cluster, 0.0)
+        probs = self._get_probabilities(tree, cluster_map, labels)
         return labels, probs
 
     def _bfs_from_cluster_tree(self, cluster_tree: np.ndarray, bfs_root: int) -> list:

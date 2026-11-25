@@ -11,16 +11,17 @@
 
 </div>
 
-**tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) and
-related mixture families in PyTorch. It supports EM, MAP and Gibbs-sampling (Dirichlet-process)
-estimation, 14 covariance structures, several EM variants, robust (Student-t) and directional
-(von Mises-Fisher) mixtures, semi-supervised and positive-unlabeled learning, a uniform noise component, missing-value EM, marginal/conditional distributions, custom components, model selection,
+**tgmm** is a flexible, GPU-accelerated implementation of Gaussian Mixture Models (GMM) in PyTorch.
+It supports EM, MAP and Gibbs-sampling (Dirichlet-process) estimation, 14 covariance structures,
+several EM variants, fixed values and bounds on the parameters, semi-supervised and
+positive-unlabeled learning, a uniform noise component, missing-value EM, marginal/conditional
+distributions, several initialisation strategies (k-means, k-means++, ...), model selection,
 and a comprehensive suite of clustering metrics and visualization tools.
 
 A mixture model writes the density of the data as a weighted sum of components,
 p(x) = Σₖ πₖ fₖ(x | θₖ); EM alternates computing each component's responsibility for every point
 (E-step) with re-estimating the parameters from those soft assignments (M-step). The
-[Gaussian Mixture Model guide](https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/)
+[Introduction tutorial](https://adriansousapoza.github.io/tgmm/notebooks/01_introduction/)
 derives every update tgmm implements.
 
 ## Installation
@@ -46,8 +47,7 @@ pip install -e .
 Full documentation is hosted at **[adriansousapoza.github.io/tgmm](https://adriansousapoza.github.io/tgmm/)**:
 
 - **[Getting Started](https://adriansousapoza.github.io/tgmm/getting-started/installation/)** - Installation and quick start guide
-- **[User Guide](https://adriansousapoza.github.io/tgmm/user-guide/gaussian-mixture/)** - Detailed explanations of each component
-- **[Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/)** - marimo notebooks covering every feature (runnable on molab), plus in-browser interactive explainers
+- **[Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/)** - marimo notebooks covering every feature, with the mathematics; each has an interactive version (molab)
 - **[API Reference](https://adriansousapoza.github.io/tgmm/api/gaussian-mixture/)** - Complete API documentation
 
 ## Quick Start
@@ -77,8 +77,8 @@ print(f"Converged: {gmm.converged_}, Iterations: {gmm.n_iter_}")
 
 See the [Tutorials](https://adriansousapoza.github.io/tgmm/tutorials/) for runnable, end-to-end
 examples of every feature -- covariance structures, initialization strategies, MAP estimation
-with priors, EM variants, model selection, Student-t / von Mises-Fisher mixtures, semi-supervised
-fitting, constrained sampling, save/load, and more.
+with priors, EM variants, model selection, semi-supervised fitting, constrained sampling,
+save/load, and more.
 
 ## Key Features
 
@@ -136,42 +136,27 @@ Flexible plotting utilities in `tgmm.plotting`:
 - Cluster coloring, ground-truth comparison, and log-likelihood coloring
 - Initial vs. final mean trajectories and weight-scaled markers
 
-### 5. Other Mixture Families
+### 5. Semi-Supervised and Positive-Unlabeled Fitting
 
-`StudentTMixture` and `VonMisesFisherMixture` share `GaussianMixture`'s entire EM toolkit
-(`algorithm`, `temperature`, `step_size`, `n_init`, `bic`/`aic`/`icl`, ...) via a common
-`BaseMixture` base class:
-
-- **`StudentTMixture`**: a robust alternative to `GaussianMixture` (Peel & McLachlan, 2000) --
-  heavier-tailed components that downweight outliers instead of letting them drag the fit.
-  `sample_weights(X)` flags which points were treated as outliers.
-- **`VonMisesFisherMixture`**: for L2-normalized / cosine-similarity data (text and image
-  embeddings, typically) -- components are directions on the unit hypersphere with a
-  concentration parameter, fit per Banerjee, Dhillon, Ghosh & Sra (2005).
-
-See the [Other Mixture Families](https://adriansousapoza.github.io/tgmm/user-guide/other-mixture-families/) guide.
-
-### 6. Semi-Supervised and Positive-Unlabeled Fitting
-
-Every mixture family supports `fit(X, labels=...)` with `-1` for unknown rows -- fully labeled
+`GaussianMixture` supports `fit(X, labels=...)` with `-1` for unknown rows -- fully labeled
 runs a single closed-form fit (optionally with `components_per_class` for a multi-component
 class); any `-1` present runs semi-supervised EM (`unlabeled_weight`, `label_confidence`).
 `predict_class(X)` returns class labels, as opposed to `predict(X)`'s raw component indices.
 
 `PositiveUnlabeledMixture` wraps this for positive-unlabeled (PU) learning (Elkan & Noto,
 2008): a labeled positive subset, everything else unlabeled. Estimates the class prior and a
-per-row positive probability under the SCAR assumption, for `family in ('gaussian',
-'student_t', 'vmf')`, with `anchor in ('fixed', 'prior', 'free')` controlling identifiability.
+per-row positive probability under the SCAR assumption, with `anchor in ('fixed', 'prior', 'free')`
+controlling identifiability.
 
-See the [Semi-Supervised and Positive-Unlabeled Fitting](https://adriansousapoza.github.io/tgmm/user-guide/semi-supervised-pu/) guide.
+See the [Semi-Supervised and PU Fitting](https://adriansousapoza.github.io/tgmm/notebooks/15_semi_supervised_pu/) tutorial.
 
-### 7. Density-based clustering and building blocks
+### 6. Density-based clustering and building blocks
 
 - **`HDBSCAN`**: a PyTorch implementation of hierarchical density-based clustering (no `K`
   needed, non-convex clusters, explicit noise points).
 - **`SufficientStats`** (the additive per-component statistics behind every M-step, used by
-  chunked, online and streaming fitting) and **`BaseMixture`** (subclass it to add a new
-  mixture family) are public.
+  chunked, online and streaming fitting) and **`BaseMixture`** (the EM machinery shared by
+  `GaussianMixture` and `ConditionalGaussianMixture`) are public.
 
 ## Citation
 

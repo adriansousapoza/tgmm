@@ -5,6 +5,47 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `HDBSCAN(n_clusters=K)` selects exactly `K` non-nested clusters of the condensed tree: the set with the largest total stability (the
+  objective of the default `'eom'` selection with a cardinality constraint, solved exactly by dynamic programming in the spirit of
+  FOSC, Campello et al. 2013); points outside them are noise. It raises `InsufficientClustersError` (a `ValueError`) asking for a smaller
+  `min_cluster_size` if the tree has fewer than `K` clusters. Cutting the raw single-linkage tree with
+  `scipy.cluster.hierarchy.fcluster(..., 'maxclust')` is not an alternative (it peels off tiny clusters one by one), and tuning
+  `cluster_selection_epsilon` until `K` clusters appear works only if the data has `K` separated density peaks.
+- Tutorial 12 (HDBSCAN) shows how to initialise a Gaussian mixture from an HDBSCAN run: the number of clusters, the means, the weights and the
+  covariances come from the cluster assignments and are passed to `GaussianMixture` as initialisation tensors.
+
+### Removed (breaking)
+
+tgmm now only provides **Gaussian mixtures**. These are last available in 0.4.3 (the Student-t and von Mises-Fisher classes were introduced in 0.4.0, `GenericMixture` in 0.4.1):
+
+- `StudentTMixture` (`tgmm.mixtures.student_t`) and `VonMisesFisherMixture` (`tgmm.mixtures.vmf`).
+- The von Mises-Fisher plotting helpers `plot_vmf`, `plot_vmf_cosine`, `vmf_angle_density` and `vmf_cap_angle`.
+- `GenericMixture` and the `Component` protocol (`tgmm.mixtures.generic`, `tgmm.mixtures.protocol`): the "bring your own distribution" framework, with its
+  exponential/normal example.
+- The `family` argument of `PositiveUnlabeledMixture` (it had `'gaussian'`, `'student_t'` and `'vmf'`; the model is Gaussian only now, so
+  `PositiveUnlabeledMixture(family='gaussian', ...)` becomes `PositiveUnlabeledMixture(...)`).
+- The two tutorials on the Student-t and von Mises-Fisher families, the `GenericMixture` section of the noise/missing-values/conditioning tutorial, and
+  these classes' API pages; the other tutorials are renumbered and the old URLs redirect.
+
+Code that imports or constructs the removed classes breaks, so the next release should bump the minor version (0.5.0). The shared
+`BaseMixture` machinery stays: it underlies `GaussianMixture` and `ConditionalGaussianMixture`.
+
+### Changed (documentation)
+
+- The documentation is now one set of tutorials (marimo notebooks) plus the API reference. The separate user guide and the
+  in-browser explainers are gone; their content was merged into the tutorials, and the old URLs redirect.
+- Tutorials are reordered and renumbered (19 notebooks): 01 Introduction (EM videos; the blob designer is at the end), 02 Covariance types,
+  03 Initialization (new), 04 Priors (MAP and NIW, merged), 05 Sampling, 06-14 the rest in order, 15 Semi-supervised and PU fitting,
+  16 Noise, missing values and conditioning, 17 Constraints, frozen components and sample weights (new), and two algorithm
+  walk-throughs, 18 k-means++ seeding and 19 k-means (Lloyd), with step-by-step videos. The default four-blob dataset lives in
+  `notebooks/tutorial_data.py`; every notebook's interactive controls live in a final "Try it yourself" section.
+- Every tutorial page links to an interactive (molab) version of the notebook.
+- Tutorial data: the default four-blob dataset is the one the tutorials always showed. An earlier `generate_gmm_data` sampled with
+  `Z @ cov`, so the matrices requested then (`1.0*I`, `0.5*I`, `[[2, 0], [0, 0.5]]`, `[[0.2, 0.5], [0.5, 2]]`) really produced
+  `covᵀ·cov`; the tutorials now state those matrices explicitly.
+
 ## [0.4.3] -- 2026-10-21
 
 Adds fixed values and bounds for `GaussianMixture` parameters. Purely additive: with the new arguments off, fits are bit-identical to 0.4.2.

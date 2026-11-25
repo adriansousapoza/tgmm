@@ -1,0 +1,24 @@
+{
+  "seed": 0,
+  "k": 4,
+  "iterations": 13,
+  "inertia_start": 7296.4140625,
+  "inertia_end": 5059.4228515625,
+  "iterations_shown": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "frames": 13,
+  "fps": 2
+}

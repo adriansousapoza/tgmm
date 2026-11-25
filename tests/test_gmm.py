@@ -827,8 +827,8 @@ def test_unsupervised_fit_unaffected_by_labels_param_default():
 def test_supervised_fit_then_unsupervised_fit_clears_classes_():
     """`classes_` is documented as set only after a (semi-)supervised fit,
     `None` otherwise (Phase 5 generalized this from "absent otherwise" to
-    "None otherwise" so every mixture family, not just a `GaussianMixture`
-    that has actually been supervised-fit once, can carry the attribute).
+    "None otherwise" so the attribute always exists, not just on a `GaussianMixture`
+    that has actually been supervised-fit once).
     A later unsupervised fit on the same instance must not leave a stale
     label mapping from a previous supervised fit lying around --
     predict()/classes_ lookups would silently mis-map otherwise."""

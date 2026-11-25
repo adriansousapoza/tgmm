@@ -10,12 +10,12 @@ import numpy as np
 import pytest
 import torch
 
-from tgmm import GaussianMixture, PositiveUnlabeledMixture, StudentTMixture, VonMisesFisherMixture
+from tgmm import GaussianMixture, PositiveUnlabeledMixture
 
 DT = torch.float64
 CLASSIC = ['full', 'diag', 'spherical', 'tied_full', 'tied_diag', 'tied_spherical']
 ALGORITHMS = ['em', 'cem', 'sem', 'saem']
-PARAMS = ('weights_', 'means_', 'covariances_', 'dof_', 'kappa_', 'noise_weight_')
+PARAMS = ('weights_', 'means_', 'covariances_', 'noise_weight_')
 
 
 # ---------------------------------------------------------------------------
@@ -29,11 +29,6 @@ def blobs(n_per=40, d=2, seed=0, K=3):
         X.append(torch.randn(n_per, d, generator=g, dtype=DT) * (0.8 + 0.2 * k) + centers[k])
         y.append(torch.full((n_per,), k))
     return torch.cat(X), torch.cat(y)
-
-
-def sphere_blobs(n_per=40, d=3, seed=0, K=3):
-    X, y = blobs(n_per, d, seed, K)
-    return X / X.norm(dim=1, keepdim=True), y
 
 
 def init_means_for(X, K=3):
@@ -65,19 +60,11 @@ def assert_same_params(a, b, atol=1e-8, rtol=1e-6):
         )
 
 
-def make(family, X, K=3, cov='full', **kw):
+def make(X, K=3, cov='full', **kw):
     """A model with fully explicit initialisation, so two fits start from identical parameters."""
     base = dict(n_components=K, n_features=X.shape[1], init_means=init_means_for(X, K), init_weights='uniform',
                 max_iter=25, tol=1e-30, random_state=0)
-    if family == 'gmm':
-        return GaussianMixture(covariance_type=cov, init_covariances='eye', **{**base, **kw})
-    if family == 't':
-        return StudentTMixture(covariance_type=cov, init_covariances='eye', **{**base, **kw})
-    return VonMisesFisherMixture(**{**base, **kw})
-
-
-def data_for(family, **kw):
-    return sphere_blobs(**kw) if family == 'vmf' else blobs(**kw)
+    return GaussianMixture(covariance_type=cov, init_covariances='eye', **{**base, **kw})
 
 
 def int_weights(n, seed=3):
@@ -93,57 +80,35 @@ def test_integer_weights_equal_row_duplication_gaussian(cov):
     X, _ = blobs()
     w = int_weights(X.shape[0])
     X_dup = X.repeat_interleave(w.long(), dim=0)
-    a = fit_quiet(make('gmm', X, cov=cov), X, sample_weight=w)
-    b = fit_quiet(make('gmm', X, cov=cov), X_dup)
+    a = fit_quiet(make(X, cov=cov), X, sample_weight=w)
+    b = fit_quiet(make(X, cov=cov), X_dup)
     assert_same_params(a, b)
 
 
-@pytest.mark.parametrize('cov', ['full', 'diag', 'spherical', 'tied_full'])
-def test_integer_weights_equal_row_duplication_student_t(cov):
+def test_zero_weight_rows_are_ignored():
     X, _ = blobs()
-    w = int_weights(X.shape[0])
-    X_dup = X.repeat_interleave(w.long(), dim=0)
-    a = fit_quiet(make('t', X, cov=cov), X, sample_weight=w)
-    b = fit_quiet(make('t', X, cov=cov), X_dup)
-    assert_same_params(a, b)
-
-
-def test_integer_weights_equal_row_duplication_vmf():
-    X, _ = sphere_blobs()
-    w = int_weights(X.shape[0])
-    X_dup = X.repeat_interleave(w.long(), dim=0)
-    a = fit_quiet(make('vmf', X), X, sample_weight=w)
-    b = fit_quiet(make('vmf', X), X_dup)
-    assert_same_params(a, b)
-
-
-@pytest.mark.parametrize('family', ['gmm', 't', 'vmf'])
-def test_zero_weight_rows_are_ignored(family):
-    X, _ = data_for(family)
     g = torch.Generator().manual_seed(5)
     w = (torch.rand(X.shape[0], generator=g) > 0.3).to(DT)
     keep = w > 0
-    a = fit_quiet(make(family, X), X, sample_weight=w)
-    b = fit_quiet(make(family, X), X[keep])
+    a = fit_quiet(make(X), X, sample_weight=w)
+    b = fit_quiet(make(X), X[keep])
     assert_same_params(a, b)
 
 
-@pytest.mark.parametrize('family', ['gmm', 't', 'vmf'])
 @pytest.mark.parametrize('algorithm', ALGORITHMS)
-def test_constant_weight_is_a_no_op_for_every_algorithm(family, algorithm):
-    X, _ = data_for(family)
+def test_constant_weight_is_a_no_op_for_every_algorithm(algorithm):
+    X, _ = blobs()
     kw = dict(algorithm=algorithm, max_iter=12)
-    a = fit_quiet(make(family, X, **kw), X)
-    b = fit_quiet(make(family, X, **kw), X, sample_weight=torch.full((X.shape[0],), 3.0, dtype=DT))
+    a = fit_quiet(make(X, **kw), X)
+    b = fit_quiet(make(X, **kw), X, sample_weight=torch.full((X.shape[0],), 3.0, dtype=DT))
     assert_same_params(a, b, atol=1e-7)
 
 
-@pytest.mark.parametrize('family', ['gmm', 't', 'vmf'])
 @pytest.mark.parametrize('algorithm', ALGORITHMS)
-def test_weighted_fit_runs_and_is_finite(family, algorithm):
-    X, _ = data_for(family, n_per=60)
+def test_weighted_fit_runs_and_is_finite(algorithm):
+    X, _ = blobs(n_per=60)
     w = int_weights(X.shape[0])
-    m = fit_quiet(make(family, X, algorithm=algorithm, max_iter=15), X, sample_weight=w)
+    m = fit_quiet(make(X, algorithm=algorithm, max_iter=15), X, sample_weight=w)
     for name, v in params(m).items():
         assert torch.isfinite(v).all(), name
     assert abs(m.weights_.sum().item() - 1.0) < 1e-6
@@ -152,8 +117,8 @@ def test_weighted_fit_runs_and_is_finite(family, algorithm):
 
 def test_all_ones_weights_are_bit_identical_to_none():
     X, _ = blobs()
-    a = fit_quiet(make('gmm', X), X)
-    b = fit_quiet(make('gmm', X), X, sample_weight=torch.ones(X.shape[0], dtype=DT))
+    a = fit_quiet(make(X), X)
+    b = fit_quiet(make(X), X, sample_weight=torch.ones(X.shape[0], dtype=DT))
     for name, v in params(a).items():
         assert torch.equal(v, getattr(b, name))
     assert a.lower_bound_ == b.lower_bound_
@@ -168,8 +133,8 @@ def test_weights_with_map_priors_equal_duplication():
         mean_prior=torch.zeros(3, 2, dtype=DT), mean_precision_prior=0.5,
         covariance_prior=torch.eye(2, dtype=DT).repeat(3, 1, 1), degrees_of_freedom_prior=4.0,
     )
-    a = fit_quiet(make('gmm', X, **prior), X, sample_weight=w)
-    b = fit_quiet(make('gmm', X, **prior), X_dup)
+    a = fit_quiet(make(X, **prior), X, sample_weight=w)
+    b = fit_quiet(make(X, **prior), X_dup)
     assert_same_params(a, b)
 
 
@@ -180,8 +145,8 @@ def test_weights_with_noise_equal_duplication():
     w = int_weights(X.shape[0])
     X_dup = X.repeat_interleave(w.long(), dim=0)
     kw = dict(noise=True, noise_volume=24.0 * 24.0)
-    a = fit_quiet(make('gmm', X, **kw), X, sample_weight=w)
-    b = fit_quiet(make('gmm', X, **kw), X_dup)
+    a = fit_quiet(make(X, **kw), X, sample_weight=w)
+    b = fit_quiet(make(X, **kw), X_dup)
     assert_same_params(a, b)
     assert abs(a.weights_.sum().item() + a.noise_weight_.item() - 1.0) < 1e-6
 
@@ -195,18 +160,18 @@ def test_weights_with_missing_values_equal_duplication():
     Xn[mask] = float('nan')
     w = int_weights(X.shape[0])
     Xn_dup = Xn.repeat_interleave(w.long(), dim=0)
-    a = fit_quiet(make('gmm', X, missing='em'), Xn, sample_weight=w)
-    b = fit_quiet(make('gmm', X, missing='em'), Xn_dup)
+    a = fit_quiet(make(X, missing='em'), Xn, sample_weight=w)
+    b = fit_quiet(make(X, missing='em'), Xn_dup)
     assert_same_params(a, b)
 
 
-@pytest.mark.parametrize('family,cov', [('gmm', 'full'), ('gmm', 'diag'), ('t', 'full'), ('vmf', None)])
-def test_batch_size_chunked_equals_unchunked_with_weights(family, cov):
-    X, _ = data_for(family, n_per=50)
+@pytest.mark.parametrize('cov', ['full', 'diag'])
+def test_batch_size_chunked_equals_unchunked_with_weights(cov):
+    X, _ = blobs(n_per=50)
     w = int_weights(X.shape[0])
-    kw = {} if cov is None else {'cov': cov}
-    a = fit_quiet(make(family, X, **kw), X, sample_weight=w)
-    b = fit_quiet(make(family, X, batch_size=37, **kw), X, sample_weight=w)
+    kw = {'cov': cov}
+    a = fit_quiet(make(X, **kw), X, sample_weight=w)
+    b = fit_quiet(make(X, batch_size=37, **kw), X, sample_weight=w)
     assert_same_params(a, b, atol=1e-8)
 
 
@@ -226,7 +191,7 @@ def test_n_init_and_warm_start_with_weights():
 def test_weighted_lower_bound_is_the_weighted_mean_log_likelihood():
     X, _ = blobs()
     w = int_weights(X.shape[0])
-    m = fit_quiet(make('gmm', X, max_iter=60, tol=1e-9), X, sample_weight=w)
+    m = fit_quiet(make(X, max_iter=60, tol=1e-9), X, sample_weight=w)
     expected = (w * m.score_samples(X)).sum() / w.sum()
     assert m.lower_bound_ == pytest.approx(expected.item(), rel=1e-6)
 
@@ -281,31 +246,6 @@ def ref_gaussian(X, W, means, var, pi, iters, spherical, reg=1e-6):
     return pi, means, var
 
 
-def ref_student_diag(X, W, means, var, pi, nu, iters, reg=1e-6):
-    X, W = X.numpy(), W.numpy()
-    means, var, pi = means.numpy().copy(), var.numpy().copy(), pi.numpy().copy()
-    n, d = X.shape
-    K = len(pi)
-    p = W.sum(1)
-    from scipy.special import gammaln
-    for _ in range(iters):
-        logp = np.empty((n, K))
-        u = np.empty((n, K))
-        for k in range(K):
-            delta = (W * (X - means[k]) ** 2 / var[k]).sum(1)
-            logp[:, k] = (gammaln((nu + p) / 2) - gammaln(nu / 2) - 0.5 * p * np.log(nu * np.pi)
-                          - 0.5 * (W * np.log(var[k])).sum(1) - 0.5 * (nu + p) * np.log1p(delta / nu))
-            u[:, k] = (nu + p) / (nu + delta)
-        logp += np.log(pi)
-        r = np.exp(logp - np.logaddexp.reduce(logp, axis=1, keepdims=True))
-        pi = r.sum(0) / n
-        for k in range(K):
-            ruw = r[:, k:k + 1] * u[:, k:k + 1] * W
-            means[k] = (ruw * X).sum(0) / ruw.sum(0)
-            var[k] = (ruw * (X - means[k]) ** 2).sum(0) / (r[:, k:k + 1] * W).sum(0) + reg
-    return pi, means, var
-
-
 def feature_weights(n, d, seed=4, zero_frac=0.25):
     g = torch.Generator().manual_seed(seed)
     W = torch.rand(n, d, generator=g, dtype=DT) * 1.5 + 0.25
@@ -319,7 +259,7 @@ def feature_weights(n, d, seed=4, zero_frac=0.25):
 def test_per_feature_weights_match_numpy_reference_gaussian(cov):
     X, _ = blobs(d=3)
     W = feature_weights(*X.shape)
-    m = make('gmm', X, cov=cov, max_iter=15)
+    m = make(X, cov=cov, max_iter=15)
     mu0 = m.init_means.clone()
     K, d = 3, X.shape[1]
     var0 = torch.full((K, d), 1.0 + 1e-6, dtype=DT) if cov == 'diag' else torch.full((K,), 1.0 + 1e-6, dtype=DT)
@@ -330,34 +270,21 @@ def test_per_feature_weights_match_numpy_reference_gaussian(cov):
     assert np.allclose(m.covariances_.numpy(), var, atol=1e-8)
 
 
-def test_per_feature_weights_match_numpy_reference_student_t_diag():
+@pytest.mark.parametrize('cov', ['diag', 'spherical'])
+def test_all_ones_per_feature_weights_are_bit_identical_to_none(cov):
     X, _ = blobs(d=3)
-    W = feature_weights(*X.shape)
-    m = make('t', X, cov='diag', dof=4.0, max_iter=15)
-    mu0 = m.init_means.clone()
-    var0 = torch.full((3, 3), 1.0 + 1e-6, dtype=DT)
-    fit_quiet(m, X, sample_weight=W)
-    pi, mu, var = ref_student_diag(X, W, mu0, var0, torch.full((3,), 1 / 3, dtype=DT), 4.0, 15)
-    assert np.allclose(m.weights_.numpy(), pi, atol=1e-8)
-    assert np.allclose(m.means_.numpy(), mu, atol=1e-8)
-    assert np.allclose(m.covariances_.numpy(), var, atol=1e-8)
-
-
-@pytest.mark.parametrize('family,cov', [('gmm', 'diag'), ('gmm', 'spherical'), ('t', 'diag')])
-def test_all_ones_per_feature_weights_are_bit_identical_to_none(family, cov):
-    X, _ = blobs(d=3)
-    a = fit_quiet(make(family, X, cov=cov), X)
-    b = fit_quiet(make(family, X, cov=cov), X, sample_weight=torch.ones(X.shape, dtype=DT))
+    a = fit_quiet(make(X, cov=cov), X)
+    b = fit_quiet(make(X, cov=cov), X, sample_weight=torch.ones(X.shape, dtype=DT))
     for name, v in params(a).items():
         assert torch.equal(v, getattr(b, name)), name
 
 
-@pytest.mark.parametrize('family,cov', [('gmm', 'diag'), ('gmm', 'spherical'), ('t', 'diag')])
-def test_per_feature_weights_chunked_equals_unchunked(family, cov):
+@pytest.mark.parametrize('cov', ['diag', 'spherical'])
+def test_per_feature_weights_chunked_equals_unchunked(cov):
     X, _ = blobs(d=3, n_per=50)
     W = feature_weights(*X.shape)
-    a = fit_quiet(make(family, X, cov=cov), X, sample_weight=W)
-    b = fit_quiet(make(family, X, cov=cov, batch_size=41), X, sample_weight=W)
+    a = fit_quiet(make(X, cov=cov), X, sample_weight=W)
+    b = fit_quiet(make(X, cov=cov, batch_size=41), X, sample_weight=W)
     assert_same_params(a, b)
 
 
@@ -365,7 +292,7 @@ def test_per_feature_weights_chunked_equals_unchunked(family, cov):
 def test_per_feature_weights_all_algorithms(algorithm):
     X, _ = blobs(d=3, n_per=50)
     W = feature_weights(*X.shape)
-    m = fit_quiet(make('gmm', X, cov='diag', algorithm=algorithm, max_iter=15), X, sample_weight=W)
+    m = fit_quiet(make(X, cov='diag', algorithm=algorithm, max_iter=15), X, sample_weight=W)
     assert all(torch.isfinite(v).all() for v in params(m).values())
 
 
@@ -378,8 +305,8 @@ def test_zero_feature_weight_equals_a_missing_entry_for_diag_gaussians():
     W = (~hole).to(DT)
     Xn = X.clone()
     Xn[hole] = float('nan')
-    a = fit_quiet(make('gmm', X, cov='diag'), X, sample_weight=W)
-    b = fit_quiet(make('gmm', X, cov='diag', missing='em'), Xn)
+    a = fit_quiet(make(X, cov='diag'), X, sample_weight=W)
+    b = fit_quiet(make(X, cov='diag', missing='em'), Xn)
     assert_same_params(a, b, atol=1e-6)
 
 
@@ -389,10 +316,6 @@ def test_per_feature_weights_validation():
     for cov in ['full', 'tied_full', 'tied_diag', 'tied_spherical', 'VEI', 'EVE']:
         with pytest.raises(ValueError, match='per-feature'):
             GaussianMixture(n_components=3, covariance_type=cov).fit(X, sample_weight=W)
-    with pytest.raises(ValueError, match='per-feature'):
-        StudentTMixture(n_components=3, covariance_type='full').fit(X, sample_weight=W)
-    with pytest.raises(ValueError, match='per-feature'):
-        VonMisesFisherMixture(n_components=3).fit(sphere_blobs(d=3)[0], sample_weight=W)
 
 
 def test_per_feature_weights_unsupported_combinations():
@@ -412,20 +335,18 @@ def test_per_feature_weights_unsupported_combinations():
 # ===========================================================================
 # 3. frozen_components
 # ===========================================================================
-def frozen_model(family, X, frozen=(1,), cov='full', **kw):
-    m = make(family, X, cov=cov, frozen_components=frozen, **kw) if family != 'vmf' else \
-        make(family, X, frozen_components=frozen, **kw)
-    return m
+def frozen_model(X, frozen=(1,), cov='full', **kw):
+    return make(X, cov=cov, frozen_components=frozen, **kw)
 
 
 @pytest.mark.parametrize('cov', ['full', 'diag', 'spherical'])
 def test_frozen_components_keep_initial_parameters_gaussian(cov):
     X, _ = blobs()
-    probe = make('gmm', X, cov=cov)
+    probe = make(X, cov=cov)
     probe.dtype = DT
     probe._allocate_parameters(X, set_random_state=False)
     mu0, cov0 = probe.means_.clone(), probe.covariances_.clone()
-    m = frozen_model('gmm', X, frozen=(1,), cov=cov)
+    m = frozen_model(X, frozen=(1,), cov=cov)
     fit_quiet(m, X)
     assert torch.equal(m.means_[1], mu0[1])
     assert torch.equal(m.covariances_[1], cov0[1])
@@ -446,39 +367,19 @@ def test_frozen_covariance_equals_its_initial_value():
 
 def test_frozen_weights_still_update():
     X, _ = blobs()
-    m = frozen_model('gmm', X, frozen=(0,))
+    m = frozen_model(X, frozen=(0,))
     fit_quiet(m, X)
     assert abs(m.weights_.sum().item() - 1.0) < 1e-6
     assert (m.weights_ > 0).all()
 
 
-def test_frozen_components_student_t_and_vmf():
-    X, _ = blobs()
-    m = frozen_model('t', X, frozen=(2,), cov='full')
-    mu0 = m.init_means.clone()
-    fit_quiet(m, X)
-    assert torch.equal(m.means_[2], mu0[2])
-    assert m.dof_[2].item() == 5.0                      # dof_init: frozen components keep their dof too
-    assert m.dof_[0].item() != 5.0
-
-    Xs, _ = sphere_blobs()
-    v = frozen_model('vmf', Xs, frozen=(1,))
-    mu0, k0 = v.init_means.clone(), None
-    fit_quiet(v, Xs)
-    assert torch.allclose(v.means_[1], mu0[1] / mu0[1].norm())
-    assert v.kappa_[1].item() == 10.0                   # kappa_init
-    assert v.kappa_[0].item() != 10.0
-
-
-@pytest.mark.parametrize('family', ['gmm', 't', 'vmf'])
 @pytest.mark.parametrize('algorithm', ALGORITHMS)
-def test_frozen_components_all_algorithms(family, algorithm):
-    X, _ = data_for(family, n_per=60)
-    m = frozen_model(family, X, frozen=(0, 2), algorithm=algorithm, max_iter=15)
+def test_frozen_components_all_algorithms(algorithm):
+    X, _ = blobs(n_per=60)
+    m = frozen_model(X, frozen=(0, 2), algorithm=algorithm, max_iter=15)
     mu0 = m.init_means.clone()
     fit_quiet(m, X)
-    ref = mu0 if family != 'vmf' else mu0 / mu0.norm(dim=1, keepdim=True)
-    assert torch.allclose(m.means_[0], ref[0]) and torch.allclose(m.means_[2], ref[2])
+    assert torch.allclose(m.means_[0], mu0[0]) and torch.allclose(m.means_[2], mu0[2])
     assert abs(m.weights_.sum().item() - 1.0) < 1e-6
     assert all(torch.isfinite(v).all() for v in params(m).values())
 
@@ -512,7 +413,7 @@ def test_frozen_with_noise_noise_weight_updates():
     X, _ = blobs()
     noise = (torch.rand(15, 2, generator=torch.Generator().manual_seed(9), dtype=DT) - 0.5) * 24
     X = torch.cat([X, noise])
-    m = frozen_model('gmm', X, frozen=(0,), noise=True)
+    m = frozen_model(X, frozen=(0,), noise=True)
     mu0 = m.init_means.clone()
     fit_quiet(m, X)
     assert torch.equal(m.means_[0], mu0[0])
@@ -533,8 +434,8 @@ def test_frozen_components_use_previous_fit_under_warm_start():
 
 def test_frozen_batch_size_equality():
     X, _ = blobs(n_per=50)
-    a = fit_quiet(frozen_model('gmm', X, frozen=(1,)), X)
-    b = fit_quiet(frozen_model('gmm', X, frozen=(1,), batch_size=37), X)
+    a = fit_quiet(frozen_model(X, frozen=(1,)), X)
+    b = fit_quiet(frozen_model(X, frozen=(1,), batch_size=37), X)
     assert_same_params(a, b)
 
 
@@ -552,10 +453,6 @@ def test_frozen_unsupported_covariance_types(kwargs, match):
 
 
 def test_frozen_unsupported_shared_parameters_and_invalid_indices():
-    with pytest.raises(ValueError, match='shared'):
-        StudentTMixture(n_components=3, dof='shared', frozen_components=(0,))
-    with pytest.raises(ValueError, match='shared'):
-        VonMisesFisherMixture(n_components=3, concentration='shared', frozen_components=(0,))
     with pytest.raises(ValueError, match='Gibbs'):
         GaussianMixture(n_components=None, frozen_components=(0,))
     for bad in [(3,), (-1,), (0, 0), (0.5,), ('a',)]:
@@ -567,31 +464,25 @@ def test_frozen_unsupported_shared_parameters_and_invalid_indices():
 
 def test_frozen_components_without_any_freeze_is_bit_identical():
     X, _ = blobs()
-    a = fit_quiet(make('gmm', X), X)
-    b = fit_quiet(make('gmm', X, frozen_components=()), X)
+    a = fit_quiet(make(X), X)
+    b = fit_quiet(make(X, frozen_components=()), X)
     for name, v in params(a).items():
         assert torch.equal(v, getattr(b, name))
 
 
 def test_frozen_components_persistence_round_trips():
     X, _ = blobs()
-    Xs, _ = sphere_blobs()
-    models = [
-        (frozen_model('gmm', X, frozen=(1,)), X, GaussianMixture),
-        (frozen_model('t', X, frozen=(0, 2)), X, StudentTMixture),
-        (frozen_model('vmf', Xs, frozen=(1,)), Xs, VonMisesFisherMixture),
-    ]
-    for m, data, cls in models:
-        fit_quiet(m, data)
+    for frozen in [(1,), (0, 2)]:
+        m = frozen_model(X, frozen=frozen)
+        fit_quiet(m, X)
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, 'm.pth')
             m.save(path)
-            assert cls.load(path).frozen_components == m.frozen_components
-        state = m.save_state_dict()
-        fresh = make('gmm', X) if cls is GaussianMixture else (make('t', X) if cls is StudentTMixture else make('vmf', Xs))
-        fresh.load_state_dict(state)
+            assert GaussianMixture.load(path).frozen_components == m.frozen_components
+        fresh = make(X)
+        fresh.load_state_dict(m.save_state_dict())
         assert fresh.frozen_components == m.frozen_components
-        assert cls.__name__ and m.to_dict()['frozen_components'] == list(m.frozen_components)
+        assert m.to_dict()['frozen_components'] == list(m.frozen_components)
 
 
 # ===========================================================================
@@ -611,7 +502,7 @@ def pu_data(seed=0):
 
 def test_pu_fixed_anchor_weights_are_normalised_and_class_prior_is_unbiased():
     X, is_pos, labeled = pu_data()
-    pu = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=1, family='gaussian',
+    pu = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=1,
                                   anchor='fixed', covariance_type='full', random_state=0, max_iter=200)
     fit_quiet(pu, X, labeled)
     assert abs(pu.model_.weights_.sum().item() - 1.0) < 1e-6
@@ -623,15 +514,6 @@ def test_pu_fixed_anchor_weights_are_normalised_and_class_prior_is_unbiased():
     ref = GaussianMixture(n_components=1, covariance_type='full', random_state=0).fit(X[labeled])
     assert torch.allclose(pu.model_.means_[1], ref.means_[0], atol=1e-6)
     assert torch.allclose(pu.model_.covariances_[1], ref.covariances_[0], atol=1e-6)
-
-
-@pytest.mark.parametrize('family', ['student_t'])
-def test_pu_fixed_anchor_other_families_normalised(family):
-    X, is_pos, labeled = pu_data()
-    pu = PositiveUnlabeledMixture(n_components_positive=1, n_components_negative=1, family=family,
-                                  anchor='fixed', random_state=0, max_iter=100)
-    fit_quiet(pu, X, labeled)
-    assert abs(pu.model_.weights_.sum().item() - 1.0) < 1e-6
 
 
 def test_pu_rejects_frozen_components_kwarg():
